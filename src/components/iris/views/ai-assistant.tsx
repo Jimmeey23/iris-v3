@@ -8,6 +8,8 @@ import {
   createInitialState,
   ConversationState,
 } from "@/lib/iris/conversation-engine";
+import { buildTicketDetail, TicketDetailData } from "@/lib/iris/ticket-detail-builder";
+import { TicketPreviewModal } from "@/components/iris/ticket-preview-modal";
 import { cn } from "@/lib/utils";
 import { STUDIOS, EMPLOYEES } from "@/lib/iris/types";
 import { generateId, getInitials, getAvatarColor } from "@/lib/iris/utils";
@@ -41,6 +43,9 @@ import {
   X,
   CornerDownLeft,
   Cog,
+  Layers,
+  Edit2,
+  FileText,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -71,6 +76,7 @@ export function AIAssistantView() {
     conversationState,
     setConversationState,
     currentUser,
+    setCurrentView,
   } = useAppStore();
 
   const [input, setInput] = React.useState("");
@@ -775,7 +781,16 @@ function renderRichContent(content: string) {
 }
 
 function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage["ticketPreview"]>; metadata?: AIMessage["metadata"] }) {
-  const { setCurrentView } = useAppStore();
+  const { setCurrentView, conversationState } = useAppStore();
+  const [showFullModal, setShowFullModal] = React.useState(false);
+  const [ticketDetailData, setTicketDetailData] = React.useState<TicketDetailData | null>(null);
+
+  const handleReviewFull = () => {
+    const detail = buildTicketDetail(conversationState);
+    setTicketDetailData(detail);
+    setShowFullModal(true);
+  };
+
   return (
     <div>
       {/* Header */}
@@ -785,7 +800,7 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
           <div className="text-[12px] font-semibold">Ticket Preview — Ready to Create</div>
           <span className="ml-auto text-[10px] font-mono bg-white/15 px-1.5 py-0.5 rounded">{ticket.ticketId}</span>
         </div>
-        <div className="text-[10px] text-white/80">All fields auto-populated by IRIS multi-agent system</div>
+        <div className="text-[10px] text-white/80">All fields auto-populated by IRIS multi-agent system · Click "Review Full Details" for advanced view</div>
       </div>
 
       <div className="p-4 space-y-3">
@@ -798,14 +813,14 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
         {/* Description */}
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Description</div>
-          <div className="text-[12px] text-muted-foreground leading-relaxed">{ticket.description}</div>
+          <div className="text-[12px] text-muted-foreground leading-relaxed line-clamp-3">{ticket.description}</div>
         </div>
 
         {/* Business impact */}
         {ticket.businessImpact && (
           <div className="p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">Business Impact</div>
-            <div className="text-[12px] text-foreground/90 leading-relaxed">{ticket.businessImpact}</div>
+            <div className="text-[12px] text-foreground/90 leading-relaxed line-clamp-2">{ticket.businessImpact}</div>
           </div>
         )}
 
@@ -826,7 +841,7 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
               <Zap className="w-3 h-3 text-amber-500" />
               Recommended Resolution
             </div>
-            <div className="p-2.5 rounded-md bg-muted/40 border border-border text-[12px] text-foreground/90 leading-relaxed whitespace-pre-line">
+            <div className="p-2.5 rounded-md bg-muted/40 border border-border text-[12px] text-foreground/90 leading-relaxed whitespace-pre-line line-clamp-3">
               {ticket.recommendedActions.split("\n").slice(0, 3).join("\n")}
             </div>
           </div>
@@ -853,20 +868,54 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-3 border-t border-border">
-          <button
-            onClick={() => setCurrentView("all_tickets")}
-            className="flex-1 px-3 py-2.5 rounded-lg iris-btn-premium text-[12px] flex items-center justify-center gap-1.5 iris-action-shimmer"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Create & Route Ticket
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-          <button className="px-3 py-2.5 rounded-lg border border-border text-[12px] font-medium hover:bg-muted transition-colors">
-            Edit Details
-          </button>
+        <div className="space-y-2 pt-3 border-t border-border">
+          {/* Primary actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentView("all_tickets")}
+              className="flex-1 px-3 py-2.5 rounded-lg iris-btn-premium text-[12px] flex items-center justify-center gap-1.5 iris-action-shimmer"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Create & Route Ticket
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleReviewFull}
+              className="px-3 py-2.5 rounded-lg border border-violet-500/30 bg-violet-500/5 text-violet-600 dark:text-violet-400 text-[12px] font-medium hover:bg-violet-500/10 transition-colors flex items-center gap-1.5"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Review Full Details
+            </button>
+          </div>
+          {/* Secondary actions */}
+          <div className="flex items-center gap-2">
+            <button className="flex-1 px-2.5 py-1.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors flex items-center justify-center gap-1">
+              <FileText className="w-3 h-3" />
+              Save as Draft
+            </button>
+            <button className="flex-1 px-2.5 py-1.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors flex items-center justify-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              Escalate Now
+            </button>
+            <button className="flex-1 px-2.5 py-1.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors flex items-center justify-center gap-1">
+              <Edit2 className="w-3 h-3" />
+              Edit
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Advanced Modal */}
+      {showFullModal && ticketDetailData && (
+        <TicketPreviewModal
+          data={ticketDetailData}
+          onClose={() => setShowFullModal(false)}
+          onCreate={() => {
+            setShowFullModal(false);
+            setCurrentView("all_tickets");
+          }}
+        />
+      )}
     </div>
   );
 }
