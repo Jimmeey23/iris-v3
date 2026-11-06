@@ -1,0 +1,260 @@
+// IRIS — Issue Resolution & Intelligence System
+// Prisma schema for Physique 57 India
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ Core Organization Models ============
+
+model Studio {
+  id          String   @id @default(cuid())
+  name        String
+  city        String   // Mumbai | Bengaluru
+  code        String   @unique
+  address     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employees   Employee[]
+  tickets     Ticket[]
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  parentId    String?
+  parent      Department? @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DeptHierarchy")
+  employees   Employee[]
+  tickets     Ticket[]
+  slaConfig   String? // JSON: { p0: { response: 60, resolution: 240 }, ... }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Employee {
+  id            String   @id @default(cuid())
+  employeeCode  String   @unique
+  name          String
+  email         String   @unique
+  phone         String?
+  role          String
+  title         String?
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  studioId      String?
+  studio        Studio? @relation(fields: [studioId], references: [id])
+  skills        String? // JSON array
+  availability  String   @default("available") // available | busy | offline | on_leave
+  workload      Int      @default(0) // current open ticket count
+  maxWorkload   Int      @default(15)
+  escalationOrder Int    @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  assignedTickets  Ticket[] @relation("Assignee")
+  reportedTickets  Ticket[] @relation("Reporter")
+}
+
+// ============ Ticket Models ============
+
+model Ticket {
+  id              String   @id @default(cuid())
+  ticketId        String   @unique // IRIS-2024-0001
+  title           String
+  description     String
+  templateId      String?
+  category        String
+  subcategory     String?
+  priority        String   // P0 | P1 | P2 | P3
+  urgency         String   // critical | high | medium | low
+  status          String   @default("open") // open | in_progress | awaiting_response | resolved | closed | escalated
+  studioId        String?
+  studio          Studio?  @relation(fields: [studioId], references: [id])
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  assigneeId      String?
+  assignee        Employee? @relation("Assignee", fields: [assigneeId], references: [id])
+  reporterId      String?
+  reporter        Employee? @relation("Reporter", fields: [reporterId], references: [id])
+  affectedClient  String?
+  clientMomenceId String?
+  membershipId    String?
+  bookingId       String?
+  equipment       String?
+  businessImpact  String?
+  operationalImpact String?
+  severity        String?
+  resolution      String?
+  resolutionSummary String?
+  investigationNotes String?
+  attachments     String? // JSON array
+  relatedTickets  String? // JSON array
+  recommendedResolution String?
+  slaResponseTarget DateTime?
+  slaResolutionTarget DateTime?
+  slaStatus       String   @default("on_track") // on_track | at_risk | breached | paused
+  escalationLevel Int      @default(0)
+  source          String   @default("ai_assistant") // ai_assistant | manual | email | whatsapp
+  tags            String?
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  reopenedCount   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  activities      TicketActivity[]
+  comments        TicketComment[]
+}
+
+model TicketActivity {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  type        String   // created | assigned | reassigned | status_changed | escalated | sla_updated | comment | resolved | reopened
+  description String
+  actorId     String?
+  metadata    String? // JSON
+  createdAt   DateTime @default(now())
+}
+
+model TicketComment {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId    String?
+  authorName  String
+  content     String
+  isInternal  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ============ Templates & Reports ============
+
+model TicketTemplate {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  description String
+  category    String
+  subcategory String?
+  departmentCode String
+  defaultPriority String
+  defaultSeverity String?
+  suggestedAssigneeRole String?
+  requiredFields String? // JSON
+  conditionalFields String? // JSON
+  customFields String? // JSON
+  prefilledOptions String? // JSON
+  recommendedActions String?
+  estimatedResolutionHours Int?
+  usageCount  Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String
+  category    String
+  type        String   // tabular | chart | summary | matrix
+  dataSource  String
+  queryConfig String? // JSON
+  outputFormats String // csv | xlsx | pdf | json
+  defaultFilters String? // JSON
+  visualizations String? // JSON
+  schedule    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============ Configuration Models ============
+
+model SLAConfig {
+  id              String   @id @default(cuid())
+  priority        String   @unique // P0 | P1 | P2 | P3
+  responseTargetMin Int
+  resolutionTargetMin Int
+  escalationThresholdMin Int
+  businessHoursOnly Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RoutingRule {
+  id          String   @id @default(cuid())
+  name        String
+  condition   String? // JSON
+  departmentCode String?
+  assigneeRole String?
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  trigger     String   // ticket_created | escalation | assignment | due_3h | due_today | past_due_3h
+  subject     String
+  bodyHtml    String
+  bodyText    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MomenceConfig {
+  id          String   @id @default(cuid())
+  region      String   @unique // mumbai | bengaluru
+  hostId      String
+  apiBaseUrl  String
+  clientId    String?
+  clientSecret String?
+  accessToken String?
+  refreshToken String?
+  tokenExpiry DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorName   String
+  action      String
+  resource    String
+  resourceId  String?
+  metadata    String? // JSON
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+
+model AIModelConfig {
+  id          String   @id @default(cuid())
+  provider    String   // openai | anthropic
+  model       String
+  purpose     String   // conversation | classification | investigation | summarization
+  apiKey      String?
+  temperature Float    @default(0.7)
+  maxTokens   Int      @default(4096)
+  isPrimary   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
