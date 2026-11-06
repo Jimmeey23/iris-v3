@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useAppStore, ViewName } from "@/lib/iris/store";
 import { cn } from "@/lib/utils";
+import { IrisLogo } from "./iris-logo";
 import {
   LayoutDashboard,
   Sparkles,
@@ -19,14 +20,15 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  CircleDot,
-  AlertTriangle,
   Bell,
   Search,
   Command,
   Moon,
   Sun,
   Plus,
+  AlertTriangle,
+  Brain,
+  Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -47,22 +49,23 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   group: "main" | "intelligence" | "config";
   badge?: () => number;
+  desc?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard, group: "main" },
-  { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, group: "main" },
-  { id: "all_tickets", label: "All Tickets", icon: Ticket, group: "main", badge: () => ALL_TICKETS.filter(t => t.status !== "closed" && t.status !== "resolved").length },
-  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === "emp_001").length },
-  { id: "department_queue", label: "Department Queue", icon: Building2, group: "main" },
-  { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
-  { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence" },
-  { id: "templates", label: "Ticket Templates", icon: LayoutTemplate, group: "intelligence" },
-  { id: "reports", label: "Reports Library", icon: FileBarChart, group: "intelligence" },
-  { id: "knowledge_base", label: "Knowledge Base", icon: BookOpen, group: "intelligence" },
-  { id: "momence", label: "Momence Integration", icon: Plug, group: "config" },
-  { id: "email_templates", label: "Email Templates", icon: Mail, group: "config" },
-  { id: "settings", label: "Settings", icon: Settings, group: "config" },
+  { id: "overview", label: "Overview", icon: LayoutDashboard, group: "main", desc: "Operations dashboard" },
+  { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, group: "main", desc: "Report & resolve issues" },
+  { id: "all_tickets", label: "All Tickets", icon: Ticket, group: "main", badge: () => ALL_TICKETS.filter(t => t.status !== "closed" && t.status !== "resolved").length, desc: "All studio tickets" },
+  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === "emp_001").length, desc: "Assigned to you" },
+  { id: "department_queue", label: "Department Queue", icon: Building2, group: "main", desc: "Your department's queue" },
+  { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length, desc: "Critical & overdue" },
+  { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence", desc: "Deep operational insights" },
+  { id: "templates", label: "Ticket Templates", icon: LayoutTemplate, group: "intelligence", desc: "110+ pre-configured templates" },
+  { id: "reports", label: "Reports Library", icon: FileBarChart, group: "intelligence", desc: "110+ detailed reports" },
+  { id: "knowledge_base", label: "Knowledge Base", icon: BookOpen, group: "intelligence", desc: "Operational guides" },
+  { id: "momence", label: "Momence Integration", icon: Plug, group: "config", desc: "Member & session data" },
+  { id: "email_templates", label: "Email Templates", icon: Mail, group: "config", desc: "Notification & digest templates" },
+  { id: "settings", label: "Settings", icon: Settings, group: "config", desc: "System configuration" },
 ];
 
 const NAV_GROUPS = [
@@ -82,21 +85,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex flex-col border-r border-border bg-sidebar transition-all duration-300 ease-in-out relative z-30",
-          sidebarCollapsed ? "w-[68px]" : "w-[260px]"
+          "flex flex-col border-r border-border bg-sidebar/95 backdrop-blur-xl transition-all duration-300 ease-in-out relative z-30",
+          sidebarCollapsed ? "w-[72px]" : "w-[264px]"
         )}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border shrink-0">
-          <div className="relative shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <span className="text-white font-bold text-base tracking-tight">IR</span>
-            </div>
+        {/* Logo — clickable to go home */}
+        <button
+          onClick={() => setCurrentView("overview")}
+          className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border shrink-0 hover:bg-sidebar-accent/40 transition-colors group"
+          title="Go to Overview"
+        >
+          <div className="relative shrink-0 transition-transform group-hover:scale-105">
+            <IrisLogo size={36} />
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
           </div>
           {!sidebarCollapsed && (
-            <div className="iris-fade-in overflow-hidden">
-              <div className="text-[15px] font-semibold tracking-tight text-sidebar-foreground leading-tight">
+            <div className="iris-fade-in overflow-hidden text-left">
+              <div className="text-[15px] font-bold tracking-tight text-sidebar-foreground leading-tight">
                 IRIS
               </div>
               <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
@@ -104,14 +109,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           )}
-        </div>
+        </button>
 
-        {/* New Ticket Button */}
+        {/* New Issue Button */}
         <div className="p-3 shrink-0">
           <button
             onClick={() => setCurrentView("ai_assistant")}
             className={cn(
-              "w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-medium px-3 py-2.5 iris-btn-glow transition-all hover:from-violet-500 hover:to-indigo-500",
+              "w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[13px] font-medium px-3 py-2.5 iris-btn-premium transition-all hover:from-violet-500 hover:to-indigo-500",
               sidebarCollapsed && "px-0"
             )}
           >
@@ -121,14 +126,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-2 pb-4 iris-scrollbar">
+        <nav className="flex-1 overflow-y-auto px-2.5 pb-4 iris-scrollbar">
           {NAV_GROUPS.map((group) => {
             const items = NAV_ITEMS.filter((i) => i.group === group.id);
             if (items.length === 0) return null;
             return (
-              <div key={group.id} className="mb-1">
+              <div key={group.id} className="mb-1.5">
                 {!sidebarCollapsed && group.label && (
-                  <div className="px-3 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70">
                     {group.label}
                   </div>
                 )}
@@ -139,29 +144,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     const badgeCount = item.badge?.();
                     const Icon = item.icon;
                     return (
-                      <Tooltip key={item.id} delayDuration={300}>
+                      <Tooltip key={item.id} delayDuration={400}>
                         <TooltipTrigger asChild>
                           <button
                             onClick={() => setCurrentView(item.id)}
                             className={cn(
-                              "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all group relative",
+                              "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all group relative",
                               isActive
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                                ? "bg-gradient-to-r from-violet-500/15 to-indigo-500/10 text-sidebar-accent-foreground shadow-sm"
+                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                               sidebarCollapsed && "justify-center px-0"
                             )}
                           >
                             {isActive && (
-                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-gradient-to-b from-violet-500 to-indigo-600" />
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-gradient-to-b from-violet-500 to-indigo-600" />
                             )}
                             <Icon
                               className={cn(
                                 "w-[18px] h-[18px] shrink-0 transition-colors",
-                                isActive ? "text-violet-500 dark:text-violet-400" : ""
+                                isActive ? "text-violet-600 dark:text-violet-400" : ""
                               )}
                             />
                             {!sidebarCollapsed && (
-                              <span className="flex-1 text-left truncate iris-fade-in">{item.label}</span>
+                              <span className="flex-1 text-left truncate">{item.label}</span>
                             )}
                             {!sidebarCollapsed && badgeCount && badgeCount > 0 && (
                               <Badge
@@ -189,6 +194,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             )}
                           </TooltipContent>
                         )}
+                        {!sidebarCollapsed && item.desc && (
+                          <TooltipContent side="right" className="text-[11px]">
+                            {item.desc}
+                          </TooltipContent>
+                        )}
                       </Tooltip>
                     );
                   })}
@@ -198,12 +208,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="border-t border-sidebar-border p-3 shrink-0">
+        {/* Sidebar Footer — AI Status */}
+        <div className="border-t border-sidebar-border p-3 shrink-0 space-y-2">
+          {!sidebarCollapsed && (
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-violet-500/10 to-indigo-500/5 border border-violet-500/15 iris-fade-in">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Brain className="w-3 h-3 text-violet-500" />
+                <span className="text-[10px] font-semibold text-violet-600 dark:text-violet-400">AI Status</span>
+                <span className="ml-auto text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <span className="iris-live-dot" style={{ width: 6, height: 6 }} />
+                  Active
+                </span>
+              </div>
+              <div className="text-[9px] text-muted-foreground leading-relaxed">
+                6 agents online · GPT-4o + Claude
+              </div>
+            </div>
+          )}
           <div className={cn("flex items-center gap-2", sidebarCollapsed && "justify-center")}>
             {!sidebarCollapsed && (
               <div className="flex items-center gap-2 flex-1 min-w-0 iris-fade-in">
-                <Avatar className="w-8 h-8 shrink-0">
+                <Avatar className="w-8 h-8 shrink-0 ring-2 ring-violet-500/20">
                   <AvatarFallback className="bg-gradient-to-br from-violet-500 to-indigo-600 text-white text-xs font-semibold">
                     AM
                   </AvatarFallback>
@@ -248,7 +273,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Live status */}
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/40 text-[11px] font-medium">
-            <span className="iris-pulse-dot" />
+            <span className="iris-live-dot" />
             <span className="text-muted-foreground">All systems operational</span>
           </div>
 

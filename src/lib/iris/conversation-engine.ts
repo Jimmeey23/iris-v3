@@ -70,7 +70,7 @@ export interface AIResponse {
 export interface AIMessageOutput {
   content: string;
   buttons?: Array<{ label: string; value: string; icon?: string; captures?: string }>;
-  inputType?: "text" | "select" | "multiselect" | "date" | "none";
+  inputType?: "text" | "select" | "multiselect" | "date" | "none" | "momence_member" | "momence_session" | "momence_trainer";
   inputPlaceholder?: string;
   isQuestion?: boolean;
   isAcknowledgment?: boolean;
@@ -240,7 +240,7 @@ interface QuestionDef {
   field: keyof CollectedInfo;
   question: string;
   buttons?: Array<{ label: string; value: string; captures: string }>;
-  inputType?: "text" | "select" | "date";
+  inputType?: "text" | "select" | "date" | "momence_member" | "momence_session" | "momence_trainer";
   inputPlaceholder?: string;
   acknowledgments?: string[]; // templates like "Got it — {value} noted."
   isOptional?: boolean;
@@ -300,25 +300,25 @@ const QUESTIONS: Record<string, QuestionDef> = {
   affected_client: {
     id: "affected_client",
     field: "affectedClient",
-    question: "Could you share the client's name so I can look them up in Momence?",
-    inputType: "text",
-    inputPlaceholder: "e.g. Priya Agarwal",
+    question: "Which client is affected? Search their Momence profile:",
+    inputType: "momence_member",
+    inputPlaceholder: "Search by name, phone, or email...",
     acknowledgments: [
-      "Perfect — I'll look up {value} in Momence shortly.",
-      "Got it, {value}. Let me pull up their profile.",
-      "Thanks — searching for {value} now.",
+      "Got it — {value} pulled from Momence. I'll attach their profile to this ticket.",
+      "Thanks — {value} confirmed via Momence lookup.",
+      "Member verified: {value}. Moving on.",
     ],
   },
   client_identifier: {
     id: "client_identifier",
     field: "clientIdentifier",
-    question: "Do you have their phone number or email? It'll help me find the exact profile faster.",
+    question: "Any additional contact detail for them? (Optional — their Momence profile already has the basics)",
     inputType: "text",
-    inputPlaceholder: "Phone or email (optional but speeds things up)",
+    inputPlaceholder: "Preferred contact: phone, email, or WhatsApp (optional)",
     isOptional: true,
     acknowledgments: [
-      "Great — {value} noted. I'll use that for the lookup.",
-      "Thanks. That'll help me find them quickly.",
+      "Great — {value} noted.",
+      "Thanks. I'll include that in the ticket.",
       "Got it. Moving on.",
     ],
   },
@@ -402,11 +402,11 @@ const QUESTIONS: Record<string, QuestionDef> = {
   session_time: {
     id: "session_time",
     field: "sessionTime",
-    question: "Which session or class time is involved?",
-    inputType: "text",
-    inputPlaceholder: "e.g. 7 AM Barre class today, or 'tomorrow 6 PM'",
+    question: "Which session is involved? Search upcoming Momence sessions:",
+    inputType: "momence_session",
+    inputPlaceholder: "Search by class name, time, or instructor...",
     acknowledgments: [
-      "Got it — {value} session.",
+      "Got it — {value} session confirmed from Momence schedule.",
       "Thanks, {value} noted.",
       "Noted — session: {value}.",
     ],
@@ -414,12 +414,12 @@ const QUESTIONS: Record<string, QuestionDef> = {
   instructor: {
     id: "instructor",
     field: "instructor",
-    question: "Which instructor was leading the session?",
-    inputType: "text",
-    inputPlaceholder: "e.g. Tara Kapoor",
+    question: "Which instructor was leading? Select from Momence staff:",
+    inputType: "momence_trainer",
+    inputPlaceholder: "Search trainers...",
     isOptional: true,
     acknowledgments: [
-      "Thanks — {value} noted.",
+      "Thanks — {value} noted from trainer directory.",
       "Got it, {value}.",
     ],
   },

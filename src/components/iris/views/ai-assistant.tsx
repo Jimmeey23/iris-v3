@@ -10,6 +10,7 @@ import {
 } from "@/lib/iris/conversation-engine";
 import { buildTicketDetail, TicketDetailData } from "@/lib/iris/ticket-detail-builder";
 import { TicketPreviewModal } from "@/components/iris/ticket-preview-modal";
+import { MomenceSearchField, MomenceEntity } from "@/components/iris/momence-search-field";
 import { cn } from "@/lib/utils";
 import { STUDIOS, EMPLOYEES } from "@/lib/iris/types";
 import { generateId, getInitials, getAvatarColor } from "@/lib/iris/utils";
@@ -630,31 +631,35 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Agent activity */}
+        {/* Agent activity — compact inline indicator */}
         {message.agentActivity && (
-          <div className="mt-2.5 rounded-xl border border-border bg-card overflow-hidden iris-scale-in">
-            <div className="px-3 py-2 bg-muted/40 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Cpu className="w-3 h-3 text-violet-500" />
-              Agent Activity
-              <span className="ml-auto text-[9px] font-normal text-muted-foreground/70">{message.agentActivity.filter((a) => a.status === "complete").length}/{message.agentActivity.length} complete</span>
+          <div className="mt-1.5 iris-fade-in">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70 mb-1 flex items-center gap-1">
+              <Cpu className="w-2.5 h-2.5 text-violet-500" />
+              {message.agentActivity.filter((a) => a.status === "complete").length}/{message.agentActivity.length} agents
             </div>
-            <div className="divide-y divide-border">
+            <div className="flex flex-wrap gap-1">
               {message.agentActivity.map((a, i) => (
-                <div key={i} className="px-3 py-2 flex items-center gap-2.5">
-                  <div className="shrink-0">
-                    {a.status === "active" ? (
-                      <Loader2 className="w-3.5 h-3.5 text-violet-500 animate-spin" />
-                    ) : a.status === "pending" ? (
-                      <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30" />
-                    ) : (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-medium truncate">{a.agent}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{a.action}</div>
-                  </div>
-                </div>
+                <span
+                  key={i}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors",
+                    a.status === "active"
+                      ? "bg-violet-500/15 text-violet-600 dark:text-violet-400"
+                      : a.status === "pending"
+                      ? "bg-muted/60 text-muted-foreground/60"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  )}
+                >
+                  {a.status === "active" ? (
+                    <Loader2 className="w-2 h-2 animate-spin" />
+                  ) : a.status === "pending" ? (
+                    <div className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
+                  ) : (
+                    <CheckCircle2 className="w-2 h-2" />
+                  )}
+                  <span className="truncate max-w-[100px]">{a.agent.replace(" Agent", "")}</span>
+                </span>
               ))}
             </div>
           </div>
@@ -758,6 +763,53 @@ function MessageBubble({
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Momence-linked search field */}
+        {message.isQuestion && message.inputType && message.inputType !== "none" && message.inputType !== "text" && (
+          <div className="mt-3">
+            {message.inputType === "momence_member" && (
+              <MomenceSearchField
+                type="momence_member"
+                placeholder={message.inputPlaceholder}
+                onSelect={(entity) => {
+                  if (entity.name) {
+                    onButtonClick(entity.id || entity.name, entity.name);
+                  }
+                }}
+              />
+            )}
+            {message.inputType === "momence_session" && (
+              <MomenceSearchField
+                type="momence_session"
+                placeholder={message.inputPlaceholder}
+                onSelect={(entity) => {
+                  if (entity.name) {
+                    onButtonClick(entity.id || entity.name, entity.name);
+                  }
+                }}
+              />
+            )}
+            {message.inputType === "momence_trainer" && (
+              <MomenceSearchField
+                type="momence_trainer"
+                placeholder={message.inputPlaceholder}
+                onSelect={(entity) => {
+                  if (entity.name) {
+                    onButtonClick(entity.id || entity.name, entity.name);
+                  }
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Hint for text input questions */}
+        {message.isQuestion && message.inputType === "text" && message.inputPlaceholder && (
+          <div className="mt-2 text-[10px] text-muted-foreground italic flex items-center gap-1">
+            <CornerDownLeft className="w-2.5 h-2.5" />
+            Type your answer in the input below
           </div>
         )}
       </div>

@@ -91,7 +91,7 @@ export interface AIMessage {
   content: string;
   timestamp: string;
   buttons?: AIButton[];
-  inputType?: "text" | "select" | "multiselect" | "date" | "none";
+  inputType?: "text" | "select" | "multiselect" | "date" | "none" | "momence_member" | "momence_session" | "momence_trainer";
   inputPlaceholder?: string;
   isQuestion?: boolean;
   isAcknowledgment?: boolean;

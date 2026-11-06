@@ -26,6 +26,7 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
   LineChart as LineChartIcon,
+  Cpu,
 } from "lucide-react";
 import {
   AreaChart,
@@ -504,6 +505,174 @@ export function AnalyticsView() {
           </div>
         </div>
       </div>
+
+      {/* Advanced AI Features */}
+      <Card className="iris-ai-border">
+        <CardHeader
+          title="Advanced AI Pattern Detection & Predictive Analytics"
+          subtitle="Smart features powered by IRIS Intelligence Engine"
+          icon={Sparkles}
+          action={<Brain className="w-4 h-4 text-violet-500" />}
+        />
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Pattern Detection */}
+            <AdvancedAICard
+              title="Pattern Detection"
+              icon={Activity}
+              color="violet"
+              metrics={[
+                { label: "Patterns detected", value: "12", trend: "+3" },
+                { label: "Confidence avg", value: "89%", trend: "+2%" },
+              ]}
+              items={[
+                "HVAC failures cluster on Mondays at Kwality House",
+                "Payment sync errors spike after weekend batching",
+                "Membership freeze requests increase month-end",
+                "Sound system issues correlate with high humidity",
+              ]}
+            />
+
+            {/* Predictive Analytics */}
+            <AdvancedAICard
+              title="Predictive Analytics"
+              icon={TrendingUp}
+              color="emerald"
+              metrics={[
+                { label: "Predictions made", value: "47", trend: "+12" },
+                { label: "Accuracy", value: "91%", trend: "+4%" },
+              ]}
+              items={[
+                "Predicted 3 HVAC failures next week — preventive action recommended",
+                "Q4 ticket volume forecast: +15% (seasonal pattern)",
+                "Bengaluru studio likely to need additional front desk support",
+                "Payment issue resolution time trending down — automation working",
+              ]}
+            />
+
+            {/* Smart Auto-Suggestions */}
+            <AdvancedAICard
+              title="Smart Auto-Suggestions"
+              icon={Lightbulb}
+              color="amber"
+              metrics={[
+                { label: "Suggestions active", value: "8", trend: "+2" },
+                { label: "Acceptance rate", value: "73%", trend: "+8%" },
+              ]}
+              items={[
+                "Auto-tag new tickets with 94% accuracy",
+                "Suggest assignee based on historical resolution success",
+                "Recommend priority based on impact analysis",
+                "Pre-fill ticket fields from similar past issues",
+              ]}
+            />
+
+            {/* Anomaly Detection */}
+            <AdvancedAICard
+              title="Anomaly Detection"
+              icon={AlertTriangle}
+              color="rose"
+              metrics={[
+                { label: "Anomalies flagged", value: "3", trend: "—" },
+                { label: "False positive rate", value: "4%", trend: "-1%" },
+              ]}
+              items={[
+                "Unusual spike in P0 tickets at Supreme HQ (last 24h)",
+                "Resolution time anomaly detected for IT department",
+                "Reopened ticket rate above baseline for membership issues",
+              ]}
+            />
+
+            {/* Sentiment Analysis */}
+            <AdvancedAICard
+              title="Client Sentiment Analysis"
+              icon={Brain}
+              color="sky"
+              metrics={[
+                { label: "Tickets analyzed", value: "156", trend: "+23" },
+                { label: "Negative sentiment", value: "12%", trend: "-3%" },
+              ]}
+              items={[
+                "Client frustration detected in 4 tickets — priority follow-up recommended",
+                "Positive feedback trend on resolution speed (+18%)",
+                "Complaint language severity decreasing month-over-month",
+              ]}
+            />
+
+            {/* Smart Routing Optimization */}
+            <AdvancedAICard
+              title="Smart Routing Optimization"
+              icon={Zap}
+              color="indigo"
+              metrics={[
+                { label: "Routing accuracy", value: "96%", trend: "+2%" },
+                { label: "Avg assign time", value: "0.3s", trend: "-0.1s" },
+              ]}
+              items={[
+                "ML model retrained on 2,847 historical tickets",
+                "Workload balancing active across all departments",
+                "Escalation prediction prevents 89% of SLA breaches",
+                "Cross-studio routing optimized for Bengaluru/Mumbai split",
+              ]}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Decision Log */}
+      <Card>
+        <CardHeader
+          title="AI Decision Log"
+          subtitle="Recent automated decisions made by IRIS agents"
+          icon={Cpu}
+        />
+        <CardContent>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto iris-scrollbar">
+            {[
+              { time: "2m ago", agent: "Routing Agent", decision: "Auto-assigned IRIS-2026-0143 to Devraj Singh (96% match)", confidence: 96, status: "applied" },
+              { time: "8m ago", agent: "Pattern Detection", decision: "Flagged anomalous P0 spike at Supreme HQ", confidence: 87, status: "alert" },
+              { time: "15m ago", agent: "SLA Agent", decision: "Auto-escalated IRIS-2026-0138 to Operations Manager (breach risk)", confidence: 100, status: "applied" },
+              { time: "23m ago", agent: "Quality Agent", decision: "Verified Momence credit adjustment for MM-88214", confidence: 98, status: "verified" },
+              { time: "1h ago", agent: "Predictive", decision: "Forecasted 3 HVAC failures next week — preventive ticket suggested", confidence: 84, status: "suggested" },
+              { time: "2h ago", agent: "Sentiment", decision: "Detected negative sentiment in client complaint — priority flagged", confidence: 79, status: "flagged" },
+              { time: "3h ago", agent: "Classification", decision: "Reclassified IRIS-2026-0135 from IT to Membership (higher confidence)", confidence: 92, status: "applied" },
+            ].map((log, i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border hover:bg-muted/30 transition-colors">
+                <div className="text-[9px] text-muted-foreground tabular-nums shrink-0 w-12">{log.time}</div>
+                <div className={cn(
+                  "px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0",
+                  log.agent === "Routing Agent" ? "bg-emerald-500/10 text-emerald-600" :
+                  log.agent === "Pattern Detection" ? "bg-rose-500/10 text-rose-600" :
+                  log.agent === "SLA Agent" ? "bg-amber-500/10 text-amber-600" :
+                  log.agent === "Quality Agent" ? "bg-indigo-500/10 text-indigo-600" :
+                  log.agent === "Predictive" ? "bg-violet-500/10 text-violet-600" :
+                  log.agent === "Sentiment" ? "bg-sky-500/10 text-sky-600" :
+                  "bg-muted text-muted-foreground"
+                )}>
+                  {log.agent}
+                </div>
+                <div className="flex-1 min-w-0 text-[11px] truncate">{log.decision}</div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="w-12 h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full" style={{ width: `${log.confidence}%` }} />
+                  </div>
+                  <span className="text-[9px] font-semibold tabular-nums text-muted-foreground w-6">{log.confidence}%</span>
+                </div>
+                <span className={cn(
+                  "text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 capitalize",
+                  log.status === "applied" ? "bg-emerald-500/10 text-emerald-600" :
+                  log.status === "alert" ? "bg-rose-500/10 text-rose-600" :
+                  log.status === "verified" ? "bg-indigo-500/10 text-indigo-600" :
+                  log.status === "suggested" ? "bg-violet-500/10 text-violet-600" :
+                  "bg-amber-500/10 text-amber-600"
+                )}>
+                  {log.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -597,6 +766,70 @@ function InsightCard({
         <button className="text-[11px] font-medium text-violet-600 dark:text-violet-400 flex items-center gap-1 hover:gap-1.5 transition-all whitespace-nowrap">
           {action} <ArrowRight className="w-3 h-3" />
         </button>
+      </div>
+    </div>
+  );
+}
+
+function AdvancedAICard({
+  title,
+  icon: Icon,
+  color,
+  metrics,
+  items,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: "violet" | "emerald" | "amber" | "rose" | "sky" | "indigo";
+  metrics: Array<{ label: string; value: string; trend: string }>;
+  items: string[];
+}) {
+  const colors = {
+    violet: "from-violet-500/10 to-violet-500/5 text-violet-600 dark:text-violet-400 border-violet-500/20",
+    emerald: "from-emerald-500/10 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    amber: "from-amber-500/10 to-amber-500/5 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    rose: "from-rose-500/10 to-rose-500/5 text-rose-600 dark:text-rose-400 border-rose-500/20",
+    sky: "from-sky-500/10 to-sky-500/5 text-sky-600 dark:text-sky-400 border-sky-500/20",
+    indigo: "from-indigo-500/10 to-indigo-500/5 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+  };
+  const colorClass = colors[color];
+  return (
+    <div className={cn("iris-card-elevated p-3 bg-gradient-to-br", colorClass)}>
+      <div className="flex items-center gap-2 mb-3">
+        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center bg-card/80 backdrop-blur")}>
+          <Icon className={cn("w-4 h-4", colorClass.split(" ").find((c) => c.startsWith("text")))} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[12px] font-semibold leading-tight">{title}</div>
+        </div>
+        <Sparkles className={cn("w-3 h-3", colorClass.split(" ").find((c) => c.startsWith("text")))} />
+      </div>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {metrics.map((m, i) => (
+          <div key={i} className="p-2 rounded-md bg-card/60 backdrop-blur border border-border/50">
+            <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{m.label}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[14px] font-bold tabular-nums">{m.value}</span>
+              {m.trend !== "—" && (
+                <span className={cn("text-[9px] font-semibold", m.trend.startsWith("-") ? "text-rose-500" : "text-emerald-500")}>
+                  {m.trend}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Items */}
+      <div className="space-y-1">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-start gap-1.5 text-[10px] text-muted-foreground leading-relaxed p-1.5 rounded-md bg-card/40">
+            <div className={cn("w-1 h-1 rounded-full mt-1.5 shrink-0", colorClass.split(" ").find((c) => c.startsWith("text")))} />
+            <span>{item}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

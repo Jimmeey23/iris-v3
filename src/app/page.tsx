@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { AppShell } from "@/components/iris/app-shell";
+import { IntroAnimation } from "@/components/iris/intro-animation";
 import { OverviewView } from "@/components/iris/views/overview";
 import { AIAssistantView } from "@/components/iris/views/ai-assistant";
 import { AllTicketsView } from "@/components/iris/views/all-tickets";
@@ -20,6 +21,7 @@ export default function Home() {
 
   return (
     <TooltipProvider delayDuration={200}>
+      <IntroAnimation />
       <AppShell>
         {currentView === "overview" && <OverviewView />}
         {currentView === "ai_assistant" && <AIAssistantView />}
