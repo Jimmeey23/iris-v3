@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { ConversationState, createInitialState } from "./conversation-engine";
 
 export type ViewName =
   | "overview"
@@ -45,6 +46,9 @@ interface AppState {
   aiMessages: AIMessage[];
   addAIMessage: (msg: AIMessage) => void;
   clearAIChat: () => void;
+  conversationState: ConversationState;
+  setConversationState: (state: ConversationState | Partial<ConversationState>) => void;
+  resetConversation: () => void;
 
   // User (mock current user)
   currentUser: {
@@ -59,6 +63,7 @@ export interface AIButton {
   label: string;
   value: string;
   icon?: string;
+  captures?: string;
 }
 
 export interface AITicketPreview {
@@ -72,6 +77,12 @@ export interface AITicketPreview {
   estimatedResolution: string;
   slaResponse: string;
   slaResolution: string;
+  category?: string;
+  subcategory?: string;
+  affectedClient?: string;
+  businessImpact?: string;
+  recommendedActions?: string;
+  collectedFields?: Array<{ field: string; value: string }>;
 }
 
 export interface AIMessage {
@@ -79,13 +90,23 @@ export interface AIMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
-  // Rich content options
   buttons?: AIButton[];
+  inputType?: "text" | "select" | "multiselect" | "date" | "none";
+  inputPlaceholder?: string;
+  isQuestion?: boolean;
+  isAcknowledgment?: boolean;
+  isTransition?: boolean;
+  thinkingDuration?: number;
   ticketPreview?: AITicketPreview;
   agentActivity?: { agent: string; action: string; status: "pending" | "active" | "complete" }[];
-  tools?: { name: string; status: "running" | "complete"; result?: string }[];
+  tools?: { name: string; status: "running" | "complete"; result?: string; duration?: number }[];
   attachments?: { name: string; type: string }[];
-  metadata?: { investigationSteps?: string[]; confidenceScore?: number };
+  metadata?: {
+    investigationSteps?: string[];
+    confidenceScore?: number;
+    capturedFields?: Array<{ field: string; value: string }>;
+  };
+  variant?: "default" | "question" | "info" | "success" | "investigation" | "ticket";
 }
 
 export const useAppStore = create<AppState>()(
@@ -125,7 +146,16 @@ export const useAppStore = create<AppState>()(
 
       aiMessages: [],
       addAIMessage: (msg) => set((s) => ({ aiMessages: [...s.aiMessages, msg] })),
-      clearAIChat: () => set({ aiMessages: [] }),
+      clearAIChat: () => set({ aiMessages: [], conversationState: createInitialState() }),
+      conversationState: createInitialState(),
+      setConversationState: (state) =>
+        set((s) => ({
+          conversationState:
+            typeof state === "object" && state !== null
+              ? { ...s.conversationState, ...(state as Partial<ConversationState>) }
+              : s.conversationState,
+        })),
+      resetConversation: () => set({ aiMessages: [], conversationState: createInitialState() }),
 
       currentUser: {
         id: "emp_001",
@@ -134,7 +164,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: "iris-app-state",
+      name: "iris-app-state-v2",
       partialize: (state) => ({
         currentView: state.currentView,
         sidebarCollapsed: state.sidebarCollapsed,

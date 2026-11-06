@@ -409,3 +409,389 @@
 ::selection {
   background: oklch(0.55 0.18 264 / 0.25);
 }
+
+/* === PREMIUM ENHANCEMENTS v2 === */
+
+/* Aurora / mesh gradient background for AI surfaces */
+.iris-aurora {
+  position: relative;
+  overflow: hidden;
+}
+.iris-aurora::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 20% 30%, oklch(0.7 0.18 264 / 0.18), transparent 40%),
+    radial-gradient(circle at 80% 20%, oklch(0.7 0.18 305 / 0.15), transparent 40%),
+    radial-gradient(circle at 50% 80%, oklch(0.7 0.16 180 / 0.12), transparent 40%);
+  filter: blur(40px);
+  animation: iris-aurora-shift 12s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+.iris-aurora > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes iris-aurora-shift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-2%, 2%) scale(1.05); }
+  66% { transform: translate(2%, -1%) scale(0.98); }
+}
+
+/* Premium elevated card with depth */
+.iris-card-elevated {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.04),
+    0 4px 8px -2px oklch(0 0 0 / 0.04),
+    0 12px 24px -4px oklch(0 0 0 / 0.06);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.iris-card-elevated:hover {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.05),
+    0 8px 16px -4px oklch(0 0 0 / 0.08),
+    0 20px 40px -8px oklch(0 0 0 / 0.1);
+  transform: translateY(-2px);
+  border-color: oklch(0.55 0.18 264 / 0.3);
+}
+.dark .iris-card-elevated {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.3),
+    0 4px 12px -2px oklch(0 0 0 / 0.4),
+    inset 0 1px 0 0 oklch(1 0 0 / 0.04);
+}
+.dark .iris-card-elevated:hover {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.4),
+    0 12px 28px -4px oklch(0 0 0 / 0.6),
+    inset 0 1px 0 0 oklch(1 0 0 / 0.06);
+}
+
+/* Premium button with glow */
+.iris-btn-premium {
+  position: relative;
+  background: linear-gradient(135deg, oklch(0.6 0.18 264), oklch(0.55 0.2 290));
+  color: white;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.1),
+    0 4px 12px -2px oklch(0.55 0.18 264 / 0.4);
+}
+.iris-btn-premium:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px oklch(0 0 0 / 0.15),
+    0 8px 20px -4px oklch(0.55 0.18 264 / 0.5);
+}
+.iris-btn-premium:active {
+  transform: translateY(0);
+}
+
+/* Premium message bubble variants */
+.iris-bubble {
+  position: relative;
+  border-radius: 16px;
+  padding: 14px 16px;
+  transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.iris-bubble-info {
+  background: linear-gradient(135deg, oklch(0.96 0.01 264), oklch(0.94 0.015 290));
+  border: 1px solid oklch(0.7 0.18 264 / 0.2);
+  color: oklch(0.2 0.02 255);
+}
+.dark .iris-bubble-info {
+  background: linear-gradient(135deg, oklch(0.22 0.03 264), oklch(0.2 0.035 290));
+  border: 1px solid oklch(0.7 0.18 264 / 0.25);
+  color: oklch(0.92 0.005 255);
+}
+.iris-bubble-question {
+  background: var(--card);
+  border: 1px solid oklch(0.7 0.18 264 / 0.3);
+  box-shadow: 0 0 0 1px oklch(0.7 0.18 264 / 0.1), 0 4px 12px -2px oklch(0 0 0 / 0.06);
+}
+.iris-bubble-investigation {
+  background: linear-gradient(135deg, oklch(0.96 0.02 290), oklch(0.94 0.025 264));
+  border: 1px solid oklch(0.7 0.18 290 / 0.25);
+}
+.dark .iris-bubble-investigation {
+  background: linear-gradient(135deg, oklch(0.2 0.04 290), oklch(0.18 0.035 264));
+  border: 1px solid oklch(0.7 0.18 290 / 0.3);
+}
+.iris-bubble-success {
+  background: linear-gradient(135deg, oklch(0.96 0.02 160), oklch(0.94 0.025 180));
+  border: 1px solid oklch(0.65 0.16 162 / 0.3);
+}
+.dark .iris-bubble-success {
+  background: linear-gradient(135deg, oklch(0.2 0.04 162), oklch(0.18 0.035 180));
+  border: 1px solid oklch(0.65 0.16 162 / 0.3);
+}
+
+/* Captured info chip with pop-in animation */
+.iris-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: oklch(0.7 0.18 264 / 0.1);
+  color: oklch(0.55 0.18 264);
+  border: 1px solid oklch(0.7 0.18 264 / 0.2);
+  animation: iris-chip-pop 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dark .iris-chip {
+  color: oklch(0.8 0.1 264);
+}
+@keyframes iris-chip-pop {
+  0% { opacity: 0; transform: scale(0.7) translateY(4px); }
+  60% { opacity: 1; transform: scale(1.05) translateY(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Premium option button */
+.iris-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+.iris-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, oklch(0.7 0.18 264 / 0), oklch(0.7 0.18 264 / 0));
+  transition: background 200ms;
+  pointer-events: none;
+}
+.iris-option:hover {
+  border-color: oklch(0.7 0.18 264 / 0.4);
+  transform: translateX(2px);
+}
+.iris-option:hover::before {
+  background: linear-gradient(135deg, oklch(0.7 0.18 264 / 0.08), oklch(0.7 0.18 290 / 0.05));
+}
+
+/* Investigation status indicator */
+.iris-status-pulse {
+  position: relative;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.iris-status-pulse::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.3;
+  animation: iris-status-pulse-anim 2s ease-out infinite;
+}
+@keyframes iris-status-pulse-anim {
+  0% { transform: scale(0.5); opacity: 0.6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* Progress ring */
+.iris-ring {
+  transform: rotate(-90deg);
+}
+.iris-ring circle {
+  fill: none;
+  stroke-width: 2;
+  transition: stroke-dashoffset 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Premium sidebar active indicator */
+.iris-nav-active {
+  position: relative;
+}
+.iris-nav-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, oklch(0.7 0.18 264), oklch(0.65 0.2 290));
+}
+
+/* Layered shadow for hero elements */
+.iris-shadow-hero {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.04),
+    0 4px 8px -2px oklch(0 0 0 / 0.06),
+    0 12px 24px -4px oklch(0 0 0 / 0.08),
+    0 24px 48px -8px oklch(0.55 0.18 264 / 0.15);
+}
+.dark .iris-shadow-hero {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.3),
+    0 4px 12px -2px oklch(0 0 0 / 0.4),
+    0 16px 32px -8px oklch(0 0 0 / 0.5),
+    0 24px 48px -12px oklch(0.7 0.18 264 / 0.25);
+}
+
+/* Premium skeleton with shimmer */
+.iris-skeleton {
+  background: linear-gradient(
+    90deg,
+    oklch(0.5 0.02 255 / 0.05) 0%,
+    oklch(0.5 0.02 255 / 0.15) 50%,
+    oklch(0.5 0.02 255 / 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: iris-skeleton-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes iris-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Premium badge with subtle gradient */
+.iris-badge-premium {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, oklch(0.7 0.18 264 / 0.15), oklch(0.65 0.2 290 / 0.1));
+  color: oklch(0.55 0.18 264);
+  border: 1px solid oklch(0.7 0.18 264 / 0.2);
+}
+.dark .iris-badge-premium {
+  color: oklch(0.85 0.1 264);
+}
+
+/* Live indicator with multiple pulses */
+.iris-live-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: oklch(0.65 0.16 162);
+}
+.iris-live-dot::before,
+.iris-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: oklch(0.65 0.16 162);
+  opacity: 0.4;
+  animation: iris-live-pulse 2.5s ease-out infinite;
+}
+.iris-live-dot::after {
+  animation-delay: 1.25s;
+}
+@keyframes iris-live-pulse {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+/* Thinking dots with sophisticated motion */
+.iris-thinking-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: oklch(0.7 0.18 264);
+  animation: iris-thinking-bounce 1.4s ease-in-out infinite;
+}
+.iris-thinking-dot:nth-child(1) { animation-delay: 0s; }
+.iris-thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.iris-thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes iris-thinking-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* Premium divider */
+.iris-divider {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+/* Number ticker animation */
+.iris-ticker-animate {
+  animation: iris-ticker-up 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes iris-ticker-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Smooth slide-in from bottom */
+.iris-slide-up {
+  animation: iris-slide-up-anim 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes iris-slide-up-anim {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Gradient ring border for important elements */
+.iris-ring-gradient {
+  position: relative;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+}
+.iris-ring-gradient::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, oklch(0.7 0.18 264), oklch(0.65 0.2 290), oklch(0.7 0.16 180));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Floating action shimmer */
+.iris-action-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.iris-action-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.15), transparent);
+  animation: iris-action-shimmer-anim 3s ease-in-out infinite;
+}
+@keyframes iris-action-shimmer-anim {
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
+}
