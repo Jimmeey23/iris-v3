@@ -24,6 +24,9 @@ import {
   Zap,
   AlertTriangle,
   CheckCircle2,
+  FileText,
+  MessageSquare,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -466,46 +469,132 @@ function NotificationsSettings() {
 
 function IntegrationsSettings() {
   return (
-    <SettingsCard title="Integrations" description="Manage external service integrations">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {[
-          { name: "Momence API", desc: "Member, booking, payment data", status: "connected", icon: Plug },
-          { name: "OpenAI", desc: "GPT-4o and GPT-4o-mini models", status: "connected", icon: Brain },
-          { name: "Anthropic", desc: "Claude Sonnet and Haiku models", status: "connected", icon: Brain },
-          { name: "Email (SMTP)", desc: "Notification delivery via SMTP", status: "connected", icon: Mail },
-          { name: "WhatsApp Business", desc: "WhatsApp notifications", status: "pending", icon: Bell },
-          { name: "Slack", desc: "Internal team notifications", status: "disconnected", icon: Bell },
-        ].map((int, i) => (
-          <div key={i} className="p-3 rounded-lg border border-border">
-            <div className="flex items-start gap-3">
-              <div className={cn(
-                "w-9 h-9 rounded-lg flex items-center justify-center",
-                int.status === "connected" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-                int.status === "pending" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
-                "bg-muted text-muted-foreground"
-              )}>
-                <int.icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <div className="text-[13px] font-semibold">{int.name}</div>
-                <div className="text-[11px] text-muted-foreground">{int.desc}</div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline" className={cn(
-                    "text-[10px] h-5 px-1.5 capitalize",
-                    int.status === "connected" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                    int.status === "pending" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                    "bg-muted text-muted-foreground"
-                  )}>
-                    {int.status}
-                  </Badge>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2">Configure</Button>
+    <>
+      <SettingsCard title="Integrations" description="Manage external service integrations — fetched from iris-ai-v2 integration catalogue">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            { name: "Momence", desc: "Member, booking, payment & session data", status: "connected", icon: Plug, category: "Operations", type: "API" },
+            { name: "Fillout", desc: "Dynamic form builder & submission intake", status: "connected", icon: FileText, category: "Forms", type: "API" },
+            { name: "Response.io", desc: "WhatsApp & messaging automation", status: "connected", icon: MessageSquare, category: "Communication", type: "API" },
+            { name: "OpenAI", desc: "GPT-4o & GPT-4o-mini models", status: "connected", icon: Brain, category: "AI", type: "AI" },
+            { name: "Anthropic", desc: "Claude Sonnet & Haiku models", status: "connected", icon: Brain, category: "AI", type: "AI" },
+            { name: "Razorpay", desc: "Payment gateway for UPI/card transactions", status: "connected", icon: CreditCard, category: "Payments", type: "Payment" },
+            { name: "Stripe", desc: "International payment processing", status: "connected", icon: CreditCard, category: "Payments", type: "Payment" },
+            { name: "Gmail", desc: "Email notifications & digest delivery", status: "connected", icon: Mail, category: "Email", type: "Email" },
+            { name: "Zoho Shift", desc: "Staff shifts & HR management", status: "connected", icon: Users, category: "HR", type: "HR" },
+            { name: "Yellow Messenger", desc: "Chatbot & customer communication", status: "connected", icon: MessageSquare, category: "Communication", type: "Chat" },
+          ].map((int, i) => (
+            <div key={i} className="p-3 rounded-lg border border-border hover:border-violet-500/30 transition-colors">
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+                  int.status === "connected" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                  int.status === "pending" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                  "bg-muted text-muted-foreground"
+                )}>
+                  <int.icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[13px] font-semibold">{int.name}</div>
+                    <Badge variant="outline" className="text-[9px] h-4 px-1">{int.category}</Badge>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{int.desc}</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline" className={cn(
+                      "text-[10px] h-5 px-1.5 capitalize",
+                      int.status === "connected" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                      int.status === "pending" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                      "bg-muted text-muted-foreground"
+                    )}>
+                      {int.status}
+                    </Badge>
+                    <span className="text-[9px] text-muted-foreground">{int.type}</span>
+                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 ml-auto">Configure</Button>
+                  </div>
                 </div>
               </div>
             </div>
+          ))}
+        </div>
+      </SettingsCard>
+
+      {/* Fillout Forms Configuration */}
+      <SettingsCard title="Fillout Forms Integration" description="Dynamic form builder — import submissions as tickets">
+        <div className="space-y-3">
+          <div className="p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-violet-500" />
+              <div className="text-[12px] font-semibold">Fillout API Configuration</div>
+              <Badge variant="outline" className="text-[9px] h-4 px-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 ml-auto">Connected</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div><span className="text-muted-foreground">API Endpoint:</span> <span className="font-mono">api.fillout.com/v1/api</span></div>
+              <div><span className="text-muted-foreground">Auth:</span> <span className="font-mono">Bearer token</span></div>
+              <div><span className="text-muted-foreground">Forms configured:</span> <span className="font-semibold">3</span></div>
+              <div><span className="text-muted-foreground">Submissions imported:</span> <span className="font-semibold">147</span></div>
+            </div>
           </div>
-        ))}
-      </div>
-    </SettingsCard>
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Configured Forms</div>
+            {[
+              { name: "Trainer Assessment Form", id: "fillout_trainer_001", submissions: 89, lastSync: "2h ago" },
+              { name: "Member Feedback Form", id: "fillout_feedback_002", submissions: 42, lastSync: "5h ago" },
+              { name: "Class Experience Survey", id: "fillout_class_003", submissions: 16, lastSync: "1d ago" },
+            ].map((f, i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border">
+                <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-medium truncate">{f.name}</div>
+                  <div className="text-[10px] text-muted-foreground font-mono">{f.id}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[11px] font-semibold tabular-nums">{f.submissions}</div>
+                  <div className="text-[9px] text-muted-foreground">{f.lastSync}</div>
+                </div>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2">Sync</Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SettingsCard>
+
+      {/* Response.io Configuration */}
+      <SettingsCard title="Response.io Integration" description="WhatsApp & messaging automation for notifications">
+        <div className="space-y-3">
+          <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare className="w-4 h-4 text-emerald-500" />
+              <div className="text-[12px] font-semibold">Response.io API Configuration</div>
+              <Badge variant="outline" className="text-[9px] h-4 px-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 ml-auto">Connected</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div><span className="text-muted-foreground">Channels:</span> <span className="font-semibold">WhatsApp, SMS</span></div>
+              <div><span className="text-muted-foreground">Messages sent:</span> <span className="font-semibold">1,247</span></div>
+              <div><span className="text-muted-foreground">Delivery rate:</span> <span className="font-semibold text-emerald-600">98.4%</span></div>
+              <div><span className="text-muted-foreground">Avg response time:</span> <span className="font-semibold">2.1s</span></div>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Message Templates</div>
+            {[
+              { name: "Ticket Created — WhatsApp", trigger: "ticket_created", sent: 342 },
+              { name: "SLA Breach Alert — WhatsApp", trigger: "sla_breached", sent: 28 },
+              { name: "Resolution Confirmation — WhatsApp", trigger: "resolved", sent: 198 },
+            ].map((t, i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border">
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-medium truncate">{t.name}</div>
+                  <div className="text-[10px] text-muted-foreground font-mono">{t.trigger}</div>
+                </div>
+                <div className="text-[11px] font-semibold tabular-nums">{t.sent} sent</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SettingsCard>
+    </>
   );
 }
 

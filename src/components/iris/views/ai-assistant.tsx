@@ -11,6 +11,7 @@ import {
 import { buildTicketDetail, TicketDetailData } from "@/lib/iris/ticket-detail-builder";
 import { TicketPreviewModal } from "@/components/iris/ticket-preview-modal";
 import { MomenceSearchField, MomenceEntity } from "@/components/iris/momence-search-field";
+import { DynamicFormIntake } from "@/components/iris/dynamic-form-intake";
 import { cn } from "@/lib/utils";
 import { STUDIOS, EMPLOYEES } from "@/lib/iris/types";
 import { generateId, getInitials, getAvatarColor } from "@/lib/iris/utils";
@@ -83,12 +84,16 @@ export function AIAssistantView() {
   const [input, setInput] = React.useState("");
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [hasInitialized, setHasInitialized] = React.useState(false);
+  const [showFormIntake, setShowFormIntake] = React.useState(false);
+  const isProcessingRef = React.useRef(false); // Synchronous guard — prevents race conditions
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
-  // Initialize with welcome message if empty
+  // Initialize with welcome message ONCE on mount only
+  // Using a ref guard + empty dep array ensures it never duplicates
   React.useEffect(() => {
-    if (!hasInitialized && aiMessages.length === 0) {
+    // Only add welcome if truly empty (fresh mount or after clear)
+    if (aiMessages.length === 0 && !hasInitialized) {
       addAIMessage({
         id: generateId("msg"),
         role: "assistant",
@@ -98,10 +103,8 @@ export function AIAssistantView() {
         buttons: SUGGESTED_ISSUES.slice(0, 4).map((s) => ({ label: s.label, value: s.label, captures: s.label })),
       });
       setHasInitialized(true);
-    } else if (aiMessages.length > 0) {
-      setHasInitialized(true);
     }
-  }, [hasInitialized, aiMessages.length, addAIMessage, currentUser.name]);
+  }, []); // Empty deps = run ONCE on mount
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -119,7 +122,9 @@ export function AIAssistantView() {
 
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isProcessing) return;
+    // Use BOTH the ref (synchronous, prevents race) AND state (for UI feedback)
+    if (!trimmed || isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setInput("");
     setIsProcessing(true);
 
@@ -131,11 +136,12 @@ export function AIAssistantView() {
       timestamp: new Date().toISOString(),
     });
 
-    // Process through conversation engine
-    const response = processUserInput(conversationState, trimmed);
+    // Process through conversation engine — use the LATEST conversationState
+    const currentState = useAppStore.getState().conversationState;
+    const response = processUserInput(currentState, trimmed);
 
     // Update conversation state
-    const newState = { ...conversationState, ...response.newState } as ConversationState;
+    const newState = { ...currentState, ...response.newState } as ConversationState;
     setConversationState(newState);
 
     // Stream the AI messages with appropriate delays
@@ -215,6 +221,7 @@ export function AIAssistantView() {
     }
 
     setIsProcessing(false);
+    isProcessingRef.current = false;
   };
 
   const handleButtonClick = (value: string, label: string) => {
@@ -222,20 +229,20 @@ export function AIAssistantView() {
   };
 
   const handleReset = () => {
+    // Clear everything in one go — no setTimeout, no manual welcome message
+    // The useEffect on mount won't re-run, so we add the welcome directly here
+    isProcessingRef.current = false;
     clearAIChat();
     setConversationState(createInitialState());
-    setHasInitialized(false);
-    setTimeout(() => {
-      addAIMessage({
-        id: generateId("msg"),
-        role: "assistant",
-        content: `Hi ${currentUser.name.split(" ")[0]} — I'm IRIS, your intelligent operations assistant.\n\nWhat issue would you like to report today? Just describe it in your own words.`,
-        timestamp: new Date().toISOString(),
-        variant: "default",
-        buttons: SUGGESTED_ISSUES.slice(0, 4).map((s) => ({ label: s.label, value: s.label, captures: s.label })),
-      });
-      setHasInitialized(true);
-    }, 100);
+    // Add fresh welcome message directly (not via useEffect or setTimeout)
+    addAIMessage({
+      id: generateId("msg"),
+      role: "assistant",
+      content: `Hi ${currentUser.name.split(" ")[0]} — I'm IRIS, your intelligent operations assistant.\n\nWhat issue would you like to report today? Just describe it in your own words.`,
+      timestamp: new Date().toISOString(),
+      variant: "default",
+      buttons: SUGGESTED_ISSUES.slice(0, 4).map((s) => ({ label: s.label, value: s.label, captures: s.label })),
+    });
   };
 
   return (
@@ -265,6 +272,10 @@ export function AIAssistantView() {
               Multi-agent · GPT-4o + Claude · 6 specialized agents
             </div>
           </div>
+          <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowFormIntake(true)}>
+            <FileText className="w-3 h-3 mr-1.5" />
+            Form Mode
+          </Button>
           <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={handleReset}>
             <RefreshCw className="w-3 h-3 mr-1.5" />
             New Chat
@@ -347,6 +358,11 @@ export function AIAssistantView() {
       <div className="w-80 border-l border-border hidden lg:flex flex-col bg-sidebar/40 backdrop-blur-sm">
         <ConversationIntelligencePanel state={conversationState} />
       </div>
+
+      {/* Dynamic Form Intake Modal */}
+      {showFormIntake && (
+        <DynamicFormIntake onClose={() => setShowFormIntake(false)} />
+      )}
     </div>
   );
 }
