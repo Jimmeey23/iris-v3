@@ -43,171 +43,193 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root {
-  --radius: 0.75rem;
-  /* IRIS Premium Light Theme — Soft, refined, professional */
-  --background: oklch(0.985 0.002 240);
-  --foreground: oklch(0.18 0.01 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 250);
-  --primary: oklch(0.55 0.18 264);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.96 0.004 250);
-  --secondary-foreground: oklch(0.25 0.01 250);
-  --muted: oklch(0.965 0.003 250);
-  --muted-foreground: oklch(0.52 0.012 250);
-  --accent: oklch(0.96 0.008 264);
-  --accent-foreground: oklch(0.55 0.18 264);
-  --destructive: oklch(0.58 0.22 25);
-  --border: oklch(0.92 0.004 250);
-  --input: oklch(0.92 0.004 250);
-  --ring: oklch(0.55 0.18 264);
-  /* Chart colors — Vibrant yet sophisticated */
-  --chart-1: oklch(0.55 0.18 264);
-  --chart-2: oklch(0.65 0.16 162);
-  --chart-3: oklch(0.75 0.18 70);
-  --chart-4: oklch(0.62 0.22 340);
-  --chart-5: oklch(0.7 0.18 200);
-  --sidebar: oklch(0.99 0.002 250);
-  --sidebar-foreground: oklch(0.25 0.01 250);
-  --sidebar-primary: oklch(0.55 0.18 264);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.96 0.008 264);
-  --sidebar-accent-foreground: oklch(0.55 0.18 264);
-  --sidebar-border: oklch(0.93 0.004 250);
-  --sidebar-ring: oklch(0.55 0.18 264);
+/* ============================================================
+   IRIS Design System v3 — Refined, Minimal, Professional
+   Inspired by Linear, Vercel, Stripe, Arc
+   ============================================================ */
 
-  /* IRIS brand colors */
-  --iris-primary: oklch(0.55 0.18 264);
-  --iris-violet: oklch(0.62 0.22 305);
-  --iris-teal: oklch(0.65 0.16 180);
-  --iris-amber: oklch(0.75 0.18 70);
-  --iris-rose: oklch(0.62 0.22 340);
+:root {
+  --radius: 0.625rem;
+
+  /* Light — Clean, crisp, neutral */
+  --background: oklch(0.992 0.001 264);
+  --foreground: oklch(0.16 0.004 264);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.004 264);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.004 264);
+  --primary: oklch(0.52 0.16 264);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.002 264);
+  --secondary-foreground: oklch(0.22 0.004 264);
+  --muted: oklch(0.97 0.001 264);
+  --muted-foreground: oklch(0.50 0.006 264);
+  --accent: oklch(0.96 0.004 264);
+  --accent-foreground: oklch(0.52 0.16 264);
+  --destructive: oklch(0.55 0.20 25);
+  --border: oklch(0.90 0.003 264);
+  --input: oklch(0.90 0.003 264);
+  --ring: oklch(0.52 0.16 264);
+
+  --chart-1: oklch(0.52 0.16 264);
+  --chart-2: oklch(0.62 0.14 162);
+  --chart-3: oklch(0.72 0.16 70);
+  --chart-4: oklch(0.60 0.20 340);
+  --chart-5: oklch(0.68 0.16 200);
+
+  --sidebar: oklch(0.985 0.001 264);
+  --sidebar-foreground: oklch(0.22 0.004 264);
+  --sidebar-primary: oklch(0.52 0.16 264);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.96 0.004 264);
+  --sidebar-accent-foreground: oklch(0.52 0.16 264);
+  --sidebar-border: oklch(0.91 0.003 264);
+  --sidebar-ring: oklch(0.52 0.16 264);
+
+  /* Brand */
+  --iris-primary: oklch(0.52 0.16 264);
+  --iris-violet: oklch(0.58 0.18 295);
+  --iris-teal: oklch(0.62 0.14 180);
+  --iris-amber: oklch(0.72 0.16 70);
+  --iris-rose: oklch(0.60 0.20 340);
 }
 
 .dark {
-  /* IRIS Premium Dark Theme — Deep, refined, enterprise */
-  --background: oklch(0.14 0.015 255);
-  --foreground: oklch(0.95 0.005 255);
-  --card: oklch(0.175 0.018 255);
-  --card-foreground: oklch(0.95 0.005 255);
-  --popover: oklch(0.175 0.018 255);
-  --popover-foreground: oklch(0.95 0.005 255);
-  --primary: oklch(0.7 0.18 264);
-  --primary-foreground: oklch(0.14 0.015 255);
-  --secondary: oklch(0.22 0.018 255);
-  --secondary-foreground: oklch(0.92 0.005 255);
-  --muted: oklch(0.2 0.015 255);
-  --muted-foreground: oklch(0.65 0.012 255);
-  --accent: oklch(0.24 0.04 264);
-  --accent-foreground: oklch(0.85 0.08 264);
-  --destructive: oklch(0.65 0.22 25);
-  --border: oklch(0.25 0.018 255);
-  --input: oklch(0.22 0.018 255);
-  --ring: oklch(0.7 0.18 264);
-  /* Chart colors — Luminous on dark */
-  --chart-1: oklch(0.7 0.18 264);
-  --chart-2: oklch(0.72 0.16 162);
-  --chart-3: oklch(0.82 0.18 70);
-  --chart-4: oklch(0.7 0.22 340);
-  --chart-5: oklch(0.78 0.18 200);
-  --sidebar: oklch(0.12 0.015 255);
-  --sidebar-foreground: oklch(0.92 0.005 255);
-  --sidebar-primary: oklch(0.7 0.18 264);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.18 0.025 264);
-  --sidebar-accent-foreground: oklch(0.85 0.08 264);
-  --sidebar-border: oklch(0.22 0.018 255);
-  --sidebar-ring: oklch(0.7 0.18 264);
+  /* Dark — Deep neutral, not blue-tinted. More like Linear/Vercel */
+  --background: oklch(0.13 0.005 264);
+  --foreground: oklch(0.93 0.002 264);
+  --card: oklch(0.165 0.005 264);
+  --card-foreground: oklch(0.93 0.002 264);
+  --popover: oklch(0.165 0.005 264);
+  --popover-foreground: oklch(0.93 0.002 264);
+  --primary: oklch(0.65 0.15 264);
+  --primary-foreground: oklch(0.13 0.005 264);
+  --secondary: oklch(0.20 0.005 264);
+  --secondary-foreground: oklch(0.90 0.002 264);
+  --muted: oklch(0.185 0.004 264);
+  --muted-foreground: oklch(0.60 0.006 264);
+  --accent: oklch(0.22 0.02 264);
+  --accent-foreground: oklch(0.80 0.06 264);
+  --destructive: oklch(0.62 0.20 25);
+  --border: oklch(1 0 0 / 0.07);
+  --input: oklch(1 0 0 / 0.08);
+  --ring: oklch(0.65 0.15 264);
+
+  --chart-1: oklch(0.65 0.15 264);
+  --chart-2: oklch(0.68 0.14 162);
+  --chart-3: oklch(0.78 0.16 70);
+  --chart-4: oklch(0.65 0.20 340);
+  --chart-5: oklch(0.72 0.16 200);
+
+  --sidebar: oklch(0.11 0.004 264);
+  --sidebar-foreground: oklch(0.90 0.002 264);
+  --sidebar-primary: oklch(0.65 0.15 264);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.17 0.015 264);
+  --sidebar-accent-foreground: oklch(0.80 0.06 264);
+  --sidebar-border: oklch(1 0 0 / 0.06);
+  --sidebar-ring: oklch(0.65 0.15 264);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv11", "ss01", "ss03";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-  /* Premium scrollbar styling */
+
+  /* Refined scrollbar — thinner, more subtle */
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.7 0.02 255 / 0.25);
+    background: oklch(0.5 0.005 264 / 0.15);
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.7 0.02 255 / 0.4);
+    background: oklch(0.5 0.005 264 / 0.25);
     background-clip: padding-box;
     border: 2px solid transparent;
   }
   .dark ::-webkit-scrollbar-thumb {
-    background: oklch(0.5 0.02 255 / 0.3);
+    background: oklch(0.7 0.005 264 / 0.12);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.7 0.005 264 / 0.2);
     background-clip: padding-box;
     border: 2px solid transparent;
   }
 }
 
-/* IRIS Design System — Premium enterprise components */
+/* ============================================================
+   Component System — Refined, Minimal
+   ============================================================ */
 
 @layer utilities {
-  /* Glass effect for floating elements */
-  .iris-glass {
-    background: oklch(1 0 0 / 0.7);
-    backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid oklch(0.5 0.02 255 / 0.1);
+  /* Surface — the foundational card. Border-based, not shadow-based */
+  .iris-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    transition: border-color 150ms ease, background 150ms ease;
   }
-  .dark .iris-glass {
-    background: oklch(0.17 0.018 255 / 0.7);
-    border: 1px solid oklch(0.5 0.02 255 / 0.15);
+  .iris-card:hover {
+    border-color: oklch(0.5 0.01 264 / 0.2);
+  }
+  .dark .iris-card:hover {
+    border-color: oklch(1 0 0 / 0.12);
   }
 
-  /* Subtle gradient text */
+  /* Elevated surface — for modals, dropdowns */
+  .iris-card-elevated {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 0 0 1px oklch(0 0 0 / 0.02),
+      0 2px 4px -1px oklch(0 0 0 / 0.03),
+      0 4px 12px -2px oklch(0 0 0 / 0.05);
+  }
+  .dark .iris-card-elevated {
+    box-shadow:
+      0 0 0 1px oklch(0 0 0 / 0.2),
+      0 2px 8px -1px oklch(0 0 0 / 0.3),
+      0 8px 24px -4px oklch(0 0 0 / 0.4);
+  }
+
+  /* Subtle gradient text — used sparingly */
   .iris-text-gradient {
-    background: linear-gradient(135deg, var(--iris-primary), var(--iris-violet));
+    background: linear-gradient(135deg, var(--primary), var(--iris-violet));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
-  /* Premium card with subtle depth */
-  .iris-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow:
-      0 1px 2px 0 oklch(0 0 0 / 0.03),
-      0 1px 3px 0 oklch(0 0 0 / 0.04);
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Glass — for floating bars */
+  .iris-glass {
+    background: oklch(1 0 0 / 0.72);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid oklch(0 0 0 / 0.05);
   }
-  .iris-card:hover {
-    box-shadow:
-      0 4px 12px -2px oklch(0 0 0 / 0.06),
-      0 2px 6px -1px oklch(0 0 0 / 0.04);
-    border-color: oklch(0.5 0.02 255 / 0.2);
-  }
-  .dark .iris-card {
-    box-shadow:
-      0 1px 2px 0 oklch(0 0 0 / 0.2),
-      inset 0 1px 0 0 oklch(1 0 0 / 0.03);
-  }
-  .dark .iris-card:hover {
-    box-shadow:
-      0 4px 16px -2px oklch(0 0 0 / 0.4),
-      inset 0 1px 0 0 oklch(1 0 0 / 0.05);
-    border-color: oklch(0.5 0.02 255 / 0.25);
+  .dark .iris-glass {
+    background: oklch(0.165 0.005 264 / 0.72);
+    border: 1px solid oklch(1 0 0 / 0.06);
   }
 
-  /* Animated gradient border for AI elements */
+  /* AI border — subtle, not flashy */
   .iris-ai-border {
     position: relative;
   }
@@ -217,581 +239,248 @@
     inset: -1px;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(
-      120deg,
-      var(--iris-primary),
-      var(--iris-violet),
-      var(--iris-teal),
-      var(--iris-primary)
-    );
-    background-size: 300% 300%;
-    animation: iris-gradient-shift 6s ease infinite;
-    -webkit-mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
+    background: linear-gradient(135deg, oklch(0.52 0.16 264 / 0.4), oklch(0.58 0.18 295 / 0.2));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
   }
 
-  /* Animated background for AI surfaces */
-  .iris-ai-glow {
-    background: radial-gradient(
-      ellipse 600px 200px at 50% -20%,
-      oklch(0.7 0.18 264 / 0.08),
-      transparent
-    );
-  }
-  .dark .iris-ai-glow {
-    background: radial-gradient(
-      ellipse 600px 200px at 50% -20%,
-      oklch(0.7 0.18 264 / 0.15),
-      transparent
-    );
-  }
-
-  /* Pulse dot for live status */
-  .iris-pulse-dot {
+  /* Aurora — very subtle background mesh */
+  .iris-aurora {
     position: relative;
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: oklch(0.65 0.16 162);
+    overflow: hidden;
   }
-  .iris-pulse-dot::before {
+  .iris-aurora::before {
     content: "";
     position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    background: oklch(0.65 0.16 162 / 0.4);
-    animation: iris-pulse 2s ease-out infinite;
+    inset: -10%;
+    background:
+      radial-gradient(circle at 20% 30%, oklch(0.52 0.16 264 / 0.04), transparent 50%),
+      radial-gradient(circle at 80% 20%, oklch(0.58 0.18 295 / 0.03), transparent 50%);
+    filter: blur(60px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .dark .iris-aurora::before {
+    background:
+      radial-gradient(circle at 20% 30%, oklch(0.65 0.15 264 / 0.06), transparent 50%),
+      radial-gradient(circle at 80% 20%, oklch(0.58 0.18 295 / 0.04), transparent 50%);
+  }
+  .iris-aurora > * {
+    position: relative;
+    z-index: 1;
   }
 
-  /* Shimmer for loading states */
-  .iris-shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      oklch(0.5 0.02 255 / 0.08) 50%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-    animation: iris-shimmer 1.5s ease-in-out infinite;
+  /* Premium button — clean, no gradient */
+  .iris-btn-premium {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition: opacity 150ms ease, transform 100ms ease;
+  }
+  .iris-btn-premium:hover {
+    opacity: 0.9;
+  }
+  .iris-btn-premium:active {
+    transform: scale(0.98);
   }
 
-  /* Sophisticated grid background */
-  .iris-grid-bg {
-    background-image:
-      linear-gradient(oklch(0.5 0.02 255 / 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(0.5 0.02 255 / 0.03) 1px, transparent 1px);
-    background-size: 32px 32px;
+  /* Option button — clean, border-based */
+  .iris-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+  .iris-option:hover {
+    border-color: var(--primary);
+    background: var(--accent);
   }
 
-  /* Premium button glow */
-  .iris-btn-glow {
-    box-shadow:
-      0 0 0 0 oklch(0.55 0.18 264 / 0),
-      0 4px 12px -2px oklch(0.55 0.18 264 / 0.3);
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .iris-btn-glow:hover {
-    box-shadow:
-      0 0 0 4px oklch(0.55 0.18 264 / 0.1),
-      0 8px 24px -4px oklch(0.55 0.18 264 / 0.4);
-    transform: translateY(-1px);
-  }
-
-  /* Slide animations */
-  .iris-slide-in-right {
-    animation: iris-slide-in-right 350ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .iris-fade-in {
-    animation: iris-fade-in 250ms ease-out;
-  }
-  .iris-fade-in-up {
-    animation: iris-fade-in-up 400ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .iris-scale-in {
-    animation: iris-scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* Chip — small, monochrome */
+  .iris-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
   }
 
-  /* Typing dots */
-  .iris-typing-dot {
+  /* Badge — refined */
+  .iris-badge-premium {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: var(--accent);
+    color: var(--accent-foreground);
+    border: 1px solid var(--border);
+  }
+
+  /* Live dot */
+  .iris-live-dot {
+    position: relative;
     display: inline-block;
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: currentColor;
+    background: oklch(0.62 0.14 162);
+  }
+  .iris-live-dot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: oklch(0.62 0.14 162);
     opacity: 0.4;
-    animation: iris-typing 1.4s ease-in-out infinite;
+    animation: iris-live-pulse 2.5s ease-out infinite;
   }
-  .iris-typing-dot:nth-child(2) { animation-delay: 0.2s; }
-  .iris-typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-  /* Stagger helper */
-  .iris-stagger > * {
-    opacity: 0;
-    animation: iris-fade-in-up 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  @keyframes iris-live-pulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(3); opacity: 0; }
   }
-  .iris-stagger > *:nth-child(1) { animation-delay: 50ms; }
-  .iris-stagger > *:nth-child(2) { animation-delay: 100ms; }
-  .iris-stagger > *:nth-child(3) { animation-delay: 150ms; }
-  .iris-stagger > *:nth-child(4) { animation-delay: 200ms; }
-  .iris-stagger > *:nth-child(5) { animation-delay: 250ms; }
-  .iris-stagger > *:nth-child(6) { animation-delay: 300ms; }
-  .iris-stagger > *:nth-child(7) { animation-delay: 350ms; }
-  .iris-stagger > *:nth-child(8) { animation-delay: 400ms; }
 
-  /* Number ticker */
+  /* Thinking dots */
+  .iris-thinking-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--muted-foreground);
+    animation: iris-thinking-bounce 1.4s ease-in-out infinite;
+  }
+  .iris-thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+  .iris-thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes iris-thinking-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* Animations — smooth, not bouncy */
+  .iris-fade-in {
+    animation: iris-fade-in 200ms ease-out;
+  }
+  @keyframes iris-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .iris-fade-in-up {
+    animation: iris-fade-in-up 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes iris-fade-in-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .iris-scale-in {
+    animation: iris-scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes iris-scale-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .iris-slide-up {
+    animation: iris-slide-up 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes iris-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Divider */
+  .iris-divider {
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Shimmer for skeletons */
+  .iris-skeleton {
+    background: linear-gradient(
+      90deg,
+      oklch(0.5 0.005 264 / 0.03) 0%,
+      oklch(0.5 0.005 264 / 0.08) 50%,
+      oklch(0.5 0.005 264 / 0.03) 100%
+    );
+    background-size: 200% 100%;
+    animation: iris-skeleton-shimmer 1.8s ease-in-out infinite;
+  }
+  @keyframes iris-skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Tabular numbers */
   .iris-ticker {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }
+
+  /* Action shimmer — very subtle */
+  .iris-action-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .iris-action-shimmer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.08), transparent);
+    animation: iris-action-shimmer-anim 4s ease-in-out infinite;
+  }
+  @keyframes iris-action-shimmer-anim {
+    0% { left: -60%; }
+    50%, 100% { left: 100%; }
+  }
+
+  /* Grid background — very subtle */
+  .iris-grid-bg {
+    background-image:
+      linear-gradient(oklch(0 0 0 / 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0 0 0 / 0.015) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .dark .iris-grid-bg {
+    background-image:
+      linear-gradient(oklch(1 0 0 / 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 0.02) 1px, transparent 1px);
+  }
 }
 
-@keyframes iris-gradient-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-@keyframes iris-pulse {
-  0% { transform: scale(0.8); opacity: 0.8; }
-  100% { transform: scale(2.5); opacity: 0; }
-}
-
-@keyframes iris-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-@keyframes iris-slide-in-right {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes iris-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes iris-fade-in-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes iris-scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes iris-typing {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-4px); opacity: 1; }
-}
-
-@keyframes iris-spin {
-  to { transform: rotate(360deg); }
-}
-
-.iris-spin {
-  animation: iris-spin 1s linear infinite;
-}
-
-/* Smooth focus rings */
+/* Focus — refined */
 *:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
   border-radius: 4px;
 }
 
-/* Selection styling */
 ::selection {
-  background: oklch(0.55 0.18 264 / 0.25);
+  background: oklch(0.52 0.16 264 / 0.15);
 }
-
-/* === PREMIUM ENHANCEMENTS v2 === */
-
-/* Aurora / mesh gradient background for AI surfaces */
-.iris-aurora {
-  position: relative;
-  overflow: hidden;
-}
-.iris-aurora::before {
-  content: "";
-  position: absolute;
-  inset: -20%;
-  background:
-    radial-gradient(circle at 20% 30%, oklch(0.7 0.18 264 / 0.18), transparent 40%),
-    radial-gradient(circle at 80% 20%, oklch(0.7 0.18 305 / 0.15), transparent 40%),
-    radial-gradient(circle at 50% 80%, oklch(0.7 0.16 180 / 0.12), transparent 40%);
-  filter: blur(40px);
-  animation: iris-aurora-shift 12s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-.iris-aurora > * {
-  position: relative;
-  z-index: 1;
-}
-@keyframes iris-aurora-shift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(-2%, 2%) scale(1.05); }
-  66% { transform: translate(2%, -1%) scale(0.98); }
-}
-
-/* Premium elevated card with depth */
-.iris-card-elevated {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.04),
-    0 4px 8px -2px oklch(0 0 0 / 0.04),
-    0 12px 24px -4px oklch(0 0 0 / 0.06);
-  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.iris-card-elevated:hover {
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.05),
-    0 8px 16px -4px oklch(0 0 0 / 0.08),
-    0 20px 40px -8px oklch(0 0 0 / 0.1);
-  transform: translateY(-2px);
-  border-color: oklch(0.55 0.18 264 / 0.3);
-}
-.dark .iris-card-elevated {
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.3),
-    0 4px 12px -2px oklch(0 0 0 / 0.4),
-    inset 0 1px 0 0 oklch(1 0 0 / 0.04);
-}
-.dark .iris-card-elevated:hover {
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.4),
-    0 12px 28px -4px oklch(0 0 0 / 0.6),
-    inset 0 1px 0 0 oklch(1 0 0 / 0.06);
-}
-
-/* Premium button with glow */
-.iris-btn-premium {
-  position: relative;
-  background: linear-gradient(135deg, oklch(0.6 0.18 264), oklch(0.55 0.2 290));
-  color: white;
-  font-weight: 600;
-  border-radius: 10px;
-  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.1),
-    0 4px 12px -2px oklch(0.55 0.18 264 / 0.4);
-}
-.iris-btn-premium:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    0 2px 4px oklch(0 0 0 / 0.15),
-    0 8px 20px -4px oklch(0.55 0.18 264 / 0.5);
-}
-.iris-btn-premium:active {
-  transform: translateY(0);
-}
-
-/* Premium message bubble variants */
-.iris-bubble {
-  position: relative;
-  border-radius: 16px;
-  padding: 14px 16px;
-  transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.iris-bubble-info {
-  background: linear-gradient(135deg, oklch(0.96 0.01 264), oklch(0.94 0.015 290));
-  border: 1px solid oklch(0.7 0.18 264 / 0.2);
-  color: oklch(0.2 0.02 255);
-}
-.dark .iris-bubble-info {
-  background: linear-gradient(135deg, oklch(0.22 0.03 264), oklch(0.2 0.035 290));
-  border: 1px solid oklch(0.7 0.18 264 / 0.25);
-  color: oklch(0.92 0.005 255);
-}
-.iris-bubble-question {
-  background: var(--card);
-  border: 1px solid oklch(0.7 0.18 264 / 0.3);
-  box-shadow: 0 0 0 1px oklch(0.7 0.18 264 / 0.1), 0 4px 12px -2px oklch(0 0 0 / 0.06);
-}
-.iris-bubble-investigation {
-  background: linear-gradient(135deg, oklch(0.96 0.02 290), oklch(0.94 0.025 264));
-  border: 1px solid oklch(0.7 0.18 290 / 0.25);
-}
-.dark .iris-bubble-investigation {
-  background: linear-gradient(135deg, oklch(0.2 0.04 290), oklch(0.18 0.035 264));
-  border: 1px solid oklch(0.7 0.18 290 / 0.3);
-}
-.iris-bubble-success {
-  background: linear-gradient(135deg, oklch(0.96 0.02 160), oklch(0.94 0.025 180));
-  border: 1px solid oklch(0.65 0.16 162 / 0.3);
-}
-.dark .iris-bubble-success {
-  background: linear-gradient(135deg, oklch(0.2 0.04 162), oklch(0.18 0.035 180));
-  border: 1px solid oklch(0.65 0.16 162 / 0.3);
-}
-
-/* Captured info chip with pop-in animation */
-.iris-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  background: oklch(0.7 0.18 264 / 0.1);
-  color: oklch(0.55 0.18 264);
-  border: 1px solid oklch(0.7 0.18 264 / 0.2);
-  animation: iris-chip-pop 350ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.dark .iris-chip {
-  color: oklch(0.8 0.1 264);
-}
-@keyframes iris-chip-pop {
-  0% { opacity: 0; transform: scale(0.7) translateY(4px); }
-  60% { opacity: 1; transform: scale(1.05) translateY(0); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-/* Premium option button */
-.iris-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  overflow: hidden;
-}
-.iris-option::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, oklch(0.7 0.18 264 / 0), oklch(0.7 0.18 264 / 0));
-  transition: background 200ms;
-  pointer-events: none;
-}
-.iris-option:hover {
-  border-color: oklch(0.7 0.18 264 / 0.4);
-  transform: translateX(2px);
-}
-.iris-option:hover::before {
-  background: linear-gradient(135deg, oklch(0.7 0.18 264 / 0.08), oklch(0.7 0.18 290 / 0.05));
-}
-
-/* Investigation status indicator */
-.iris-status-pulse {
-  position: relative;
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.iris-status-pulse::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.3;
-  animation: iris-status-pulse-anim 2s ease-out infinite;
-}
-@keyframes iris-status-pulse-anim {
-  0% { transform: scale(0.5); opacity: 0.6; }
-  100% { transform: scale(2); opacity: 0; }
-}
-
-/* Progress ring */
-.iris-ring {
-  transform: rotate(-90deg);
-}
-.iris-ring circle {
-  fill: none;
-  stroke-width: 2;
-  transition: stroke-dashoffset 500ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Premium sidebar active indicator */
-.iris-nav-active {
-  position: relative;
-}
-.iris-nav-active::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 60%;
-  border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, oklch(0.7 0.18 264), oklch(0.65 0.2 290));
-}
-
-/* Layered shadow for hero elements */
-.iris-shadow-hero {
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.04),
-    0 4px 8px -2px oklch(0 0 0 / 0.06),
-    0 12px 24px -4px oklch(0 0 0 / 0.08),
-    0 24px 48px -8px oklch(0.55 0.18 264 / 0.15);
-}
-.dark .iris-shadow-hero {
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.3),
-    0 4px 12px -2px oklch(0 0 0 / 0.4),
-    0 16px 32px -8px oklch(0 0 0 / 0.5),
-    0 24px 48px -12px oklch(0.7 0.18 264 / 0.25);
-}
-
-/* Premium skeleton with shimmer */
-.iris-skeleton {
-  background: linear-gradient(
-    90deg,
-    oklch(0.5 0.02 255 / 0.05) 0%,
-    oklch(0.5 0.02 255 / 0.15) 50%,
-    oklch(0.5 0.02 255 / 0.05) 100%
-  );
-  background-size: 200% 100%;
-  animation: iris-skeleton-shimmer 1.8s ease-in-out infinite;
-}
-@keyframes iris-skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* Premium badge with subtle gradient */
-.iris-badge-premium {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  background: linear-gradient(135deg, oklch(0.7 0.18 264 / 0.15), oklch(0.65 0.2 290 / 0.1));
-  color: oklch(0.55 0.18 264);
-  border: 1px solid oklch(0.7 0.18 264 / 0.2);
-}
-.dark .iris-badge-premium {
-  color: oklch(0.85 0.1 264);
-}
-
-/* Live indicator with multiple pulses */
-.iris-live-dot {
-  position: relative;
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: oklch(0.65 0.16 162);
-}
-.iris-live-dot::before,
-.iris-live-dot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: oklch(0.65 0.16 162);
-  opacity: 0.4;
-  animation: iris-live-pulse 2.5s ease-out infinite;
-}
-.iris-live-dot::after {
-  animation-delay: 1.25s;
-}
-@keyframes iris-live-pulse {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(3); opacity: 0; }
-}
-
-/* Thinking dots with sophisticated motion */
-.iris-thinking-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: oklch(0.7 0.18 264);
-  animation: iris-thinking-bounce 1.4s ease-in-out infinite;
-}
-.iris-thinking-dot:nth-child(1) { animation-delay: 0s; }
-.iris-thinking-dot:nth-child(2) { animation-delay: 0.2s; }
-.iris-thinking-dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes iris-thinking-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-6px); opacity: 1; }
-}
-
-/* Premium divider */
-.iris-divider {
-  position: relative;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border), transparent);
-}
-
-/* Number ticker animation */
-.iris-ticker-animate {
-  animation: iris-ticker-up 600ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes iris-ticker-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Smooth slide-in from bottom */
-.iris-slide-up {
-  animation: iris-slide-up-anim 500ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes iris-slide-up-anim {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Gradient ring border for important elements */
-.iris-ring-gradient {
-  position: relative;
-  background: var(--card);
-  border-radius: var(--radius-lg);
-}
-.iris-ring-gradient::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, oklch(0.7 0.18 264), oklch(0.65 0.2 290), oklch(0.7 0.16 180));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* Floating action shimmer */
-.iris-action-shimmer {
-  position: relative;
-  overflow: hidden;
-}
-.iris-action-shimmer::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.15), transparent);
-  animation: iris-action-shimmer-anim 3s ease-in-out infinite;
-}
-@keyframes iris-action-shimmer-anim {
-  0% { left: -100%; }
-  50%, 100% { left: 100%; }
+.dark ::selection {
+  background: oklch(0.65 0.15 264 / 0.25);
 }

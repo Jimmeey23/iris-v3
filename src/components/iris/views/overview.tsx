@@ -4,8 +4,8 @@ import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
 import { ALL_TICKETS, getAssignee, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
 import { EMPLOYEES, DEPARTMENTS, STUDIOS } from "@/lib/iris/types";
-import { PriorityBadge, StatusBadge, SLABadge, SLAProgressBar, StudioBadge } from "../badges";
-import { formatRelativeTime, formatTimeRemaining } from "@/lib/iris/utils";
+import { PriorityBadge, StatusBadge, SLABadge } from "../badges";
+import { formatRelativeTime } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import {
   Ticket as TicketIcon,
@@ -15,11 +15,9 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
-  Users,
   Building2,
   Sparkles,
   ArrowRight,
-  Zap,
   Brain,
   Timer,
   Target,
@@ -34,8 +32,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  RadialBarChart,
-  RadialBar,
   XAxis,
   YAxis,
   Tooltip as RTooltip,
@@ -43,7 +39,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const CHART_COLORS = ["#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#10b981", "#6366f1", "#f43f5e", "#84cc16"];
+const CHART_COLORS = ["#6366f1", "#06b6d4", "#f59e0b", "#ec4899", "#10b981", "#8b5cf6", "#f43f5e", "#84cc16"];
 
 export function OverviewView() {
   const { setCurrentView, selectTicket, currentUser } = useAppStore();
@@ -107,29 +103,30 @@ export function OverviewView() {
   }, []);
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+    <div className="p-8 max-w-[1400px] mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground mb-1">
-            <span className="iris-pulse-dot" />
-            Operations Overview · Live
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-2">
+            <span className="iris-live-dot" />
+            Operations Overview
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Good afternoon, <span className="iris-text-gradient">{currentUser.name.split(" ")[0]}</span>
+          <h1 className="text-[22px] font-semibold tracking-tight">
+            Welcome back, {currentUser.name.split(" ")[0]}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-[13px] text-muted-foreground mt-1">
             Here's what's happening across all Physique 57 India studios today.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 text-[11px] font-medium">
-            <Timer className="w-3.5 h-3.5 text-violet-500" />
-            <span>SLA Compliance</span>
-            <span className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{slaCompliance}%</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card text-[11px] font-medium">
+            <Timer className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-muted-foreground">SLA</span>
+            <span className="font-semibold tabular-nums">{slaCompliance}%</span>
           </div>
           <button
             onClick={() => setCurrentView("ai_assistant")}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[13px] font-medium iris-btn-glow"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium transition-opacity hover:opacity-90"
           >
             <Sparkles className="w-3.5 h-3.5" />
             Ask IRIS
@@ -137,70 +134,64 @@ export function OverviewView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <KPICard label="Total Tickets" value={stats.total} icon={TicketIcon} trend="+8%" trendUp accent="violet" />
-        <KPICard label="Open" value={stats.open} icon={Activity} accent="sky" />
-        <KPICard label="Critical" value={stats.critical} icon={Flame} accent="rose" />
-        <KPICard label="Escalated" value={stats.escalated} icon={AlertTriangle} accent="amber" />
-        <KPICard label="Overdue" value={stats.overdue} icon={Clock} accent="rose" />
-        <KPICard label="Resolved" value={stats.resolved} icon={CheckCircle2} trend="+12%" trendUp accent="emerald" />
-        <KPICard label="My Queue" value={stats.myTickets} icon={Target} accent="indigo" />
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+        <KPICard label="Total" value={stats.total} icon={TicketIcon} trend="+8%" trendUp />
+        <KPICard label="Open" value={stats.open} icon={Activity} />
+        <KPICard label="Critical" value={stats.critical} icon={Flame} />
+        <KPICard label="Escalated" value={stats.escalated} icon={AlertTriangle} />
+        <KPICard label="Overdue" value={stats.overdue} icon={Clock} />
+        <KPICard label="Resolved" value={stats.resolved} icon={CheckCircle2} trend="+12%" trendUp />
+        <KPICard label="My Queue" value={stats.myTickets} icon={Target} />
       </div>
 
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
-          <CardHeader title="Ticket Activity" subtitle="Daily creation vs resolution (last 7 days)" icon={TrendingUp} />
+          <CardHeader title="Ticket Activity" subtitle="Daily creation vs resolution" icon={TrendingUp} />
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <defs>
                   <linearGradient id="grad-created" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="grad-resolved" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
                     <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
                 <RTooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    color: "var(--popover-foreground)",
-                  }}
+                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, color: "var(--popover-foreground)" }}
                 />
-                <Area type="monotone" dataKey="created" name="Created" stroke="#8b5cf6" strokeWidth={2} fill="url(#grad-created)" />
-                <Area type="monotone" dataKey="resolved" name="Resolved" stroke="#10b981" strokeWidth={2} fill="url(#grad-resolved)" />
+                <Area type="monotone" dataKey="created" name="Created" stroke="var(--primary)" strokeWidth={1.5} fill="url(#grad-created)" />
+                <Area type="monotone" dataKey="resolved" name="Resolved" stroke="#10b981" strokeWidth={1.5} fill="url(#grad-resolved)" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader title="Priority Distribution" subtitle="Active tickets by priority" icon={Target} />
+          <CardHeader title="Priority" subtitle="Active tickets" icon={Target} />
           <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={160}>
               <PieChart>
-                <Pie data={priorityData} innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
+                <Pie data={priorityData} innerRadius={45} outerRadius={70} paddingAngle={2} dataKey="value">
                   {priorityData.map((entry, idx) => (
                     <Cell key={idx} fill={entry.color} stroke="none" />
                   ))}
                 </Pie>
-                <RTooltip
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                />
+                <RTooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-1.5 mt-2">
+            <div className="grid grid-cols-2 gap-1 mt-2">
               {priorityData.map((p) => (
                 <div key={p.name} className="flex items-center gap-1.5 text-[11px]">
-                  <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />
                   <span className="text-muted-foreground flex-1">{p.name}</span>
                   <span className="font-semibold tabular-nums">{p.value}</span>
                 </div>
@@ -208,42 +199,42 @@ export function OverviewView() {
             </div>
           </CardContent>
         </Card>
+      </div>
 
+      {/* Studio + Department */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
-          <CardHeader title="Studio Performance" subtitle="Tickets by studio with resolution rate" icon={Building2} />
+          <CardHeader title="Studio Performance" subtitle="Tickets by studio" icon={Building2} />
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={studioData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }} axisLine={false} tickLine={false} />
-                <RTooltip
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                  cursor={{ fill: "currentColor", fillOpacity: 0.05 }}
-                />
-                <Bar dataKey="tickets" name="Total" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={28} />
-                <Bar dataKey="resolved" name="Resolved" fill="#10b981" radius={[6, 6, 0, 0]} barSize={28} />
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={studioData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
+                <RTooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11 }} cursor={{ fill: "currentColor", fillOpacity: 0.03 }} />
+                <Bar dataKey="tickets" name="Total" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="resolved" name="Resolved" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader title="Department Load" subtitle="Top by workload" icon={Users} />
+          <CardHeader title="Department Load" subtitle="Top by workload" icon={Activity} />
           <CardContent>
             <div className="space-y-2.5">
               {deptData.map((d, i) => (
-                <div key={d.name} className="group">
+                <div key={d.name}>
                   <div className="flex items-center justify-between mb-1">
-                    <div className="text-[12px] font-medium truncate flex-1">{d.dept}</div>
-                    <div className="text-[11px] font-semibold tabular-nums text-muted-foreground ml-2">{d.workload}</div>
+                    <div className="text-[12px] font-medium truncate">{d.dept}</div>
+                    <div className="text-[11px] font-semibold tabular-nums text-muted-foreground">{d.workload}</div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${(d.workload / deptData[0].workload) * 100}%`,
-                        background: `linear-gradient(90deg, ${CHART_COLORS[i]}, ${CHART_COLORS[i]}99)`,
+                        background: i === 0 ? "var(--primary)" : CHART_COLORS[i % CHART_COLORS.length],
                       }}
                     />
                   </div>
@@ -254,6 +245,7 @@ export function OverviewView() {
         </Card>
       </div>
 
+      {/* Critical + Recent */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader
@@ -261,34 +253,28 @@ export function OverviewView() {
             subtitle={`${criticalTickets.length} tickets need attention`}
             icon={Flame}
             action={
-              <button onClick={() => setCurrentView("escalations")} className="text-[11px] font-medium text-violet-600 dark:text-violet-400 flex items-center gap-1 hover:gap-1.5 transition-all">
+              <button onClick={() => setCurrentView("escalations")} className="text-[11px] font-medium text-primary flex items-center gap-0.5 hover:gap-1 transition-all">
                 View all <ChevronRight className="w-3 h-3" />
               </button>
             }
           />
-          <CardContent className="space-y-2 max-h-[360px] overflow-y-auto iris-scrollbar">
+          <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto">
             {criticalTickets.map((t) => {
               const assignee = getAssignee(t);
               return (
                 <button
                   key={t.id}
-                  onClick={() => {
-                    selectTicket(t.id);
-                    setCurrentView("all_tickets");
-                  }}
-                  className="w-full text-left p-3 rounded-lg border border-border hover:border-violet-500/40 hover:bg-violet-500/5 transition-all group"
+                  onClick={() => { selectTicket(t.id); setCurrentView("all_tickets"); }}
+                  className="w-full text-left p-2.5 rounded-lg border border-border hover:border-primary/30 transition-colors"
                 >
-                  <div className="flex items-start gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1.5">
                     <PriorityBadge priority={t.priority} />
                     <SLABadge status={t.slaStatus} targetDate={t.slaResolutionTarget} />
                     <span className="text-[10px] font-mono text-muted-foreground ml-auto">{t.ticketId}</span>
                   </div>
-                  <div className="text-[13px] font-medium leading-snug line-clamp-2 mb-2 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-                    {t.title}
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                    {t.studioCode && <StudioBadge studioCode={t.studioCode} />}
-                    {assignee && <span>· {assignee.name}</span>}
+                  <div className="text-[12px] font-medium leading-snug line-clamp-2">{t.title}</div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1.5">
+                    {assignee && <span>{assignee.name}</span>}
                     <span className="ml-auto">{formatRelativeTime(t.createdAt)}</span>
                   </div>
                 </button>
@@ -300,33 +286,28 @@ export function OverviewView() {
         <Card>
           <CardHeader
             title="Recent Activity"
-            subtitle="Latest tickets across studios"
+            subtitle="Latest tickets"
             icon={Clock}
             action={
-              <button onClick={() => setCurrentView("all_tickets")} className="text-[11px] font-medium text-violet-600 dark:text-violet-400 flex items-center gap-1 hover:gap-1.5 transition-all">
+              <button onClick={() => setCurrentView("all_tickets")} className="text-[11px] font-medium text-primary flex items-center gap-0.5 hover:gap-1 transition-all">
                 View all <ChevronRight className="w-3 h-3" />
               </button>
             }
           />
-          <CardContent className="space-y-2 max-h-[360px] overflow-y-auto iris-scrollbar">
+          <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto">
             {recentTickets.map((t) => (
               <button
                 key={t.id}
-                onClick={() => {
-                  selectTicket(t.id);
-                  setCurrentView("all_tickets");
-                }}
-                className="w-full text-left p-3 rounded-lg border border-border hover:border-violet-500/40 hover:bg-violet-500/5 transition-all group"
+                onClick={() => { selectTicket(t.id); setCurrentView("all_tickets"); }}
+                className="w-full text-left p-2.5 rounded-lg border border-border hover:border-primary/30 transition-colors"
               >
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-2 mb-1">
                   <PriorityBadge priority={t.priority} size="xs" />
                   <StatusBadge status={t.status} size="xs" />
                   <span className="text-[10px] font-mono text-muted-foreground ml-auto">{t.ticketId}</span>
                 </div>
-                <div className="text-[13px] font-medium leading-snug line-clamp-1 mb-1 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-                  {t.title}
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <div className="text-[12px] font-medium leading-snug line-clamp-1">{t.title}</div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
                   <span>{getStudio(t)?.name}</span>
                   <span>·</span>
                   <span>{getDepartment(t)?.name}</span>
@@ -338,18 +319,19 @@ export function OverviewView() {
         </Card>
       </div>
 
+      {/* AI Insights */}
       <Card className="iris-ai-border">
         <CardHeader
-          title="AI Insights & Recommendations"
-          subtitle="Generated by IRIS Intelligence Agent"
+          title="AI Insights"
+          subtitle="Generated by IRIS Intelligence"
           icon={Brain}
-          action={<Sparkles className="w-4 h-4 text-violet-500" />}
+          action={<Sparkles className="w-4 h-4 text-primary" />}
         />
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <InsightCard type="pattern" title="Recurring HVAC Issues" description="Kwality House has reported 3 AC-related issues in 6 weeks. Recommend preventive maintenance schedule." confidence={92} />
-            <InsightCard type="bottleneck" title="Resolution Bottleneck" description="Payment-related tickets are taking 28% longer than SLA target. Consider additional training or staffing." confidence={87} />
-            <InsightCard type="recommendation" title="Workload Imbalance" description="Facilities team workload is 67% higher than other departments. Recommend cross-training." confidence={94} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <InsightCard type="pattern" title="Recurring HVAC Issues" description="Kwality House has reported 3 AC issues in 6 weeks. Preventive maintenance recommended." confidence={92} />
+            <InsightCard type="bottleneck" title="Resolution Bottleneck" description="Payment tickets taking 28% longer than SLA. Consider automating verification." confidence={87} />
+            <InsightCard type="recommendation" title="Workload Imbalance" description="Facilities team at 67% capacity. Cross-training could reduce load by ~20%." confidence={94} />
           </div>
         </CardContent>
       </Card>
@@ -363,39 +345,26 @@ function KPICard({
   icon: Icon,
   trend,
   trendUp,
-  accent,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   trend?: string;
   trendUp?: boolean;
-  accent: "violet" | "sky" | "rose" | "amber" | "emerald" | "indigo";
 }) {
-  const colors = {
-    violet: "from-violet-500/10 to-violet-500/5 text-violet-600 dark:text-violet-400",
-    sky: "from-sky-500/10 to-sky-500/5 text-sky-600 dark:text-sky-400",
-    rose: "from-rose-500/10 to-rose-500/5 text-rose-600 dark:text-rose-400",
-    amber: "from-amber-500/10 to-amber-500/5 text-amber-600 dark:text-amber-400",
-    emerald: "from-emerald-500/10 to-emerald-500/5 text-emerald-600 dark:text-emerald-400",
-    indigo: "from-indigo-500/10 to-indigo-500/5 text-indigo-600 dark:text-indigo-400",
-  };
   return (
-    <div className="iris-card p-3 relative overflow-hidden group hover:scale-[1.01] transition-transform">
-      <div className={cn("absolute inset-0 bg-gradient-to-br opacity-50", colors[accent])} />
-      <div className="relative">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</div>
-          <Icon className={cn("w-3.5 h-3.5", colors[accent].split(" ").pop())} />
-        </div>
-        <div className="text-2xl font-bold tabular-nums iris-ticker">{value}</div>
-        {trend && (
-          <div className={cn("text-[10px] font-medium mt-1 flex items-center gap-0.5", trendUp ? "text-emerald-500" : "text-rose-500")}>
-            {trendUp ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-            {trend} vs last week
-          </div>
-        )}
+    <div className="iris-card p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</div>
+        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
       </div>
+      <div className="text-[20px] font-semibold tabular-nums iris-ticker">{value}</div>
+      {trend && (
+        <div className={cn("text-[10px] font-medium mt-0.5 flex items-center gap-0.5", trendUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+          {trendUp ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+          {trend}
+        </div>
+      )}
     </div>
   );
 }
@@ -416,15 +385,15 @@ export function CardHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+    <div className="px-4 py-3 border-b border-border flex items-center gap-2.5">
       {Icon && (
-        <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
-          <Icon className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+        <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
         </div>
       )}
       <div className="flex-1 min-w-0">
         <div className="text-[13px] font-semibold leading-tight">{title}</div>
-        {subtitle && <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{subtitle}</div>}
+        {subtitle && <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{subtitle}</div>}
       </div>
       {action}
     </div>
@@ -447,23 +416,27 @@ function InsightCard({
   confidence: number;
 }) {
   const icons = { pattern: TrendingUp, bottleneck: AlertTriangle, recommendation: Sparkles };
-  const colors = { pattern: "text-violet-500 bg-violet-500/10", bottleneck: "text-amber-500 bg-amber-500/10", recommendation: "text-emerald-500 bg-emerald-500/10" };
+  const colors = {
+    pattern: "text-primary",
+    bottleneck: "text-amber-500",
+    recommendation: "text-emerald-500",
+  };
   const Icon = icons[type];
   return (
-    <div className="p-3 rounded-lg border border-border bg-card hover:border-violet-500/30 transition-colors">
+    <div className="p-3 rounded-lg border border-border">
       <div className="flex items-start gap-2 mb-2">
-        <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", colors[type])}>
-          <Icon className="w-3.5 h-3.5" />
+        <div className={cn("w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0")}>
+          <Icon className={cn("w-3.5 h-3.5", colors[type])} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[12px] font-semibold leading-tight">{title}</div>
           <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">{type}</div>
         </div>
       </div>
-      <p className="text-[12px] text-muted-foreground leading-relaxed mb-2">{description}</p>
+      <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">{description}</p>
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full" style={{ width: `${confidence}%` }} />
+          <div className="h-full bg-primary rounded-full" style={{ width: `${confidence}%` }} />
         </div>
         <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">{confidence}%</span>
       </div>

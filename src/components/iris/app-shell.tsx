@@ -10,7 +10,6 @@ import {
   Ticket,
   UserCircle,
   Building2,
-  TrendingUp,
   BarChart3,
   BookOpen,
   LayoutTemplate,
@@ -28,7 +27,6 @@ import {
   Plus,
   AlertTriangle,
   Brain,
-  Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -49,30 +47,29 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   group: "main" | "intelligence" | "config";
   badge?: () => number;
-  desc?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard, group: "main", desc: "Operations dashboard" },
-  { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, group: "main", desc: "Report & resolve issues" },
-  { id: "all_tickets", label: "All Tickets", icon: Ticket, group: "main", badge: () => ALL_TICKETS.filter(t => t.status !== "closed" && t.status !== "resolved").length, desc: "All studio tickets" },
-  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === "emp_001").length, desc: "Assigned to you" },
-  { id: "department_queue", label: "Department Queue", icon: Building2, group: "main", desc: "Your department's queue" },
-  { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length, desc: "Critical & overdue" },
-  { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence", desc: "Deep operational insights" },
-  { id: "templates", label: "Ticket Templates", icon: LayoutTemplate, group: "intelligence", desc: "110+ pre-configured templates" },
-  { id: "reports", label: "Reports Library", icon: FileBarChart, group: "intelligence", desc: "110+ detailed reports" },
-  { id: "knowledge_base", label: "Knowledge Base", icon: BookOpen, group: "intelligence", desc: "Operational guides" },
-  { id: "momence", label: "Momence Integration", icon: Plug, group: "config", desc: "Member & session data" },
-  { id: "email_templates", label: "Email Templates", icon: Mail, group: "config", desc: "Notification & digest templates" },
-  { id: "settings", label: "Settings", icon: Settings, group: "config", desc: "System configuration" },
+  { id: "overview", label: "Overview", icon: LayoutDashboard, group: "main" },
+  { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, group: "main" },
+  { id: "all_tickets", label: "All Tickets", icon: Ticket, group: "main", badge: () => ALL_TICKETS.filter(t => t.status !== "closed" && t.status !== "resolved").length },
+  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === "emp_001").length },
+  { id: "department_queue", label: "Department", icon: Building2, group: "main" },
+  { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
+  { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence" },
+  { id: "templates", label: "Templates", icon: LayoutTemplate, group: "intelligence" },
+  { id: "reports", label: "Reports", icon: FileBarChart, group: "intelligence" },
+  { id: "knowledge_base", label: "Knowledge", icon: BookOpen, group: "intelligence" },
+  { id: "momence", label: "Momence", icon: Plug, group: "config" },
+  { id: "email_templates", label: "Emails", icon: Mail, group: "config" },
+  { id: "settings", label: "Settings", icon: Settings, group: "config" },
 ];
 
-const NAV_GROUPS = [
-  { id: "main", label: "" },
+const NAV_GROUPS: { id: NavItem["group"]; label?: string }[] = [
+  { id: "main" },
   { id: "intelligence", label: "Intelligence" },
-  { id: "config", label: "Configuration" },
-] as const;
+  { id: "config", label: "System" },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { currentView, setCurrentView, sidebarCollapsed, toggleSidebar, currentUser } = useAppStore();
@@ -85,60 +82,58 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex flex-col border-r border-border bg-sidebar/95 backdrop-blur-xl transition-all duration-300 ease-in-out relative z-30",
-          sidebarCollapsed ? "w-[72px]" : "w-[264px]"
+          "flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 ease-out relative z-30",
+          sidebarCollapsed ? "w-[60px]" : "w-[240px]"
         )}
       >
-        {/* Logo — clickable to go home */}
+        {/* Logo */}
         <button
           onClick={() => setCurrentView("overview")}
-          className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border shrink-0 hover:bg-sidebar-accent/40 transition-colors group"
-          title="Go to Overview"
+          className="flex items-center gap-2.5 px-4 h-14 border-b border-sidebar-border shrink-0 hover:bg-sidebar-accent/50 transition-colors"
         >
-          <div className="relative shrink-0 transition-transform group-hover:scale-105">
-            <IrisLogo size={36} />
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
+          <div className="shrink-0 transition-transform hover:scale-105">
+            <IrisLogo size={28} />
           </div>
           {!sidebarCollapsed && (
-            <div className="iris-fade-in overflow-hidden text-left">
-              <div className="text-[15px] font-bold tracking-tight text-sidebar-foreground leading-tight">
+            <div className="overflow-hidden text-left">
+              <div className="text-[14px] font-semibold tracking-tight text-sidebar-foreground leading-none">
                 IRIS
               </div>
-              <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                Physique 57 India
+              <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
+                Physique 57
               </div>
             </div>
           )}
         </button>
 
-        {/* New Issue Button */}
-        <div className="p-3 shrink-0">
+        {/* New Issue */}
+        <div className="px-3 pt-3 pb-2 shrink-0">
           <button
             onClick={() => setCurrentView("ai_assistant")}
             className={cn(
-              "w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[13px] font-medium px-3 py-2.5 iris-btn-premium transition-all hover:from-violet-500 hover:to-indigo-500",
+              "w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium px-3 py-2 transition-opacity hover:opacity-90",
               sidebarCollapsed && "px-0"
             )}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             {!sidebarCollapsed && <span>New Issue</span>}
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-2.5 pb-4 iris-scrollbar">
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-2 pb-3">
           {NAV_GROUPS.map((group) => {
             const items = NAV_ITEMS.filter((i) => i.group === group.id);
             if (items.length === 0) return null;
             return (
-              <div key={group.id} className="mb-1.5">
+              <div key={group.id} className="mb-0.5">
                 {!sidebarCollapsed && group.label && (
-                  <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70">
+                  <div className="px-2.5 pt-4 pb-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
                     {group.label}
                   </div>
                 )}
                 {sidebarCollapsed && group.label && <div className="h-3" />}
-                <div className="space-y-0.5">
+                <div className="space-y-px">
                   {items.map((item) => {
                     const isActive = currentView === item.id;
                     const badgeCount = item.badge?.();
@@ -149,54 +144,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <button
                             onClick={() => setCurrentView(item.id)}
                             className={cn(
-                              "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all group relative",
+                              "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors",
                               isActive
-                                ? "bg-gradient-to-r from-violet-500/15 to-indigo-500/10 text-sidebar-accent-foreground shadow-sm"
-                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                               sidebarCollapsed && "justify-center px-0"
                             )}
                           >
-                            {isActive && (
-                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-gradient-to-b from-violet-500 to-indigo-600" />
-                            )}
-                            <Icon
-                              className={cn(
-                                "w-[18px] h-[18px] shrink-0 transition-colors",
-                                isActive ? "text-violet-600 dark:text-violet-400" : ""
-                              )}
-                            />
-                            {!sidebarCollapsed && (
-                              <span className="flex-1 text-left truncate">{item.label}</span>
-                            )}
-                            {!sidebarCollapsed && badgeCount && badgeCount > 0 && (
-                              <Badge
-                                variant="secondary"
-                                className={cn(
-                                  "h-5 px-1.5 text-[10px] font-semibold tabular-nums",
-                                  item.id === "escalations"
-                                    ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                                    : "bg-muted text-muted-foreground"
-                                )}
-                              >
+                            <Icon className={cn("w-[16px] h-[16px] shrink-0", isActive && "text-primary")} />
+                            {!sidebarCollapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
+                            {!sidebarCollapsed && badgeCount != null && badgeCount > 0 && (
+                              <span className={cn(
+                                "text-[10px] font-semibold tabular-nums px-1.5 py-px rounded",
+                                item.id === "escalations"
+                                  ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                                  : "bg-muted text-muted-foreground"
+                              )}>
                                 {badgeCount}
-                              </Badge>
+                              </span>
                             )}
-                            {sidebarCollapsed && badgeCount && badgeCount > 0 && (
-                              <div className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-rose-500" />
+                            {sidebarCollapsed && badgeCount != null && badgeCount > 0 && (
+                              <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-500" />
                             )}
                           </button>
                         </TooltipTrigger>
                         {sidebarCollapsed && (
-                          <TooltipContent side="right" className="font-medium">
+                          <TooltipContent side="right" className="text-[12px] font-medium">
                             {item.label}
-                            {badgeCount && badgeCount > 0 && (
-                              <span className="ml-2 text-muted-foreground">({badgeCount})</span>
+                            {badgeCount != null && badgeCount > 0 && (
+                              <span className="ml-1.5 text-muted-foreground">({badgeCount})</span>
                             )}
-                          </TooltipContent>
-                        )}
-                        {!sidebarCollapsed && item.desc && (
-                          <TooltipContent side="right" className="text-[11px]">
-                            {item.desc}
                           </TooltipContent>
                         )}
                       </Tooltip>
@@ -208,33 +185,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Sidebar Footer — AI Status */}
-        <div className="border-t border-sidebar-border p-3 shrink-0 space-y-2">
-          {!sidebarCollapsed && (
-            <div className="p-2.5 rounded-lg bg-gradient-to-br from-violet-500/10 to-indigo-500/5 border border-violet-500/15 iris-fade-in">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Brain className="w-3 h-3 text-violet-500" />
-                <span className="text-[10px] font-semibold text-violet-600 dark:text-violet-400">AI Status</span>
-                <span className="ml-auto text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <span className="iris-live-dot" style={{ width: 6, height: 6 }} />
-                  Active
-                </span>
-              </div>
-              <div className="text-[9px] text-muted-foreground leading-relaxed">
-                6 agents online · GPT-4o + Claude
-              </div>
-            </div>
-          )}
+        {/* Footer */}
+        <div className="border-t border-sidebar-border p-2 shrink-0">
           <div className={cn("flex items-center gap-2", sidebarCollapsed && "justify-center")}>
             {!sidebarCollapsed && (
-              <div className="flex items-center gap-2 flex-1 min-w-0 iris-fade-in">
-                <Avatar className="w-8 h-8 shrink-0 ring-2 ring-violet-500/20">
-                  <AvatarFallback className="bg-gradient-to-br from-violet-500 to-indigo-600 text-white text-xs font-semibold">
+              <div className="flex items-center gap-2 flex-1 min-w-0 px-1.5 py-1">
+                <Avatar className="w-7 h-7 shrink-0">
+                  <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-semibold">
                     AM
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  <div className="text-[12px] font-semibold truncate">{currentUser.name}</div>
+                  <div className="text-[12px] font-medium truncate">{currentUser.name}</div>
                   <div className="text-[10px] text-muted-foreground truncate">{currentUser.role}</div>
                 </div>
               </div>
@@ -245,7 +207,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={toggleSidebar}
                   className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors shrink-0"
                 >
-                  {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                  {sidebarCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top">{sidebarCollapsed ? "Expand" : "Collapse"}</TooltipContent>
@@ -254,62 +216,50 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Area */}
+      {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-14 border-b border-border bg-background/80 backdrop-blur-xl flex items-center px-4 gap-3 shrink-0 z-20">
-          <div className="flex items-center gap-2 flex-1 max-w-md">
+        <header className="h-12 border-b border-border bg-background flex items-center px-4 gap-3 shrink-0 z-20">
+          <div className="flex items-center gap-2 flex-1 max-w-sm">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Search tickets, members, templates..."
-                className="h-8 pl-8 pr-12 text-[13px] bg-muted/40 border-transparent focus-visible:bg-background focus-visible:border-border"
+                placeholder="Search..."
+                className="h-7 pl-8 pr-10 text-[12px] bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-border"
               />
-              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border flex items-center gap-0.5">
+              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium text-muted-foreground bg-background px-1 py-px rounded border border-border flex items-center gap-0.5">
                 <Command className="w-2.5 h-2.5" />K
               </kbd>
             </div>
           </div>
 
-          {/* Live status */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/40 text-[11px] font-medium">
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground">
             <span className="iris-live-dot" />
-            <span className="text-muted-foreground">All systems operational</span>
+            Operational
           </div>
 
-          {/* Theme toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                {mounted && theme === "dark" ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
-                )}
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                {mounted && theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">Toggle theme</TooltipContent>
           </Tooltip>
 
-          {/* Notifications */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-background" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 relative">
+                <Bell className="w-3.5 h-3.5" />
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-500" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">3 new notifications</TooltipContent>
+            <TooltipContent side="bottom">3 notifications</TooltipContent>
           </Tooltip>
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto iris-scrollbar">
+        <main className="flex-1 overflow-y-auto">
           <div className="iris-fade-in">{children}</div>
         </main>
       </div>

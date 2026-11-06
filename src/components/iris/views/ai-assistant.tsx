@@ -246,45 +246,42 @@ export function AIAssistantView() {
   };
 
   return (
-    <div className="flex h-full iris-aurora">
+    <div className="flex h-full">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative z-10">
+      <div className="flex-1 flex flex-col">
         {/* Chat Header */}
-        <div className="h-14 border-b border-border flex items-center px-5 gap-3 shrink-0 bg-background/60 backdrop-blur-xl">
+        <div className="h-12 border-b border-border flex items-center px-5 gap-3 shrink-0 bg-background">
           <div className="relative">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
-              <Sparkles className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background">
-              <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-60" />
-            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
           </div>
           <div className="flex-1">
-            <div className="text-[14px] font-semibold flex items-center gap-2">
+            <div className="text-[13px] font-semibold flex items-center gap-2">
               IRIS Assistant
-              <span className="iris-badge-premium flex items-center gap-1">
+              <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
                 <span className="iris-live-dot" />
-                Live
+                Online
               </span>
             </div>
-            <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-              <Brain className="w-3 h-3 text-violet-500" />
-              Multi-agent · GPT-4o + Claude · 6 specialized agents
+            <div className="text-[10px] text-muted-foreground">
+              Multi-agent · GPT-4o + Claude
             </div>
           </div>
-          <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowFormIntake(true)}>
-            <FileText className="w-3 h-3 mr-1.5" />
+          <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => setShowFormIntake(true)}>
+            <FileText className="w-3 h-3 mr-1" />
             Form Mode
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={handleReset}>
-            <RefreshCw className="w-3 h-3 mr-1.5" />
-            New Chat
+          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={handleReset}>
+            <RefreshCw className="w-3 h-3 mr-1" />
+            New
           </Button>
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto iris-scrollbar">
-          <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-6 py-8 space-y-4">
             {aiMessages.map((msg, idx) => (
               <MessageBubble
                 key={msg.id}
@@ -299,55 +296,53 @@ export function AIAssistantView() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-border bg-background/60 backdrop-blur-xl p-4 shrink-0">
-          <div className="max-w-3xl mx-auto">
-            <div className="relative iris-ring-gradient rounded-2xl">
-              <div className="flex items-end gap-2 p-2 bg-card rounded-2xl">
-                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-xl hover:bg-violet-500/10">
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend(input);
-                    }
-                  }}
-                  placeholder={
-                    conversationState.stage === "collecting"
-                      ? "Type your answer..."
-                      : conversationState.stage === "ready"
-                      ? "Ask a follow-up question or describe another issue..."
-                      : "Describe the issue in your own words..."
+        <div className="border-t border-border bg-background p-4 shrink-0">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-end gap-1.5 p-1.5 bg-card border border-border rounded-xl focus-within:border-primary/40 transition-colors">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+                <Paperclip className="w-3.5 h-3.5" />
+              </Button>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend(input);
                   }
-                  rows={1}
-                  className="flex-1 resize-none bg-transparent border-0 outline-none text-[14px] py-2 px-1 max-h-32 placeholder:text-muted-foreground"
-                  style={{ minHeight: "36px" }}
-                />
-                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-xl hover:bg-violet-500/10">
-                  <Mic className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  className="h-9 w-9 shrink-0 rounded-xl iris-btn-premium"
-                  onClick={() => handleSend(input)}
-                  disabled={!input.trim() || isProcessing}
-                >
-                  {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </Button>
-              </div>
+                }}
+                placeholder={
+                  conversationState.stage === "collecting"
+                    ? "Type your answer..."
+                    : conversationState.stage === "ready"
+                    ? "Ask a follow-up..."
+                    : "Describe the issue..."
+                }
+                rows={1}
+                className="flex-1 resize-none bg-transparent border-0 outline-none text-[13px] py-1.5 px-1 max-h-32 placeholder:text-muted-foreground"
+                style={{ minHeight: "32px" }}
+              />
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+                <Mic className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-lg"
+                onClick={() => handleSend(input)}
+                disabled={!input.trim() || isProcessing}
+              >
+                {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              </Button>
             </div>
             <div className="flex items-center justify-between mt-2 px-1">
-              <div className="text-[10px] text-muted-foreground flex items-center gap-2">
-                <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                Prompt injection protected · All actions audited
+              <div className="text-[9px] text-muted-foreground flex items-center gap-1">
+                <ShieldCheck className="w-2.5 h-2.5" />
+                Protected · Audited
               </div>
-              <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <CornerDownLeft className="w-3 h-3" />
-                Press Enter to send
+              <div className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                <CornerDownLeft className="w-2.5 h-2.5" />
+                Enter to send
               </div>
             </div>
           </div>
@@ -355,7 +350,7 @@ export function AIAssistantView() {
       </div>
 
       {/* Right Sidebar - Conversation Intelligence */}
-      <div className="w-80 border-l border-border hidden lg:flex flex-col bg-sidebar/40 backdrop-blur-sm">
+      <div className="w-72 border-l border-border hidden lg:flex flex-col bg-sidebar">
         <ConversationIntelligencePanel state={conversationState} />
       </div>
 
@@ -581,30 +576,24 @@ function MessageBubble({
   }
 
   return (
-    <div className={cn("flex gap-3 iris-slide-up", isUser && "flex-row-reverse")}>
-      <Avatar className="w-9 h-9 shrink-0 mt-0.5">
+    <div className={cn("flex gap-2.5 iris-fade-in-up", isUser && "flex-row-reverse")}>
+      <Avatar className="w-7 h-7 shrink-0 mt-0.5">
         {isUser ? (
-          <AvatarFallback className={cn("text-white text-[11px] font-semibold", getAvatarColor("Aarav Mehta"))}>
+          <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-semibold">
             AM
           </AvatarFallback>
         ) : (
-          <AvatarFallback className="bg-gradient-to-br from-violet-500 to-indigo-600 text-white">
-            <Sparkles className="w-4 h-4" />
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            <Sparkles className="w-3.5 h-3.5" />
           </AvatarFallback>
         )}
       </Avatar>
 
       <div className={cn("flex-1 min-w-0", isUser && "flex flex-col items-end")}>
         {/* Header */}
-        <div className="flex items-baseline gap-2 mb-1.5">
-          <span className="text-[12px] font-semibold">{isUser ? "You" : "IRIS"}</span>
-          {!isUser && (
-            <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-              <Brain className="w-2.5 h-2.5" />
-              {variant === "investigation" ? "Claude Sonnet" : variant === "ticket" ? "Multi-agent" : "GPT-4o"}
-            </span>
-          )}
-          <span className="text-[10px] text-muted-foreground">
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="text-[11px] font-semibold">{isUser ? "You" : "IRIS"}</span>
+          <span className="text-[9px] text-muted-foreground tabular-nums">
             {new Date(message.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
           </span>
         </div>
@@ -612,18 +601,18 @@ function MessageBubble({
         {/* Content bubble */}
         <div
           className={cn(
-            "iris-bubble max-w-full",
+            "max-w-full rounded-xl px-3.5 py-2.5",
             isUser
-              ? "bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-tr-md"
+              ? "bg-primary text-primary-foreground rounded-tr-sm"
               : variant === "info"
-              ? "iris-bubble-info rounded-tl-md"
+              ? "bg-muted/50 border border-border rounded-tl-sm"
               : variant === "question"
-              ? "iris-bubble-question rounded-tl-md"
+              ? "bg-card border border-border rounded-tl-sm"
               : variant === "investigation"
-              ? "iris-bubble-investigation rounded-tl-md"
+              ? "bg-muted/50 border border-border rounded-tl-sm"
               : variant === "ticket"
-              ? "iris-card-elevated rounded-tl-md p-0 overflow-hidden"
-              : "bg-card border border-border rounded-tl-md"
+              ? "bg-card border border-border rounded-tl-sm p-0 overflow-hidden"
+              : "bg-card border border-border rounded-tl-sm"
           )}
         >
           {variant === "ticket" && message.ticketPreview ? (
@@ -1003,25 +992,18 @@ function FieldBox({ label, value, highlight, icon }: { label: string; value: str
 
 function ThinkingIndicator() {
   return (
-    <div className="flex gap-3 iris-fade-in">
-      <Avatar className="w-9 h-9 shrink-0">
-        <AvatarFallback className="bg-gradient-to-br from-violet-500 to-indigo-600 text-white">
-          <Sparkles className="w-4 h-4" />
+    <div className="flex gap-2.5 iris-fade-in">
+      <Avatar className="w-7 h-7 shrink-0">
+        <AvatarFallback className="bg-primary text-primary-foreground">
+          <Sparkles className="w-3.5 h-3.5" />
         </AvatarFallback>
       </Avatar>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[12px] font-semibold">IRIS</span>
-          <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-            <Brain className="w-2.5 h-2.5" />
-            Thinking
-          </span>
-        </div>
-        <div className="iris-bubble-question rounded-2xl rounded-tl-md px-4 py-3 flex items-center gap-2">
+      <div className="flex flex-col gap-1">
+        <span className="text-[11px] font-semibold">IRIS</span>
+        <div className="bg-card border border-border rounded-xl rounded-tl-sm px-3.5 py-3 flex items-center gap-1.5">
           <span className="iris-thinking-dot" />
           <span className="iris-thinking-dot" />
           <span className="iris-thinking-dot" />
-          <span className="text-[11px] text-muted-foreground ml-2">Processing your input...</span>
         </div>
       </div>
     </div>

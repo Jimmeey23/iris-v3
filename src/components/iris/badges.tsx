@@ -11,13 +11,12 @@ export function PriorityBadge({ priority, size = "sm" }: { priority: Priority; s
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md font-semibold tabular-nums",
+        "inline-flex items-center gap-1 rounded font-semibold tabular-nums",
         config.bg,
         config.text,
-        size === "sm" ? "px-1.5 py-0.5 text-[11px]" : "px-1 py-0.5 text-[10px]"
+        size === "sm" ? "px-1.5 py-px text-[10px]" : "px-1 py-px text-[9px]"
       )}
     >
-      <span className={cn("w-1 h-1 rounded-full bg-current opacity-80")} />
       {priority}
     </span>
   );
@@ -28,13 +27,13 @@ export function StatusBadge({ status, size = "sm" }: { status: TicketStatus; siz
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md font-medium",
+        "inline-flex items-center gap-1 rounded font-medium",
         config.bg,
         config.text,
-        size === "sm" ? "px-1.5 py-0.5 text-[11px]" : "px-1 py-0.5 text-[10px]"
+        size === "sm" ? "px-1.5 py-px text-[10px]" : "px-1 py-px text-[9px]"
       )}
     >
-      <span className={cn("w-1.5 h-1.5 rounded-full", config.dot)} />
+      <span className={cn("w-1 h-1 rounded-full", config.dot)} />
       {config.label}
     </span>
   );
@@ -45,12 +44,12 @@ export function SLABadge({ status, targetDate }: { status: SLAStatus; targetDate
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md font-medium px-1.5 py-0.5 text-[11px]",
+        "inline-flex items-center gap-1 rounded font-medium px-1.5 py-px text-[10px]",
         config.bg,
         config.text
       )}
     >
-      <Clock className="w-3 h-3" />
+      <Clock className="w-2.5 h-2.5" />
       {targetDate ? formatTimeRemaining(targetDate) : config.label}
     </span>
   );
@@ -67,21 +66,17 @@ export function SLAProgressBar({ createdAt, targetDate, breached }: { createdAt:
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-[10px] font-medium">
-        <span className="text-muted-foreground">{isBreached ? "Breached" : `${Math.round(pct)}% elapsed`}</span>
+      <div className="flex items-center justify-between text-[9px] font-medium">
+        <span className="text-muted-foreground">{isBreached ? "Breached" : `${Math.round(pct)}%`}</span>
         <span className={cn(isBreached ? "text-rose-500" : pct > 80 ? "text-amber-500" : "text-emerald-500")}>
           {formatTimeRemaining(target)}
         </span>
       </div>
-      <div className="h-1 rounded-full bg-muted overflow-hidden">
+      <div className="h-0.5 rounded-full bg-muted overflow-hidden">
         <div
           className={cn(
             "h-full rounded-full transition-all duration-500",
-            isBreached
-              ? "bg-rose-500"
-              : pct > 80
-              ? "bg-amber-500"
-              : "bg-gradient-to-r from-emerald-500 to-teal-500"
+            isBreached ? "bg-rose-500" : pct > 80 ? "bg-amber-500" : "bg-emerald-500"
           )}
           style={{ width: `${pct}%` }}
         />
@@ -94,10 +89,9 @@ export function StudioBadge({ studioCode, showCity }: { studioCode: string; show
   const studio = STUDIO_MAP[studioCode];
   if (!studio) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium">
-      <span className="w-1 h-1 rounded-full bg-violet-500" />
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-px text-[10px] font-medium bg-muted text-muted-foreground">
       {studio.name}
-      {showCity && <span className="text-muted-foreground">· {studio.city}</span>}
+      {showCity && <span className="opacity-60">· {studio.city}</span>}
     </span>
   );
 }
@@ -106,7 +100,7 @@ export function DepartmentBadge({ departmentCode }: { departmentCode: string }) 
   const dept = DEPT_MAP[departmentCode];
   if (!dept) return null;
   return (
-    <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center rounded px-1.5 py-px text-[10px] font-medium text-muted-foreground">
       {dept.name}
     </span>
   );
