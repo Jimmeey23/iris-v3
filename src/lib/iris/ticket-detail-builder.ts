@@ -66,12 +66,66 @@ export interface TicketDetailData {
 
   // Related
   relatedTickets: RelatedTicket[];
+  connectedTickets: ConnectedTicket[];
 
   // Tags
   tags: string[];
 
   // Audit
   auditPreview: AuditEntry[];
+
+  // Sentiment
+  sentiment?: string;
+  sentimentScore?: number;
+
+  // Recurrence (PowerCycle/mic)
+  recurrence?: RecurrenceDetail;
+
+  // Resolution permissions
+  resolutionPermissions: ResolutionPermissions;
+}
+
+export interface ConnectedTicket {
+  ticketId: string;
+  title: string;
+  connectionType: "same_member" | "same_equipment" | "same_studio" | "same_category" | "linked";
+  connectionReason: string;
+  status: string;
+  resolvedAt?: string;
+  daysAgo: number;
+}
+
+export interface RecurrenceDetail {
+  required: boolean;
+  reason: string;
+  tickets: RecurrenceTicket[];
+  assignedTo: string; // original reporter
+  assignedToRole: string;
+}
+
+export interface RecurrenceTicket {
+  id: string;
+  title: string;
+  dueDate: string;
+  daysAfterResolution: number;
+  type: "follow_up_inspection" | "follow_up_check";
+  description: string;
+  status: "scheduled";
+}
+
+export interface ResolutionPermissions {
+  canEdit: boolean;
+  canEditReason: string;
+  allowedRoles: string[];
+  currentUserRole: string;
+  fields: ResolutionField[];
+}
+
+export interface ResolutionField {
+  name: string;
+  label: string;
+  editable: boolean;
+  currentValue?: string;
 }
 
 export interface RoutingDetail {
@@ -345,8 +399,13 @@ export function buildTicketDetail(state: ConversationState): TicketDetailData {
     resolution,
     risk,
     relatedTickets,
+    connectedTickets: buildConnectedTickets(intent, info),
     tags,
     auditPreview,
+    sentiment: info.sentiment,
+    sentimentScore: info.sentimentScore,
+    recurrence: buildRecurrenceDetail(info, state),
+    resolutionPermissions: buildResolutionPermissions(state),
   };
 }
 
@@ -1357,3 +1416,129 @@ const INTENT_PATTERNS_REF: Record<string, { subcategory?: string }> = {
   MGT: { subcategory: "Operations" },
   FRT: { subcategory: "Front Desk" },
 };
+
+// === CONNECTED TICKETS ===
+
+function buildConnectedTickets(intent: any, info: CollectedInfo): ConnectedTicket[] {
+  const connected: ConnectedTicket[] = [];
+
+  if (info.affectedClient) {
+    connected.push({
+      ticketId: `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
+      title: `Previous issue reported by ${info.affectedClient}`,
+      connectionType: "same_member",
+      connectionReason: `Same member: ${info.affectedClient}`,
+      status: "resolved",
+      resolvedAt: "12 days ago",
+      daysAgo: 12,
+    });
+  }
+
+  if (info.equipment) {
+    connected.push({
+      ticketId: `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
+      title: `${info.equipment} maintenance — last service`,
+      connectionType: "same_equipment",
+      connectionReason: `Same equipment: ${info.equipment}`,
+      status: "resolved",
+      resolvedAt: "3 weeks ago",
+      daysAgo: 21,
+    });
+  }
+
+  if (info.studio) {
+    connected.push({
+      ticketId: `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
+      title: `Other open tickets at ${info.studio}`,
+      connectionType: "same_studio",
+      connectionReason: `Same studio: ${info.studio}`,
+      status: "in_progress",
+      daysAgo: 2,
+    });
+  }
+
+  if (intent.suggestedCategory) {
+    connected.push({
+      ticketId: `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
+      title: `Related ${intent.suggestedCategory} issue — different studio`,
+      connectionType: "same_category",
+      connectionReason: `Same category: ${intent.suggestedCategory}`,
+      status: "resolved",
+      resolvedAt: "1 week ago",
+      daysAgo: 7,
+    });
+  }
+
+  return connected;
+}
+
+// === RECURRENCE DETAIL (PowerCycle/mic) ===
+
+function buildRecurrenceDetail(info: CollectedInfo, state: ConversationState): RecurrenceDetail | undefined {
+  if (!info.requiresRecurrence) return undefined;
+
+  const reporter = EMPLOYEES.find((e) => e.id === "emp_001"); // Original reporter
+  const reporterName = reporter?.name || "Aarav Mehta";
+  const reporterRole = reporter?.role || "Front Desk Lead";
+
+  const isPowercycle = info.equipment?.toLowerCase().includes("bike") || info.equipment?.toLowerCase().includes("powercycle");
+  const followUpType = isPowercycle ? "follow_up_inspection" : "follow_up_check";
+  const followUpLabel = isPowercycle ? "Follow-up Inspection" : "Follow-up Check";
+
+  const now = new Date();
+  const due5 = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+  const due10 = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+
+  return {
+    required: true,
+    reason: info.recurrenceReason || "Follow-up tickets required per maintenance protocol",
+    assignedTo: reporterName,
+    assignedToRole: reporterRole,
+    tickets: [
+      {
+        id: `REC-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
+        title: `${followUpLabel} (5 days) — ${info.equipment || "Equipment"} check`,
+        dueDate: due5.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+        daysAfterResolution: 5,
+        type: followUpType,
+        description: `Verify ${info.equipment || "the equipment"} is still functioning correctly 5 days after resolution. Check for any recurring issues. Assigned to original reporter (${reporterName}) for on-site verification.`,
+        status: "scheduled",
+      },
+      {
+        id: `REC-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
+        title: `${followUpLabel} (10 days) — ${info.equipment || "Equipment"} check`,
+        dueDate: due10.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+        daysAfterResolution: 10,
+        type: followUpType,
+        description: `Final verification check 10 days after resolution. Confirm no recurrence of the original issue. If issue has recurred, create a new linked ticket with elevated priority. Assigned to original reporter (${reporterName}).`,
+        status: "scheduled",
+      },
+    ],
+  };
+}
+
+// === RESOLUTION PERMISSIONS ===
+
+function buildResolutionPermissions(state: ConversationState): ResolutionPermissions {
+  // Current user is "Aarav Mehta" (Front Desk Lead) — not the owner or manager
+  // So resolution fields are read-only for them
+  const currentUserRole = "Front Desk Lead";
+  const allowedRoles = ["Assignee (Owner)", "Reporting Manager", "Department Manager", "Studio Director"];
+  const canEdit = false; // Current user is not the owner
+  const canEditReason = "Resolution fields can only be edited by the assigned owner or their reporting manager. You are viewing in read-only mode.";
+
+  return {
+    canEdit,
+    canEditReason,
+    allowedRoles,
+    currentUserRole,
+    fields: [
+      { name: "resolution_summary", label: "Resolution Summary", editable: canEdit },
+      { name: "root_cause", label: "Root Cause", editable: canEdit },
+      { name: "resolution_actions", label: "Actions Taken", editable: canEdit },
+      { name: "preventive_measures", label: "Preventive Measures", editable: canEdit },
+      { name: "resolution_verified", label: "Resolution Verified", editable: canEdit },
+      { name: "closure_notes", label: "Closure Notes", editable: canEdit },
+    ],
+  };
+}

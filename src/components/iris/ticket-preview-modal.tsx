@@ -49,6 +49,8 @@ import {
   Layers,
   Gauge,
   PauseCircle,
+  RefreshCw,
+  Link2,
 } from "lucide-react";
 
 export function TicketPreviewModal({
@@ -132,12 +134,22 @@ export function TicketPreviewModal({
               </TabsTrigger>
               <TabsTrigger value="resolution" className="text-[12px] data-[state=active]:bg-background">
                 <ListChecks className="w-3 h-3 mr-1.5" />
-                Resolution Plan
+                Resolution
               </TabsTrigger>
               <TabsTrigger value="risk" className="text-[12px] data-[state=active]:bg-background">
                 <AlertTriangle className="w-3 h-3 mr-1.5" />
                 Risk & Related
               </TabsTrigger>
+              <TabsTrigger value="connected" className="text-[12px] data-[state=active]:bg-background">
+                <Link2 className="w-3 h-3 mr-1.5" />
+                Connected
+              </TabsTrigger>
+              {data.recurrence && (
+                <TabsTrigger value="recurrence" className="text-[12px] data-[state=active]:bg-background">
+                  <RefreshCw className="w-3 h-3 mr-1.5" />
+                  Recurrence
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -160,6 +172,14 @@ export function TicketPreviewModal({
             <TabsContent value="risk" className="mt-0">
               <RiskTab data={data} />
             </TabsContent>
+            <TabsContent value="connected" className="mt-0">
+              <ConnectedTab data={data} />
+            </TabsContent>
+            {data.recurrence && (
+              <TabsContent value="recurrence" className="mt-0">
+                <RecurrenceTab data={data} />
+              </TabsContent>
+            )}
           </div>
         </Tabs>
 
@@ -771,14 +791,39 @@ function SLATab({ data }: { data: TicketDetailData }) {
 
 function ResolutionTab({ data }: { data: TicketDetailData }) {
   const res = data.resolution;
+  const perms = data.resolutionPermissions;
   return (
     <div className="space-y-4">
+      {/* Resolution Permissions Banner */}
+      <div className={cn(
+        "p-3 rounded-lg border",
+        perms.canEdit ? "bg-emerald-500/5 border-emerald-500/20" : "bg-amber-500/5 border-amber-500/20"
+      )}>
+        <div className="flex items-start gap-2">
+          {perms.canEdit ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" /> : <Lock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />}
+          <div>
+            <div className="text-[12px] font-semibold mb-0.5">
+              {perms.canEdit ? "You can edit resolution fields" : "Resolution fields are read-only"}
+            </div>
+            <div className="text-[10px] text-muted-foreground leading-relaxed">{perms.canEditReason}</div>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="text-[9px] text-muted-foreground">Your role:</span>
+              <span className="text-[9px] font-semibold px-1.5 py-px rounded bg-muted">{perms.currentUserRole}</span>
+              <span className="text-[9px] text-muted-foreground">· Allowed:</span>
+              {perms.allowedRoles.map((r) => (
+                <span key={r} className="text-[9px] font-medium px-1 py-px rounded bg-emerald-500/10 text-emerald-600">{r}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Resolution Path */}
       <Section title="Resolution Path" icon={GitBranch}>
-        <div className="p-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20">
+        <div className="p-3 rounded-lg border border-border">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">Estimated Resolution: {res.estimatedResolutionTime}</span>
+            <span className="text-[12px] font-semibold">Estimated Resolution: {res.estimatedResolutionTime}</span>
           </div>
           <div className="text-[11px] text-muted-foreground leading-relaxed">{res.resolutionPath}</div>
           {res.autoResolutionPossible ? (
@@ -886,6 +931,39 @@ function ResolutionTab({ data }: { data: TicketDetailData }) {
           </div>
         </Section>
       )}
+
+      {/* Resolution Fields (with permissions) */}
+      <Section title="Resolution Fields" icon={FileText} subtitle={perms.canEdit ? "Editable — you are the assigned owner or manager" : "Read-only — only the assigned owner or reporting manager can edit"}>
+        <div className="space-y-2">
+          {perms.fields.map((field) => (
+            <div key={field.name} className="p-2.5 rounded-md border border-border">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[11px] font-medium flex-1">{field.label}</span>
+                {field.editable ? (
+                  <span className="text-[9px] font-semibold px-1.5 py-px rounded bg-emerald-500/10 text-emerald-600 flex items-center gap-0.5">
+                    <Unlock className="w-2.5 h-2.5" /> Editable
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-semibold px-1.5 py-px rounded bg-amber-500/10 text-amber-600 flex items-center gap-0.5">
+                    <Lock className="w-2.5 h-2.5" /> Read-only
+                  </span>
+                )}
+              </div>
+              {field.editable ? (
+                <textarea
+                  placeholder={`Enter ${field.label.toLowerCase()}...`}
+                  className="w-full text-[11px] px-2 py-1.5 rounded border border-border bg-card focus:outline-none focus:border-primary resize-none"
+                  rows={2}
+                />
+              ) : (
+                <div className="text-[10px] text-muted-foreground italic px-2 py-1.5 rounded bg-muted/30">
+                  Field locked — awaiting owner input upon resolution
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </Section>
     </div>
   );
 }
@@ -1195,6 +1273,145 @@ function RiskDimensionCard({ title, value, icon: Icon }: { title: string; value:
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
       </div>
       <div className="text-[11px] leading-relaxed">{value}</div>
+    </div>
+  );
+}
+
+// === CONNECTED TICKETS TAB ===
+
+function ConnectedTab({ data }: { data: TicketDetailData }) {
+  return (
+    <div className="space-y-4">
+      <Section title="Connected Tickets" subtitle={`${data.connectedTickets.length} tickets linked by member, equipment, studio, or category`} icon={Link2}>
+        <div className="space-y-2">
+          {data.connectedTickets.map((ct, i) => (
+            <div key={i} className="p-3 rounded-lg border border-border hover:border-primary/30 transition-colors cursor-pointer group">
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
+                  ct.connectionType === "same_member" ? "bg-violet-500/10 text-violet-600" :
+                  ct.connectionType === "same_equipment" ? "bg-amber-500/10 text-amber-600" :
+                  ct.connectionType === "same_studio" ? "bg-sky-500/10 text-sky-600" :
+                  "bg-emerald-500/10 text-emerald-600"
+                )}>
+                  <Link2 className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] font-mono text-muted-foreground">{ct.ticketId}</span>
+                    <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-muted text-muted-foreground capitalize">{ct.connectionType.replace(/_/g, " ")}</span>
+                  </div>
+                  <div className="text-[12px] font-medium group-hover:text-primary transition-colors">{ct.title}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{ct.connectionReason}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className={cn(
+                    "text-[10px] font-semibold capitalize",
+                    ct.status === "resolved" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                  )}>
+                    {ct.status.replace(/_/g, " ")}
+                  </div>
+                  {ct.resolvedAt && <div className="text-[9px] text-muted-foreground">{ct.resolvedAt}</div>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* Sentiment Analysis */}
+      {data.sentiment && (
+        <Section title="Sentiment Analysis" subtitle="AI-detected sentiment from the reporter's language" icon={Brain}>
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              "w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0",
+              data.sentiment === "angry" ? "bg-rose-500/10 text-rose-600" :
+              data.sentiment === "frustrated" ? "bg-amber-500/10 text-amber-600" :
+              data.sentiment === "urgent" ? "bg-orange-500/10 text-orange-600" :
+              data.sentiment === "positive" ? "bg-emerald-500/10 text-emerald-600" :
+              "bg-muted text-muted-foreground"
+            )}>
+              <span className="text-[14px] font-bold capitalize">{data.sentiment}</span>
+              <span className="text-[8px] uppercase tracking-wider font-semibold mt-0.5">sentiment</span>
+            </div>
+            <div className="flex-1">
+              <div className="text-[11px] text-muted-foreground mb-2">Sentiment Score: <span className="font-semibold tabular-nums">{data.sentimentScore}/100</span></div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div className={cn(
+                  "h-full rounded-full transition-all",
+                  (data.sentimentScore || 50) < 35 ? "bg-rose-500" :
+                  (data.sentimentScore || 50) < 50 ? "bg-amber-500" :
+                  (data.sentimentScore || 50) < 65 ? "bg-sky-500" :
+                  "bg-emerald-500"
+                )} style={{ width: `${data.sentimentScore}%` }} />
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                {(data.sentimentScore || 50) < 35 ? "High negative sentiment — prioritize empathetic response" :
+                 (data.sentimentScore || 50) < 50 ? "Negative sentiment detected — handle with care" :
+                 (data.sentimentScore || 50) < 65 ? "Neutral sentiment — standard handling" :
+                 "Positive sentiment — standard handling"}
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+// === RECURRENCE TAB ===
+
+function RecurrenceTab({ data }: { data: TicketDetailData }) {
+  if (!data.recurrence) return null;
+  const rec = data.recurrence;
+  return (
+    <div className="space-y-4">
+      <Section title="Recurrence Tickets" subtitle="Auto-generated follow-up tickets for PowerCycle/mic issues" icon={RefreshCw}>
+        <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 mb-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <div className="text-[12px] font-semibold text-amber-600 dark:text-amber-400 mb-1">Recurrence Protocol Activated</div>
+              <div className="text-[11px] text-muted-foreground leading-relaxed">{rec.reason}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-3 p-2.5 rounded-md bg-muted/30 border border-border">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">Assigned To (Original Reporter)</div>
+          <div className="text-[12px] font-medium">{rec.assignedTo}</div>
+          <div className="text-[10px] text-muted-foreground">{rec.assignedToRole}</div>
+        </div>
+
+        <div className="space-y-2">
+          {rec.tickets.map((rt, i) => (
+            <div key={i} className="p-3 rounded-lg border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-md bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0">
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-muted-foreground">{rt.id}</span>
+                    <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-violet-500/10 text-violet-600 capitalize">{rt.type.replace(/_/g, " ")}</span>
+                  </div>
+                  <div className="text-[12px] font-medium mt-0.5">{rt.title}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Due Date</div>
+                  <div className="text-[12px] font-semibold tabular-nums">{rt.dueDate}</div>
+                  <div className="text-[9px] text-muted-foreground">{rt.daysAfterResolution} days after resolution</div>
+                </div>
+              </div>
+              <div className="text-[10px] text-muted-foreground leading-relaxed ml-9">{rt.description}</div>
+              <div className="mt-2 ml-9 flex items-center gap-2">
+                <span className="text-[9px] font-semibold px-1.5 py-px rounded bg-amber-500/10 text-amber-600 capitalize">{rt.status}</span>
+                <span className="text-[9px] text-muted-foreground">Auto-creates when original ticket is marked resolved</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
     </div>
   );
 }

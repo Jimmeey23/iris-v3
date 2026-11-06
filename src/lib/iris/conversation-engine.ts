@@ -40,6 +40,10 @@ export interface CollectedInfo {
   additionalContext?: string;
   hasAttachments?: boolean;
   businessImpact?: string;
+  sentiment?: string; // positive | neutral | frustrated | urgent | angry
+  sentimentScore?: number; // 0-100, lower = more negative
+  requiresRecurrence?: boolean; // PowerCycle/mic issues need follow-up tickets
+  recurrenceReason?: string;
 }
 
 export interface ConversationState {
@@ -596,7 +600,68 @@ function extractInfoFromText(text: string): Partial<CollectedInfo> {
     info.duration = "Since yesterday+";
   }
 
+  // === SENTIMENT DETECTION ===
+  const sentiment = detectSentiment(text);
+  info.sentiment = sentiment.label;
+  info.sentimentScore = sentiment.score;
+
+  // === POWERCYCLE/MIC RECURRENCE DETECTION ===
+  const powercycleKeywords = ["powercycle", "power cycle", "bike", "spin bike", "cycle", "pedal", "flywheel", "fitloc", "resistance knob", "saddle", "spm2", "stages sc3"];
+  const micKeywords = ["mic", "microphone", "headset mic", "wireless mic", "mic not working", "mic cutting"];
+  const isPowercycle = powercycleKeywords.some((k) => lower.includes(k));
+  const isMic = micKeywords.some((k) => lower.includes(k));
+  if (isPowercycle || isMic) {
+    info.requiresRecurrence = true;
+    info.recurrenceReason = isPowercycle
+      ? "PowerCycle bike issues require follow-up inspections at 5 and 10 days per maintenance protocol"
+      : "Studio microphone issues require follow-up checks at 5 and 10 days to verify continued functionality";
+    if (isPowercycle && !info.equipment) info.equipment = "PowerCycle Bike";
+    if (isMic && !info.equipment) info.equipment = "Microphone";
+  }
+
   return info;
+}
+
+// === SENTIMENT ANALYSIS ===
+function detectSentiment(text: string): { label: string; score: number } {
+  const lower = text.toLowerCase();
+  let score = 50; // Start neutral
+
+  // Negative indicators
+  const frustratedWords = ["frustrated", "angry", "annoyed", "unhappy", "disappointed", "terrible", "awful", "worst", "horrible", "ridiculous", "unacceptable"];
+  const urgentWords = ["urgent", "asap", "immediately", "emergency", "critical", "now", "right now", "happening now"];
+  const complaintWords = ["complaint", "complain", "issue", "problem", "broken", "not working", "failed", "failure", "malfunction", "error", "bug", "wrong", "incorrect", "missing"];
+  const positiveWords = ["great", "excellent", "amazing", "wonderful", "good", "happy", "satisfied", "perfect", "love", "thanks", "appreciate"];
+
+  let negativeCount = 0;
+  let positiveCount = 0;
+  let urgentCount = 0;
+
+  frustratedWords.forEach((w) => { if (lower.includes(w)) { negativeCount += 2; score -= 15; } });
+  urgentWords.forEach((w) => { if (lower.includes(w)) { urgentCount += 1; score -= 10; } });
+  complaintWords.forEach((w) => { if (lower.includes(w)) { negativeCount += 1; score -= 5; } });
+  positiveWords.forEach((w) => { if (lower.includes(w)) { positiveCount += 1; score += 10; } });
+
+  // Exclamation marks indicate urgency/frustration
+  const exclamations = (text.match(/!/g) || []).length;
+  if (exclamations > 0) { score -= exclamations * 3; urgentCount += exclamations; }
+
+  // ALL CAPS words indicate urgency
+  const capsWords = text.split(/\s+/).filter((w) => w.length > 3 && w === w.toUpperCase() && /[A-Z]/.test(w)).length;
+  if (capsWords > 0) { score -= capsWords * 5; urgentCount += capsWords; }
+
+  score = Math.max(0, Math.min(100, score));
+
+  let label = "neutral";
+  if (score < 20) label = "angry";
+  else if (score < 35) label = "frustrated";
+  else if (score < 50) label = "urgent";
+  else if (score < 65) label = "neutral";
+  else label = "positive";
+
+  if (urgentCount > 2 && label === "neutral") label = "urgent";
+
+  return { label, score };
 }
 
 function detectIntent(text: string): { pattern: IntentPattern; confidence: number; matchedKeywords: string[] } | null {
