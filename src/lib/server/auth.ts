@@ -52,13 +52,16 @@ export async function getSession(): Promise<SessionUser | null> {
  * For API routes: returns the session, or a 401/403 response to return as-is.
  * Users who must change their password can only reach the routes that allow it.
  */
-export async function requireSession(opts: { allowPasswordChange?: boolean; admin?: boolean } = {}) {
+export async function requireSession(opts: { allowPasswordChange?: boolean; admin?: boolean; manager?: boolean } = {}) {
   const session = await getSession();
   if (!session) {
     return { error: NextResponse.json({ error: "Not signed in" }, { status: 401 }) } as const;
   }
   if (session.must_change_password && !opts.allowPasswordChange) {
     return { error: NextResponse.json({ error: "Password change required" }, { status: 403 }) } as const;
+  }
+  if (opts.manager && session.role !== "admin" && session.role !== "manager") {
+    return { error: NextResponse.json({ error: "Managers and admins only" }, { status: 403 }) } as const;
   }
   if (opts.admin && session.role !== "admin") {
     return { error: NextResponse.json({ error: "Admins only" }, { status: 403 }) } as const;

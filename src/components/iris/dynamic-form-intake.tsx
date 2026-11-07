@@ -3,8 +3,16 @@
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
 import { ticketsApi } from "@/lib/iris/live-data";
-import { STUDIOS, DEPARTMENTS, EMPLOYEES } from "@/lib/iris/types";
+import { STUDIOS, DEPARTMENTS, EMPLOYEES, DEPT_MAP } from "@/lib/iris/types";
 import { MultiSelect } from "@/components/iris/multi-select";
+import type { TicketTemplate, TemplateField } from "@/lib/iris/templates";
+import {
+  resolveTemplateForm,
+  initialFieldValues,
+  isFieldFilled,
+  formatFieldValue,
+  PRIORITY_TO_FORM,
+} from "@/lib/iris/template-form";
 import { toast } from "sonner";
 import {
   IRIS_STUDIOS,
@@ -41,6 +49,7 @@ import {
   Send,
   Plus,
   RotateCcw,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +83,7 @@ interface FormData {
 const DEPT_CODE: Record<string, string> = {
   training: "TRN", operations: "OPS", "sales-client-servicing": "SCS", marketing: "MKT", management: "MGT", accounts: "PAY",
 };
-const STEPS = [
+const BASE_STEPS = [
   { id: "issue", title: "Describe Issue", icon: FileText, desc: "What happened?" },
   { id: "category", title: "Classify", icon: Tag, desc: "Category & subcategory" },
   { id: "location", title: "Location", icon: Building2, desc: "Where is it?" },
@@ -83,34 +92,53 @@ const STEPS = [
   { id: "review", title: "Review", icon: Check, desc: "Confirm & submit" },
 ];
 
-export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
+const TEMPLATE_STEP = { id: "template", title: "Template details", icon: Wand2, desc: "Fields this template collects" };
+
+/**
+ * Structured intake form. When `template` is given the form opens already
+ * populated from it: category, subcategory, priority, severity, department,
+ * studio/area restrictions and the template's own field set (with defaults)
+ * as an extra "Template details" step.
+ */
+export function DynamicFormIntake({ onClose, template }: { onClose: () => void; template?: TicketTemplate | null }) {
   const { setCurrentView, setConversationState } = useAppStore();
+  const tplForm = React.useMemo(() => (template ? resolveTemplateForm(template) : null), [template]);
+  const steps = React.useMemo(() => {
+    if (!tplForm || tplForm.fields.length === 0) return BASE_STEPS;
+    const i = BASE_STEPS.findIndex((x) => x.id === "location") + 1;
+    return [...BASE_STEPS.slice(0, i), TEMPLATE_STEP, ...BASE_STEPS.slice(i)];
+  }, [tplForm]);
   const [step, setStep] = React.useState(0);
   const [extraDepts, setExtraDepts] = React.useState<string[]>([]);
   const [owners, setOwners] = React.useState<string[]>([]);
+  const [templateValues, setTemplateValues] = React.useState<Record<string, string | boolean | string[]>>(() =>
+    tplForm ? initialFieldValues(tplForm.fields) : {},
+  );
+  // Department code from the template (e.g. "MEM"); cleared once the user reclassifies.
+  const [deptOverride, setDeptOverride] = React.useState<string>(template?.departmentCode ?? "");
   const [form, setForm] = React.useState<FormData>({
-    title: "",
-    summary: "",
-    category: "",
-    subcategory: "",
-    studio: "",
-    area: "",
-    priority: "",
-    severity: "",
+    title: tplForm?.titlePrefill ?? template?.title ?? "",
+    summary: tplForm?.summaryPrefill ?? template?.description ?? "",
+    category: tplForm?.category ?? "",
+    subcategory: tplForm?.subcategory ?? "",
+    studio: tplForm?.studio ?? (tplForm?.studioOptions?.length === 1 ? tplForm.studioOptions[0] : ""),
+    area: tplForm?.area ?? "",
+    priority: template ? PRIORITY_TO_FORM[template.defaultPriority] : "",
+    severity: template?.defaultSeverity ?? "",
     affectedClient: "",
     membershipType: "",
     trainer: "",
     classFormat: "",
-    system: "",
-    occurred: "",
-    reportedBy: "",
+    system: tplForm?.system ?? "",
+    occurred: tplForm?.occurred ?? "",
+    reportedBy: tplForm?.reportedBy ?? "",
     memberContact: "",
     paymentAmount: "",
     paymentMethod: "",
     paymentReference: "",
     sessionTime: "",
     additionalContext: "",
-    requestedOutcome: "",
+    requestedOutcome: tplForm?.requestedOutcome ?? "",
     attachments: [],
   });
 
@@ -118,22 +146,31 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Auto-compute priority from subcategory
-  React.useEffect(() => {
-    if (form.subcategory) {
-      const priority = inferPriority(form.subcategory);
-      updateForm("priority", priority);
-    }
-  }, [form.subcategory]);
+  // Picking a subcategory re-infers priority/department. A template's own
+  // priority and department stay in force until the user changes the classification.
+  const chooseSubcategory = (sub: string) => {
+    setForm((prev) => ({ ...prev, subcategory: sub, priority: inferPriority(sub) }));
+    setDeptOverride("");
+  };
+  const chooseCategory = (cat: string) => {
+    setForm((prev) => ({ ...prev, category: cat, subcategory: "" }));
+    setDeptOverride("");
+  };
+
+  const studioChoices = React.useMemo(
+    () => (tplForm?.studioOptions?.length ? IRIS_STUDIOS.filter((s) => tplForm.studioOptions!.includes(s.name)) : [...IRIS_STUDIOS]),
+    [tplForm],
+  );
 
   const availableAreas = React.useMemo(() => {
+    if (tplForm?.areaOptions?.length) return [...tplForm.areaOptions];
     if (!form.studio) return [...STUDIO_AREAS];
     const studioKey = IRIS_STUDIOS.find((s) => s.name === form.studio)?.id;
     if (studioKey && STUDIO_LAYOUTS[studioKey]) {
       return [...STUDIO_LAYOUTS[studioKey].rooms.map((r) => r.name), "Reception / lobby", "Staircase / corridor", "Parking / valet"];
     }
     return [...STUDIO_AREAS];
-  }, [form.studio]);
+  }, [form.studio, tplForm]);
 
   const availableSubcategories = React.useMemo(() => {
     return form.category ? CATEGORY_MAP[form.category] || [] : [];
@@ -142,6 +179,9 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
   const computedDepartment = React.useMemo(() => {
     return form.category ? inferDepartment(form.category) : "";
   }, [form.category]);
+  // Human-readable department: the template's (live DEPARTMENTS) or the inferred routing queue.
+  const departmentName =
+    (deptOverride && DEPT_MAP[deptOverride]?.name) || IRIS_DEPARTMENTS.find((d) => d.id === computedDepartment)?.name || "";
 
   const computedSLA = React.useMemo(() => {
     if (!form.priority) return null;
@@ -150,16 +190,17 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
   }, [form.priority]);
 
   const canProceed = React.useMemo(() => {
-    switch (STEPS[step].id) {
+    switch (steps[step].id) {
       case "issue": return form.title.trim().length > 5 && form.summary.trim().length > 12;
       case "category": return form.category && form.subcategory;
       case "location": return form.studio;
+      case "template": return (tplForm?.fields ?? []).every((f) => !f.required || isFieldFilled(f, templateValues[f.id]));
       case "people": return true; // Optional
       case "details": return true; // Optional
       case "review": return true;
       default: return false;
     }
-  }, [step, form]);
+  }, [step, form, steps, tplForm, templateValues]);
 
   const [submitting, setSubmitting] = React.useState(false);
   const handleSubmit = async () => {
@@ -168,7 +209,9 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
     const DEPT = DEPT_CODE;
     const PRIORITY: Record<string, string> = { critical: "P0", high: "P1", medium: "P2", low: "P3" };
     const studio = STUDIOS.find((s) => s.name === form.studio);
+    const templateExtras: Array<[string, string]> = (tplForm?.fields ?? []).map((f) => [f.label, formatFieldValue(templateValues[f.id])]);
     const extras: Array<[string, string]> = [
+      ...templateExtras,
       ["Area", form.area], ["Trainer", form.trainer], ["Class format", form.classFormat], ["System", form.system],
       ["When", form.occurred], ["Session", form.sessionTime], ["Payment", [form.paymentAmount, form.paymentMethod, form.paymentReference].filter(Boolean).join(" · ")],
       ["Requested outcome", form.requestedOutcome], ["Additional context", form.additionalContext],
@@ -183,14 +226,18 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
         priority: PRIORITY[form.priority] ?? "P2",
         severity: form.severity,
         studioCode: studio?.code,
-        departmentCode: DEPT[computedDepartment],
-        departmentCodes: [...new Set([DEPT[computedDepartment], ...extraDepts].filter(Boolean))],
+        departmentCode: deptOverride && DEPT_MAP[deptOverride] ? deptOverride : DEPT[computedDepartment],
+        departmentCodes: [...new Set([deptOverride && DEPT_MAP[deptOverride] ? deptOverride : DEPT[computedDepartment], ...extraDepts].filter(Boolean))],
         assigneeIds: owners,
         affectedClient: form.affectedClient,
-        recommendedResolution: form.requestedOutcome,
+        recommendedResolution: [form.requestedOutcome, template?.recommendedActions].filter(Boolean).join("\n\n") || undefined,
         source: "form_intake",
-        tags: [form.category, form.subcategory].filter(Boolean),
-        collectedInfo: { ...form, attachments: undefined },
+        tags: [form.category, form.subcategory, template?.code].filter(Boolean),
+        collectedInfo: {
+          ...form,
+          attachments: undefined,
+          ...(template ? { templateCode: template.code, templateFields: Object.fromEntries(templateExtras.filter(([, v]) => v)) } : {}),
+        },
       });
       toast.success(`Ticket ${t.ticketId} created`);
       setCurrentView("all_tickets");
@@ -202,7 +249,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const progressPct = ((step + 1) / STEPS.length) * 100;
+  const progressPct = ((step + 1) / steps.length) * 100;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md" onClick={onClose}>
@@ -217,8 +264,10 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
               <FileText className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
-              <div className="text-[14px] font-semibold">Dynamic Form Intake</div>
-              <div className="text-[11px] text-muted-foreground">Structured form — alternative to AI chat</div>
+              <div className="text-[14px] font-semibold">{template ? template.title : "Dynamic Form Intake"}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {template ? `Template ${template.code} · structured intake` : "Structured form — alternative to AI chat"}
+              </div>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
               <X className="w-4 h-4" />
@@ -227,7 +276,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
 
           {/* Progress bar */}
           <div className="mt-3 flex items-center gap-1">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <React.Fragment key={s.id}>
                 <button
                   onClick={() => i < step && setStep(i)}
@@ -241,7 +290,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                   {i < step ? <Check className="w-3 h-3" /> : <s.icon className="w-3 h-3" />}
                   <span className="hidden sm:inline">{s.title}</span>
                 </button>
-                {i < STEPS.length - 1 && <ChevronRight className="w-3 h-3 text-muted-foreground/40" />}
+                {i < steps.length - 1 && <ChevronRight className="w-3 h-3 text-muted-foreground/40" />}
               </React.Fragment>
             ))}
           </div>
@@ -253,8 +302,22 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto iris-scrollbar p-5">
           {/* Step 1: Issue Description */}
-          {STEPS[step].id === "issue" && (
+          {steps[step].id === "issue" && (
             <div className="space-y-4">
+              {template && (
+                <div className="p-3 rounded-lg bg-gradient-to-br from-violet-500/10 to-indigo-500/5 border border-violet-500/20 flex items-start gap-2.5">
+                  <Wand2 className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                  <div className="text-[11px] leading-relaxed">
+                    <div className="text-[12px] font-semibold">
+                      Template applied: <span className="font-mono">{template.code}</span> — {template.title}
+                    </div>
+                    <div className="text-muted-foreground">
+                      Category, subcategory, priority ({template.defaultPriority}), department and {tplForm?.fields.length ?? 0} template field
+                      {(tplForm?.fields.length ?? 0) === 1 ? "" : "s"} are pre-filled. Adjust anything that does not fit this case.
+                    </div>
+                  </div>
+                </div>
+              )}
               <StepHeader icon={FileText} title="Describe the Issue" desc="Tell us what happened in your own words" />
               <FormField label="Title" required hint="A clear, concise title for this ticket">
                 <input
@@ -285,7 +348,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Step 2: Category */}
-          {STEPS[step].id === "category" && (
+          {steps[step].id === "category" && (
             <div className="space-y-4">
               <StepHeader icon={Tag} title="Classify the Issue" desc="Select category and subcategory" />
               <FormField label="Category" required hint="Main issue category">
@@ -293,7 +356,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                   {CATEGORIES.map((cat) => (
                     <button
                       key={cat}
-                      onClick={() => { updateForm("category", cat); updateForm("subcategory", ""); }}
+                      onClick={() => chooseCategory(cat)}
                       className={cn(
                         "p-2.5 rounded-lg border text-[11px] font-medium text-left transition-all",
                         form.category === cat ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400" : "border-border hover:border-violet-500/30 hover:bg-violet-500/5"
@@ -310,7 +373,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                     {availableSubcategories.map((sub) => (
                       <button
                         key={sub}
-                        onClick={() => updateForm("subcategory", sub)}
+                        onClick={() => chooseSubcategory(sub)}
                         className={cn(
                           "p-2 rounded-md border text-[11px] text-left transition-all",
                           form.subcategory === sub ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400" : "border-border hover:border-violet-500/30 hover:bg-violet-500/5"
@@ -337,7 +400,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                         )}>
                           {form.priority.toUpperCase()}
                         </Badge>
-                        <span className="text-[11px] text-muted-foreground">→ Routed to: <span className="font-semibold text-foreground">{IRIS_DEPARTMENTS.find(d => d.id === computedDepartment)?.name}</span></span>
+                        <span className="text-[11px] text-muted-foreground">→ Routed to: <span className="font-semibold text-foreground">{departmentName}</span></span>
                       </div>
                     </div>
                     <Sparkles className="w-4 h-4 text-violet-500" />
@@ -348,12 +411,12 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Step 3: Location */}
-          {STEPS[step].id === "location" && (
+          {steps[step].id === "location" && (
             <div className="space-y-4">
               <StepHeader icon={Building2} title="Location" desc="Where is the issue occurring?" />
               <FormField label="Studio" required hint="Which studio is affected">
                 <div className="grid grid-cols-1 gap-1.5">
-                  {IRIS_STUDIOS.map((s) => (
+                  {studioChoices.map((s) => (
                     <button
                       key={s.id}
                       onClick={() => updateForm("studio", s.name)}
@@ -394,8 +457,24 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
+          {/* Template step: the exact field set the chosen template defines */}
+          {steps[step].id === "template" && tplForm && (
+            <div className="space-y-4">
+              <StepHeader icon={Wand2} title={template?.title ?? "Template details"} desc={`${tplForm.fields.length} field${tplForm.fields.length === 1 ? "" : "s"} defined by template ${template?.code ?? ""}`} />
+              {tplForm.fields.map((f) => (
+                <FormField key={f.id} label={f.label} required={f.required} hint={f.helper}>
+                  <TemplateFieldInput
+                    field={f}
+                    value={templateValues[f.id]}
+                    onChange={(v) => setTemplateValues((prev) => ({ ...prev, [f.id]: v }))}
+                  />
+                </FormField>
+              ))}
+            </div>
+          )}
+
           {/* Step 4: People */}
-          {STEPS[step].id === "people" && (
+          {steps[step].id === "people" && (
             <div className="space-y-4">
               <StepHeader icon={User} title="People Involved" desc="Who is affected? (Optional but helpful)" />
               <FormField label="Affected Member" hint="Search their Momence profile">
@@ -441,7 +520,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Step 5: Details */}
-          {STEPS[step].id === "details" && (
+          {steps[step].id === "details" && (
             <div className="space-y-4">
               <StepHeader icon={Zap} title="Additional Details" desc="Any other context that would help" />
               {form.category === "Tech Issues" || form.category === "Operating Systems" ? (
@@ -474,6 +553,9 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                   </FormField>
                 </>
               ) : null}
+              <FormField label="Severity" hint="Business impact of the issue">
+                <OptionButtons options={["Critical", "High", "Medium", "Low", "Not sure"]} value={form.severity} onChange={(v) => updateForm("severity", v)} />
+              </FormField>
               <FormField label="Additional Context" hint="Anything else we should know">
                 <textarea
                   value={form.additionalContext}
@@ -494,7 +576,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Step 6: Review */}
-          {STEPS[step].id === "review" && (
+          {steps[step].id === "review" && (
             <div className="space-y-4">
               <StepHeader icon={Check} title="Review & Submit" desc="Confirm the details before creating the ticket" />
               <div className="iris-card-elevated p-4 space-y-3">
@@ -506,7 +588,9 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                   <ReviewRow label="Studio" value={form.studio} />
                   <ReviewRow label="Area" value={form.area || "—"} />
                   <ReviewRow label="Priority" value={form.priority.toUpperCase()} highlight={form.priority} />
-                  <ReviewRow label="Department" value={IRIS_DEPARTMENTS.find(d => d.id === computedDepartment)?.name || "—"} />
+                  <ReviewRow label="Department" value={departmentName || "—"} />
+                  {form.severity && <ReviewRow label="Severity" value={form.severity} />}
+                  {template && <ReviewRow label="Template" value={`${template.code} — ${template.title}`} />}
                   {form.affectedClient && <ReviewRow label="Client" value={form.affectedClient} />}
                   {form.membershipType && <ReviewRow label="Membership" value={form.membershipType} />}
                   {form.trainer && <ReviewRow label="Trainer" value={form.trainer} />}
@@ -514,6 +598,13 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                   {form.occurred && <ReviewRow label="Occurred" value={form.occurred} />}
                   {form.reportedBy && <ReviewRow label="Reported By" value={form.reportedBy} />}
                 </div>
+                {tplForm && tplForm.fields.length > 0 && (
+                  <div className="pt-2 border-t border-border grid grid-cols-2 gap-3">
+                    {tplForm.fields.map((f) => (
+                      <ReviewRow key={f.id} label={f.label} value={formatFieldValue(templateValues[f.id]) || "—"} />
+                    ))}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border">
                   <div>
                     <div className="text-[10px] font-medium text-muted-foreground mb-1">Also involve departments (optional)</div>
@@ -557,9 +648,9 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
           </Button>
           <div className="flex-1" />
           <div className="text-[10px] text-muted-foreground">
-            Step {step + 1} of {STEPS.length}
+            Step {step + 1} of {steps.length}
           </div>
-          {step < STEPS.length - 1 ? (
+          {step < steps.length - 1 ? (
             <Button
               size="sm"
               className="h-8 text-[12px] iris-btn-premium"
@@ -584,6 +675,55 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+}
+
+function TemplateFieldInput({
+  field, value, onChange,
+}: {
+  field: TemplateField;
+  value: string | boolean | string[] | undefined;
+  onChange: (v: string | boolean | string[]) => void;
+}) {
+  const inputCls = "w-full h-10 px-3 text-[13px] rounded-lg border border-border bg-card focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all";
+  switch (field.type) {
+    case "textarea":
+      return <textarea value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full px-3 py-2 text-[13px] rounded-lg border border-border bg-card focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 resize-none" />;
+    case "number":
+      return <input type="number" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} className={inputCls} />;
+    case "date":
+      return <input type="date" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} className={inputCls} />;
+    case "select":
+      return <OptionButtons options={field.options ?? []} value={(value as string) ?? ""} onChange={onChange} />;
+    case "multiselect": {
+      const sel = Array.isArray(value) ? value : [];
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {(field.options ?? []).map((opt) => {
+            const on = sel.includes(opt);
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onChange(on ? sel.filter((x) => x !== opt) : [...sel, opt])}
+                className={cn("px-2.5 py-1.5 rounded-md border text-[11px] font-medium transition-all", on ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400" : "border-border hover:border-violet-500/30 hover:bg-violet-500/5")}
+              >
+                {on && <Check className="w-3 h-3 inline mr-1" />}{opt}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+    case "checkbox":
+      return (
+        <label className="inline-flex items-center gap-2 text-[12px] cursor-pointer select-none">
+          <input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-violet-600" />
+          {value === true ? "Yes" : "No"}
+        </label>
+      );
+    default:
+      return <input type="text" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} className={inputCls} />;
+  }
 }
 
 function StepHeader({ icon: Icon, title, desc }: { icon: React.ComponentType<{ className?: string }>; title: string; desc: string }) {

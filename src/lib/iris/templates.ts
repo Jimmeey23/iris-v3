@@ -17,6 +17,43 @@ export interface TicketTemplate {
   prefilledOptions?: { field: string; options: string[] }[];
   recommendedActions: string;
   estimatedResolutionHours: number;
+  /** Explicit form-builder definition. When absent it is derived (see template-form.ts). */
+  form?: TemplateForm;
+}
+
+export type TemplateFieldType = "text" | "textarea" | "number" | "select" | "multiselect" | "checkbox" | "date";
+
+/** One field the form builder renders in the "Template details" step. */
+export interface TemplateField {
+  id: string;
+  label: string;
+  type: TemplateFieldType;
+  required?: boolean;
+  options?: string[];
+  /** Initial value: string for text/select/date/number, boolean for checkbox, string[] for multiselect. */
+  default?: string | boolean | string[];
+  helper?: string;
+}
+
+/** What a template pre-fills in the dynamic form builder. */
+export interface TemplateForm {
+  /** CATEGORY_MAP key + one of its subcategories. */
+  category?: string;
+  subcategory?: string;
+  /** Pre-selected studio (full IRIS studio name) and area. */
+  studio?: string;
+  area?: string;
+  /** Restrict the studio / area pickers to these names. */
+  studioOptions?: string[];
+  areaOptions?: string[];
+  occurred?: string;
+  reportedBy?: string;
+  system?: string;
+  requestedOutcome?: string;
+  titlePrefill?: string;
+  summaryPrefill?: string;
+  /** The exact field set this template collects. */
+  fields: TemplateField[];
 }
 
 const STUDIO_OPTIONS = ["Kwality House", "Supreme HQ", "Kenkere House", "Pop Up"];
@@ -155,9 +192,11 @@ export const TICKET_TEMPLATES: TicketTemplate[] = [
   { code: "TPL-111", title: "Audit/Inspection Finding Resolution", description: "Resolution required for audit/inspection finding.", category: "Operations", subcategory: "Audit", departmentCode: "MGT", defaultPriority: "P2", suggestedAssigneeRole: "Operations Manager", requiredFields: ["findingDescription", "auditType", "dueDate"], recommendedActions: "Analyze finding, develop corrective action plan, implement, verify effectiveness, document.", estimatedResolutionHours: 168 },
 ];
 
-export const TEMPLATE_CATEGORIES = Array.from(
-  new Set(TICKET_TEMPLATES.map((t) => t.category))
-).sort();
+/** Live view of the categories in use (templates are editable, so this is a function). */
+export function templateCategories(): string[] {
+  return Array.from(new Set(TICKET_TEMPLATES.map((t) => t.category))).sort();
+}
+export const TEMPLATE_CATEGORIES = templateCategories();
 
 export const TEMPLATE_MAP: Record<string, TicketTemplate> = Object.fromEntries(
   TICKET_TEMPLATES.map((t) => [t.code, t])

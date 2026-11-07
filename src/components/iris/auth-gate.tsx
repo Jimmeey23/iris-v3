@@ -7,6 +7,7 @@ import { IrisLoadingScreen } from "./intro-animation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, ApiError, loadAll } from "@/lib/iris/live-data";
+import { loadLibrary } from "@/lib/iris/library-api";
 import { useAppStore, type CurrentUser } from "@/lib/iris/store";
 
 type Me = {
@@ -70,6 +71,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         loadAll(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 15000)),
       ]);
+      void loadLibrary(); // templates + knowledge docs; non-blocking, falls back to built-in defaults
       setPhase("ready");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load data");

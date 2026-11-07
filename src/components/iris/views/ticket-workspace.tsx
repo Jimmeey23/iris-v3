@@ -9,6 +9,7 @@ import { EMPLOYEES, DEPARTMENTS, EMPLOYEE_MAP, Priority, TicketStatus } from "@/
 import { PriorityBadge, StatusBadge, SLABadge, SLAProgressBar, StudioBadge, DepartmentBadge } from "../badges";
 import { MultiSelect } from "../multi-select";
 import { SmartBadges } from "../smart-badges";
+import { MomenceContextPanel } from "../momence-member-panel";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
@@ -542,6 +543,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     )}
                     {ticket.bookingId && (
                       <DetailRow label="Booking ID" value={ticket.bookingId} mono />
+                    )}
+                    {(ticket.clientMomenceId || ticket.bookingId) && (
+                      <MomenceContextPanel clientMomenceId={ticket.clientMomenceId} bookingId={ticket.bookingId} />
                     )}
 
                     {ticket.tags && ticket.tags.length > 0 && (
