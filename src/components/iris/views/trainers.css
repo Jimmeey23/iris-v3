@@ -1,0 +1,358 @@
+/* Trainers tab - visual system.
+ *
+ * Ported from the reference iris-ai-v2 repo's `app/trainers.css` (plus the trainer rules of its
+ * design system), re-expressed on IRIS's shadcn tokens (--card, --border, --foreground,
+ * --muted-foreground, --primary) instead of v2's --neu-* tokens.
+ *
+ * Everything is scoped under `.trainers-view`, which the page root and the dialog bodies carry,
+ * so none of it can restyle another screen. The scorecard (.tr-report, .tr-masthead, ...) rules
+ * live in globals.css next to the report component and are not repeated here. */
+
+.trainers-view {
+  --tv-green: #34c759;
+  --tv-amber: #ff9500;
+  --tv-red: #ff3b30;
+}
+
+/* ---------- Page header (v2's <Shell> title + eyebrow + action) ---------- */
+.trainers-view .tv-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.trainers-view .tv-head h1 {
+  margin: 2px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.trainers-view .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.trainers-view .flex-row { display: flex; align-items: center; gap: 8px; }
+.trainers-view .flex-row.wrap { flex-wrap: wrap; }
+.trainers-view .muted { color: var(--muted-foreground); }
+
+/* ---------- Atoms: badge, tag, buttons, boxes ---------- */
+.trainers-view .badge,
+.trainers-view .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.trainers-view button.badge { cursor: pointer; }
+.trainers-view .badge.green { color: var(--tv-green); background: rgba(52, 199, 89, 0.12); border-color: transparent; }
+.trainers-view .badge.amber { color: var(--tv-amber); background: rgba(255, 149, 0, 0.12); border-color: transparent; }
+.trainers-view .badge.red { color: var(--tv-red); background: rgba(255, 59, 48, 0.12); border-color: transparent; }
+.trainers-view .badge.blue { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: transparent; }
+.trainers-view .tag { padding: 2px 7px; font-size: 10px; font-weight: 500; border-radius: 6px; border: 0; }
+
+.trainers-view .btn,
+.trainers-view .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.trainers-view .btn:hover { background: var(--muted); }
+.trainers-view .btn-primary { background: var(--primary); border-color: transparent; color: var(--primary-foreground); }
+.trainers-view .btn:disabled,
+.trainers-view .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.trainers-view .info-box,
+.trainers-view .error-box {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+.trainers-view .error-box {
+  border-color: color-mix(in srgb, var(--tv-red) 30%, transparent);
+  background: color-mix(in srgb, var(--tv-red) 8%, transparent);
+  color: var(--tv-red);
+}
+.trainers-view .tv-search { position: relative; max-width: 420px; margin-bottom: 20px; }
+.trainers-view .tv-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+.trainers-view .tv-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 12px;
+  outline: none;
+}
+.trainers-view .tv-search input:focus { border-color: var(--primary); }
+.trainers-view .tv-empty { text-align: center; padding: 72px 0; color: var(--muted-foreground); font-size: 13px; }
+
+/* ---------- Image-stream hero ---------- */
+.trainers-view .image-stream-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  margin-bottom: 20px;
+}
+.trainers-view .tr-stream-hero { min-height: 340px; display: flex; }
+.trainers-view .ish-card {
+  box-shadow: 0 24px 44px -22px rgb(0 0 0 / 0.55);
+  border: 1px solid color-mix(in srgb, #fff 16%, transparent);
+  background: var(--muted);
+}
+.trainers-view .ish-card img { filter: saturate(1.06) contrast(1.03); object-position: 50% 16%; }
+
+.trainers-view .tr-stream-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  /* Centred between the rails: the stream is born just off-centre and sweeps outward on both
+     sides, so the copy owns the middle of the stage. */
+  margin: auto;
+  width: min(620px, 86%);
+  padding: 28px 34px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 97%, transparent);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-align: center;
+  pointer-events: none;
+}
+.trainers-view .tr-stream-copy .eyebrow { margin-bottom: 2px; justify-content: center; }
+.trainers-view .tr-stream-copy .eyebrow::after {
+  content: "";
+  width: 20px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.85;
+}
+.trainers-view .tr-stream-copy h2 {
+  margin: 0;
+  font-size: clamp(21px, 2.4vw, 30px);
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  line-height: 1.12;
+  color: var(--foreground);
+}
+.trainers-view .tr-stream-copy p {
+  margin: 0 auto;
+  max-width: 520px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+}
+.trainers-view .tr-stream-facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.trainers-view .tr-stream-facts .badge,
+.trainers-view .tr-stream-facts button { pointer-events: auto; }
+
+@media (max-width: 767px) {
+  .trainers-view .tr-stream-copy { width: auto; margin: 14px; padding: 20px; }
+  .trainers-view .tr-stream-hero { min-height: 380px; }
+}
+
+/* ---------- City groups and trainer cards ---------- */
+.trainers-view .trainer-groups { display: grid; gap: 26px; }
+.trainers-view .trainer-city-group { display: grid; gap: 14px; }
+.trainers-view .trainer-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.trainers-view .trainer-group-heading small { color: var(--muted-foreground); font-size: 11px; font-weight: 500; }
+
+/* Leaner cards fit more per row - only on this grid. */
+.trainers-view .entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 12px;
+}
+.trainers-view .trainer-profile-card-wrap { position: relative; }
+.trainers-view .trainer-profile-card {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.trainers-view .trainer-profile-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
+}
+.trainers-view .trainer-profile-card:active { transform: none; }
+.dark .trainers-view .trainer-profile-card,
+.dark .trainers-view .trainer-profile-card:hover { box-shadow: 0 4px 14px rgb(0 0 0 / 0.2); }
+.trainers-view .trainer-profile-meta { padding: 13px 14px; display: grid; gap: 9px; }
+
+.trainers-view .tpc-head { display: flex; align-items: center; gap: 11px; min-width: 0; }
+/* Thumbnail, not a headshot panel. */
+.trainers-view .tpc-photo {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--primary), var(--iris-hero-to));
+  color: var(--primary-foreground);
+  font-size: 13px;
+  font-weight: 700;
+  transition: box-shadow 0.22s ease;
+}
+.trainers-view .trainer-profile-card:hover .tpc-photo { box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--primary) 50%, transparent); }
+.trainers-view .tpc-photo .tpc-photo-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  /* Faces sit high in these portraits, so the crop favours the top third. */
+  object-position: 50% 16%;
+}
+.trainers-view .tpc-id { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.trainers-view .tpc-id h3 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trainers-view .tpc-id p {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trainers-view .tpc-head .badge { flex-shrink: 0; }
+.trainers-view .tpc-note { margin: 0; font-size: 10px; line-height: 1.4; color: var(--muted-foreground); }
+.trainers-view .tpc-note-warn { color: var(--tv-amber); }
+.trainers-view .entity-foot {
+  margin-top: 1px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.trainers-view .tpc-manage {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.trainers-view .trainer-profile-card-wrap:hover .tpc-manage,
+.trainers-view .tpc-manage:focus-visible { opacity: 1; }
+.trainers-view .tpc-manage:hover { color: var(--foreground); }
+
+/* ---------- Edit dialog ---------- */
+.trainers-view .tr-kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.trainers-view .tv-stack { display: grid; gap: 18px; }
+.trainers-view .tv-field-note { font-size: 12px; margin: 4px 0 8px; color: var(--muted-foreground); }
+.trainers-view .tv-stack input,
+.trainers-view .tv-stack select {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+/* One restrained elevation level for the report dialog. */
+[data-slot="dialog-content"]:has(.tr-report) { box-shadow: 0 18px 48px rgb(0 0 0 / 0.22); }

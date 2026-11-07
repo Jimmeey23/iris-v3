@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { getTrainerImage } from "@/lib/iris/constants";
+import { TrainerPhoto } from "./trainer-photo";
 import {
   type Trainer,
   type Assessment,
@@ -87,9 +89,9 @@ function ScoreDial({ value, size = 104 }: { value: number; size?: number }) {
 function TrendChart({
   points, selectedId, onSelect,
 }: {
-  points: { id: number; at: string; score: number }[];
-  selectedId?: number | null;
-  onSelect?: (id: number) => void;
+  points: { id: string; at: string; score: number }[];
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
 }) {
   if (points.length < 2) {
     return (
@@ -379,24 +381,24 @@ function ReviewCard({
 /* ------------------------------------------------------------------ */
 
 export function TrainerReport({ trainer }: { trainer: Trainer }) {
-  const [selection, setSelection] = React.useState<{ for: string; id: number }>();
+  const [selection, setSelection] = React.useState<{ for: string; id: string }>();
   const selectedId = selection?.for === trainer.name ? selection.id : null;
-  const setSelectedId = (id: number) => setSelection({ for: trainer.name, id });
+  const setSelectedId = (id: string) => setSelection({ for: trainer.name, id });
 
   const newestFirst = React.useMemo(
     () => [...trainer.assessments].sort((a, b) => +new Date(b.submittedAt) - +new Date(a.submittedAt)),
     [trainer.assessments],
   );
 
-  const [openOverride, setOpenOverride] = React.useState<{ for: string; ids: Set<number> }>();
+  const [openOverride, setOpenOverride] = React.useState<{ for: string; ids: Set<string> }>();
   const openIds = openOverride?.for === trainer.name
     ? openOverride.ids
     : new Set(newestFirst.slice(0, 1).map((a) => a.id));
-  const setOpenIds = (ids: Set<number>) => setOpenOverride({ for: trainer.name, ids });
+  const setOpenIds = (ids: Set<string>) => setOpenOverride({ for: trainer.name, ids });
 
   const [rubricFilter, setRubricFilter] = React.useState<"all" | "strong" | "focus">("all");
 
-  const toggleOpen = (id: number) => {
+  const toggleOpen = (id: string) => {
     const next = new Set(openIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -505,8 +507,12 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
     <div className="tr-report">
       {/* 01 — masthead */}
       <section className="tr-masthead">
-        <div className="tr-portrait" data-empty="true">
-          <span className="tr-portrait-initials">{initials}</span>
+        <div className="tr-portrait" data-empty={getTrainerImage(trainer.name) ? undefined : "true"}>
+          <TrainerPhoto
+            name={trainer.name}
+            className="trainer-photo-lg"
+            fallback={<span className="tr-portrait-initials">{initials}</span>}
+          />
         </div>
         <div className="tr-masthead-body">
           <span className="eyebrow">TRAINER PERFORMANCE REPORT</span>

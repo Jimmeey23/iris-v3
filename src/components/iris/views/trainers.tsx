@@ -2,161 +2,205 @@
 
 import * as React from "react";
 import {
-  GraduationCap, Star, Heart, TriangleAlert, ChevronRight,
-  Radio, Search,
+  GraduationCap, Star, Heart, TriangleAlert, ChevronRight, Radio, Search, RefreshCw, Loader2, Settings2,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
+import { loadAll } from "@/lib/iris/live-data";
+import { useAppStore } from "@/lib/iris/store";
+import { TRAINER_IMAGES } from "@/lib/iris/constants";
 import {
-  TRAINERS_FULL, ORG_AVG,
-  type Trainer,
+  applyCorrection, buildTrainerProfiles, loadOverrides, orgAverage, saveOverrides,
+  CITY_ORDER,
+  type Trainer, type TrainerCorrection, type TrainerOverrides,
 } from "@/lib/iris/trainer-directory";
 import { TrainerReport } from "../trainer-report";
-import {
-  Dialog, DialogContent, DialogTitle,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { TrainerPhoto } from "../trainer-photo";
+import { ImageStreamHero } from "../image-stream-hero";
+import { RelativeTime } from "../relative-time";
+import "./trainers.css";
 
 /**
- * Trainers view — ported from the reference iris-ai-v2 repo's
- * `app/trainers/page.tsx`, adapted to this dashboard's app shell (no Shell
- * component, no API calls — uses the static TRAINERS_FULL roster instead).
+ * Trainers tab, structured like the reference iris-ai-v2 `app/trainers/page.tsx`:
+ * header, image-stream hero with live facts, search, trainer cards grouped by city, the report
+ * dialog on click, and an administrator-only dialog for corrections to a card.
  *
- * The visual structure matches the reference:
- *   - Hero with eyebrow + headline + copy + facts row (org avg, listening
- *     toggle, trainers tracked count)
- *   - Search field
- *   - Trainer groups by city (Mumbai first, Bengaluru second)
- *   - Profile cards in a lean grid (auto-fill, minmax 268px)
- *   - Click a card → modal with the full TrainerReport
- *
- * All the scorecard visuals (masthead, KPI tiles, score dial, trend chart,
- * radar chart, rubric bars, review cards) live in the TrainerReport
- * component and the .tr-* CSS in globals.css.
+ * Data comes from the live ticket list (see lib/iris/trainer-directory). The hero's "listening"
+ * toggle re-reads tickets every minute, as v2 re-reads its scorecards. v2's Fillout/Zite sync and
+ * review removal have no IRIS counterpart (no assessments are stored) and are left out.
  */
+
+const POLL_MS = 60000;
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 export function TrainersView() {
+  const dataVersion = useAppStore((s) => s.dataVersion);
+  const bumpData = useAppStore((s) => s.bumpData);
+  const isAdmin = useAppStore((s) => s.currentUser.tier === "admin");
+
+  // This view only mounts after <AuthGate> has loaded on the client, so reading localStorage
+  // in the initializer cannot cause a hydration mismatch.
+  const [overrides, setOverrides] = React.useState<TrainerOverrides>(() => loadOverrides());
   const [q, setQ] = React.useState("");
   const [activeName, setActiveName] = React.useState<string>();
+  const [manage, setManage] = React.useState<Trainer>();
+  const [mergeInto, setMergeInto] = React.useState("");
+  const [renameTo, setRenameTo] = React.useState("");
   const [listening, setListening] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [lastSync, setLastSync] = React.useState<string | null>(null);
+  const [ping, setPing] = React.useState("");
+  const [error, setError] = React.useState("");
+  const seen = React.useRef<Set<string> | null>(null);
+
+  const build = React.useMemo(
+    // dataVersion is bumped whenever ALL_TICKETS changes in place.
+    () => buildTrainerProfiles(ALL_TICKETS, overrides),
+    [overrides, dataVersion],
+  );
+  const { trainers, hidden, roster, sources } = build;
+
+  const refresh = React.useCallback(async (quiet: boolean) => {
+    if (!quiet) setRefreshing(true);
+    try {
+      await loadAll();
+      bumpData();
+      setLastSync(new Date().toISOString());
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't refresh tickets");
+    } finally {
+      if (!quiet) setRefreshing(false);
+    }
+  }, [bumpData]);
+
+  // A new piece of feedback that lands mid-session announces itself.
+  React.useEffect(() => {
+    const ids = new Set(trainers.flatMap((t) => t.recentFeedback.map((f) => f.id)));
+    if (seen.current) {
+      const fresh = [...ids].filter((id) => !seen.current!.has(id));
+      if (fresh.length) {
+        const owner = trainers.find((t) => t.recentFeedback.some((f) => f.id === fresh[0]));
+        setPing(`${plural(fresh.length, "new feedback ticket")} received${owner ? ` · ${owner.displayName || owner.name}` : ""}`);
+        const timer = setTimeout(() => setPing(""), 7000);
+        seen.current = ids;
+        return () => clearTimeout(timer);
+      }
+    }
+    seen.current = ids;
+  }, [trainers]);
+
+  // Pauses while the tab is hidden and catches up as soon as it is visible again.
+  React.useEffect(() => {
+    if (!listening) return;
+    const tick = () => { if (!document.hidden) void refresh(true); };
+    const timer = setInterval(tick, POLL_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
+  }, [listening, refresh]);
 
   const filtered = React.useMemo(() => {
-    if (!q) return TRAINERS_FULL;
     const lower = q.toLowerCase();
-    return TRAINERS_FULL.filter((t) =>
-      [t.displayName || t.name, t.primaryStudio, t.city]
-        .some((v) => (v || "").toLowerCase().includes(lower)),
-    );
-  }, [q]);
+    return trainers.filter((t) => !q || [t.displayName || t.name, t.primaryStudio, t.city].some((v) => (v || "").toLowerCase().includes(lower)));
+  }, [trainers, q]);
 
-  /** Group by city, Mumbai first. */
+  /** Mumbai and Bengaluru, and nothing below that: a trainer belongs to a city, and the
+   *  studios they have been named at are on their card. */
   const grouped = React.useMemo(() => {
-    const cityOrder = (city: string) => (city === "Mumbai" ? 0 : 1);
     const byCity = new Map<string, Trainer[]>();
-    for (const t of filtered) {
-      if (!byCity.has(t.city)) byCity.set(t.city, []);
-      byCity.get(t.city)!.push(t);
-    }
+    for (const t of filtered) byCity.set(t.city, [...(byCity.get(t.city) || []), t]);
+    const order = (c: string) => { const i = CITY_ORDER.indexOf(c as never); return i < 0 ? CITY_ORDER.length : i; };
     return [...byCity.entries()]
-      .sort(([a], [b]) => cityOrder(a) - cityOrder(b))
+      .sort(([a], [b]) => order(a) - order(b) || a.localeCompare(b))
       .map(([city, people]) => ({
         city,
         people: people.sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name)),
       }));
   }, [filtered]);
 
-  const active = React.useMemo(
-    () => TRAINERS_FULL.find((t) => t.name === activeName),
-    [activeName],
+  const active = React.useMemo(() => trainers.find((t) => t.name === activeName), [trainers, activeName]);
+  const orgAvg = orgAverage(trainers);
+
+  /** Administrator corrections. Every one is reversible and none touches a ticket. */
+  function correct(c: TrainerCorrection, message: string) {
+    try {
+      const next = applyCorrection(overrides, c);
+      setOverrides(next);
+      saveOverrides(next);
+      setPing(message);
+      setTimeout(() => setPing(""), 5000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't apply that correction");
+    }
+  }
+
+  const portraits = React.useMemo(
+    () => Object.values(TRAINER_IMAGES).map((src) => ({ src, alt: "Trainer portrait" })),
+    [],
   );
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto space-y-6">
-      {/* === Hero === */}
-      <div className="relative overflow-hidden rounded-2xl border border-border p-8 iris-fade-in-up iris-hero-tint">
-        {/* Floating orbs colored with accent vars (follows random accent) */}
-        <div
-          className="absolute -top-20 -right-10 w-80 h-80 rounded-full opacity-25"
-          style={{
-            background: "radial-gradient(circle, var(--iris-hero-from), transparent 65%)",
-            animation: "trainer-orb-a 8s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute -bottom-20 left-20 w-60 h-60 rounded-full opacity-15"
-          style={{
-            background: "radial-gradient(circle, var(--iris-hero-to), transparent 65%)",
-            animation: "trainer-orb-b 10s ease-in-out infinite",
-          }}
-        />
-        <div className="absolute inset-0 iris-grid-bg opacity-40" />
+    <div className="trainers-view p-8 max-w-[1400px] mx-auto">
+      <div className="tv-head">
+        <div>
+          <span className="eyebrow">Training &amp; Quality</span>
+          <h1>Trainer reviews</h1>
+        </div>
+        <div className="flex-row">
+          <button className="btn" disabled={refreshing} onClick={() => void refresh(false)}>
+            {refreshing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={14} />}
+            {refreshing ? "Refreshing..." : "Refresh feedback"}
+          </button>
+          <span className="badge blue"><GraduationCap size={12} />{trainers.length} trainers tracked</span>
+        </div>
+      </div>
 
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-2">
-            <GraduationCap className="w-4 h-4 text-primary" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Training &amp; Quality
-            </span>
-          </div>
-          <h1 className="text-[26px] font-bold tracking-tight leading-tight">
-            Trainer Reviews
-          </h1>
-          <p className="text-[13px] text-muted-foreground mt-2 max-w-lg leading-relaxed">
-            Every assessment and every piece of feedback, in one scorecard.
-            Weighted evaluation scores, member compliments and logged concerns -
-            combined per trainer so coaching conversations start from evidence.
-          </p>
-          <div className="flex items-center gap-2 mt-4 flex-wrap">
+      {/* The corridor: every trainer portrait on file rides the two rails that open outward
+          from the centred copy. */}
+      <ImageStreamHero
+        images={portraits}
+        cards={9}
+        speed={23}
+        axis={50}
+        className="tr-stream-hero"
+        path={{ perspective: 26, railBirth: 15, railExit: 54, fan: 2.2, turnBirth: 10, turnExit: 32 }}
+      >
+        <div className="tr-stream-copy">
+          <span className="eyebrow">Training &amp; Quality</span>
+          <h2>Every assessment and every piece of feedback, in one scorecard.</h2>
+          <p>Weighted evaluation scores, member compliments and logged concerns - combined per trainer so coaching conversations start from evidence.</p>
+          <div className="tr-stream-facts">
             <button
               type="button"
+              className="badge"
               onClick={() => setListening((v) => !v)}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors",
-                listening
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-                  : "border-border bg-muted text-muted-foreground",
-              )}
-              title={listening ? "Checking every 60 seconds" : "Live updates paused"}
+              title={listening ? `Checking every ${POLL_MS / 1000} seconds` : "Live updates paused"}
             >
-              <Radio className="w-2.5 h-2.5" style={{ color: listening ? "#34c759" : undefined }} />
+              <Radio size={11} style={{ color: listening ? "var(--tv-green)" : "var(--muted-foreground)" }} />
               {listening ? "Listening for new submissions" : "Live updates paused"}
             </button>
-            {ORG_AVG !== null && (
-              <span
-                className={cn(
-                  "iris-tr-badge",
-                  ORG_AVG >= 80 ? "tone-green" : ORG_AVG >= 65 ? "tone-amber" : "tone-red",
-                )}
-              >
-                Org average {ORG_AVG}%
-              </span>
+            {lastSync && <span className="badge">Last synced <RelativeTime date={lastSync} /></span>}
+            {sources.map((s) => <span key={s.label} className="badge">{s.label} · {s.count}</span>)}
+            {orgAvg !== null && (
+              <span className={`badge ${orgAvg >= 80 ? "green" : orgAvg >= 65 ? "amber" : "red"}`}>Org average {orgAvg}%</span>
             )}
-            <span className="iris-tr-badge tone-none">
-              <GraduationCap className="w-2.5 h-2.5 mr-0.5" style={{ display: "inline" }} />
-              {TRAINERS_FULL.length} trainers tracked
-            </span>
           </div>
         </div>
-        <style>{`
-          @keyframes trainer-orb-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-15px,15px) scale(1.1); } }
-          @keyframes trainer-orb-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(15px,-15px) scale(0.9); } }
-        `}</style>
-      </div>
+      </ImageStreamHero>
 
-      {/* === Search === */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-        <Input
-          placeholder="Find a trainer, studio or city..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="h-8 pl-8 text-[12px]"
-        />
-      </div>
+      {ping && <div className="info-box">✦ {ping}</div>}
 
-      {/* === Trainer groups by city === */}
+      <div className="tv-search">
+        <Search size={14} />
+        <input placeholder="Find a trainer, studio or city..." value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      {error && <div className="error-box">{error}</div>}
+
       {!filtered.length ? (
-        <div className="text-center py-20">
-          <GraduationCap className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <div className="text-[13px] text-muted-foreground">No trainers found</div>
+        <div className="tv-empty">
+          <GraduationCap size={28} style={{ margin: "0 auto 8px" }} />
+          No trainers found
         </div>
       ) : (
         <div className="trainer-groups">
@@ -164,23 +208,22 @@ export function TrainersView() {
             <section className="trainer-city-group" key={group.city}>
               <header className="trainer-group-heading">
                 <span>{group.city} trainers</span>
-                <small>
-                  {group.people.length} {group.people.length === 1 ? "trainer" : "trainers"}
-                </small>
+                <small>{group.people.length} {group.people.length === 1 ? "trainer" : "trainers"}</small>
               </header>
-              <div className="entity-grid trainer-grid">
+              <div className="entity-grid">
                 {group.people.map((t) => (
                   <div key={t.name} className="trainer-profile-card-wrap">
-                    <button
-                      type="button"
-                      className="trainer-profile-card"
-                      onClick={() => setActiveName(t.name)}
-                    >
+                    <button type="button" className="trainer-profile-card" onClick={() => setActiveName(t.name)}>
+                      {/* Compact portrait row: a small framed headshot beside the name, so the
+                          card leads with identity and data, not a photo wall. */}
                       <div className="trainer-profile-meta">
-                        {/* Compact portrait row */}
                         <div className="tpc-head">
                           <span className="tpc-photo">
-                            {t.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                            <TrainerPhoto
+                              name={t.name}
+                              className="tpc-photo-img"
+                              fallback={<>{(t.displayName || t.name).split(" ").map((w) => w[0]).slice(0, 2).join("")}</>}
+                            />
                           </span>
                           <span className="tpc-id">
                             <h3>{t.displayName || t.name}</h3>
@@ -191,54 +234,179 @@ export function TrainersView() {
                                 : "No studio on record"}
                             </p>
                           </span>
-                          {t.avgScore !== null ? (
-                            <span className={`iris-tr-badge tone-${t.bandTone}`}>{t.avgScore}%</span>
-                          ) : (
-                            <span className="iris-tr-badge tone-none">No assessments</span>
-                          )}
+                          {t.avgScore !== null
+                            ? <span className={`badge ${t.bandTone}`}>{t.avgScore}%</span>
+                            : <span className="badge">No assessments</span>}
                         </div>
-                        <div className="tpc-tags">
-                          <span className="tpc-tag">
-                            <Star className="w-2.5 h-2.5" style={{ display: "inline" }} />
-                            {t.assessmentCount} assessments
-                          </span>
-                          <span className="tpc-tag">
-                            <Heart className="w-2.5 h-2.5" style={{ display: "inline" }} />
-                            {t.complimentCount} compliments
-                          </span>
-                          {t.issueCount > 0 && (
-                            <span className="tpc-tag tag-red">
-                              <TriangleAlert className="w-2.5 h-2.5" style={{ display: "inline" }} />
-                              {t.issueCount} flagged
-                            </span>
-                          )}
+                        <div className="flex-row wrap" style={{ marginTop: 3, gap: 6 }}>
+                          <span className="tag"><Star size={10} />{t.assessmentCount} assessments</span>
+                          <span className="tag"><Heart size={10} />{t.complimentCount} compliments</span>
+                          <span className="tag"><TriangleAlert size={10} />{t.issueCount} flagged</span>
                         </div>
-                        <div className="entity-foot">
-                          <span>{t.totalTickets} linked tickets</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </div>
+                        {/* Said on the card rather than silently: a folded spelling and an
+                            unresolvable first name are both things somebody should know about
+                            the data they are reading. */}
+                        {!!t.mergedFrom?.length && <p className="tpc-note">Also filed as {t.mergedFrom.join(", ")}</p>}
+                        {!!t.ambiguousWith?.length && (
+                          <p className="tpc-note tpc-note-warn">
+                            “{t.name}” could be {t.ambiguousWith.join(" or ")} - kept separate until somebody says which
+                          </p>
+                        )}
+                        <div className="entity-foot"><span>{t.totalTickets} linked tickets</span><ChevronRight size={14} /></div>
                       </div>
                     </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        className="tpc-manage"
+                        title="Edit this trainer card"
+                        onClick={() => { setManage(t); setMergeInto(""); setRenameTo(t.displayName || t.name); }}
+                      >
+                        <Settings2 size={13} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             </section>
           ))}
+          {isAdmin && hidden.length > 0 && (
+            <section className="trainer-city-group">
+              <header className="trainer-group-heading">
+                <span>Hidden cards</span>
+                <small>{hidden.length} removed from the page · tickets still on file</small>
+              </header>
+              <div className="flex-row wrap" style={{ gap: 8 }}>
+                {hidden.map((h) => (
+                  <button
+                    key={h.name}
+                    type="button"
+                    className="badge"
+                    onClick={() => correct({ action: "hide", name: h.name, hidden: false }, `${h.displayName} restored.`)}
+                  >
+                    {h.displayName} · {h.totalTickets} tickets · restore
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
 
-      {/* === Trainer report modal === */}
+      {/* Consolidated trainer performance report */}
       <Dialog open={!!active} onOpenChange={(open) => !open && setActiveName(undefined)}>
-        <DialogContent
-          className="max-w-4xl max-h-[88vh] overflow-y-auto iris-scrollbar p-0"
-          aria-describedby={undefined}
-        >
-          <DialogTitle className="sr-only">
-            {active?.displayName || active?.name} - performance report
-          </DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto iris-scrollbar p-0" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">{active?.displayName || active?.name} - performance report</DialogTitle>
           {active && (
-            <div className="p-4">
+            <div className="trainers-view p-4">
               <TrainerReport trainer={active} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Administrator corrections to one card. Deliberately a separate dialog from the report:
+          the report is for reading somebody's file, this is for fixing the record. */}
+      <Dialog open={!!manage} onOpenChange={(open) => !open && setManage(undefined)}>
+        <DialogContent className="max-w-lg">
+          {manage && (
+            <div className="trainers-view">
+              <DialogHeader>
+                <DialogTitle>Edit {manage.displayName || manage.name}</DialogTitle>
+                <DialogDescription>
+                  Corrections to how this trainer is grouped and labelled. Tickets are not affected.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="tv-stack" style={{ marginTop: 16 }}>
+                <div>
+                  <span className="tr-kpi-label">City</span>
+                  <p className="tv-field-note">Currently {manage.city}. Trainers are grouped by city, not by studio.</p>
+                  <div className="flex-row">
+                    {CITY_ORDER.map((city) => (
+                      <button
+                        key={city}
+                        type="button"
+                        className={manage.city === city ? "btn-primary" : "btn"}
+                        disabled={manage.city === city}
+                        onClick={() => { correct({ action: "city", name: manage.name, city }, `${manage.displayName || manage.name} moved to ${city}.`); setManage(undefined); }}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="tr-kpi-label">Name on the card</span>
+                  <p className="tv-field-note">A correction to the label only. It does not regroup anything, and clearing it restores {manage.name}.</p>
+                  <div className="flex-row">
+                    <input value={renameTo} onChange={(e) => setRenameTo(e.target.value)} placeholder={manage.name} />
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        correct({ action: "rename", name: manage.name, displayName: renameTo.trim() === manage.name ? "" : renameTo.trim() }, "Name updated.");
+                        setManage(undefined);
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="tr-kpi-label">Merge into another trainer</span>
+                  <p className="tv-field-note">
+                    Folds every ticket filed as “{manage.name}” into the trainer you choose. Use this for a
+                    spelling that is the same person, and for a first name the app could not resolve on its own.
+                  </p>
+                  <div className="flex-row">
+                    <select value={mergeInto} onChange={(e) => setMergeInto(e.target.value)}>
+                      <option value="">Choose a trainer...</option>
+                      {roster.filter((name) => name !== manage.name).map((name) => <option key={name}>{name}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!mergeInto}
+                      onClick={() => { correct({ action: "merge", from: manage.name, into: mergeInto }, `“${manage.name}” merged into ${mergeInto}.`); setManage(undefined); }}
+                    >
+                      Merge
+                    </button>
+                  </div>
+                  {!!manage.mergedFrom?.length && (
+                    <div className="flex-row wrap" style={{ gap: 6, marginTop: 10 }}>
+                      <span className="muted" style={{ fontSize: 11 }}>Folded in:</span>
+                      {manage.mergedFrom.map((spelling) => (
+                        <button
+                          key={spelling}
+                          type="button"
+                          className="badge"
+                          title="Separate this spelling again"
+                          onClick={() => { correct({ action: "unmerge", from: spelling }, `“${spelling}” separated again.`); setManage(undefined); }}
+                        >
+                          {spelling} · undo
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <span className="tr-kpi-label">Remove the card</span>
+                  <p className="tv-field-note">
+                    Takes {manage.displayName || manage.name} off this page. The {plural(manage.totalTickets, "linked ticket")} stay
+                    on file, and the card can be restored.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-danger-ghost"
+                    onClick={() => { correct({ action: "hide", name: manage.name, hidden: true }, `${manage.displayName || manage.name} hidden.`); setManage(undefined); }}
+                  >
+                    Hide this trainer
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>

@@ -1,18 +1,24 @@
 /**
- * Trainer directory + reviews data — ported from the reference iris-ai-v2 repo.
+ * Who the trainers are, and what the ticket history says about them.
  *
- * The reference repo pulls trainers from a database and assessments from
- * Fillout/Zite forms. This IRIS dashboard is a static front-end demo, so we
- * use the same trainer roster the reference repo ships in `constants.ts`
- * and generate deterministic mock assessments/feedback for each trainer so
- * the score dial, trend chart, radar chart, KPI tiles and review cards all
- * have realistic data to display.
+ * Structure follows the reference iris-ai-v2 repo (`lib/trainer-directory.ts` plus the
+ * profile-building half of `api/trainers/route.ts`), with one difference in where the data
+ * comes from: v2 reads a `trainer` column and a table of Fillout/Zite assessments. IRIS has
+ * neither, so every figure here is derived from the live ticket list (ALL_TICKETS):
  *
- * The 21 trainers and the city assignment logic come straight from
- * `lib/trainer-directory.ts` in the reference repo (Bengaluru is decided by
- * first name: Kajol, Pushyank, Shruti, Siddhartha, Chaitanya). Everybody
- * else is Mumbai.
+ *  - a ticket is "about" a trainer when its description carries a `Trainer: <name>` line (what
+ *    the intake form writes) or, for Trainer Feedback / Class Experience tickets, when the
+ *    title or description names someone on the roster;
+ *  - Trainer Feedback and Class Experience tickets are the member feedback; those whose
+ *    subcategory, title or tags read as praise are compliments, the rest are flagged concerns;
+ *  - assessments (weighted evaluation scores) are not recorded anywhere in IRIS, so they are
+ *    empty and scores stay null. Nothing is invented to fill the gap.
+ *
+ * Grouping is by city, not studio. Bengaluru is a named list; everybody else is Mumbai.
  */
+import { TRAINERS as ROSTER } from "./constants";
+import { STUDIO_MAP } from "./types";
+import type { Ticket } from "./sample-tickets";
 
 export type TrainerCity = "Mumbai" | "Bengaluru";
 
@@ -24,7 +30,7 @@ export type RubricRow = {
 };
 
 export type Assessment = {
-  id: number;
+  id: string;
   ticketNumber: string;
   studio: string | null;
   createdAt: string;
@@ -45,7 +51,7 @@ export type Assessment = {
 };
 
 export type FeedbackRow = {
-  id: number;
+  id: string;
   ticketNumber: string;
   title: string;
   subcategory: string;
@@ -77,352 +83,298 @@ export type Trainer = {
   recentFeedback: FeedbackRow[];
 };
 
-// === Trainer roster (from reference repo's constants.ts) ====================
-export const TRAINERS = [
-  "Anisha Shah",
-  "Anmol Sharma",
-  "Atulan Purohit",
-  "Bret Saldanha",
-  "Cauveri Vikrant",
-  "Chaitanya Nahar",
-  "Kajol Kanchan",
-  "Karan Bhatia",
-  "Karanvir Bhatia",
-  "Mrigakshi Jaiswal",
-  "Pranjali Jain",
-  "Pushyank Nahar",
-  "Raunak Khemuka",
-  "Reshma Sharma",
-  "Richard D'Costa",
-  "Rohan Dahima",
-  "Shruti Kulkarni",
-  "Siddhartha Kusuma",
-  "Simonelle De Vitre",
-  "Vivaran Dhasmana",
-  "Siya Mukund",
-] as const;
+export const TRAINERS: readonly string[] = ROSTER;
 
-// === City assignment (from reference repo's trainer-directory.ts) ============
-const BENGALURU_FIRST_NAMES = new Set([
-  "kajol",
-  "pushyank",
-  "shruti",
-  "siddhartha",
-  "chaitanya",
-]);
+/** Trainers present in the ticket history who are not in the roster. Empty at present. */
+export const KNOWN_TRAINERS: { name: string; city: TrainerCity; active: boolean }[] = [];
 
+/**
+ * Spellings in the ticket history that are known to be somebody already on the roster.
+ * Corrections to the data rather than administrator preferences; an administrator's alias
+ * is consulted first.
+ */
+const BUILT_IN_ALIASES: Record<string, string> = {
+  "chaitanya padhye": "Chaitanya Nahar",
+  "shruthi kulkarni": "Shruti Kulkarni",
+  "siddhartha kasuma": "Siddhartha Kusuma",
+  "bret saldhana": "Bret Saldanha",
+  "richard d'souza": "Richard D'Costa",
+};
+
+/** Bengaluru, by first name as given: Kajol, Pushyank, Shruti, Siddhartha, Chaitanya.
+ *  Everyone else is Mumbai. */
+const BENGALURU_FIRST_NAMES = new Set(["kajol", "pushyank", "shruti", "siddhartha", "chaitanya"]);
+
+export const DEFAULT_CITY: TrainerCity = "Mumbai";
+
+const firstName = (name: string) => name.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+
+/** The city a trainer belongs to before any administrator override. */
 export function defaultCityFor(name: string): TrainerCity {
-  const first = name.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
-  return BENGALURU_FIRST_NAMES.has(first) ? "Bengaluru" : "Mumbai";
+  return BENGALURU_FIRST_NAMES.has(firstName(name)) ? "Bengaluru" : DEFAULT_CITY;
 }
 
-// === Studios (city → studios) ===============================================
-const MUMBAI_STUDIOS = ["Kwality House", "Supreme HQ"];
-const BENGALURU_STUDIOS = ["Kenkere House"];
-
-function studiosForCity(city: TrainerCity): string[] {
-  return city === "Bengaluru" ? BENGALURU_STUDIOS : MUMBAI_STUDIOS;
+/** Every name this module knows, roster first. */
+export function knownTrainerNames(): string[] {
+  return [...new Set([...TRAINERS, ...KNOWN_TRAINERS.map((t) => t.name)])];
 }
 
-// === Deterministic PRNG (so mock data is stable across renders) =============
-function hashStr(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-function mulberry32(seed: number) {
-  return function () {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = seed;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function pick<T>(rng: () => number, arr: readonly T[]): T {
-  return arr[Math.floor(rng() * arr.length)];
-}
+export type TrainerOverrides = {
+  /** Variant spelling (lowercased) to the canonical name it belongs to. */
+  aliases: Record<string, string>;
+  /** Canonical name to the city an administrator put them in. */
+  cities: Record<string, TrainerCity>;
+  /** Canonical names an administrator has removed from the page. Tickets stay on file. */
+  hidden: string[];
+  /** Canonical name to the display name an administrator prefers. */
+  displayNames: Record<string, string>;
+};
 
-// === Rubric categories (Barre assessment from reference repo) ===============
-const RUBRIC_CATEGORIES: Array<{ category: string; weightage: number }> = [
-  { category: "Pre-Class Setup & Vibe", weightage: 10 },
-  { category: "Cueing & Instruction", weightage: 15 },
-  { category: "Demonstration & Form", weightage: 15 },
-  { category: "Music & Tempo", weightage: 10 },
-  { category: "Class Flow & Pacing", weightage: 12 },
-  { category: "Member Corrections", weightage: 13 },
-  { category: "Energy & Presence", weightage: 10 },
-  { category: "Safety & Modifications", weightage: 15 },
-];
+export const EMPTY_OVERRIDES: TrainerOverrides = { aliases: {}, cities: {}, hidden: [], displayNames: {} };
 
-const EVALUATORS = [
-  "Tara Kapoor",
-  "Maya Sharma",
-  "Reyaan Malhotra",
-  "Studio Director",
-  "Front Desk Lead",
-];
+const OVERRIDES_KEY = "iris:trainer-overrides:v1";
 
-const SESSION_NAMES = [
-  "Barre Class — Beginner",
-  "Cardio Barre — Intermediate",
-  "Sculpt & Tone",
-  "Advanced Barre",
-  "Stretch & Restore",
-  "Power Barre — Advanced",
-  "Barre Express",
-];
-
-const STRENGTH_TEMPLATES = [
-  "Strong command of the room; warm, encouraging tone throughout the class. Members visibly engaged from the warm-up.",
-  "Excellent music selection that matched the choreography tempo. Clean transitions between sections kept the energy high.",
-  "Confident demonstration of complex sequences. Gave clear, layered cues that beginners could follow.",
-  "Great rapport with the regular members; remembered names and offered personalised encouragement.",
-  "Held the space well — pacing was deliberate and the cooldown landed exactly on time.",
-];
-
-const IMPROVEMENT_TEMPLATES = [
-  "Could offer more modifications for members with wrist or knee sensitivity. Demonstrate the regression alongside the progression.",
-  "Music volume dipped during the strength section — check the mix before the next class.",
-  "Some members in the back row were missing the timing cues; consider moving around the room more.",
-  "A couple of form corrections missed — be more proactive with hands-on adjustments during the thigh section.",
-  "Final stretch felt rushed. Add 30 seconds to the cooldown so members don't feel they're being pushed out.",
-];
-
-const COACHING_PLAN_TEMPLATES = [
-  "Focus the next two weeks on modification cues — pair with a senior trainer for shadow teaching during the 6 PM class.",
-  "Review the music playlist for the next class with the Studio Operations Manager; align tempo to the choreography notes.",
-  "Schedule a 30-minute form-correction refresher with the Training Manager before the next Advanced Barre.",
-  "Add a pre-class walkthrough to confirm mic, music, and equipment 10 minutes before start time.",
-  "Practice the cooldown sequence pacing in the next peer review session; aim for the full 5-minute restore.",
-];
-
-const COMPLIMENT_TITLES = [
-  "Member praised the instructor's energy",
-  "Positive feedback on the music selection",
-  "Member complimented the corrections they received",
-  "Member said the class was the best they've taken this month",
-  "Regular member mentioned how welcome they always feel",
-];
-
-const ISSUE_TITLES = [
-  "Member felt the class was too fast",
-  "Complaint about insufficient modifications",
-  "Member said the mic was cutting out",
-  "Member mentioned the cooldown was too short",
-  "Member noted the instructor seemed distracted",
-];
-
-const SUBCATEGORIES = [
-  "Class Experience",
-  "Trainer Feedback",
-  "Audio Issue",
-  "Scheduling",
-];
-
-// === Build a deterministic assessment for a trainer =========================
-function buildAssessment(
-  trainer: string,
-  index: number,
-  rng: () => number,
-): Assessment {
-  const city = defaultCityFor(trainer);
-  const studios = studiosForCity(city);
-  const studio = pick(rng, studios);
-  const evaluator = pick(rng, EVALUATORS);
-  const sessionName = pick(rng, SESSION_NAMES);
-
-  // Generate per-category scores in the 60-95 range, slightly correlated
-  // with the trainer's overall tendency.
-  const trainerHash = hashStr(trainer);
-  const tendency = 70 + (trainerHash % 20); // 70-89 baseline
-  const rubric: RubricRow[] = RUBRIC_CATEGORIES.map((c) => {
-    const noise = Math.floor(rng() * 16) - 6; // -6 to +9
-    const scoreRaw = Math.max(50, Math.min(100, tendency + noise));
-    const score = Math.round((scoreRaw / 100) * c.weightage * 10) / 10;
-    const pct = Math.round((score / c.weightage) * 100);
+/** Administrator corrections live in this browser: IRIS has no settings row to hold them. */
+export function loadOverrides(): TrainerOverrides {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(OVERRIDES_KEY) : null;
+    const v = (raw ? JSON.parse(raw) : {}) as Partial<TrainerOverrides>;
     return {
-      category: c.category,
-      score,
-      weightage: c.weightage,
-      pct,
+      aliases: v.aliases && typeof v.aliases === "object" ? v.aliases : {},
+      cities: v.cities && typeof v.cities === "object" ? v.cities : {},
+      hidden: Array.isArray(v.hidden) ? v.hidden.filter((n): n is string => typeof n === "string") : [],
+      displayNames: v.displayNames && typeof v.displayNames === "object" ? v.displayNames : {},
     };
-  });
-
-  // Weighted overall score
-  const totalWeight = rubric.reduce((n, r) => n + r.weightage, 0);
-  const totalScore = rubric.reduce((n, r) => n + r.score, 0);
-  const score = Math.round((totalScore / totalWeight) * 100);
-
-  const band =
-    score >= 90 ? "Exceptional" :
-    score >= 80 ? "Good" :
-    score >= 70 ? "Average" :
-    score >= 60 ? "Poor" : "Needs help";
-  const bandTone =
-    score >= 80 ? "green" :
-    score >= 65 ? "amber" : "red";
-
-  // Generate the submitted timestamp — most recent first, ~30-45 days apart
-  const daysAgo = 30 + index * 38;
-  const submittedAt = new Date(Date.now() - daysAgo * 86400000).toISOString();
-
-  const sourceLabels = [
-    "Training Quality Assessment — Barre",
-    "Training Quality Assessment — by staff",
-    "Trainer QA & Assessment — FIT & Lab",
-    "Feedback Tracker Pro",
-  ];
-
-  const ticketNum = `IRIS-2026-${String(1400 + index + hashStr(trainer) % 200).padStart(4, "0")}`;
-
-  const strengths = pick(rng, STRENGTH_TEMPLATES);
-  const improvements = pick(rng, IMPROVEMENT_TEMPLATES);
-  const coachingPlan = pick(rng, COACHING_PLAN_TEMPLATES);
-
-  return {
-    id: trainerHash * 100 + index,
-    ticketNumber: ticketNum,
-    studio: `${studio}, ${city}`,
-    createdAt: submittedAt,
-    submittedAt,
-    score,
-    evaluator,
-    title: `${sessionName} — assessment`,
-    band,
-    bandTone,
-    sourceLabel: pick(rng, sourceLabels),
-    sessionName,
-    strengths,
-    improvements,
-    coachingPlan,
-    summary: `${trainer}'s ${sessionName.toLowerCase()} on ${new Date(submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}. Scored ${score}% (${band}).`,
-    rubric,
-    answers: [
-      { label: "Trainer", value: trainer },
-      { label: "Session", value: sessionName },
-      { label: "Studio", value: `${studio}, ${city}` },
-      { label: "Evaluator", value: evaluator },
-      { label: "Submitted", value: new Date(submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
-      { label: "Overall band", value: band },
-    ],
-  };
+  } catch {
+    return EMPTY_OVERRIDES;
+  }
 }
 
-function buildFeedback(
-  trainer: string,
-  index: number,
-  rng: () => number,
-  kind: "compliment" | "issue",
-): FeedbackRow {
-  const city = defaultCityFor(trainer);
-  const studios = studiosForCity(city);
-  const studio = pick(rng, studios);
-  const daysAgo = Math.floor(rng() * 60) + 1;
-  const createdAt = new Date(Date.now() - daysAgo * 86400000).toISOString();
-  const titles = kind === "compliment" ? COMPLIMENT_TITLES : ISSUE_TITLES;
-  return {
-    id: hashStr(trainer) * 1000 + index + (kind === "compliment" ? 0 : 500),
-    ticketNumber: `IRIS-2026-${String(1500 + index + hashStr(trainer) % 200).padStart(4, "0")}`,
-    title: pick(rng, titles),
-    subcategory: pick(rng, SUBCATEGORIES),
-    sentiment: kind === "compliment" ? "positive" : "negative",
-    status: pick(rng, ["open", "resolved", "closed"]),
-    createdAt,
-    kind,
-  };
+export function saveOverrides(o: TrainerOverrides) {
+  try {
+    window.localStorage.setItem(OVERRIDES_KEY, JSON.stringify(o));
+  } catch {
+    /* storage unavailable: the correction lasts for this session only */
+  }
 }
 
-// === Build the full trainer roster with assessments + feedback ==============
-function buildTrainer(name: string): Trainer {
-  const seed = hashStr(name);
-  const rng = mulberry32(seed);
-  const city = defaultCityFor(name);
-  const studios = studiosForCity(city);
+/** One administrator correction, as the edit dialog issues it. */
+export type TrainerCorrection =
+  | { action: "merge"; from: string; into: string }
+  | { action: "unmerge"; from: string }
+  | { action: "city"; name: string; city: TrainerCity }
+  | { action: "rename"; name: string; displayName: string }
+  | { action: "hide"; name: string; hidden: boolean };
 
-  // 3-7 assessments per trainer, oldest first
-  const assessmentCount = 3 + Math.floor(rng() * 5);
-  const assessments: Assessment[] = [];
-  for (let i = 0; i < assessmentCount; i++) {
-    assessments.push(buildAssessment(name, assessmentCount - 1 - i, rng));
+export function applyCorrection(o: TrainerOverrides, c: TrainerCorrection): TrainerOverrides {
+  switch (c.action) {
+    case "merge":
+      if (c.from.toLowerCase() === c.into.toLowerCase()) throw new Error("A trainer cannot be merged into themselves.");
+      return { ...o, aliases: { ...o.aliases, [c.from.toLowerCase()]: c.into } };
+    case "unmerge": {
+      const { [c.from.toLowerCase()]: removed, ...rest } = o.aliases;
+      if (!removed) throw new Error("That spelling is not merged into anything.");
+      return { ...o, aliases: rest };
+    }
+    case "city":
+      return { ...o, cities: { ...o.cities, [c.name]: c.city } };
+    case "rename": {
+      const next = { ...o.displayNames };
+      if (c.displayName) next[c.name] = c.displayName;
+      else delete next[c.name];
+      return { ...o, displayNames: next };
+    }
+    case "hide":
+      return {
+        ...o,
+        hidden: c.hidden ? [...new Set([...o.hidden, c.name])] : o.hidden.filter((n) => n !== c.name),
+      };
   }
-  assessments.sort((a, b) => +new Date(a.submittedAt) - +new Date(b.submittedAt));
+}
 
-  const scored = assessments.filter((a) => a.score > 0);
-  const avgScore = scored.length
-    ? Math.round(scored.reduce((n, a) => n + a.score, 0) / scored.length)
-    : null;
+export type Resolution =
+  | { name: string; via: "exact" | "alias" | "first-name" }
+  /** A first name that matches more than one trainer. Kept as its own group. */
+  | { name: string; via: "ambiguous"; candidates: string[] };
 
-  const band = avgScore === null
-    ? null
-    : avgScore >= 90 ? "Exceptional"
-    : avgScore >= 80 ? "Good"
-    : avgScore >= 70 ? "Average"
-    : avgScore >= 65 ? "Developing"
-    : "Needs focus";
-  const bandTone = avgScore === null
-    ? ""
-    : avgScore >= 80 ? "green"
-    : avgScore >= 65 ? "amber" : "red";
+/**
+ * Resolves one written trainer string to the name its tickets should be grouped under:
+ * an administrator's alias, then a built-in correction, then an exact roster match, then a
+ * unique first name. Anything else is returned unchanged so an unknown trainer still gets a card.
+ */
+export function resolveTrainer(raw: string, overrides: TrainerOverrides = EMPTY_OVERRIDES): Resolution {
+  const written = raw.trim().replace(/\s+/g, " ");
+  if (!written) return { name: "", via: "exact" };
+  const lower = written.toLowerCase();
 
-  // Feedback rows
-  const complimentCount = Math.floor(rng() * 12);
-  const issueCount = Math.floor(rng() * 4);
-  const feedback: FeedbackRow[] = [];
-  for (let i = 0; i < complimentCount; i++) {
-    feedback.push(buildFeedback(name, i, rng, "compliment"));
+  const alias = overrides.aliases[lower] ?? BUILT_IN_ALIASES[lower];
+  if (alias) return { name: alias, via: "alias" };
+
+  const known = knownTrainerNames();
+  const exact = known.find((name) => name.toLowerCase() === lower);
+  if (exact) return { name: exact, via: "exact" };
+
+  if (!written.includes(" ")) {
+    const candidates = known.filter((name) => firstName(name) === lower);
+    if (candidates.length === 1) return { name: candidates[0], via: "first-name" };
+    if (candidates.length > 1) return { name: written, via: "ambiguous", candidates };
   }
-  for (let i = 0; i < issueCount; i++) {
-    feedback.push(buildFeedback(name, i + 20, rng, "issue"));
-  }
-  feedback.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+  return { name: written, via: "exact" };
+}
 
-  // Studio summary
-  const studioSummary: { studio: string; count: number }[] = studios.map((s) => ({
-    studio: s,
-    count: 0,
-  }));
-  for (const a of assessments) {
-    if (a.studio) {
-      const studioName = a.studio.split(",")[0].trim();
-      const entry = studioSummary.find((s) => s.studio === studioName);
-      if (entry) entry.count++;
+export function displayNameFor(canonical: string, overrides: TrainerOverrides = EMPTY_OVERRIDES): string {
+  return overrides.displayNames[canonical] || canonical;
+}
+
+export function cityFor(canonical: string, overrides: TrainerOverrides = EMPTY_OVERRIDES): TrainerCity {
+  return overrides.cities[canonical] || defaultCityFor(canonical);
+}
+
+/** City order on the page: Mumbai first (the larger group), then Bengaluru. */
+export const CITY_ORDER: TrainerCity[] = ["Mumbai", "Bengaluru"];
+
+// === Deriving profiles from tickets =========================================
+
+/** Categories whose tickets count as member feedback about a trainer. */
+export const FEEDBACK_CATEGORIES = ["Trainer Feedback", "Class Experience"] as const;
+
+const isFeedback = (t: Ticket) => (FEEDBACK_CATEGORIES as readonly string[]).includes(t.category);
+const PRAISE = /compliment|praise|appreciat|kudos|shout-?out|positive feedback|loved|great class/i;
+const isCompliment = (t: Ticket) => PRAISE.test([t.subcategory, t.title, ...(t.tags ?? [])].join(" "));
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The trainer names a ticket mentions, as written. */
+export function trainerMentions(t: Ticket): string[] {
+  const out = new Set<string>();
+  // The intake form writes "• Trainer: Name" into the description.
+  for (const m of t.description.matchAll(/^[\s•*-]*Trainers?\s*:\s*(.+)$/gim)) {
+    for (const part of m[1].split(/,|&|\band\b/i)) {
+      const name = part.replace(/\(.*?\)/g, "").trim();
+      if (name) out.add(name);
+    }
+  }
+  if (!out.size && isFeedback(t)) {
+    const text = `${t.title}\n${t.description}`;
+    for (const name of knownTrainerNames()) {
+      if (new RegExp(`\\b${escapeRe(name)}\\b`, "i").test(text)) out.add(name);
+    }
+    // Titles read "Subcategory - Trainer - Studio", so a bare first name there is deliberate.
+    if (!out.size) {
+      for (const seg of t.title.split(/\s[-—–]\s/)) {
+        const w = seg.trim();
+        if (w && !w.includes(" ") && knownTrainerNames().some((n) => firstName(n) === w.toLowerCase())) out.add(w);
+      }
+    }
+  }
+  return [...out];
+}
+
+export function performanceBand(score: number): string {
+  if (score < 65) return "High coaching priority";
+  if (score < 80) return "Development watch";
+  return "On-track performance";
+}
+export const bandTone = (band: string) =>
+  band === "On-track performance" ? "green" : band === "Development watch" ? "amber" : "red";
+
+export type TrainerBuild = {
+  /** Visible trainers, busiest first. */
+  trainers: Trainer[];
+  hidden: { name: string; displayName: string; totalTickets: number }[];
+  roster: string[];
+  /** Feedback tickets per category, for the hero's source badges. */
+  sources: { label: string; count: number }[];
+};
+
+/** Builds every trainer's profile from the ticket list. */
+export function buildTrainerProfiles(
+  tickets: readonly Ticket[],
+  overrides: TrainerOverrides = EMPTY_OVERRIDES,
+): TrainerBuild {
+  const byTrainer = new Map<string, Ticket[]>(knownTrainerNames().map((n) => [n, []]));
+  const spellings = new Map<string, Set<string>>();
+  const ambiguous = new Map<string, string[]>();
+  const newestFirst = [...tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  for (const t of newestFirst) {
+    for (const written of new Set(trainerMentions(t))) {
+      const resolved = resolveTrainer(written, overrides);
+      if (!resolved.name) continue;
+      if (resolved.via === "ambiguous") ambiguous.set(resolved.name, resolved.candidates);
+      const list = byTrainer.get(resolved.name);
+      if (list) list.push(t);
+      else byTrainer.set(resolved.name, [t]);
+      if (written !== resolved.name) {
+        if (!spellings.has(resolved.name)) spellings.set(resolved.name, new Set());
+        spellings.get(resolved.name)!.add(written);
+      }
     }
   }
 
-  const latestAssessment = assessments[assessments.length - 1] ?? null;
-  const totalTickets = Math.floor(rng() * 14) + 1;
+  const profiles: Trainer[] = [...byTrainer.keys()].sort().map((name) => {
+    const related = byTrainer.get(name)!;
+    const feedbackTickets = related.filter(isFeedback);
+    const compliments = feedbackTickets.filter(isCompliment);
+    const studioCounts = new Map<string, number>();
+    for (const t of related) {
+      const studio = t.studioCode ? STUDIO_MAP[t.studioCode]?.name : undefined;
+      if (studio) studioCounts.set(studio, (studioCounts.get(studio) ?? 0) + 1);
+    }
+    const studioSummary = [...studioCounts.entries()]
+      .map(([studio, count]) => ({ studio, count }))
+      .sort((a, b) => b.count - a.count || a.studio.localeCompare(b.studio));
+    return {
+      name,
+      displayName: displayNameFor(name, overrides),
+      hidden: overrides.hidden.includes(name),
+      mergedFrom: [...(spellings.get(name) ?? [])].sort(),
+      ambiguousWith: ambiguous.get(name) ?? null,
+      totalTickets: related.length,
+      assessmentCount: 0,
+      feedbackCount: feedbackTickets.length,
+      complimentCount: compliments.length,
+      issueCount: feedbackTickets.length - compliments.length,
+      avgScore: null,
+      band: null,
+      bandTone: "",
+      primaryStudio: studioSummary[0]?.studio ?? "Studio not assigned",
+      city: cityFor(name, overrides),
+      studioSummary,
+      latestAssessment: null,
+      assessments: [],
+      recentFeedback: feedbackTickets.slice(0, 8).map((t) => ({
+        id: t.id,
+        ticketNumber: t.ticketId,
+        title: t.title,
+        subcategory: t.subcategory ?? t.category,
+        sentiment: isCompliment(t) ? "positive" : null,
+        status: t.status,
+        createdAt: t.createdAt,
+        kind: isCompliment(t) ? "compliment" : "issue",
+      })),
+    };
+  });
+  profiles.sort((a, b) => b.totalTickets - a.totalTickets || a.name.localeCompare(b.name));
+
+  const sources = FEEDBACK_CATEGORIES.map((label) => ({
+    label: label as string,
+    count: tickets.filter((t) => t.category === label && trainerMentions(t).length > 0).length,
+  })).filter((s) => s.count > 0);
 
   return {
-    name,
-    totalTickets,
-    assessmentCount: assessments.length,
-    feedbackCount: feedback.length,
-    complimentCount,
-    issueCount,
-    avgScore,
-    band,
-    bandTone,
-    primaryStudio: studios[0],
-    city,
-    studioSummary,
-    latestAssessment,
-    assessments,
-    recentFeedback: feedback.slice(0, 6),
+    trainers: profiles.filter((p) => !p.hidden),
+    hidden: profiles
+      .filter((p) => p.hidden)
+      .map((p) => ({ name: p.name, displayName: p.displayName || p.name, totalTickets: p.totalTickets })),
+    roster: knownTrainerNames(),
+    sources,
   };
 }
 
-/** All trainers, fully built with assessments + feedback. */
-export const TRAINERS_FULL: Trainer[] = TRAINERS.map(buildTrainer);
-
-/** The org-wide average across every trainer with a score. */
-export const ORG_AVG: number | null = (() => {
-  const withScores = TRAINERS_FULL.filter((t) => t.avgScore !== null);
-  if (!withScores.length) return null;
-  return Math.round(
-    withScores.reduce((n, t) => n + (t.avgScore || 0), 0) / withScores.length,
-  );
-})();
+/** Average of every trainer's score, or null when nobody has been assessed. */
+export function orgAverage(trainers: readonly Trainer[]): number | null {
+  const scored = trainers.filter((t) => t.avgScore !== null);
+  if (!scored.length) return null;
+  return Math.round(scored.reduce((n, t) => n + (t.avgScore || 0), 0) / scored.length);
+}
