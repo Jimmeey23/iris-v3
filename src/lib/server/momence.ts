@@ -71,21 +71,38 @@ async function token(region: Region, force = false) {
   return requestToken(region, { grant_type: "password", username: c.username!, password: c.password! });
 }
 
-async function get(region: Region, path: string, params: Record<string, string | number | undefined> = {}) {
+export class MomenceError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
+type Params = Record<string, string | number | boolean | undefined>;
+
+async function call(method: "GET" | "POST" | "PUT" | "DELETE", region: Region, path: string, params: Params = {}, body?: unknown) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
   const url = `${BASE}${path}${qs.size ? `?${qs}` : ""}`;
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${await token(region, attempt > 0)}`, Accept: "application/json" },
+      method,
+      headers: {
+        Authorization: `Bearer ${await token(region, attempt > 0)}`,
+        Accept: "application/json",
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(method === "GET" ? 20_000 : 30_000),
     });
     if (res.status === 401 && attempt === 0) continue;
-    if (!res.ok) throw new Error(`Momence ${REGION_LABEL[region]} request failed (${res.status})`);
-    return res.json();
+    if (!res.ok) throw new MomenceError(`Momence ${REGION_LABEL[region]} request failed (${res.status})`, res.status);
+    const text = await res.text();
+    return text ? JSON.parse(text) : {};
   }
 }
+
+const get = (region: Region, path: string, params: Params = {}) => call("GET", region, path, params);
 
 // ── Ids ──────────────────────────────────────────────────────────────────────
 export function splitId(id: string): { region: Region; raw: string } {
@@ -246,3 +263,6 @@ export async function listTrainers(query = "") {
   const q = query.toLowerCase().trim();
   return trainerCache.momenceTrainers.list.filter((t) => !q || t.name.toLowerCase().includes(q)).slice(0, 25);
 }
+
+// Shared with momence-extra.ts
+export { call as momenceCall, get as momenceGet, toSession, toMember };

@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PriorityBadge, StatusBadge } from "./badges";
 import { RelativeTime } from "./relative-time";
+import { MomenceMemberTabs } from "./momence-member-panel";
 
 /**
  * Member 360 Lookup — opens a modal where you can search any member by
@@ -39,12 +40,29 @@ export function Member360Lookup({
   const [member, setMember] = React.useState<Member360 | null>(null);
   const [searched, setSearched] = React.useState(false);
 
+  const [momenceId, setMomenceId] = React.useState<string | null>(null);
+  const [hits, setHits] = React.useState<Array<{ id: string; name: string; region: string; totalVisits: number; email: string | null }>>([]);
+  const [hitsLoading, setHitsLoading] = React.useState(false);
+
   const handleSearch = React.useCallback((q: string) => {
     setQuery(q);
     setSearched(true);
+    setMomenceId(null);
+    setHits([]);
     if (!q.trim()) {
       setMember(null);
       return;
+    }
+    // Live Momence lookup (a pasted id opens directly)
+    if (/^(mum|blr):\d+$/.test(q.trim())) {
+      setMomenceId(q.trim());
+    } else if (q.trim().length >= 2) {
+      setHitsLoading(true);
+      fetch(`/api/momence/members?q=${encodeURIComponent(q.trim())}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : { members: [] }))
+        .then((j) => setHits((j.members ?? []).slice(0, 6)))
+        .catch(() => setHits([]))
+        .finally(() => setHitsLoading(false));
     }
     // Try to find in the member directory first (exact matches)
     const dir = MEMBER_DIRECTORY.find(
@@ -69,6 +87,8 @@ export function Member360Lookup({
       setQuery("");
       setMember(null);
       setSearched(false);
+      setMomenceId(null);
+      setHits([]);
     }
   }, [open, initialQuery, handleSearch]);
 
@@ -126,7 +146,34 @@ export function Member360Lookup({
 
           {/* Results */}
           <div className="px-2">
-            {searched && !member && (
+            {(hitsLoading || hits.length > 0) && !momenceId && (
+              <div className="mb-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Momence members {hitsLoading && "· searching…"}
+                </div>
+                <div className="space-y-1">
+                  {hits.map((h) => (
+                    <button
+                      key={h.id}
+                      onClick={() => { setMomenceId(h.id); setMember(buildMember360(h.name)); }}
+                      className="w-full text-left p-2 rounded-md border border-border hover:border-primary/30 hover:bg-muted/30 transition-colors flex items-center gap-2"
+                    >
+                      <span className="text-[12px] font-medium flex-1 truncate">{h.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{h.region === "blr" ? "Bengaluru" : "Mumbai"} · {h.totalVisits} visits</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {momenceId && (
+              <MomenceMemberTabs
+                memberId={momenceId}
+                overview={member ? <MemberProfile member={member} onSelectTicket={handleSelectTicket} /> : <div className="text-[12px] text-muted-foreground py-6 text-center">Open the other tabs for live Momence data.</div>}
+              />
+            )}
+
+            {!momenceId && searched && !member && hits.length === 0 && !hitsLoading && (
               <div className="text-center py-12">
                 <User className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
                 <div className="text-[13px] text-muted-foreground">
@@ -138,7 +185,7 @@ export function Member360Lookup({
               </div>
             )}
 
-            {member && <MemberProfile member={member} onSelectTicket={handleSelectTicket} />}
+            {member && !momenceId && <MemberProfile member={member} onSelectTicket={handleSelectTicket} />}
           </div>
         </div>
       </DialogContent>
