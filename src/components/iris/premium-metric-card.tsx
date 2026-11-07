@@ -118,18 +118,33 @@ export function PremiumMetricCard({
     setHoveredIndex(closestIndex);
   };
 
-  // Stable scattered decorative dots (memoized so they don't re-randomize
-  // on every render).
-  const scatteredDots = React.useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => ({
-        x: 10 + (i % 4) * 22 + (Math.random() - 0.5) * 8,
-        y: padding.top + 4 + Math.floor(i / 4) * 10 + (Math.random() - 0.5) * 4,
-        opacity: 0.3 + Math.random() * 0.3,
-        size: 0.8 + Math.random() * 1.0,
-      })),
-    [],
-  );
+  // Stable scattered decorative dots — generated via a deterministic PRNG
+  // seeded by the label so the dots are identical on server and client (no
+  // hydration mismatch). `Math.random()` would produce different values on
+  // SSR vs CSR and trigger React hydration warnings.
+  const scatteredDots = React.useMemo(() => {
+    // xmur3 hash → seed for mulberry32
+    const seedStr = label + value;
+    let h = 1779033703 ^ seedStr.length;
+    for (let i = 0; i < seedStr.length; i++) {
+      h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    const state = { v: h >>> 0 };
+    const rng = () => {
+      state.v = (state.v + 0x6d2b79f5) | 0;
+      let t = state.v;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    return Array.from({ length: 12 }, (_, i) => ({
+      x: 10 + (i % 4) * 22 + (rng() - 0.5) * 8,
+      y: padding.top + 4 + Math.floor(i / 4) * 10 + (rng() - 0.5) * 4,
+      opacity: 0.3 + rng() * 0.3,
+      size: 0.8 + rng() * 1.0,
+    }));
+  }, [label, value, padding.top]);
 
   // Use a unique gradient id per card instance to avoid collisions when
   // multiple cards render on the same page.

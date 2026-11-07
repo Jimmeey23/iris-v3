@@ -1,0 +1,533 @@
+     1→"use client";
+     2→import {useEffect,useMemo,useState} from 'react';
+     3→import {Badge,Empty} from './ui';
+     4→import {indiaDate} from '@/lib/display';
+     5→import {getTrainerImage} from '@/lib/constants';
+     6→import {TrainerImg} from './ticket-art';
+     7→
+     8→/* ------------------------------------------------------------------ */
+     9→/* Types                                                               */
+    10→/* ------------------------------------------------------------------ */
+    11→
+    12→export type RubricRow={category:string;score:number;weightage:number;pct:number};
+    13→export type Assessment={
+    14→  id:number;ticketNumber:string;studio:string|null;createdAt:string;submittedAt:string;
+    15→  score:number;evaluator:string;title:string;band:string;bandTone:string;sourceLabel:string;
+    16→  sessionName:string;strengths:string;improvements:string;coachingPlan:string;summary:string;
+    17→  rubric:RubricRow[];answers:{label:string;value:string}[];
+    18→};
+    19→export type FeedbackRow={id:number;ticketNumber:string;title:string;subcategory:string;sentiment:string|null;status:string;createdAt:string;kind:string};
+    20→export type Trainer={
+    21→  name:string;displayName?:string;hidden?:boolean;mergedFrom?:string[];ambiguousWith?:string[]|null;totalTickets:number;assessmentCount:number;feedbackCount:number;complimentCount:number;
+    22→  issueCount:number;avgScore:number|null;band:string|null;bandTone:string;
+    23→  primaryStudio:string;city:string;studioSummary:{studio:string;count:number}[];
+    24→  latestAssessment:Assessment|null;assessments:Assessment[];recentFeedback:FeedbackRow[];
+    25→};
+    26→
+    27→const toneVar=(tone:string)=>tone==='green'?'var(--green)':tone==='amber'?'var(--amber)':tone==='red'?'var(--red)':'var(--accent)';
+    28→const scoreColor=(v:number)=>v>=80?'var(--green)':v>=65?'var(--amber)':'var(--red)';
+    29→const scoreTone=(v:number)=>v>=80?'green':v>=65?'amber':'red';
+    30→
+    31→/* ------------------------------------------------------------------ */
+    32→/* Primitives                                                          */
+    33→/* ------------------------------------------------------------------ */
+    34→
+    35→function Section({index,title,subtitle,action,children}:{index:string;title:string;subtitle?:string;action?:React.ReactNode;children:React.ReactNode}){
+    36→  return (
+    37→    <section className="tr-section">
+    38→      <header className="tr-section-head">
+    39→        <span className="tr-index" aria-hidden>{index}</span>
+    40→        <div style={{minWidth:0}}>
+    41→          <h3>{title}</h3>
+    42→          {subtitle&&<p>{subtitle}</p>}
+    43→        </div>
+    44→        {action&&<div style={{marginLeft:'auto'}}>{action}</div>}
+    45→      </header>
+    46→      <div className="tr-section-body">{children}</div>
+    47→    </section>
+    48→  );
+    49→}
+    50→
+    51→function ScoreDial({value,size=104}:{value:number;size?:number}){
+    52→  const r=34,c=2*Math.PI*r;
+    53→  return (
+    54→    <div className="tr-dial" style={{width:size,height:size}}>
+    55→      <svg viewBox="0 0 80 80" style={{transform:'rotate(-90deg)',width:'100%',height:'100%'}}>
+    56→        <circle cx="40" cy="40" r={r} fill="none" stroke="var(--surface-3)" strokeWidth="7"/>
+    57→        <circle cx="40" cy="40" r={r} fill="none" stroke={scoreColor(value)} strokeWidth="7" strokeLinecap="round"
+    58→          strokeDasharray={c} strokeDashoffset={c-Math.min(100,Math.max(0,value))/100*c}
+    59→          style={{transition:'stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)'}}/>
+    60→      </svg>
+    61→      <div className="tr-dial-label"><strong>{value||'—'}</strong><span>score</span></div>
+    62→    </div>
+    63→  );
+    64→}
+    65→
+    66→/** Score per assessment over time. Clicking a point loads that review into the rubric above. */
+    67→function TrendChart({points,selectedId,onSelect}:{points:{id:number;at:string;score:number}[];selectedId?:number|null;onSelect?:(id:number)=>void}){
+    68→  if(points.length<2)return <p className="muted" style={{fontSize:12,textAlign:'center',padding:'24px 0'}}>Two or more reviews are needed to plot a trend.</p>;
+    69→  const w=640,h=150,pad=22;
+    70→  const step=(w-pad*2)/(points.length-1);
+    71→  const y=(s:number)=>h-pad-s/100*(h-pad*2);
+    72→  const path=points.map((p,i)=>`${i===0?'M':'L'}${(pad+i*step).toFixed(1)},${y(p.score).toFixed(1)}`).join(' ');
+    73→  return (
+    74→    <svg viewBox={`0 0 ${w} ${h}`} className="tr-trend" role="img" aria-label="Assessment score trend">
+    75→      {[100,80,65,50].map(g=>(
+    76→        <g key={g}>
+    77→          <line x1={pad} x2={w-pad} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeDasharray="3 5"/>
+    78→          <text x={2} y={y(g)+3} style={{fontSize:10,fill:'var(--muted)'}}>{g}</text>
+    79→        </g>
+    80→      ))}
+    81→      <line x1={pad} x2={w-pad} y1={y(65)} y2={y(65)} stroke="var(--red)" strokeOpacity=".45" strokeDasharray="4 3"/>
+    82→      <path d={`${path} L${(pad+(points.length-1)*step).toFixed(1)},${h-pad} L${pad},${h-pad} Z`} fill="var(--accent)" opacity=".08"/>
+    83→      <path d={path} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    84→      {points.map((p,i)=>{
+    85→        const active=p.id===selectedId;
+    86→        return (
+    87→          <g key={p.id} onClick={()=>onSelect?.(p.id)} style={{cursor:onSelect?'pointer':undefined}}>
+    88→            <circle cx={pad+i*step} cy={y(p.score)} r={active?5:3.5} fill={active?'var(--accent)':'var(--surface)'} stroke="var(--accent)" strokeWidth="2"/>
+    89→            <text x={pad+i*step} y={y(p.score)-9} textAnchor="middle" style={{fontSize:10,fontWeight:600,fill:active?'var(--accent)':'var(--text)'}}>{p.score}</text>
+    90→            <text x={pad+i*step} y={h-5} textAnchor="middle" style={{fontSize:10,fill:'var(--muted)'}}>
+    91→              {indiaDate(p.at,true)}
+    92→            </text>
+    93→          </g>
+    94→        );
+    95→      })}
+    96→    </svg>
+    97→  );
+    98→}
+    99→
+   100→function RubricBar({category,score,weightage,pct}:RubricRow){
+   101→  return (
+   102→    <div>
+   103→      <div className="between" style={{alignItems:'baseline',gap:12,marginBottom:4}}>
+   104→        <span style={{fontSize:12,color:'var(--secondary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{category}</span>
+   105→        <span className="muted" style={{fontSize:10,flexShrink:0}}>{score}/{weightage} · {pct}%</span>
+   106→      </div>
+   107→      <div className="tr-bar"><div style={{width:`${Math.max(2,Math.min(100,pct))}%`,background:scoreColor(pct)}}/></div>
+   108→    </div>
+   109→  );
+   110→}
+   111→
+   112→/** Criterion attainment against the trainer's own average — the shape of a review at a glance. */
+   113→function RadarChart({rows,benchmark,size=280}:{rows:RubricRow[];benchmark:number;size?:number}){
+   114→  if(rows.length<3)return null;
+   115→  const cx=size/2,cy=size/2,r=size*0.29,n=rows.length,gutter=52;
+   116→  const angle=(i:number)=>i/n*Math.PI*2-Math.PI/2;
+   117→  const pt=(i:number,frac:number)=>[cx+Math.cos(angle(i))*r*frac,cy+Math.sin(angle(i))*r*frac];
+   118→  const poly=(frac:(i:number)=>number)=>rows.map((_,i)=>pt(i,Math.max(0,Math.min(1,frac(i)))).join(',')).join(' ');
+   119→  // Truncated on length rather than on word count, so "Music and tempo" does not become "Music and".
+   120→  const short=(s:string)=>s.length>18?s.slice(0,17).trimEnd()+'…':s;
+   121→  // The viewBox is padded sideways so a long criterion label sitting on the left or right
+   122→  // spoke is drawn inside the box rather than clipped by it.
+   123→  return (
+   124→    <svg viewBox={`${-gutter} 0 ${size+gutter*2} ${size}`} className="tr-radar" role="img" aria-label="Rubric attainment radar">
+   125→      {[0.25,0.5,0.75,1].map(f=><polygon key={f} points={poly(()=>f)} fill="none" stroke="var(--border)"/>)}
+   126→      {rows.map((_,i)=>{const[x,y]=pt(i,1);return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border)"/>;})}
+   127→      <polygon points={poly(()=>benchmark/100)} fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeDasharray="4 4"/>
+   128→      <polygon points={poly(i=>rows[i].pct/100)} fill="var(--accent)" fillOpacity=".16" stroke="var(--accent)" strokeWidth="2"/>
+   129→      {rows.map((row,i)=>{const[x,y]=pt(i,row.pct/100);return <circle key={row.category} cx={x} cy={y} r="3.5" fill={scoreColor(row.pct)} stroke="var(--surface)" strokeWidth="1.5"/>;})}
+   130→      {rows.map((row,i)=>{const[x,y]=pt(i,1.3);return (
+   131→        <text key={row.category} x={x} y={y} textAnchor="middle" dominantBaseline="middle" style={{fontSize:10,fontWeight:600,fill:'var(--muted)'}}>{short(row.category)}</text>
+   132→      );})}
+   133→    </svg>
+   134→  );
+   135→}
+   136→
+   137→function KpiTile({label,value,sub,tone,pct}:{label:string;value:string;sub:string;tone?:string;pct?:number}){
+   138→  const color=tone||'var(--accent)';
+   139→  return (
+   140→    <div className="tr-kpi">
+   141→      <span className="tr-kpi-label">{label}</span>
+   142→      <strong style={{color}}>{value}</strong>
+   143→      <span className="tr-kpi-sub">{sub}</span>
+   144→      {pct!==undefined&&<span className="tr-kpi-rail"><i style={{width:`${Math.max(2,Math.min(100,pct))}%`,background:color}}/></span>}
+   145→    </div>
+   146→  );
+   147→}
+   148→
+   149→/**
+   150→ * One review, in full: the score and who gave it, the coaching notes, every rubric row and
+   151→ * every answer on the original submission.
+   152→ *
+   153→ * The most recent review is rendered open, because that is the one somebody opening a trainer's
+   154→ * file came to read. Everything older is collapsed to a single line — a file with fourteen
+   155→ * reviews, each printed in full, is a document nobody scrolls to the end of — and opens on
+   156→ * click into exactly the same detail.
+   157→ */
+   158→function ReviewCard({
+   159→  review, open, onToggle, onSelect, active, latest, canManage, onDelete, deleting,
+   160→}: {
+   161→  review: Assessment;
+   162→  open: boolean;
+   163→  onToggle: () => void;
+   164→  onSelect: () => void;
+   165→  active: boolean;
+   166→  latest?: boolean;
+   167→  canManage?: boolean;
+   168→  onDelete?: () => void;
+   169→  deleting?: boolean;
+   170→}) {
+   171→  const evaluator = review.evaluator && review.evaluator !== '—' ? review.evaluator : 'Evaluator not recorded';
+   172→  return (
+   173→    <div className={'tr-review' + (active ? ' active' : '') + (open ? ' open' : '') + (latest ? ' latest' : '')}>
+   174→      <div className="tr-review-head">
+   175→        <button
+   176→          className="tr-review-score"
+   177→          style={{color: active ? 'var(--accent)' : scoreColor(review.score)}}
+   178→          onClick={onSelect}
+   179→          title="Load this review into the rubric and radar above"
+   180→        >
+   181→          {review.score ? review.score + '%' : '—'}
+   182→        </button>
+   183→        <button className="tr-review-summary" onClick={onToggle} aria-expanded={open}>
+   184→          <span className="tr-review-title">
+   185→            {latest ? 'Most recent review' : indiaDate(review.submittedAt)}
+   186→            {latest && <em> · {indiaDate(review.submittedAt)}</em>}
+   187→          </span>
+   188→          <span className="tr-review-meta">
+   189→            {evaluator} · {review.sourceLabel}
+   190→            {review.sessionName ? ' · ' + review.sessionName : ''}
+   191→            {review.studio ? ' · ' + review.studio.split(',')[0] : ''} · {review.ticketNumber}
+   192→          </span>
+   193→        </button>
+   194→        <div className="tr-review-badges">
+   195→          <Badge tone={review.bandTone}>{review.band}</Badge>
+   196→          {active && <Badge tone="blue">In report above</Badge>}
+   197→          <button className="tr-review-toggle" onClick={onToggle} aria-label={open ? 'Collapse this review' : 'Expand this review'}>
+   198→            {open ? '▴' : '▾'}
+   199→          </button>
+   200→        </div>
+   201→      </div>
+   202→
+   203→      {open && (
+   204→        <div className="tr-review-body">
+   205→          <dl className="tr-review-facts">
+   206→            <div><dt>Score</dt><dd style={{color: scoreColor(review.score)}}>{review.score ? review.score + '%' : 'Not scored'}</dd></div>
+   207→            <div><dt>Evaluated by</dt><dd>{evaluator}</dd></div>
+   208→            <div><dt>Submitted</dt><dd>{indiaDate(review.submittedAt)}</dd></div>
+   209→            <div><dt>Source</dt><dd>{review.sourceLabel}</dd></div>
+   210→            {review.sessionName && <div><dt>Session</dt><dd>{review.sessionName}</dd></div>}
+   211→            {review.studio && <div><dt>Studio</dt><dd>{review.studio}</dd></div>}
+   212→            <div><dt>Band</dt><dd>{review.band}</dd></div>
+   213→            <div><dt>Ticket</dt><dd><a href={'/tickets/' + review.id}>{review.ticketNumber} ↗</a></dd></div>
+   214→          </dl>
+   215→
+   216→          {(review.strengths || review.improvements || review.coachingPlan || review.summary) && (
+   217→            <div className="tr-notes">
+   218→              {review.strengths && <div className="tr-note" style={{borderLeftColor: 'var(--green)'}}><strong>Key strengths</strong><p>{review.strengths}</p></div>}
+   219→              {review.improvements && <div className="tr-note" style={{borderLeftColor: 'var(--amber)'}}><strong>Development areas</strong><p>{review.improvements}</p></div>}
+   220→              {review.coachingPlan && <div className="tr-note" style={{borderLeftColor: 'var(--accent)'}}><strong>Coaching action plan</strong><p>{review.coachingPlan}</p></div>}
+   221→              {!review.strengths && !review.improvements && !review.coachingPlan && review.summary && (
+   222→                <div className="tr-note"><strong>Summary</strong><p>{review.summary}</p></div>
+   223→              )}
+   224→            </div>
+   225→          )}
+   226→
+   227→          {review.rubric.length > 0 && (
+   228→            <div className="tr-review-rubric">
+   229→              <span className="tr-kpi-label">Scored criteria · weakest first</span>
+   230→              <div className="tr-rubric-cols">{review.rubric.map(row => <RubricBar key={row.category} {...row} />)}</div>
+   231→            </div>
+   232→          )}
+   233→
+   234→          {review.answers.length > 0 && (
+   235→            <div className="tr-answers">
+   236→              <span className="tr-kpi-label">The submission as it was filled in · {review.answers.length} answers</span>
+   237→              {review.answers.map((answer, i) => (
+   238→                <div key={i}><span>{answer.label}</span><p>{answer.value || '—'}</p></div>
+   239→              ))}
+   240→            </div>
+   241→          )}
+   242→
+   243→          {canManage && (
+   244→            <div className="tr-review-admin">
+   245→              <button className="btn-danger-ghost" disabled={deleting} onClick={onDelete}>
+   246→                {deleting ? 'Removing…' : 'Remove this review'}
+   247→              </button>
+   248→              <span className="muted">Deletes the review and its ticket. Recorded in the audit log; the upstream form will not re-import it.</span>
+   249→            </div>
+   250→          )}
+   251→        </div>
+   252→      )}
+   253→    </div>
+   254→  );
+   255→}
+   256→
+   257→/* ------------------------------------------------------------------ */
+   258→/* Report                                                              */
+   259→/* ------------------------------------------------------------------ */
+   260→
+   261→export function TrainerReport({trainer,canManage=false,onRemoveReview}:{
+   262→  trainer:Trainer;
+   263→  /** Administrators only: shows the per-review remove control. The API enforces it too. */
+   264→  canManage?:boolean;
+   265→  /** Asked to delete one review. The page owns the confirmation and the refresh. */
+   266→  onRemoveReview?:(review:Assessment)=>Promise<void>;
+   267→}){
+   268→  // Scoped to the trainer on screen for the same reason as `openOverride`: a selection made on
+   269→  // one trainer's file must not carry into the next one.
+   270→  const [selection,setSelection]=useState<{for:string;id:number}>();
+   271→  const selectedId=selection?.for===trainer.name?selection.id:null;
+   272→  const setSelectedId=(id:number)=>setSelection({for:trainer.name,id});
+   273→  // Newest first, which is both the reading order of the history list and the order the
+   274→  // "latest" card is taken from.
+   275→  const newestFirst=useMemo(()=>[...trainer.assessments].sort((a,b)=>+new Date(b.submittedAt)-+new Date(a.submittedAt)),[trainer.assessments]);
+   276→  // Open by default: the most recent review only. Everything older stays collapsed until
+   277→  // somebody asks for it.
+   278→  //
+   279→  // Held as an override rather than as the state itself, so switching trainer does not need an
+   280→  // effect to re-seed it: with no override, the open set is derived from this trainer's own
+   281→  // latest review, which is the correct answer for whichever trainer is on screen.
+   282→  const [openOverride,setOpenOverride]=useState<{for:string;ids:Set<number>}>();
+   283→  const openIds=openOverride?.for===trainer.name
+   284→    ? openOverride.ids
+   285→    : new Set(newestFirst.slice(0,1).map(a=>a.id));
+   286→  const setOpenIds=(ids:Set<number>)=>setOpenOverride({for:trainer.name,ids});
+   287→  const [deletingId,setDeletingId]=useState<number|null>(null);
+   288→  async function removeReview(review:Assessment){
+   289→    if(!onRemoveReview)return;
+   290→    setDeletingId(review.id);
+   291→    try{await onRemoveReview(review);}finally{setDeletingId(null);}
+   292→  }
+   293→  const [rubricFilter,setRubricFilter]=useState<'all'|'strong'|'focus'>('all');
+   294→  // Read on the client after mount: "last reviewed N days ago" must not be baked into the
+   295→  // server-rendered markup, or the two disagree the moment the page is cached.
+   296→  const [now,setNow]=useState(0);
+   297→  useEffect(()=>{const id=setTimeout(()=>setNow(Date.now()),0);return()=>clearTimeout(id);},[]);
+   298→
+   299→  const toggleOpen=(id:number)=>{
+   300→    const next=new Set(openIds);
+   301→    if(next.has(id))next.delete(id);else next.add(id);
+   302→    setOpenIds(next);
+   303→  };
+   304→
+   305→  // Oldest first for the trend line; the history list below reverses it.
+   306→  const sorted=useMemo(()=>[...trainer.assessments].sort((a,b)=>+new Date(a.submittedAt)-+new Date(b.submittedAt)),[trainer.assessments]);
+   307→  const scored=useMemo(()=>sorted.filter(a=>a.score>0),[sorted]);
+   308→  const avg=trainer.avgScore??0;
+   309→  const latest=scored.at(-1)||sorted.at(-1)||null;
+   310→  const delta=scored.length>1?scored.at(-1)!.score-scored.at(-2)!.score:0;
+   311→  const best=scored.length?Math.max(...scored.map(a=>a.score)):0;
+   312→  const worst=scored.length?Math.min(...scored.map(a=>a.score)):0;
+   313→
+   314→  const selected=useMemo(()=>trainer.assessments.find(a=>a.id===selectedId)||latest,[trainer.assessments,selectedId,latest]);
+   315→  const selectedRubric=useMemo(()=>selected?.rubric??[],[selected]);
+   316→  const filteredRubric=useMemo(()=>{
+   317→    if(rubricFilter==='strong')return selectedRubric.filter(r=>r.pct>=80);
+   318→    if(rubricFilter==='focus')return selectedRubric.filter(r=>r.pct<65);
+   319→    return selectedRubric;
+   320→  },[selectedRubric,rubricFilter]);
+   321→
+   322→  /** Averaged criterion attainment across every review — the durable pattern, not one class. */
+   323→  const lifetimeRubric=useMemo(()=>{
+   324→    const map=new Map<string,{score:number;weightage:number;n:number}>();
+   325→    for(const a of trainer.assessments)for(const r of a.rubric){
+   326→      const cur=map.get(r.category)??{score:0,weightage:0,n:0};
+   327→      cur.score+=r.score;cur.weightage+=r.weightage;cur.n+=1;map.set(r.category,cur);
+   328→    }
+   329→    return [...map.entries()].map(([category,v])=>({
+   330→      category,score:Math.round(v.score/v.n*10)/10,weightage:Math.round(v.weightage/v.n*10)/10,
+   331→      pct:v.weightage>0?Math.round(v.score/v.weightage*100):0,
+   332→    })).sort((a,b)=>a.pct-b.pct);
+   333→  },[trainer.assessments]);
+   334→
+   335→  const evaluators=useMemo(()=>{
+   336→    const map=new Map<string,{count:number;total:number}>();
+   337→    for(const a of trainer.assessments){
+   338→      const key=a.evaluator?.trim()||'Unattributed';
+   339→      const cur=map.get(key)??{count:0,total:0};cur.count+=1;cur.total+=a.score;map.set(key,cur);
+   340→    }
+   341→    return [...map.entries()].map(([evaluator,v])=>({evaluator,count:v.count,avg:Math.round(v.total/v.count)})).sort((a,b)=>b.count-a.count);
+   342→  },[trainer.assessments]);
+   343→
+   344→  const studios=useMemo(()=>{
+   345→    const map=new Map<string,{count:number;total:number}>();
+   346→    for(const a of trainer.assessments){
+   347→      const key=a.studio?.split(',')[0].trim()||'Unspecified';
+   348→      const cur=map.get(key)??{count:0,total:0};cur.count+=1;cur.total+=a.score;map.set(key,cur);
+   349→    }
+   350→    return [...map.entries()].map(([studio,v])=>({studio,count:v.count,avg:Math.round(v.total/v.count)})).sort((a,b)=>b.count-a.count);
+   351→  },[trainer.assessments]);
+   352→
+   353→  const daysSince=latest&&now?Math.floor((now-+new Date(latest.submittedAt))/86400000):null;
+   354→  const alerts:{tone:string;title:string;body:string}[]=[];
+   355→  if(latest&&latest.score>0&&latest.score<65)alerts.push({tone:'red',title:'Coaching priority',body:`The latest weighted score is ${latest.score}%, below the 65% threshold.`});
+   356→  if(delta<=-8)alerts.push({tone:'amber',title:`Down ${Math.abs(delta)} points`,body:'A regression since the previous assessment — review the weakest criteria.'});
+   357→  if(delta>=8)alerts.push({tone:'green',title:`Up ${delta} points`,body:'A clear improvement since the last review.'});
+   358→  if(trainer.issueCount>=3)alerts.push({tone:'red',title:`${trainer.issueCount} flagged concerns`,body:'Member feedback on this trainer is trending negative.'});
+   359→  if(daysSince!==null&&daysSince>90)alerts.push({tone:'amber',title:'Review overdue',body:`Last assessed ${daysSince} days ago.`});
+   360→  if(!trainer.assessments.length)alerts.push({tone:'amber',title:'Never assessed',body:'No evaluation is on file for this trainer yet.'});
+   361→  if(trainer.complimentCount>=3&&trainer.issueCount===0)alerts.push({tone:'green',title:'Consistently praised',body:`${trainer.complimentCount} compliments, no concerns logged.`});
+   362→
+   363→  return (
+   364→    <div className="tr-report">
+   365→      {/* 01 — masthead */}
+   366→      <section className="tr-masthead">
+   367→        <div className="tr-portrait" data-empty={!getTrainerImage(trainer.name)}>
+   368→          <TrainerImg name={trainer.name} className="trainer-photo-lg" lazy={false} fallback={<span className="tr-portrait-initials">{trainer.name.split(' ').map(w=>w[0]).slice(0,2).join('')}</span>}/>
+   369→        </div>
+   370→        <div className="tr-masthead-body">
+   371→          <span className="eyebrow">TRAINER PERFORMANCE REPORT</span>
+   372→          <h2>{trainer.displayName||trainer.name}</h2>
+   373→          <div className="flex-row wrap" style={{gap:6,marginTop:10}}>
+   374→            <Badge tone={trainer.bandTone}>{trainer.band||'Awaiting a formal assessment'}</Badge>
+   375→            {delta!==0&&<Badge tone={delta>0?'green':'red'}>{delta>0?'+':''}{delta} vs previous</Badge>}
+   376→            <Badge>{trainer.assessmentCount} assessments</Badge>
+   377→            <Badge>{trainer.totalTickets} linked tickets</Badge>
+   378→            {latest&&<Badge>Last reviewed {indiaDate(latest.submittedAt)}</Badge>}
+   379→          </div>
+   380→        </div>
+   381→        <ScoreDial value={avg}/>
+   382→      </section>
+   383→
+   384→      <div className="tr-kpis">
+   385→        <KpiTile label="Profile average" value={trainer.avgScore!==null?trainer.avgScore+'%':'—'} sub={trainer.band||'No assessments yet'} tone={scoreColor(avg)} pct={avg}/>
+   386→        <KpiTile label="Best on record" value={best?best+'%':'—'} sub="Highest weighted result" tone="var(--green)" pct={best}/>
+   387→        <KpiTile label="Lowest on record" value={worst?worst+'%':'—'} sub="Weakest weighted result" tone="var(--red)" pct={worst}/>
+   388→        <KpiTile label="Member signal" value={`${trainer.complimentCount} / ${trainer.issueCount}`} sub="Compliments vs flagged concerns" tone="var(--accent)"/>
+   389→      </div>
+   390→
+   391→      {alerts.length>0&&(
+   392→        <Section index="01" title="What needs attention" subtitle="Derived from the assessments and feedback on file">
+   393→          <div className="tr-alerts">
+   394→            {alerts.map(a=>(
+   395→              <div key={a.title} className="tr-alert" style={{borderLeftColor:toneVar(a.tone)}}>
+   396→                <strong style={{color:toneVar(a.tone)}}>{a.title}</strong>
+   397→                <p>{a.body}</p>
+   398→              </div>
+   399→            ))}
+   400→          </div>
+   401→        </Section>
+   402→      )}
+   403→
+   404→      {/* 02 — trajectory */}
+   405→      <Section index="02" title="Score trajectory" subtitle="Weighted result per assessment · select a point to load it below"
+   406→        action={<Badge>{scored.length} scored reviews</Badge>}>
+   407→        <TrendChart points={scored.map(a=>({id:a.id,at:a.submittedAt,score:a.score}))} selectedId={selected?.id??null} onSelect={setSelectedId}/>
+   408→      </Section>
+   409→
+   410→      {/* 03 — rubric for the selected review */}
+   411→      <Section index="03" title="Rubric attainment"
+   412→        subtitle={selected?`${indiaDate(selected.submittedAt)} · ${selected.sourceLabel} · weakest criteria first`:'No assessment selected'}
+   413→        action={selected?<Badge tone={scoreTone(selected.score)}>{selected.score}% overall</Badge>:undefined}>
+   414→        {!selectedRubric.length?(
+   415→          <Empty art="clipboard" title="No per-criterion scores on this review"
+   416→            detail="The source recorded an overall score only. The full submission is listed under assessment history below."/>
+   417→        ):(
+   418→          <div className="tr-rubric-grid">
+   419→            <div className="tr-radar-wrap">
+   420→              <RadarChart rows={selectedRubric} benchmark={avg}/>
+   421→              <div className="flex-row" style={{gap:12,fontSize:10,justifyContent:'center'}}>
+   422→                <span className="flex-row" style={{gap:4}}><i className="tr-key" style={{background:'var(--accent)'}}/>This review</span>
+   423→                <span className="flex-row" style={{gap:4}}><i className="tr-key" style={{background:'var(--muted)'}}/>Profile average ({avg}%)</span>
+   424→              </div>
+   425→            </div>
+   426→            <div style={{minWidth:0}}>
+   427→              <div className="tr-seg">
+   428→                {([['all','All'],['strong','Strong ≥80%'],['focus','Needs focus <65%']] as const).map(([k,l])=>(
+   429→                  <button key={k} data-active={rubricFilter===k} onClick={()=>setRubricFilter(k)}>{l}</button>
+   430→                ))}
+   431→              </div>
+   432→              {!filteredRubric.length?<p className="muted" style={{fontSize:12}}>No criteria match this filter.</p>:
+   433→                <div className="stack" style={{gap:12}}>{filteredRubric.map(r=><RubricBar key={r.category} {...r}/>)}</div>}
+   434→            </div>
+   435→          </div>
+   436→        )}
+   437→      </Section>
+   438→
+   439→      {/* 04 — coaching notes from the selected review */}
+   440→      {selected&&(selected.strengths||selected.improvements||selected.coachingPlan||selected.summary)&&(
+   441→        <Section index="04" title="Coaching notes" subtitle={`As recorded on ${selected.ticketNumber}`}>
+   442→          <div className="tr-notes">
+   443→            {selected.strengths&&<div className="tr-note" style={{borderLeftColor:'var(--green)'}}><strong>Key strengths</strong><p>{selected.strengths}</p></div>}
+   444→            {selected.improvements&&<div className="tr-note" style={{borderLeftColor:'var(--amber)'}}><strong>Development areas</strong><p>{selected.improvements}</p></div>}
+   445→            {selected.coachingPlan&&<div className="tr-note" style={{borderLeftColor:'var(--accent)'}}><strong>Coaching action plan</strong><p>{selected.coachingPlan}</p></div>}
+   446→            {!selected.strengths&&!selected.improvements&&!selected.coachingPlan&&<div className="tr-note"><strong>Summary</strong><p>{selected.summary}</p></div>}
+   447→          </div>
+   448→        </Section>
+   449→      )}
+   450→
+   451→      {/* 05 — lifetime rubric */}
+   452→      {lifetimeRubric.length>0&&(
+   453→        <Section index="05" title="Recurring strengths and levers" subtitle="Averaged across every review on file · weakest first"
+   454→          action={<Badge>{lifetimeRubric.length} criteria</Badge>}>
+   455→          <div className="tr-rubric-cols">{lifetimeRubric.map(r=><RubricBar key={r.category} {...r}/>)}</div>
+   456→        </Section>
+   457→      )}
+   458→
+   459→      {/* 06 — the reviews themselves: latest in full, history collapsed */}
+   460→      <Section index="06" title="Reviews on file"
+   461→        subtitle="The most recent review in full; earlier ones collapsed — open any of them, or select a score to load it into the rubric and radar above"
+   462→        action={<Badge>{trainer.assessments.length} on file</Badge>}>
+   463→        {!trainer.assessments.length ? (
+   464→          <Empty art="clipboard" title="No assessments recorded yet" detail="Submissions to the Fillout form and the Zite assessment apps appear here automatically."/>
+   465→        ) : (
+   466→          <div className="stack" style={{gap: 10}}>
+   467→            {newestFirst.map((a, index) => (
+   468→              <ReviewCard
+   469→                key={a.id}
+   470→                review={a}
+   471→                latest={index === 0}
+   472→                open={openIds.has(a.id)}
+   473→                onToggle={() => toggleOpen(a.id)}
+   474→                onSelect={() => setSelectedId(a.id)}
+   475→                active={a.id === selected?.id}
+   476→                canManage={canManage}
+   477→                deleting={deletingId === a.id}
+   478→                onDelete={() => void removeReview(a)}
+   479→              />
+   480→            ))}
+   481→            {newestFirst.length > 1 && (
+   482→              <div className="flex-row" style={{gap: 12, justifyContent: 'flex-end'}}>
+   483→                <button className="text-btn" onClick={() => setOpenIds(new Set(newestFirst.map(a => a.id)))}>Expand every review</button>
+   484→                <button className="text-btn" onClick={() => setOpenIds(new Set(newestFirst.slice(0, 1).map(a => a.id)))}>Collapse history</button>
+   485→              </div>
+   486→            )}
+   487→          </div>
+   488→        )}
+   489→      </Section>
+   490→
+   491→      {/* 07 — who is assessing, and where */}
+   492→      {(evaluators.length>0||studios.length>0)&&(
+   493→        <Section index="07" title="Evaluator and studio breakdown" subtitle="Who is assessing this trainer, and where">
+   494→          <div className="tr-split">
+   495→            <div>
+   496→              <span className="tr-kpi-label">By evaluator</span>
+   497→              {!evaluators.length?<p className="muted" style={{fontSize:12}}>No evaluations recorded yet.</p>:
+   498→                evaluators.map(r=>(
+   499→                  <div key={r.evaluator} className="tr-split-row">
+   500→                    <span>{r.evaluator}</span>
+   501→                    <span className="muted">{r.count} · <b style={{color:scoreColor(r.avg)}}>{r.avg}%</b></span>
+   502→                  </div>
+   503→                ))}
+   504→            </div>
+   505→            <div>
+   506→              <span className="tr-kpi-label">By studio</span>
+   507→              {!studios.length?<p className="muted" style={{fontSize:12}}>No evaluations recorded yet.</p>:
+   508→                studios.map(r=>(
+   509→                  <div key={r.studio} className="tr-split-row">
+   510→                    <span>{r.studio}</span>
+   511→                    <span className="muted">{r.count} · <b style={{color:scoreColor(r.avg)}}>{r.avg}%</b></span>
+   512→                  </div>
+   513→                ))}
+   514→            </div>
+   515→          </div>
+   516→        </Section>
+   517→      )}
+   518→
+   519→      {/* 08 — member feedback */}
+   520→      <Section index="08" title="Member feedback and compliments" subtitle="Everything logged against this trainer outside a formal assessment"
+   521→        action={<Badge>{trainer.feedbackCount} entries</Badge>}>
+   522→        {!trainer.recentFeedback.length?<Empty art="spark" title="No feedback logged yet"/>:
+   523→          trainer.recentFeedback.map(f=>(
+   524→            <div className="related-ticket" key={f.id}>
+   525→              <div><small className="muted">{f.ticketNumber} · {f.subcategory} · {indiaDate(f.createdAt,true)}</small><p>{f.title}</p></div>
+   526→              <Badge tone={f.kind==='compliment'?'green':f.sentiment==='negative'?'red':''}>{f.kind==='compliment'?'Compliment':f.sentiment||'neutral'}</Badge>
+   527→            </div>
+   528→          ))}
+   529→      </Section>
+   530→    </div>
+   531→  );
+   532→}
+   533→
