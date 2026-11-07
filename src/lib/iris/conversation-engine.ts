@@ -1,4 +1,4 @@
-// IRIS — Smart Conversation Engine
+// IRIS - Smart Conversation Engine
 // Strategically asks ONE question at a time, decides what fields to capture based on category
 
 import { STUDIOS, DEPARTMENTS } from "./types";
@@ -111,7 +111,7 @@ const INTENT_PATTERNS: IntentPattern[] = [
     department: "FAC",
     priority: "P1",
     templateCode: "TPL-033",
-    requiredQuestions: ["severity", "duration", "affected_count"],
+    requiredQuestions: ["severity", "duration", "affected_count", "affected_client"],
   },
   {
     keywords: ["sound", "speaker", "audio", "music", "microphone", "mic", "amplifier", "no sound"],
@@ -120,7 +120,7 @@ const INTENT_PATTERNS: IntentPattern[] = [
     department: "FAC",
     priority: "P0",
     templateCode: "TPL-034",
-    requiredQuestions: ["severity", "affected_count", "duration"],
+    requiredQuestions: ["severity", "affected_count", "duration", "affected_client"],
   },
   {
     keywords: ["membership", "frozen", "freeze", "unfreeze", "membership frozen", "membership inactive"],
@@ -250,7 +250,7 @@ interface QuestionDef {
   buttons?: Array<{ label: string; value: string; captures: string }>;
   inputType?: "text" | "select" | "date" | "momence_member" | "momence_session" | "momence_trainer";
   inputPlaceholder?: string;
-  acknowledgments?: string[]; // templates like "Got it — {value} noted."
+  acknowledgments?: string[]; // templates like "Got it - {value} noted."
   isOptional?: boolean;
 }
 
@@ -260,16 +260,16 @@ const QUESTIONS: Record<string, QuestionDef> = {
     field: "severity",
     question: "How severely is this affecting operations right now?",
     buttons: [
-      { label: "🔴 Critical — Classes/operations disrupted", value: "critical", captures: "Critical" },
-      { label: "🟠 High — Significant inconvenience", value: "high", captures: "High" },
-      { label: "🟡 Medium — Partial functionality affected", value: "medium", captures: "Medium" },
-      { label: "🟢 Low — Minor inconvenience", value: "low", captures: "Low" },
+      { label: "🔴 Critical - Classes/operations disrupted", value: "critical", captures: "Critical" },
+      { label: "🟠 High - Significant inconvenience", value: "high", captures: "High" },
+      { label: "🟡 Medium - Partial functionality affected", value: "medium", captures: "Medium" },
+      { label: "🟢 Low - Minor inconvenience", value: "low", captures: "Low" },
       { label: "⚪ Not sure yet", value: "unsure", captures: "To be assessed" },
     ],
     acknowledgments: [
-      "Understood — severity marked as {value}. That helps me prioritise this correctly.",
+      "Understood - severity marked as {value}. That helps me prioritise this correctly.",
       "Got it. {value} severity. I'll factor that into the SLA calculation.",
-      "Noted — {value} impact. This determines our response timeline.",
+      "Noted - {value} impact. This determines our response timeline.",
     ],
   },
   duration: {
@@ -284,7 +284,7 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "Since yesterday or longer", value: "yesterday", captures: "Since yesterday+" },
     ],
     acknowledgments: [
-      "Thanks — timing noted as {value}.",
+      "Thanks - timing noted as {value}.",
       "Got it, {value}. That helps with the timeline.",
       "Noted, {value}. This affects how we approach resolution.",
     ],
@@ -300,9 +300,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "Entire studio operations impacted", value: "entire", captures: "Entire studio" },
     ],
     acknowledgments: [
-      "Understood — {value} affected. This shapes our escalation path.",
+      "Understood - {value} affected. This shapes our escalation path.",
       "Got it, {value}. Helps me assess the business impact.",
-      "Noted — {value} impact scope.",
+      "Noted - {value} impact scope.",
     ],
   },
   affected_client: {
@@ -312,20 +312,20 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputType: "momence_member",
     inputPlaceholder: "Search by name, phone, or email...",
     acknowledgments: [
-      "Got it — {value} pulled from Momence. I'll attach their profile to this ticket.",
-      "Thanks — {value} confirmed via Momence lookup.",
+      "Got it - {value} pulled from Momence. I'll attach their profile to this ticket.",
+      "Thanks - {value} confirmed via Momence lookup.",
       "Member verified: {value}. Moving on.",
     ],
   },
   client_identifier: {
     id: "client_identifier",
     field: "clientIdentifier",
-    question: "Any additional contact detail for them? (Optional — their Momence profile already has the basics)",
+    question: "Any additional contact detail for them? (Optional - their Momence profile already has the basics)",
     inputType: "text",
     inputPlaceholder: "Preferred contact: phone, email, or WhatsApp (optional)",
     isOptional: true,
     acknowledgments: [
-      "Great — {value} noted.",
+      "Great - {value} noted.",
       "Thanks. I'll include that in the ticket.",
       "Got it. Moving on.",
     ],
@@ -343,9 +343,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "Not sure", value: "unknown", captures: "Unknown" },
     ],
     acknowledgments: [
-      "Noted — {value} membership.",
+      "Noted - {value} membership.",
       "Got it, {value}. I'll check the terms for that package.",
-      "Thanks — {value} confirmed.",
+      "Thanks - {value} confirmed.",
     ],
   },
   payment_amount: {
@@ -355,9 +355,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputType: "text",
     inputPlaceholder: "e.g. ₹3,500",
     acknowledgments: [
-      "Got it — ₹{value} noted.",
+      "Got it - ₹{value} noted.",
       "Thanks, {value} recorded.",
-      "Noted — {value}.",
+      "Noted - {value}.",
     ],
   },
   payment_method: {
@@ -372,9 +372,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "Cash", value: "cash", captures: "Cash" },
     ],
     acknowledgments: [
-      "Thanks — {value} payment method noted.",
+      "Thanks - {value} payment method noted.",
       "Got it, {value}. That determines where I check first.",
-      "Noted — paid via {value}.",
+      "Noted - paid via {value}.",
     ],
   },
   payment_reference: {
@@ -385,7 +385,7 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputPlaceholder: "e.g. 884329176543210 (optional but very helpful)",
     isOptional: true,
     acknowledgments: [
-      "Excellent — that reference will let me trace it precisely.",
+      "Excellent - that reference will let me trace it precisely.",
       "Got it. I'll search using that reference.",
       "Thanks. That makes the investigation much faster.",
     ],
@@ -402,9 +402,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "More than 2 days ago", value: "gt_2d", captures: "More than 2 days ago" },
     ],
     acknowledgments: [
-      "Thanks — {value} noted.",
+      "Thanks - {value} noted.",
       "Got it, {value}.",
-      "Noted — occurred {value}.",
+      "Noted - occurred {value}.",
     ],
   },
   session_time: {
@@ -414,9 +414,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputType: "momence_session",
     inputPlaceholder: "Search by class name, time, or instructor...",
     acknowledgments: [
-      "Got it — {value} session confirmed from Momence schedule.",
+      "Got it - {value} session confirmed from Momence schedule.",
       "Thanks, {value} noted.",
-      "Noted — session: {value}.",
+      "Noted - session: {value}.",
     ],
   },
   instructor: {
@@ -427,7 +427,7 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputPlaceholder: "Search trainers...",
     isOptional: true,
     acknowledgments: [
-      "Thanks — {value} noted from trainer directory.",
+      "Thanks - {value} noted from trainer directory.",
       "Got it, {value}.",
     ],
   },
@@ -444,7 +444,7 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "Other equipment", value: "other", captures: "Other equipment" },
     ],
     acknowledgments: [
-      "Noted — {value}.",
+      "Noted - {value}.",
       "Got it, {value} affected.",
       "Thanks, {value} recorded.",
     ],
@@ -462,9 +462,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "Entire studio", value: "entire", captures: "Entire studio" },
     ],
     acknowledgments: [
-      "Got it — {value}.",
+      "Got it - {value}.",
       "Noted, {value}.",
-      "Thanks — {value} location confirmed.",
+      "Thanks - {value} location confirmed.",
     ],
   },
   refund_reason: {
@@ -480,9 +480,9 @@ const QUESTIONS: Record<string, QuestionDef> = {
       { label: "Medical / personal reason", value: "medical", captures: "Medical/personal" },
     ],
     acknowledgments: [
-      "Understood — {value}. That's important context for the approval.",
+      "Understood - {value}. That's important context for the approval.",
       "Got it, {value}. I'll include that in the ticket.",
-      "Thanks — {value} recorded.",
+      "Thanks - {value} recorded.",
     ],
   },
   complaint_description: {
@@ -493,7 +493,7 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputPlaceholder: "Describe what the client experienced...",
     acknowledgments: [
       "Thank you for sharing that. I've captured the details.",
-      "Got it — I've noted the context.",
+      "Got it - I've noted the context.",
       "Thanks. That's helpful for the investigation.",
     ],
   },
@@ -504,7 +504,7 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputType: "text",
     inputPlaceholder: "Describe what's wrong vs. what was expected...",
     acknowledgments: [
-      "Got it — I'll investigate that discrepancy specifically.",
+      "Got it - I'll investigate that discrepancy specifically.",
       "Thanks, that's the key detail I needed.",
       "Noted. I'll compare that against the Momence records.",
     ],
@@ -516,7 +516,7 @@ const QUESTIONS: Record<string, QuestionDef> = {
     inputType: "text",
     inputPlaceholder: "e.g. 'Member not found error when searching'",
     acknowledgments: [
-      "Got it — {value} captured.",
+      "Got it - {value} captured.",
       "Thanks. That error message helps narrow it down.",
     ],
   },
@@ -624,7 +624,7 @@ function extractInfoFromText(text: string): Partial<CollectedInfo> {
   }
 
   // === INFORMATION-ONLY TICKET DETECTION ===
-  // These categories are treated as information-only by default — no SLA, no resolution needed
+  // These categories are treated as information-only by default - no SLA, no resolution needed
   const infoOnlyKeywords = [
     "hosted class feedback", "hosted class", "instructor late", "trainer late", "trainer punctuality",
     "freeze request", "membership freeze", "freeze membership", "pause membership",
@@ -634,7 +634,7 @@ function extractInfoFromText(text: string): Partial<CollectedInfo> {
   const isInfoOnly = infoOnlyKeywords.some((k) => lower.includes(k));
   if (isInfoOnly) {
     info.isInformationOnly = true;
-    info.informationOnlyReason = "This issue type is treated as information-only by default — sent to the assigned owner without SLA or resolution requirement";
+    info.informationOnlyReason = "This issue type is treated as information-only by default - sent to the assigned owner without SLA or resolution requirement";
   }
 
   // === FREEZE REQUEST EMAIL AUTO-CONVERSION ===
@@ -643,7 +643,7 @@ function extractInfoFromText(text: string): Partial<CollectedInfo> {
   const emailContext = lower.includes("email") || lower.includes("info@") || lower.includes("member") || lower.includes("membership");
   if (freezeEmailKeywords.some((k) => lower.includes(k)) && emailContext) {
     info.isInformationOnly = true;
-    info.informationOnlyReason = "Freeze request — auto-converted from incoming email. Treated as information-only, sent to Memberships team without SLA.";
+    info.informationOnlyReason = "Freeze request - auto-converted from incoming email. Treated as information-only, sent to Memberships team without SLA.";
   }
 
   return info;
@@ -739,7 +739,7 @@ export function processUserInput(
   const newTurnCount = state.turnCount + 1;
   const trimmedInput = userInput.trim();
 
-  // === STAGE 1: First user message — detect intent ===
+  // === STAGE 1: First user message - detect intent ===
   if (state.stage === "greeting" || state.stage === "intent_captured") {
     const intent = detectIntent(trimmedInput);
     const extracted = extractInfoFromText(trimmedInput);
@@ -779,7 +779,7 @@ export function processUserInput(
       // First message: acknowledge + show what was detected + ask first question
       const messages: AIMessageOutput[] = [];
 
-      // Acknowledgment message — NO capturedFields metadata to avoid duplicate display
+      // Acknowledgment message - NO capturedFields metadata to avoid duplicate display
       const detectedSummary = buildDetectedSummary(pattern, extracted);
       messages.push({
         content: `I've analysed your report. Here's what I've picked up so far:\n\n${detectedSummary}\n\nI'll need a couple more details to route this correctly. Let me ask them one at a time.`,
@@ -806,18 +806,18 @@ export function processUserInput(
             agentActivity: [
               { agent: "Classification", action: `Identified: ${pattern.category} → ${pattern.subcategory}`, status: "complete" },
               { agent: "Investigation", action: "Awaiting more context from you", status: "pending" },
-              { agent: "Routing", action: `Standing by — will route to ${pattern.department} once complete`, status: "pending" },
+              { agent: "Routing", action: `Standing by - will route to ${pattern.department} once complete`, status: "pending" },
             ],
           });
         }
       } else {
-        // No questions needed — go to investigation
+        // No questions needed - go to investigation
         return transitionToInvestigation({ ...state, ...newState } as ConversationState);
       }
 
       return { messages, newState };
     } else {
-      // Intent not detected — ask clarifying question
+      // Intent not detected - ask clarifying question
       return {
         messages: [
           {
@@ -892,36 +892,45 @@ export function processUserInput(
       ...additionalExtracted,
     };
 
+    // Dynamic question insertion: if affected_count is "single" or "one_class",
+    // we need to ask for the affected member via Momence (if not already captured)
+    let dynamicQuestionsToAdd: string[] = [];
+    if (currentQId === "affected_count" && (capturedRaw === "single" || capturedRaw === "one_class") && !updatedInfo.affectedClient) {
+      dynamicQuestionsToAdd = ["affected_client"];
+    }
+
     const ack = currentQ.acknowledgments
       ? pickAck(currentQ.acknowledgments, capturedValue)
-      : "Got it — thanks.";
+      : "Got it, thanks.";
 
     const nextIndex = state.currentQuestionIndex + 1;
-    const hasMoreQuestions = nextIndex < state.questionsRemaining.length;
+    let remainingQuestions = state.questionsRemaining.slice(nextIndex);
+
+    // Insert dynamic questions if needed
+    if (dynamicQuestionsToAdd.length > 0) {
+      remainingQuestions = [...dynamicQuestionsToAdd, ...remainingQuestions];
+    }
+
+    const hasMoreQuestions = remainingQuestions.length > 0;
 
     const newState: Partial<ConversationState> = {
       collectedInfo: updatedInfo,
-      currentQuestionIndex: nextIndex,
+      currentQuestionIndex: 0,
+      questionsRemaining: hasMoreQuestions ? remainingQuestions : [],
       turnCount: newTurnCount,
       questionsAsked: [...state.questionsAsked, currentQId],
     };
 
     if (!hasMoreQuestions) {
-      // Transition to investigation
+      // Transition to investigation - combine ack + investigation message into ONE
       const messages: AIMessageOutput[] = [
         {
-          content: ack,
-          variant: "default",
-          isAcknowledgment: true,
-          thinkingDuration: 300,
-        },
-        {
-          content: `I have everything I need. Let me run a quick investigation before I prepare the ticket — checking Momence, looking for similar past issues, and confirming the right person to assign this to.`,
+          content: `${ack}\n\nI have everything I need. Let me run a quick investigation before I prepare the ticket.`,
           variant: "investigation",
           isTransition: true,
-          thinkingDuration: 500,
+          thinkingDuration: 400,
           agentActivity: [
-            { agent: "Classification", action: `Identified: ${state.intent.suggestedCategory || "issue"} → ${state.collectedInfo.subcategory || ""}`, status: "complete" },
+            { agent: "Classification", action: `Identified: ${state.intent.suggestedCategory || "issue"} -> ${state.collectedInfo.subcategory || ""}`, status: "complete" },
             { agent: "Investigation", action: "Querying Momence API for related records", status: "active" },
             { agent: "Routing", action: "Evaluating best assignee based on workload & expertise", status: "pending" },
             { agent: "SLA", action: "Calculating response & resolution targets", status: "pending" },
@@ -936,20 +945,13 @@ export function processUserInput(
       };
     }
 
-    // Ask next question
-    const nextQ = QUESTIONS[state.questionsRemaining[nextIndex]];
-    const messages: AIMessageOutput[] = [
-      {
-        content: ack,
-        variant: "default",
-        isAcknowledgment: true,
-        thinkingDuration: 300,
-      },
-    ];
+    // Ask next question - combine ack + question into ONE message
+    const nextQ = remainingQuestions.length > 0 ? QUESTIONS[remainingQuestions[0]] : null;
+    const messages: AIMessageOutput[] = [];
 
     if (nextQ) {
       messages.push({
-        content: nextQ.question,
+        content: `${ack}\n\n${nextQ.question}`,
         buttons: nextQ.buttons,
         inputType: nextQ.inputType || "none",
         inputPlaceholder: nextQ.inputPlaceholder,
@@ -964,7 +966,7 @@ export function processUserInput(
 
   // === STAGE 3: After investigation ===
   if (state.stage === "investigating") {
-    // shouldn't normally hit this — investigation completes via separate function
+    // shouldn't normally hit this - investigation completes via separate function
     return {
       messages: [
         {
@@ -1103,17 +1105,17 @@ export function buildInvestigationResult(state: ConversationState): AIMessageOut
 
   // Investigation steps
   const investigationSteps: string[] = [
-    `Analysed your report — detected category: ${intent.suggestedCategory}${intent.suggestedCategory ? ` → ${intent.suggestedCategory}` : ""} (${intent.confidenceScore}% confidence)`,
+    `Analysed your report - detected category: ${intent.suggestedCategory}${intent.suggestedCategory ? ` → ${intent.suggestedCategory}` : ""} (${intent.confidenceScore}% confidence)`,
   ];
   if (info.studio) investigationSteps.push(`Identified studio: ${info.studio}`);
-  if (info.affectedClient) investigationSteps.push(`Searched Momence for member "${info.affectedClient}" — profile found`);
-  if (intent.matchedTemplate) investigationSteps.push(`Matched against ticket template ${intent.matchedTemplate} — ${template?.title}`);
-  investigationSteps.push(`Checked historical tickets — found 2 similar issues in last 90 days`);
-  investigationSteps.push(`Evaluated 4 candidate assignees — selected ${assigneeName} (lowest workload, matching expertise)`);
+  if (info.affectedClient) investigationSteps.push(`Searched Momence for member "${info.affectedClient}" - profile found`);
+  if (intent.matchedTemplate) investigationSteps.push(`Matched against ticket template ${intent.matchedTemplate} - ${template?.title}`);
+  investigationSteps.push(`Checked historical tickets - found 2 similar issues in last 90 days`);
+  investigationSteps.push(`Evaluated 4 candidate assignees - selected ${assigneeName} (lowest workload, matching expertise)`);
   investigationSteps.push(`Calculated SLA targets: ${sla.response} first response, ${sla.resolution} resolution`);
 
   return {
-    content: `My investigation is complete. Here's the structured ticket I've prepared — review it and confirm if you'd like me to create and route it.`,
+    content: `My investigation is complete. Here's the structured ticket I've prepared - review it and confirm if you'd like me to create and route it.`,
     variant: "ticket",
     thinkingDuration: 200,
     tools: buildToolsList(info),
@@ -1220,7 +1222,7 @@ function generateTicketTitle(state: ConversationState): string {
   }
 
   if (info.affectedClient) {
-    parts.push(`— ${info.affectedClient}`);
+    parts.push(`- ${info.affectedClient}`);
   }
   if (info.studio) {
     parts.push(`(${info.studio})`);
@@ -1258,19 +1260,19 @@ function generateTicketDescription(state: ConversationState): string {
 
 function generateBusinessImpact(info: CollectedInfo, priority: string): string {
   if (priority === "P0") {
-    return "Critical — classes or operations are actively disrupted. Immediate intervention required to restore service.";
+    return "Critical - classes or operations are actively disrupted. Immediate intervention required to restore service.";
   }
   if (priority === "P1") {
-    return "High — significant client-facing disruption. Resolution needed within the shift to prevent escalation.";
+    return "High - significant client-facing disruption. Resolution needed within the shift to prevent escalation.";
   }
   if (info.affectedClient) {
-    return "Individual client affected — resolution restores their experience and prevents similar recurrence.";
+    return "Individual client affected - resolution restores their experience and prevents similar recurrence.";
   }
-  return "Standard operational impact — resolution maintains smooth studio operations.";
+  return "Standard operational impact - resolution maintains smooth studio operations.";
 }
 
 function pickAssigneeName(deptCode: string): string {
-  // Match against employee data — return a sensible name
+  // Match against employee data - return a sensible name
   const map: Record<string, string> = {
     FAC: "Arjun Pillai",
     MEM: "Ishita Nair",
