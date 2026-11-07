@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { fetchTicket } from "@/lib/server/tickets";
+import { notifyTicketEvent, statusEvent } from "@/lib/server/notify";
 
 const STATUSES = ["open", "in_progress", "awaiting_response", "resolved", "closed", "escalated"];
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
@@ -17,6 +18,27 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
     return NextResponse.json({ ticket });
   } catch (err) {
     return dbError(err);
+  }
+}
+
+/** Diff the pre-update row against the saved ticket and notify each stage that changed. */
+function notifyPatchChanges(
+  before: { status: string; assignee_id: string | null; escalation_level: number; sla_status: string },
+  ticket: NonNullable<Awaited<ReturnType<typeof fetchTicket>>>,
+  session: Parameters<typeof notifyTicketEvent>[2],
+) {
+  const newAssignee = ticket.assigneeId ?? null;
+  if (newAssignee !== before.assignee_id && newAssignee) {
+    notifyTicketEvent("ticket_assigned", ticket, session, { previousAssigneeId: before.assignee_id });
+  }
+  const ev = statusEvent(before.status, ticket.status);
+  if (ev && !(ev === "escalated" && ticket.escalationLevel > before.escalation_level)) {
+    notifyTicketEvent(ev, ticket, session, { previousStatus: before.status });
+  }
+  if (ticket.escalationLevel > before.escalation_level) notifyTicketEvent("escalated", ticket, session);
+  if (ticket.slaStatus !== before.sla_status) {
+    if (ticket.slaStatus === "breached") notifyTicketEvent("sla_breached", ticket, session, { dedupe: `sla:${ticket.slaResolutionTarget}` });
+    else if (ticket.slaStatus === "at_risk") notifyTicketEvent("sla_at_risk", ticket, session, { dedupe: `sla:${ticket.slaResolutionTarget}` });
   }
 }
 
@@ -54,8 +76,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
   if (!sets.length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   try {
+    let before: { status: string; assignee_id: string | null; escalation_level: number; sla_status: string } | null = null;
     const ticket = await withUser(auth.session.user_id, async (c) => {
-      const cur = (await c.query("select metadata from tickets where id = $1", [id])).rows[0];
+      const cur = (await c.query("select metadata, status, assignee_id, escalation_level, sla_status from tickets where id = $1", [id])).rows[0];
+      before = cur ?? null;
       if (!cur) return null;
       if (cur.metadata?.lock_assignment && b.assigneeId !== undefined) {
         throw Object.assign(new Error("Imported legacy tickets can't be reassigned"), { code: "P0001" });
@@ -68,6 +92,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       return fetchTicket(c, id);
     });
     if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (before) notifyPatchChanges(before, ticket, auth.session);
     return NextResponse.json({ ticket });
   } catch (err) {
     return dbError(err);

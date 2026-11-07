@@ -115,65 +115,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Notifications derived from real ticket data so the panel always shows
-  // something meaningful (critical/escalated/SLA-breach tickets).
-  const notifications = React.useMemo(() => {
-    const list: Array<{
-      id: string;
-      title: string;
-      body: string;
-      type: "critical" | "sla" | "escalated" | "info";
-      ticketId?: string;
-      createdAt: string;
-    }> = [];
-    const candidates = ALL_TICKETS
-      .filter((t) => t.priority === "P0" || t.slaStatus === "breached" || t.status === "escalated")
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 8);
-    candidates.forEach((t) => {
-      if (t.priority === "P0" && t.slaStatus === "breached") {
-        list.push({
-          id: t.id,
-          title: "Critical ticket SLA breached",
-          body: `${t.title} (${t.ticketId})`,
-          type: "critical",
-          ticketId: t.id,
-          createdAt: t.createdAt,
-        });
-      } else if (t.priority === "P0") {
-        list.push({
-          id: t.id,
-          title: "New P0 critical ticket",
-          body: `${t.title} (${t.ticketId})`,
-          type: "critical",
-          ticketId: t.id,
-          createdAt: t.createdAt,
-        });
-      } else if (t.status === "escalated") {
-        list.push({
-          id: t.id,
-          title: "Ticket escalated",
-          body: `${t.title} (${t.ticketId})`,
-          type: "escalated",
-          ticketId: t.id,
-          createdAt: t.createdAt,
-        });
-      } else {
-        list.push({
-          id: t.id,
-          title: "SLA breach risk",
-          body: `${t.title} (${t.ticketId})`,
-          type: "sla",
-          ticketId: t.id,
-          createdAt: t.createdAt,
-        });
-      }
-    });
-    return list;
+  // Real in-app notifications (iris.notifications) via /api/notifications, polled every minute.
+  type BellNotification = {
+    id: string;
+    title: string;
+    body: string;
+    type: "critical" | "sla" | "escalated" | "assignment" | "comment" | "mention" | "info";
+    ticketId?: string | null;
+    isRead: boolean;
+    createdAt: string;
+  };
+  const [notifications, setNotifications] = React.useState<BellNotification[]>([]);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const loadNotifications = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications?limit=20", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setNotifications(data.notifications ?? []);
+      setUnreadCount(data.unreadCount ?? 0);
+    } catch {
+      /* offline: keep the last list */
+    }
   }, []);
-  const unreadCount = notifications.length;
+  React.useEffect(() => {
+    void loadNotifications();
+    const timer = window.setInterval(loadNotifications, 60_000);
+    return () => window.clearInterval(timer);
+  }, [loadNotifications]);
+  const markRead = React.useCallback(async (body: { ids?: string[]; all?: boolean }) => {
+    setNotifications((list) => list.map((n) => (body.all || body.ids?.includes(n.id) ? { ...n, isRead: true } : n)));
+    setUnreadCount((c) => (body.all ? 0 : Math.max(0, c - (body.ids?.length ?? 0))));
+    try {
+      await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    } catch {
+      void loadNotifications();
+    }
+  }, [loadNotifications]);
 
-  const handleNotificationClick = (n: typeof notifications[number]) => {
+  const handleNotificationClick = (n: BellNotification) => {
+    if (!n.isRead) void markRead({ ids: [n.id] });
     if (n.ticketId) {
       // selectTicket exists on store; use it directly
       useAppStore.getState().selectTicket(n.ticketId);
@@ -419,9 +400,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setCurrentView("escalations")}
+                  onClick={() => void markRead({ all: true })}
                 >
-                  View all
+                  Mark all read
                 </button>
               </div>
 
@@ -439,12 +420,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       n.type === "critical" ? Flame :
                       n.type === "sla" ? Clock :
                       n.type === "escalated" ? AlertTriangle :
+                      n.type === "assignment" ? UserCircle :
+                      n.type === "comment" || n.type === "mention" ? Mail :
                       Brain;
                     const colorClass =
                       n.type === "critical" ? "text-rose-500" :
                       n.type === "sla" ? "text-amber-500" :
                       n.type === "escalated" ? "text-orange-500" :
                       "text-primary";
+                    const unread = !n.isRead;
                     return (
                       <button
                         key={n.id}
@@ -456,7 +440,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <Icon className={cn("w-3.5 h-3.5", colorClass)} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[12px] font-medium leading-tight truncate">{n.title}</div>
+                          <div className={cn("text-[12px] leading-tight truncate", unread ? "font-semibold" : "font-medium text-muted-foreground")}>{n.title}</div>
                           <div className="text-[10px] text-muted-foreground truncate mt-0.5">{n.body}</div>
                           <div className="text-[9px] text-muted-foreground/70 mt-0.5"><RelativeTime date={n.createdAt} /></div>
                         </div>

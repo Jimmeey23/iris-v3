@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { withUser } from "@/lib/server/db";
+import { notifyTicketEvent } from "@/lib/server/notify";
 import { dbError, requireSession } from "@/lib/server/auth";
 
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets/[id]/comments">) {
@@ -21,6 +22,9 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets
         [id, session.user_id, name, content, b.isInternal !== false],
       );
       return rows[0];
+    });
+    notifyTicketEvent("comment_added", { id, title: "" }, session, {
+      comment: { author: comment.author, content: comment.content, isInternal: comment.isInternal },
     });
     return NextResponse.json({ comment }, { status: 201 });
   } catch (err) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
+import { notifyTicketEvent } from "@/lib/server/notify";
 import { TICKET_SELECT, fetchTicket, toClientTicket } from "@/lib/server/tickets";
 
 export async function GET() {
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
       }
       return fetchTicket(c, id);
     });
+    if (ticket) notifyTicketEvent("ticket_created", ticket, session);
     return NextResponse.json({ ticket }, { status: 201 });
   } catch (err) {
     return dbError(err);
