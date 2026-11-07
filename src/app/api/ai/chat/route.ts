@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     const out = await withUser(auth.session.user_id, async (c) => {
       const name =
         (await c.query("select name from employees where id = $1", [auth.session.employee_id])).rows[0]?.name ?? auth.session.email;
-      return runTurn(c, history, message, name);
+      return runTurn(c, history, message, name, auth.session.user_id);
     });
     return NextResponse.json(out);
   } catch (err) {

@@ -467,6 +467,7 @@ export function AIAssistantView() {
       {/* Right Sidebar - Conversation Intelligence */}
       <div className="w-72 border-l border-border hidden lg:flex flex-col bg-sidebar">
         <ConversationIntelligencePanel state={conversationState} onSend={handleSend} />
+        <AIUsageFooter refreshKey={aiMessages.length} />
       </div>
 
       {/* Dynamic Form Intake Modal */}
@@ -1139,6 +1140,110 @@ function ThinkingIndicator() {
           <IrisLoader size="sm" label="Investigating" />
         </div>
       </div>
+    </div>
+  );
+}
+
+type UsageSummary = {
+  model: string;
+  priced: boolean;
+  today: { tokens: number; inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number; calls: number; myCostUsd: number };
+  month: { tokens: number; costUsd: number };
+  limits: { dailyTokens: number | null; monthlyBudgetUsd: number | null; alertPct: number };
+};
+
+const fmtUsd = (n: number) => (n === 0 ? "$0.00" : n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
+const fmtTokens = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 10_000 ? `${(n / 1000).toFixed(1)}k` : n.toLocaleString("en-IN");
+
+/** Real Claude usage recorded from every assistant call (org-wide; IST day and month). */
+function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
+  const [u, setU] = React.useState<UsageSummary | null>(null);
+  const [error, setError] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    api<UsageSummary>("/api/ai/usage")
+      .then((d) => {
+        if (!cancelled) {
+          setU(d);
+          setError(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const dayPct = u?.limits.dailyTokens ? Math.min(100, (u.today.tokens / u.limits.dailyTokens) * 100) : null;
+  const monthPct = u?.limits.monthlyBudgetUsd ? Math.min(100, (u.month.costUsd / u.limits.monthlyBudgetUsd) * 100) : null;
+  const warn = (pct: number | null) => pct !== null && u !== null && pct >= u.limits.alertPct;
+
+  return (
+    <div className="p-3 border-t border-sidebar-border shrink-0">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+        <Zap className="w-3 h-3 text-amber-500" />
+        AI usage today
+        {u && <span className="ml-auto font-mono normal-case tracking-normal text-[9px]">{u.model}</span>}
+      </div>
+      {error ? (
+        <div className="text-[10px] text-muted-foreground">Usage unavailable.</div>
+      ) : !u ? (
+        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Loading…
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[18px] font-semibold tabular-nums">{u.priced ? fmtUsd(u.today.costUsd) : "—"}</span>
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {fmtTokens(u.today.tokens)} tokens · {u.today.calls} call{u.today.calls === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-1 text-[9px] text-muted-foreground tabular-nums">
+            <div>
+              <div className="text-foreground font-medium text-[10px]">{fmtTokens(u.today.inputTokens)}</div>input
+            </div>
+            <div>
+              <div className="text-foreground font-medium text-[10px]">{fmtTokens(u.today.cachedTokens)}</div>from cache
+            </div>
+            <div>
+              <div className="text-foreground font-medium text-[10px]">{fmtTokens(u.today.outputTokens)}</div>output
+            </div>
+          </div>
+          {dayPct !== null && (
+            <div>
+              <div className="h-1 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn("h-full transition-all duration-500", warn(dayPct) ? "bg-rose-500" : "bg-gradient-to-r from-violet-500 to-indigo-500")}
+                  style={{ width: `${dayPct}%` }}
+                />
+              </div>
+              <div className="text-[9px] text-muted-foreground mt-1 tabular-nums">
+                {dayPct < 1 && u.today.tokens > 0 ? "<1" : Math.round(dayPct)}% of {fmtTokens(u.limits.dailyTokens!)} daily token limit
+              </div>
+            </div>
+          )}
+          <div className="pt-1.5 border-t border-border text-[9px] text-muted-foreground tabular-nums space-y-0.5">
+            <div className="flex justify-between">
+              <span>This month</span>
+              <span className={cn(warn(monthPct) && "text-rose-500 font-semibold")}>
+                {u.priced ? fmtUsd(u.month.costUsd) : "—"}
+                {u.limits.monthlyBudgetUsd ? ` of $${u.limits.monthlyBudgetUsd}` : ""}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Your share today</span>
+              <span>{u.priced ? fmtUsd(u.today.myCostUsd) : "—"}</span>
+            </div>
+            {!u.priced && <div>No price on file for this model, so cost isn&apos;t shown.</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

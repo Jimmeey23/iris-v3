@@ -1,6 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { PoolClient } from "pg";
+import { costUsd } from "./ai-pricing";
+import { asSystem } from "./db";
 import { searchMembers, getMemberDetails, searchSessions, listTrainers, configuredRegions } from "./momence";
 
 /**
@@ -284,7 +286,7 @@ async function runTool(name: string, input: any, ctx: Ctx): Promise<{ result: un
  * Run one user turn. `history` is the full Anthropic transcript so far (the
  * client stores it and sends it back unchanged, including thinking blocks).
  */
-export async function runTurn(db: PoolClient, history: Anthropic.MessageParam[], userText: string, userName: string) {
+export async function runTurn(db: PoolClient, history: Anthropic.MessageParam[], userText: string, userName: string, userId: string) {
   const ref = await loadReference(db);
   const ctx: Ctx = { db, ref, draft: null };
   const trace: ToolTrace[] = [];
@@ -294,6 +296,7 @@ export async function runTurn(db: PoolClient, history: Anthropic.MessageParam[],
   ];
 
   let reply = "";
+  const turnUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const response = await anthropic().messages.create({
       model: MODEL,
@@ -305,6 +308,24 @@ export async function runTurn(db: PoolClient, history: Anthropic.MessageParam[],
     } as Anthropic.MessageCreateParamsNonStreaming);
 
     messages.push({ role: "assistant", content: response.content });
+
+    // Record exactly what this call used and cost.
+    const u = response.usage;
+    const cost = costUsd(response.model ?? MODEL, u) ?? 0;
+    turnUsage.input += u.input_tokens;
+    turnUsage.output += u.output_tokens;
+    turnUsage.cacheRead += u.cache_read_input_tokens ?? 0;
+    turnUsage.cacheWrite += u.cache_creation_input_tokens ?? 0;
+    turnUsage.cost += cost;
+    // Own connection: billed usage must be kept even if this turn later fails and rolls back.
+    await asSystem((c) =>
+      c.query(
+        `insert into iris.ai_usage (user_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [userId, response.model ?? MODEL, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, cost],
+      ),
+    ).catch((e) => console.error("[ai usage] not recorded:", (e as Error).message));
+
     const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
@@ -337,5 +358,5 @@ export async function runTurn(db: PoolClient, history: Anthropic.MessageParam[],
     if (round === MAX_TOOL_ROUNDS) reply ||= "I gathered a lot of information but couldn't finish. Could you tell me a bit more about what you need?";
   }
 
-  return { transcript: messages, reply, draft: ctx.draft, trace };
+  return { transcript: messages, reply, draft: ctx.draft, trace, usage: turnUsage };
 }
