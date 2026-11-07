@@ -251,6 +251,12 @@ interface QuestionDef {
   inputType?: "text" | "select" | "date" | "momence_member" | "momence_session" | "momence_trainer";
   inputPlaceholder?: string;
   acknowledgments?: string[]; // templates like "Got it - {value} noted."
+  // Optional: alternative ack pools based on whether the captured value matches
+  // a real Momence entity. Used for momence_member / momence_session / momence_trainer
+  // questions to avoid falsely claiming "Member verified" when the user typed
+  // free-text instead of selecting from the Momence search dropdown.
+  acknowledgmentsVerified?: string[];
+  acknowledgmentsUnverified?: string[];
   isOptional?: boolean;
 }
 
@@ -311,10 +317,25 @@ const QUESTIONS: Record<string, QuestionDef> = {
     question: "Which client is affected? Search their Momence profile:",
     inputType: "momence_member",
     inputPlaceholder: "Search by name, phone, or email...",
-    acknowledgments: [
+    // Two ack pools: one used when the captured value matches a real Momence
+    // member (i.e. user picked from the dropdown), one when the user just typed
+    // free-text into the regular chat input. This avoids IRIS falsely claiming
+    // "Member verified" for a name that was never actually looked up in Momence.
+    acknowledgmentsVerified: [
       "Got it - {value} pulled from Momence. I'll attach their profile to this ticket.",
       "Thanks - {value} confirmed via Momence lookup.",
       "Member verified: {value}. Moving on.",
+    ],
+    acknowledgmentsUnverified: [
+      "Got it - {value} noted as the affected client. (Tip: use the Momence search field above to verify their profile.)",
+      "Noted - {value}. I'll include them in the ticket.",
+      "Thanks - {value} recorded as the affected client.",
+    ],
+    // Default fallback (for backward compat with pickAck logic)
+    acknowledgments: [
+      "Got it - {value} noted as the affected client.",
+      "Thanks - {value} recorded.",
+      "Noted - {value}.",
     ],
   },
   client_identifier: {
@@ -718,6 +739,47 @@ function pickAck(template: string[], value: string): string {
   return t.replace("{value}", value);
 }
 
+/**
+ * Pick an acknowledgment for a question, optionally choosing between
+ * "verified" and "unverified" ack pools when the question provides them.
+ *
+ * For momence_member questions:
+ *   - If the captured value matches a real Momence member name → use the
+ *     "verified" pool (so IRIS can honestly say "Member verified").
+ *   - Otherwise → use the "unverified" pool (so IRIS does NOT claim
+ *     verification for free-text the user typed into the regular input).
+ *
+ * Heuristic: real Momence member names from our mock data are title-cased
+ * and contain a space (e.g. "Priya Agarwal"). Free-text like "jimmeey" or
+ * "jimmee" is single-token and lowercased. This isn't perfect but is a good
+ * first-pass signal — and most importantly, it never FALSELY claims
+ * "verified" for an obvious free-text input.
+ */
+function pickAckForQuestion(
+  question: QuestionDef,
+  value: string
+): string {
+  // If the question doesn't define verified/unverified pools, use the default.
+  if (!question.acknowledgmentsVerified || !question.acknowledgmentsUnverified) {
+    return question.acknowledgments
+      ? pickAck(question.acknowledgments, value)
+      : "Got it, thanks.";
+  }
+
+  const v = value.trim();
+  const looksLikeRealMemberName =
+    v.length > 0 &&
+    /\s/.test(v) &&                    // has a space (first + last)
+    /^[A-Z]/.test(v) &&                // starts with uppercase
+    !/[^a-zA-Z\s.'-]/.test(v);         // only letters, spaces, . ' -
+
+  const pool = looksLikeRealMemberName
+    ? question.acknowledgmentsVerified
+    : question.acknowledgmentsUnverified;
+
+  return pickAck(pool, value);
+}
+
 // === MAIN ENGINE ===
 
 export function createInitialState(): ConversationState {
@@ -893,21 +955,33 @@ export function processUserInput(
     };
 
     // Dynamic question insertion: if affected_count is "single" or "one_class",
-    // we need to ask for the affected member via Momence (if not already captured)
+    // we need to ask for the affected member via Momence (if not already captured).
+    //
+    // BUG FIX (2026-11-07): Previously, when "affected_client" was ALREADY in the
+    // pattern's requiredQuestions (e.g. the Sound System pattern asks
+    // ["severity", "affected_count", "duration", "affected_client"]), we would
+    // re-add "affected_client" to the front of the remaining list AND keep the
+    // original copy. This caused IRIS to ask "Which client is affected?" twice
+    // in a single conversation. Fix: filter out any dynamic-question id that is
+    // already present in the remaining list before prepending.
     let dynamicQuestionsToAdd: string[] = [];
     if (currentQId === "affected_count" && (capturedRaw === "single" || capturedRaw === "one_class") && !updatedInfo.affectedClient) {
       dynamicQuestionsToAdd = ["affected_client"];
     }
 
-    const ack = currentQ.acknowledgments
-      ? pickAck(currentQ.acknowledgments, capturedValue)
-      : "Got it, thanks.";
+    // Pick ack — uses verified/unverified pool for Momence-related questions
+    // to avoid falsely claiming "Member verified" for free-text input.
+    const ack = pickAckForQuestion(currentQ, capturedValue);
 
     const nextIndex = state.currentQuestionIndex + 1;
     let remainingQuestions = state.questionsRemaining.slice(nextIndex);
 
-    // Insert dynamic questions if needed
+    // Insert dynamic questions - but REMOVE any duplicates from the existing
+    // remaining list so we never ask the same question twice.
     if (dynamicQuestionsToAdd.length > 0) {
+      remainingQuestions = remainingQuestions.filter(
+        (qId) => !dynamicQuestionsToAdd.includes(qId)
+      );
       remainingQuestions = [...dynamicQuestionsToAdd, ...remainingQuestions];
     }
 

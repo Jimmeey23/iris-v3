@@ -49,9 +49,32 @@ import {
   Edit2,
   FileText,
   Download,
+  Copy,
+  ChevronDown,
+  Printer,
+  FileJson,
+  FileSpreadsheet,
+  Hash,
+  Check,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  exportAndSave,
+  copyChatToClipboard,
+  copySingleMessage,
+  EXPORT_FORMATS,
+  ExportFormat,
+  ExportMeta,
+} from "@/lib/iris/chat-export";
 
 const SUGGESTED_ISSUES = [
   { label: "AC is not working in Studio 2 at Kwality House", icon: "🔧" },
@@ -253,24 +276,37 @@ export function AIAssistantView() {
     handleSend(label);
   };
 
-  const handleExportChat = () => {
-    const lines = aiMessages.map(msg => {
-      const time = new Date(msg.timestamp).toLocaleString("en-IN", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
-      const role = msg.role === "user" ? "You" : msg.role === "assistant" ? "IRIS" : "System";
-      let content = msg.content || "";
-      if (msg.buttons?.length) content += "\n[Options: " + msg.buttons.map(b => b.label).join(", ") + "]";
-      if (msg.ticketPreview) content += "\n[Ticket Preview: " + msg.ticketPreview.title + "]";
-      if (msg.tools?.length) content += "\n[Tools: " + msg.tools.map(t => `${t.name} (${t.status})`).join(", ") + "]";
-      return `[${time}] ${role}: ${content}`;
-    });
-    const exportText = `IRIS Chat Export\nDate: ${new Date().toLocaleString()}\nUser: ${currentUser.name}\n\n${lines.join("\n\n")}`;
-    const blob = new Blob([exportText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `iris-chat-${new Date().toISOString().split("T")[0]}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExportChat = (format: ExportFormat) => {
+    const meta: ExportMeta = {
+      user: currentUser.name,
+      exportedAt: new Date().toISOString(),
+      messageCount: aiMessages.length,
+    };
+    exportAndSave(aiMessages, meta, format);
+  };
+
+  const [copyStatus, setCopyStatus] = React.useState<"idle" | "ok" | "err">("idle");
+  const handleCopyChat = async (format: ExportFormat) => {
+    const meta: ExportMeta = {
+      user: currentUser.name,
+      exportedAt: new Date().toISOString(),
+      messageCount: aiMessages.length,
+    };
+    const ok = await copyChatToClipboard(aiMessages, meta, format);
+    setCopyStatus(ok ? "ok" : "err");
+    setTimeout(() => setCopyStatus("idle"), 1800);
+  };
+
+  // Per-message copy handler — bubbles the copy state up so the button can
+  // show a transient "Copied!" check mark.
+  const handleMessageCopy = async (
+    msg: AIMessage,
+    format: ExportFormat,
+    setMsgState: (s: "idle" | "ok" | "err") => void,
+  ) => {
+    const ok = await copySingleMessage(msg, format);
+    setMsgState(ok ? "ok" : "err");
+    setTimeout(() => setMsgState("idle"), 1800);
   };
 
   const handleReset = () => {
@@ -318,10 +354,76 @@ export function AIAssistantView() {
             <FileText className="w-3 h-3 mr-1" />
             Form Mode
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={handleExportChat}>
-            <Download className="w-3 h-3 mr-1" />
-            Export
-          </Button>
+
+          {/* Copy chat - dropdown with multiple formats */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 text-[11px]" disabled={aiMessages.length === 0}>
+                {copyStatus === "ok" ? (
+                  <><Check className="w-3 h-3 mr-1 text-emerald-500" /> Copied</>
+                ) : copyStatus === "err" ? (
+                  <><AlertTriangle className="w-3 h-3 mr-1 text-amber-500" /> Failed</>
+                ) : (
+                  <><Copy className="w-3 h-3 mr-1" /> Copy <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" /></>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Copy chat to clipboard
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {EXPORT_FORMATS.filter((f) => f.value !== "html").map((f) => (
+                <DropdownMenuItem
+                  key={f.value}
+                  onClick={() => handleCopyChat(f.value)}
+                  className="text-[12px] flex items-start gap-2 py-2"
+                >
+                  {f.value === "txt" && <Hash className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  {f.value === "md" && <FileText className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  {f.value === "json" && <FileJson className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  {f.value === "csv" && <FileSpreadsheet className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{f.label}</div>
+                    <div className="text-[10px] text-muted-foreground">{f.description}</div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Export chat - dropdown with multiple formats (download / print) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 text-[11px]" disabled={aiMessages.length === 0}>
+                <Download className="w-3 h-3 mr-1" /> Export <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Export chat as file
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {EXPORT_FORMATS.map((f) => (
+                <DropdownMenuItem
+                  key={f.value}
+                  onClick={() => handleExportChat(f.value)}
+                  className="text-[12px] flex items-start gap-2 py-2"
+                >
+                  {f.value === "txt" && <Hash className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  {f.value === "md" && <FileText className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  {f.value === "json" && <FileJson className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  {f.value === "html" && <Printer className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  {f.value === "csv" && <FileSpreadsheet className="w-3 h-3 mt-0.5 text-muted-foreground" />}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{f.label}</div>
+                    <div className="text-[10px] text-muted-foreground">{f.description}</div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={handleReset}>
             <RefreshCw className="w-3 h-3 mr-1" />
             New
@@ -339,6 +441,7 @@ export function AIAssistantView() {
                 key={msg.id}
                 message={msg}
                 onButtonClick={handleButtonClick}
+                onCopyMessage={handleMessageCopy}
                 isLast={idx === aiMessages.length - 1}
               />
             ))}
@@ -350,6 +453,26 @@ export function AIAssistantView() {
         {/* Input */}
         <div className="border-t border-border bg-background p-4 shrink-0">
           <div className="max-w-2xl mx-auto">
+            {/* Momence hint - shown when the latest question expects a Momence
+                search. Encourages the user to use the search field above
+                instead of typing free-text into the regular input. */}
+            {(() => {
+              const lastQuestion = [...aiMessages].reverse().find(
+                (m) => m.role === "assistant" && m.isQuestion,
+              );
+              const momenceType =
+                lastQuestion?.inputType === "momence_member" ? "member" :
+                lastQuestion?.inputType === "momence_session" ? "session" :
+                lastQuestion?.inputType === "momence_trainer" ? "trainer" : null;
+              if (!momenceType) return null;
+              return (
+                <div className="mb-2 px-2 py-1.5 rounded-md bg-violet-500/5 border border-violet-500/20 text-[10px] text-violet-600 dark:text-violet-400 flex items-center gap-1.5">
+                  <Lightbulb className="w-3 h-3 shrink-0" />
+                  Tip: use the {momenceType} search field above to pick a verified {momenceType} from Momence.
+                  Typing here won't verify against Momence records.
+                </div>
+              );
+            })()}
             <div className="flex items-end gap-1.5 p-1.5 bg-card border border-border rounded-xl focus-within:border-primary/40 transition-colors">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
                 <Paperclip className="w-3.5 h-3.5" />
@@ -668,14 +791,22 @@ function formatFieldName(key: string): string {
 function MessageBubble({
   message,
   onButtonClick,
+  onCopyMessage,
   isLast,
 }: {
   message: AIMessage;
   onButtonClick: (value: string, label: string) => void;
+  onCopyMessage?: (
+    msg: AIMessage,
+    format: ExportFormat,
+    setState: (s: "idle" | "ok" | "err") => void,
+  ) => void;
   isLast: boolean;
 }) {
   const isUser = message.role === "user";
   const variant = message.variant || "default";
+  const [copyState, setCopyState] = React.useState<"idle" | "ok" | "err">("idle");
+  const [copyMenuOpen, setCopyMenuOpen] = React.useState(false);
 
   if (message.role === "system") {
     return (
@@ -688,7 +819,7 @@ function MessageBubble({
   }
 
   return (
-    <div className={cn("flex gap-2.5 iris-fade-in-up", isUser && "flex-row-reverse")}>
+    <div className={cn("group flex gap-2.5 iris-fade-in-up", isUser && "flex-row-reverse")}>
       <Avatar className="w-7 h-7 shrink-0 mt-0.5">
         {isUser ? (
           <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-semibold">
@@ -708,6 +839,53 @@ function MessageBubble({
           <span className="text-[9px] text-muted-foreground tabular-nums">
             {new Date(message.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
           </span>
+
+          {/* Per-message copy dropdown — shows on hover via .group class */}
+          {onCopyMessage && message.content && (
+            <DropdownMenu open={copyMenuOpen} onOpenChange={setCopyMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Copy message"
+                  className={cn(
+                    "iris-msg-action-btn transition-opacity",
+                    copyState === "ok" && "opacity-100",
+                  )}
+                  data-copied={copyState === "ok"}
+                >
+                  {copyState === "ok" ? (
+                    <><Check className="w-2.5 h-2.5" /> Copied</>
+                  ) : copyState === "err" ? (
+                    <><AlertTriangle className="w-2.5 h-2.5" /> Failed</>
+                  ) : (
+                    <><Copy className="w-2.5 h-2.5" /> Copy</>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align={isUser ? "end" : "start"} className="w-48">
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Copy as
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {EXPORT_FORMATS.filter((f) => f.value !== "html").map((f) => (
+                  <DropdownMenuItem
+                    key={f.value}
+                    onClick={() => {
+                      onCopyMessage(message, f.value, setCopyState);
+                      setCopyMenuOpen(false);
+                    }}
+                    className="text-[11px] flex items-center gap-2"
+                  >
+                    {f.value === "txt" && <Hash className="w-3 h-3 text-muted-foreground" />}
+                    {f.value === "md" && <FileText className="w-3 h-3 text-muted-foreground" />}
+                    {f.value === "json" && <FileJson className="w-3 h-3 text-muted-foreground" />}
+                    {f.value === "csv" && <FileSpreadsheet className="w-3 h-3 text-muted-foreground" />}
+                    {f.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Content bubble */}

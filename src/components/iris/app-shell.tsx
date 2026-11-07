@@ -4,6 +4,7 @@ import * as React from "react";
 import { useAppStore, ViewName } from "@/lib/iris/store";
 import { cn } from "@/lib/utils";
 import { IrisLogo } from "./iris-logo";
+import { AccentRandomizer } from "./accent-randomizer";
 import {
   LayoutDashboard,
   Sparkles,
@@ -28,6 +29,10 @@ import {
   AlertTriangle,
   Brain,
   Users,
+  CheckCircle2,
+  Clock,
+  Flame,
+  X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -40,7 +45,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
+import { RelativeTime } from "./relative-time";
 
 interface NavItem {
   id: ViewName;
@@ -79,8 +90,76 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
+  // Notifications derived from real ticket data so the panel always shows
+  // something meaningful (critical/escalated/SLA-breach tickets).
+  const notifications = React.useMemo(() => {
+    const list: Array<{
+      id: string;
+      title: string;
+      body: string;
+      type: "critical" | "sla" | "escalated" | "info";
+      ticketId?: string;
+      createdAt: string;
+    }> = [];
+    const candidates = ALL_TICKETS
+      .filter((t) => t.priority === "P0" || t.slaStatus === "breached" || t.status === "escalated")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 8);
+    candidates.forEach((t) => {
+      if (t.priority === "P0" && t.slaStatus === "breached") {
+        list.push({
+          id: t.id,
+          title: "Critical ticket SLA breached",
+          body: `${t.title} (${t.ticketId})`,
+          type: "critical",
+          ticketId: t.id,
+          createdAt: t.createdAt,
+        });
+      } else if (t.priority === "P0") {
+        list.push({
+          id: t.id,
+          title: "New P0 critical ticket",
+          body: `${t.title} (${t.ticketId})`,
+          type: "critical",
+          ticketId: t.id,
+          createdAt: t.createdAt,
+        });
+      } else if (t.status === "escalated") {
+        list.push({
+          id: t.id,
+          title: "Ticket escalated",
+          body: `${t.title} (${t.ticketId})`,
+          type: "escalated",
+          ticketId: t.id,
+          createdAt: t.createdAt,
+        });
+      } else {
+        list.push({
+          id: t.id,
+          title: "SLA breach risk",
+          body: `${t.title} (${t.ticketId})`,
+          type: "sla",
+          ticketId: t.id,
+          createdAt: t.createdAt,
+        });
+      }
+    });
+    return list;
+  }, []);
+  const unreadCount = notifications.length;
+
+  const handleNotificationClick = (n: typeof notifications[number]) => {
+    if (n.ticketId) {
+      // selectTicket exists on store; use it directly
+      useAppStore.getState().selectTicket(n.ticketId);
+      setCurrentView("all_tickets");
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Mount the accent randomizer - applies a random data-accent attribute on every load */}
+      <AccentRandomizer />
       {/* Sidebar */}
       <aside
         className={cn(
@@ -249,15 +328,101 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <TooltipContent side="bottom">Toggle theme</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 relative">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className="relative inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              >
                 <Bell className="w-3.5 h-3.5" />
-                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-500" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">3 notifications</TooltipContent>
-          </Tooltip>
+                {unreadCount > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center tabular-nums">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              sideOffset={8}
+              className="w-80 p-0 max-h-[480px] flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[12px] font-semibold">Notifications</span>
+                  {unreadCount > 0 && (
+                    <Badge variant="secondary" className="text-[9px] h-4 px-1.5">
+                      {unreadCount} new
+                    </Badge>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setCurrentView("escalations")}
+                >
+                  View all
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="flex-1 overflow-y-auto py-1">
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                    <div className="text-[12px] font-medium">All caught up</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">No active notifications.</div>
+                  </div>
+                ) : (
+                  notifications.map((n) => {
+                    const Icon =
+                      n.type === "critical" ? Flame :
+                      n.type === "sla" ? Clock :
+                      n.type === "escalated" ? AlertTriangle :
+                      Brain;
+                    const colorClass =
+                      n.type === "critical" ? "text-rose-500" :
+                      n.type === "sla" ? "text-amber-500" :
+                      n.type === "escalated" ? "text-orange-500" :
+                      "text-primary";
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => handleNotificationClick(n)}
+                        className="iris-notif-item w-full text-left"
+                      >
+                        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+                          <Icon className={cn("w-3.5 h-3.5", colorClass)} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-medium leading-tight truncate">{n.title}</div>
+                          <div className="text-[10px] text-muted-foreground truncate mt-0.5">{n.body}</div>
+                          <div className="text-[9px] text-muted-foreground/70 mt-0.5"><RelativeTime date={n.createdAt} /></div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer */}
+              {notifications.length > 0 && (
+                <div className="border-t border-border p-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView("escalations")}
+                    className="w-full text-center text-[11px] font-medium text-primary hover:underline py-1"
+                  >
+                    Open Escalations queue
+                  </button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </header>
 
         {/* Content */}

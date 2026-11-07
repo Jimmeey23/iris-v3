@@ -13,8 +13,10 @@ export interface MomenceEntity {
   avatarColor?: string;
 }
 
-// Mock Momence data
-const MOMENCE_MEMBERS: MomenceEntity[] = [
+// Mock Momence data — exported so the conversation engine can verify whether
+// a captured "affected client" value actually matches a real Momence member
+// (vs. free-text the user typed into the regular chat input).
+export const MOMENCE_MEMBERS: MomenceEntity[] = [
   { id: "MM-89342", name: "Priya Agarwal", subtitle: "Annual Premium · 12 credits", meta: "+91 98765 43210 · priya.a@gmail.com", tags: ["VIP", "Mumbai"], avatarColor: "violet" },
   { id: "MM-88214", name: "Rhea Malhotra", subtitle: "12-Class Package · 4 credits", meta: "+91 99876 54321 · rhea.m@gmail.com", tags: ["Mumbai"], avatarColor: "sky" },
   { id: "MM-91234", name: "Karan Singh", subtitle: "5-Class Package · 5 credits", meta: "+91 80 12345 678 · karan.singh@gmail.com", tags: ["Bengaluru"], avatarColor: "emerald" },

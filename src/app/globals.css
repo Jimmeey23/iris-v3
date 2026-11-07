@@ -91,7 +91,28 @@
   --iris-amber: #ff9500;
   --iris-purple: #af52de;
   --iris-red: #ff3b30;
+
+  /* Hero gradient (light mode, 2-color linear) - overridden by accent randomizer */
+  --iris-hero-from: #007bff;
+  --iris-hero-to: #5ac8fa;
 }
+
+/* Accent color palette - applied at random on each load via JS.
+   Each accent sets --primary + matching accents. Defined as data-attribute selectors. */
+:root[data-accent="blue"]      { --primary: #007bff; --accent: #f0f7ff; --accent-foreground: #007bff; --ring: #007bff; --sidebar-primary: #007bff; --sidebar-accent-foreground: #007bff; --sidebar-ring: #007bff; --iris-hero-from: #007bff; --iris-hero-to: #5ac8fa; }
+:root[data-accent="indigo"]    { --primary: #5856d6; --accent: #f0f0ff; --accent-foreground: #5856d6; --ring: #5856d6; --sidebar-primary: #5856d6; --sidebar-accent-foreground: #5856d6; --sidebar-ring: #5856d6; --iris-hero-from: #5856d6; --iris-hero-to: #af52de; }
+:root[data-accent="purple"]    { --primary: #af52de; --accent: #faf5ff; --accent-foreground: #af52de; --ring: #af52de; --sidebar-primary: #af52de; --sidebar-accent-foreground: #af52de; --sidebar-ring: #af52de; --iris-hero-from: #af52de; --iris-hero-to: #ff2d92; }
+:root[data-accent="pink"]      { --primary: #ff2d92; --accent: #fff0f7; --accent-foreground: #ff2d92; --ring: #ff2d92; --sidebar-primary: #ff2d92; --sidebar-accent-foreground: #ff2d92; --sidebar-ring: #ff2d92; --iris-hero-from: #ff2d92; --iris-hero-to: #ff9500; }
+:root[data-accent="red"]       { --primary: #ff3b30; --accent: #fff0f0; --accent-foreground: #ff3b30; --ring: #ff3b30; --sidebar-primary: #ff3b30; --sidebar-accent-foreground: #ff3b30; --sidebar-ring: #ff3b30; --iris-hero-from: #ff3b30; --iris-hero-to: #ff9500; }
+:root[data-accent="orange"]    { --primary: #ff9500; --accent: #fff7ed; --accent-foreground: #ff9500; --ring: #ff9500; --sidebar-primary: #ff9500; --sidebar-accent-foreground: #ff9500; --sidebar-ring: #ff9500; --iris-hero-from: #ff9500; --iris-hero-to: #ffcc00; }
+:root[data-accent="green"]     { --primary: #34c759; --accent: #f0fdf4; --accent-foreground: #34c759; --ring: #34c759; --sidebar-primary: #34c759; --sidebar-accent-foreground: #34c759; --sidebar-ring: #34c759; --iris-hero-from: #34c759; --iris-hero-to: #00d4aa; }
+:root[data-accent="mint"]      { --primary: #00d4aa; --accent: #f0fdfa; --accent-foreground: #00d4aa; --ring: #00d4aa; --sidebar-primary: #00d4aa; --sidebar-accent-foreground: #00d4aa; --sidebar-ring: #00d4aa; --iris-hero-from: #00d4aa; --iris-hero-to: #5ac8fa; }
+:root[data-accent="teal"]      { --primary: #5ac8fa; --accent: #f0f9ff; --accent-foreground: #5ac8fa; --ring: #5ac8fa; --sidebar-primary: #5ac8fa; --sidebar-accent-foreground: #5ac8fa; --sidebar-ring: #5ac8fa; --iris-hero-from: #5ac8fa; --iris-hero-to: #007bff; }
+:root[data-accent="cyan"]      { --primary: #00c7be; --accent: #f0fffd; --accent-foreground: #00c7be; --ring: #00c7be; --sidebar-primary: #00c7be; --sidebar-accent-foreground: #00c7be; --sidebar-ring: #00c7be; --iris-hero-from: #00c7be; --iris-hero-to: #5ac8fa; }
+:root[data-accent="violet"]    { --primary: #6366f1; --accent: #f5f3ff; --accent-foreground: #6366f1; --ring: #6366f1; --sidebar-primary: #6366f1; --sidebar-accent-foreground: #6366f1; --sidebar-ring: #6366f1; --iris-hero-from: #6366f1; --iris-hero-to: #af52de; }
+:root[data-accent="emerald"]   { --primary: #10b981; --accent: #ecfdf5; --accent-foreground: #10b981; --ring: #10b981; --sidebar-primary: #10b981; --sidebar-accent-foreground: #10b981; --sidebar-ring: #10b981; --iris-hero-from: #10b981; --iris-hero-to: #5ac8fa; }
+:root[data-accent="rose"]      { --primary: #f43f5e; --accent: #fff1f2; --accent-foreground: #f43f5e; --ring: #f43f5e; --sidebar-primary: #f43f5e; --sidebar-accent-foreground: #f43f5e; --sidebar-ring: #f43f5e; --iris-hero-from: #f43f5e; --iris-hero-to: #ff9500; }
+:root[data-accent="amber"]     { --primary: #f59e0b; --accent: #fffbeb; --accent-foreground: #f59e0b; --ring: #f59e0b; --sidebar-primary: #f59e0b; --sidebar-accent-foreground: #f59e0b; --sidebar-ring: #f59e0b; --iris-hero-from: #f59e0b; --iris-hero-to: #ff9500; }
 
 .dark {
   /* Dark — Apple dark mode: deep black, #007bff accent */
@@ -128,7 +149,27 @@
   --sidebar-accent-foreground: #007bff;
   --sidebar-border: #1c1c1e;
   --sidebar-ring: #007bff;
+
+  /* Hero gradient (dark mode, 2-color linear) */
+  --iris-hero-from: #007bff;
+  --iris-hero-to: #5ac8fa;
 }
+
+/* Dark-mode overrides for accent palette */
+.dark[data-accent="blue"]    { --iris-hero-from: #0a84ff; --iris-hero-to: #5ac8fa; }
+.dark[data-accent="indigo"]  { --iris-hero-from: #5e5ce6; --iris-hero-to: #bf5af2; }
+.dark[data-accent="purple"]  { --iris-hero-from: #bf5af2; --iris-hero-to: #ff375f; }
+.dark[data-accent="pink"]    { --iris-hero-from: #ff375f; --iris-hero-to: #ff9f0a; }
+.dark[data-accent="red"]     { --iris-hero-from: #ff453a; --iris-hero-to: #ff9f0a; }
+.dark[data-accent="orange"]  { --iris-hero-from: #ff9f0a; --iris-hero-to: #ffd60a; }
+.dark[data-accent="green"]   { --iris-hero-from: #30d158; --iris-hero-to: #66d4cf; }
+.dark[data-accent="mint"]    { --iris-hero-from: #66d4cf; --iris-hero-to: #64d2ff; }
+.dark[data-accent="teal"]    { --iris-hero-from: #64d2ff; --iris-hero-to: #0a84ff; }
+.dark[data-accent="cyan"]    { --iris-hero-from: #40cdea; --iris-hero-to: #64d2ff; }
+.dark[data-accent="violet"]  { --iris-hero-from: #5e5ce6; --iris-hero-to: #bf5af2; }
+.dark[data-accent="emerald"] { --iris-hero-from: #2dd4a7; --iris-hero-to: #64d2ff; }
+.dark[data-accent="rose"]    { --iris-hero-from: #ff375f; --iris-hero-to: #ff9f0a; }
+.dark[data-accent="amber"]   { --iris-hero-from: #ffb340; --iris-hero-to: #ff9f0a; }
 
 @layer base {
   * {
@@ -377,6 +418,144 @@
   }
 
   .iris-ticker { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  /* === HERO GRADIENT (light mode, 2-color linear) === */
+  .iris-hero-gradient {
+    background: linear-gradient(135deg, var(--iris-hero-from) 0%, var(--iris-hero-to) 100%);
+  }
+  /* Subtle overlay tint - kept gentle so the gradient remains light/airy */
+  .iris-hero-tint {
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--iris-hero-from) 12%, transparent) 0%,
+      color-mix(in srgb, var(--iris-hero-to) 8%, transparent) 100%);
+  }
+  .dark .iris-hero-tint {
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--iris-hero-from) 22%, transparent) 0%,
+      color-mix(in srgb, var(--iris-hero-to) 16%, transparent) 100%);
+  }
+
+  /* === GRID BACKGROUND (subtle dotted/line pattern) === */
+  .iris-grid-bg {
+    background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .dark .iris-grid-bg {
+    background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--foreground) 4%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 4%, transparent) 1px, transparent 1px);
+  }
+
+  /* === MARQUEE STRIPS === */
+  .iris-marquee {
+    position: relative;
+    overflow: hidden;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .iris-marquee-track {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: max-content;
+    white-space: nowrap;
+    animation: iris-marquee-scroll var(--marquee-duration, 40s) linear infinite;
+    will-change: transform;
+  }
+  .iris-marquee:hover .iris-marquee-track {
+    animation-play-state: paused;
+  }
+  @keyframes iris-marquee-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  /* Edge fade mask */
+  .iris-marquee::before,
+  .iris-marquee::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 48px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .iris-marquee::before {
+    left: 0;
+    background: linear-gradient(to right, var(--card), transparent);
+  }
+  .iris-marquee::after {
+    right: 0;
+    background: linear-gradient(to left, var(--card), transparent);
+  }
+  .iris-marquee-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+  .iris-marquee-item strong {
+    color: var(--foreground);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .iris-marquee-divider {
+    color: var(--border);
+    font-size: 10px;
+    opacity: 0.7;
+  }
+
+  /* === NOTIFICATIONS POPOVER === */
+  .iris-notif-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    transition: background 150ms ease;
+    cursor: pointer;
+  }
+  .iris-notif-item:hover {
+    background: var(--muted);
+  }
+
+  /* === CHAT COPY/EXPORT BUTTONS === */
+  .iris-msg-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+  .group:hover .iris-msg-actions {
+    opacity: 1;
+  }
+  .iris-msg-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: all 150ms ease;
+    cursor: pointer;
+  }
+  .iris-msg-action-btn:hover {
+    background: var(--muted);
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+  .iris-msg-action-btn[data-copied="true"] {
+    color: #34c759;
+    background: rgba(52, 199, 89, 0.1);
+  }
 
   .iris-action-shimmer {
     position: relative;

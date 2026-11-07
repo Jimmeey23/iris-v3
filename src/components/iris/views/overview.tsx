@@ -5,7 +5,7 @@ import { useAppStore } from "@/lib/iris/store";
 import { ALL_TICKETS, getAssignee, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
 import { EMPLOYEES, DEPARTMENTS, STUDIOS } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge } from "../badges";
-import { formatRelativeTime } from "@/lib/iris/utils";
+import { RelativeTime } from "../relative-time";
 import { cn } from "@/lib/utils";
 import {
   Ticket as TicketIcon, AlertTriangle, Clock, CheckCircle2, TrendingUp, TrendingDown,
@@ -85,16 +85,16 @@ export function OverviewView() {
   ];
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-5">
+    <div className="p-6 max-w-[1400px] mx-auto space-y-4">
       {/* === HERO SECTION === */}
       <div className="relative overflow-hidden rounded-2xl border border-border iris-fade-in-up" style={{ minHeight: 200 }}>
-        {/* Animated gradient background */}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(0,123,255,0.10) 0%, rgba(0,212,170,0.05) 40%, transparent 70%)" }} />
-        {/* Floating orbs */}
-        <div className="absolute -top-20 -right-10 w-80 h-80 rounded-full opacity-25" style={{ background: "radial-gradient(circle, #007bff, transparent 65%)", animation: "hero-orb-a 8s ease-in-out infinite" }} />
-        <div className="absolute -bottom-20 left-20 w-60 h-60 rounded-full opacity-15" style={{ background: "radial-gradient(circle, #00d4aa, transparent 65%)", animation: "hero-orb-b 10s ease-in-out infinite" }} />
+        {/* NEW: 2-color linear gradient tint (light mode) - reads --iris-hero-from / --iris-hero-to */}
+        <div className="absolute inset-0 iris-hero-tint" />
+        {/* Floating orbs - colored using the same accent vars */}
+        <div className="absolute -top-20 -right-10 w-80 h-80 rounded-full opacity-25" style={{ background: "radial-gradient(circle, var(--iris-hero-from), transparent 65%)", animation: "hero-orb-a 8s ease-in-out infinite" }} />
+        <div className="absolute -bottom-20 left-20 w-60 h-60 rounded-full opacity-15" style={{ background: "radial-gradient(circle, var(--iris-hero-to), transparent 65%)", animation: "hero-orb-b 10s ease-in-out infinite" }} />
         {/* Grid pattern */}
-        <div className="absolute inset-0 iris-grid-bg opacity-15" />
+        <div className="absolute inset-0 iris-grid-bg opacity-40" />
         {/* Floating icons */}
         <TicketIcon className="absolute top-8 right-32 w-5 h-5 text-primary/15" style={{ animation: "hero-float 6s ease-in-out infinite" }} />
         <Activity className="absolute top-16 right-48 w-4 h-4 text-primary/10" style={{ animation: "hero-float 7s ease-in-out infinite 1s" }} />
@@ -194,17 +194,21 @@ export function OverviewView() {
         `}</style>
       </div>
 
-      {/* === MARQUEE STRIP 1 - Live operations === */}
-      <MarqueeStrip items={[
-        `${stats.total} total tickets`,
-        `${stats.open} currently open`,
-        `${stats.critical} critical`,
-        `${stats.resolved} resolved`,
-        `SLA compliance ${slaCompliance}%`,
-        `${EMPLOYEES.length} team members`,
-        `${STUDIOS.length} studios`,
-        `${stats.escalated} escalated`,
-      ]} icon={Activity} color="#007bff" />
+      {/* === MARQUEE STRIP 1 - Live operations ===
+          Placed directly under the hero with a tiny negative top margin so it
+          sits flush against the hero's bottom border (no visible gap). */}
+      <div className="-mt-px">
+        <MarqueeStrip items={[
+          { label: "Total tickets", value: String(stats.total) },
+          { label: "Open", value: String(stats.open) },
+          { label: "Critical", value: String(stats.critical) },
+          { label: "Resolved", value: String(stats.resolved) },
+          { label: "Escalated", value: String(stats.escalated) },
+          { label: "SLA compliance", value: `${slaCompliance}%`, emphasize: true },
+          { label: "Team", value: `${EMPLOYEES.length} members` },
+          { label: "Studios", value: String(STUDIOS.length) },
+        ]} icon={Activity} variant="hero" />
+      </div>
 
       {/* === METRIC CARDS with flip + tooltips + sparklines === */}
       <TooltipProvider delayDuration={300}>
@@ -219,11 +223,15 @@ export function OverviewView() {
         </div>
       </TooltipProvider>
 
-      {/* === MARQUEE STRIP 2 - Studio status === */}
-      <MarqueeStrip items={[
-        ...STUDIOS.map(s => `${s.name}: ${ALL_TICKETS.filter(t => t.studioCode === s.code).length} tickets`),
-        ...DEPARTMENTS.slice(0, 5).map(d => `${d.name}: ${ALL_TICKETS.filter(t => t.departmentCode === d.code).length} active`),
-      ]} icon={Building2} color="#00d4aa" />
+      {/* === MARQUEE STRIP 2 - Studio + Department status === */}
+      <MarqueeStrip
+        items={[
+          ...STUDIOS.map(s => ({ label: s.name, value: `${ALL_TICKETS.filter(t => t.studioCode === s.code).length} tickets` })),
+          ...DEPARTMENTS.slice(0, 5).map(d => ({ label: d.name, value: `${ALL_TICKETS.filter(t => t.departmentCode === d.code).length} active` })),
+        ]}
+        icon={Building2}
+        variant="studio"
+      />
 
       {/* === Charts Row === */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -335,7 +343,7 @@ export function OverviewView() {
                   <div className="text-[12px] font-medium leading-snug line-clamp-2">{t.title}</div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1.5">
                     {assignee && <span>{assignee.name}</span>}
-                    <span className="ml-auto">{formatRelativeTime(t.createdAt)}</span>
+                    <span className="ml-auto"><RelativeTime date={t.createdAt} /></span>
                   </div>
                 </button>
               );
@@ -359,7 +367,7 @@ export function OverviewView() {
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
                   <span>{getStudio(t)?.name}</span><span>-</span>
                   <span>{getDepartment(t)?.name}</span>
-                  <span className="ml-auto">{formatRelativeTime(t.createdAt)}</span>
+                  <span className="ml-auto"><RelativeTime date={t.createdAt} /></span>
                 </div>
               </button>
             ))}
@@ -368,14 +376,18 @@ export function OverviewView() {
       </div>
 
       {/* === MARQUEE STRIP 3 - AI insights === */}
-      <MarqueeStrip items={[
-        "AI: HVAC pattern detected at Kwality House",
-        "AI: Payment resolution 28% over SLA target",
-        "AI: Facilities team workload at 67% capacity",
-        "AI: 34% of freeze requests auto-resolvable",
-        "AI: Bengaluru check-in errors 3x higher",
-        "AI: Org average trainer score 82%",
-      ]} icon={Brain} color="#af52de" />
+      <MarqueeStrip
+        items={[
+          { label: "AI Insight", value: "HVAC pattern detected at Kwality House", emphasize: true },
+          { label: "AI Insight", value: "Payment resolution 28% over SLA target" },
+          { label: "AI Insight", value: "Facilities team workload at 67% capacity" },
+          { label: "AI Insight", value: "34% of freeze requests auto-resolvable", emphasize: true },
+          { label: "AI Insight", value: "Bengaluru check-in errors 3x higher" },
+          { label: "AI Insight", value: "Org average trainer score 82%" },
+        ]}
+        icon={Brain}
+        variant="ai"
+      />
 
       {/* AI Insights */}
       <Card className="iris-ai-border">
@@ -443,23 +455,52 @@ function MetricCard({
 }
 
 // === MARQUEE STRIP ===
-function MarqueeStrip({ items, icon: Icon, color }: { items: string[]; icon: React.ComponentType<{ className?: string }>; color: string }) {
+// Variants:
+//   hero   - flush against hero, tinted background, slightly taller
+//   studio - clean white card style with emerald accent
+//   ai     - violet/purple tinted for AI insights
+type MarqueeItem = { label: string; value: string; emphasize?: boolean };
+
+function MarqueeStrip({
+  items,
+  icon: Icon,
+  variant = "hero",
+}: {
+  items: MarqueeItem[];
+  icon: React.ComponentType<{ className?: string }>;
+  variant?: "hero" | "studio" | "ai";
+}) {
   // Duplicate items for seamless loop
-  const doubled = [...items, ...items];
+  const doubled = [...items, ...items, ...items];
+  // Adjust duration based on content length so it scrolls at a readable pace
+  const duration = Math.max(35, Math.min(80, items.length * 6));
+
+  const wrapperClass = cn(
+    "iris-marquee",
+    variant === "hero" && "rounded-none border-x-0 border-b-0",
+    variant === "studio" && "border-emerald-500/20",
+    variant === "ai" && "border-violet-500/20 bg-violet-500/[0.03]",
+  );
+
+  const accentColor =
+    variant === "hero" ? "var(--primary)" :
+    variant === "studio" ? "#10b981" :
+    "#af52de";
+
   return (
-    <div className="relative overflow-hidden rounded-lg border border-border bg-card/50 py-1.5">
-      <div className="flex items-center gap-4 whitespace-nowrap" style={{ animation: "marquee-scroll 30s linear infinite" }}>
+    <div className={wrapperClass} style={{ ["--marquee-duration" as string]: `${duration}s` }}>
+      <div className="iris-marquee-track py-2">
         {doubled.map((item, i) => (
           <React.Fragment key={i}>
-            <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-              <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
-              {item}
+            <div className="iris-marquee-item">
+              <Icon className="w-3 h-3 shrink-0" style={{ color: accentColor }} />
+              <span className="text-muted-foreground">{item.label}:</span>
+              <strong style={item.emphasize ? { color: accentColor } : undefined}>{item.value}</strong>
             </div>
-            <span className="text-muted-foreground/20">|</span>
+            <span className="iris-marquee-divider">•</span>
           </React.Fragment>
         ))}
       </div>
-      <style>{`@keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
     </div>
   );
 }
