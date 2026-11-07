@@ -156,6 +156,14 @@
 }
 
 /* Dark-mode overrides for accent palette */
+/* :root[data-accent] (0,2,0) beats .dark (0,1,0), which made --accent a pale
+   light-mode tint in dark mode -> hovered buttons got a light bg with white
+   text. Re-derive dark-safe accent surfaces from the chosen primary. */
+:root.dark[data-accent] {
+  --accent: color-mix(in srgb, var(--primary) 18%, #1c1c1e);
+  --accent-foreground: color-mix(in srgb, var(--primary) 70%, #ffffff);
+  --sidebar-accent-foreground: color-mix(in srgb, var(--primary) 70%, #ffffff);
+}
 .dark[data-accent="blue"]    { --iris-hero-from: #0a84ff; --iris-hero-to: #5ac8fa; }
 .dark[data-accent="indigo"]  { --iris-hero-from: #5e5ce6; --iris-hero-to: #bf5af2; }
 .dark[data-accent="purple"]  { --iris-hero-from: #bf5af2; --iris-hero-to: #ff375f; }
