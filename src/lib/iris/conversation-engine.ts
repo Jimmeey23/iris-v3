@@ -779,7 +779,7 @@ export function processUserInput(
       // First message: acknowledge + show what was detected + ask first question
       const messages: AIMessageOutput[] = [];
 
-      // Acknowledgment message
+      // Acknowledgment message — NO capturedFields metadata to avoid duplicate display
       const detectedSummary = buildDetectedSummary(pattern, extracted);
       messages.push({
         content: `I've analysed your report. Here's what I've picked up so far:\n\n${detectedSummary}\n\nI'll need a couple more details to route this correctly. Let me ask them one at a time.`,
@@ -787,7 +787,6 @@ export function processUserInput(
         isAcknowledgment: true,
         thinkingDuration: 600,
         metadata: {
-          capturedFields: Object.entries(extracted).map(([k, v]) => ({ field: k, value: String(v) })),
           confidenceScore: intent.confidence,
         },
       });
@@ -805,9 +804,9 @@ export function processUserInput(
             variant: "question",
             thinkingDuration: 400,
             agentActivity: [
-              { agent: "Classification Agent", action: `Identified: ${pattern.category} → ${pattern.subcategory}`, status: "complete" },
-              { agent: "Investigation Agent", action: "Awaiting more context from you", status: "pending" },
-              { agent: "Routing Agent", action: `Standing by — will route to ${pattern.department} once complete`, status: "pending" },
+              { agent: "Classification", action: `Identified: ${pattern.category} → ${pattern.subcategory}`, status: "complete" },
+              { agent: "Investigation", action: "Awaiting more context from you", status: "pending" },
+              { agent: "Routing", action: `Standing by — will route to ${pattern.department} once complete`, status: "pending" },
             ],
           });
         }
@@ -922,10 +921,10 @@ export function processUserInput(
           isTransition: true,
           thinkingDuration: 500,
           agentActivity: [
-            { agent: "Investigation Agent", action: "Querying Momence API for related records", status: "active" },
-            { agent: "Ticket Intelligence Agent", action: "Preparing structured ticket", status: "pending" },
-            { agent: "Routing Agent", action: "Evaluating best assignee based on workload & expertise", status: "pending" },
-            { agent: "SLA Agent", action: "Calculating response & resolution targets", status: "pending" },
+            { agent: "Classification", action: `Identified: ${state.intent.suggestedCategory || "issue"} → ${state.collectedInfo.subcategory || ""}`, status: "complete" },
+            { agent: "Investigation", action: "Querying Momence API for related records", status: "active" },
+            { agent: "Routing", action: "Evaluating best assignee based on workload & expertise", status: "pending" },
+            { agent: "SLA", action: "Calculating response & resolution targets", status: "pending" },
           ],
         },
       ];
@@ -1039,10 +1038,10 @@ function transitionToInvestigation(state: ConversationState): AIResponse {
         isTransition: true,
         thinkingDuration: 500,
         agentActivity: [
-          { agent: "Investigation Agent", action: "Querying Momence API for related records", status: "active" },
-          { agent: "Ticket Intelligence Agent", action: "Preparing structured ticket", status: "pending" },
-          { agent: "Routing Agent", action: "Evaluating best assignee based on workload & expertise", status: "pending" },
-          { agent: "SLA Agent", action: "Calculating response & resolution targets", status: "pending" },
+          { agent: "Classification", action: `Identified: ${state.intent.suggestedCategory || "issue"}`, status: "complete" },
+          { agent: "Investigation", action: "Querying Momence API for related records", status: "active" },
+          { agent: "Routing", action: "Evaluating best assignee based on workload & expertise", status: "pending" },
+          { agent: "SLA", action: "Calculating response & resolution targets", status: "pending" },
         ],
       },
     ],

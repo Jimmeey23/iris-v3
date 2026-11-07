@@ -184,15 +184,15 @@ export function AIAssistantView() {
         content: "Investigation complete. Compiling findings...",
         timestamp: new Date().toISOString(),
         variant: "investigation",
-        tools: investigationResult.tools?.map((t, i) => ({
+        tools: investigationResult.tools?.map((t) => ({
           ...t,
-          status: i === 0 ? "running" : "complete",
+          status: "complete" as const,
         })),
         agentActivity: [
-          { agent: "Investigation Agent", action: "Momence API queried successfully", status: "complete" },
-          { agent: "Ticket Intelligence Agent", action: "Compiling structured ticket", status: "active" },
-          { agent: "Routing Agent", action: "Assignee selected", status: "complete" },
-          { agent: "SLA Agent", action: "SLA targets computed", status: "complete" },
+          { agent: "Classification", action: "Intent classified successfully", status: "complete" },
+          { agent: "Investigation", action: "Momence API queried, historical tickets checked", status: "complete" },
+          { agent: "Routing", action: "Best assignee selected based on workload + expertise", status: "complete" },
+          { agent: "SLA", action: "Response & resolution targets computed", status: "complete" },
         ],
       });
 
@@ -205,52 +205,43 @@ export function AIAssistantView() {
 
       await sleep(500);
 
-      // Check confidence threshold — minimum 90% required to show ticket draft
-      const confidenceScore = newState.intent.confidenceScore || 0;
-      const allFieldsCaptured = Object.values(newState.collectedInfo).filter(v => v && v !== "").length;
+      // After investigation — always show the ticket draft
+      // Confidence is boosted by completed questions + investigation tools
+      const baseConfidence = newState.intent.confidenceScore || 0;
+      const answeredQuestions = newState.questionsAsked?.length || 0;
+      const totalQuestions = (newState.questionsRemaining?.length || 0) + answeredQuestions;
+      const questionBoost = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 20 : 0; // up to +20%
+      const toolBoost = (investigationResult.tools?.length || 0) * 2; // each tool adds 2%
+      const finalConfidence = Math.min(98, baseConfidence + questionBoost + toolBoost);
 
-      if (confidenceScore >= 90 && allFieldsCaptured >= 5) {
-        // Final ticket preview
-        addAIMessage({
-          id: generateId("msg"),
-          role: "assistant",
-          content: investigationResult.content,
-          timestamp: new Date().toISOString(),
-          variant: "ticket",
-          ticketPreview: investigationResult.ticketPreview,
-          tools: investigationResult.tools,
-          metadata: investigationResult.metadata,
-        });
+      // Update confidence in state
+      setConversationState({ ...newState, intent: { ...newState.intent, confidenceScore: finalConfidence } });
 
-        setConversationState({ stage: "ready" });
-      } else {
-        // Confidence too low or not enough fields — ask more questions
-        addAIMessage({
-          id: generateId("msg"),
-          role: "assistant",
-          content: `I've gathered some information but my confidence is at ${confidenceScore}% (minimum 90% required to prepare a ticket draft). Let me ask a few more clarifying questions to improve accuracy.\n\n${allFieldsCaptured < 5 ? "I need more details about this issue before I can create a comprehensive ticket." : "I need to verify a few more details."}`,
-          timestamp: new Date().toISOString(),
-          variant: "question",
-          isQuestion: true,
-          metadata: { confidenceScore },
-        });
+      // Always show the ticket draft after investigation — the questions + tools provide enough info
+      // Split into two messages: the text content, then the ticket preview card
+      addAIMessage({
+        id: generateId("msg"),
+        role: "assistant",
+        content: `Investigation complete (confidence: ${Math.round(finalConfidence)}%). Here's the structured ticket I've prepared — review and confirm to create and route it.`,
+        timestamp: new Date().toISOString(),
+        variant: "default",
+        thinkingDuration: 0,
+      });
 
-        // Ask for additional context
-        addAIMessage({
-          id: generateId("msg"),
-          role: "assistant",
-          content: "Can you provide any additional details about this issue? For example, when exactly did it start, who is affected, or what impact it's having?",
-          timestamp: new Date().toISOString(),
-          variant: "question",
-          isQuestion: true,
-          buttons: [
-            { label: "Let me add more context", value: "more_context", captures: "Additional context requested" },
-            { label: "Proceed with current info (lower confidence)", value: "proceed_anyway", captures: "Proceeding with lower confidence" },
-          ],
-        });
+      await sleep(300);
 
-        setConversationState({ stage: "collecting" });
-      }
+      addAIMessage({
+        id: generateId("msg"),
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+        variant: "ticket",
+        ticketPreview: investigationResult.ticketPreview,
+        tools: investigationResult.tools,
+        metadata: { ...investigationResult.metadata, confidenceScore: Math.round(finalConfidence) },
+      });
+
+      setConversationState({ stage: "ready" });
     }
 
     setIsProcessing(false);
@@ -720,23 +711,11 @@ function MessageBubble({
           )}
         </div>
 
-        {/* Captured fields chips (for info messages) */}
-        {variant === "info" && message.metadata?.capturedFields && message.metadata.capturedFields.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {message.metadata.capturedFields.map((f, i) => (
-              <span key={i} className="iris-chip">
-                <CheckCircle2 className="w-2.5 h-2.5" />
-                {formatFieldName(f.field)}: {f.value}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* Agent activity — compact inline indicator */}
         {message.agentActivity && (
-          <div className="mt-1.5 iris-fade-in">
+          <div className="mt-1 iris-fade-in">
             <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70 mb-1 flex items-center gap-1">
-              <Cpu className="w-2.5 h-2.5 text-violet-500" />
+              <Cpu className="w-2.5 h-2.5 text-primary" />
               {message.agentActivity.filter((a) => a.status === "complete").length}/{message.agentActivity.length} agents
             </div>
             <div className="flex flex-wrap gap-1">
@@ -746,7 +725,7 @@ function MessageBubble({
                   className={cn(
                     "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors",
                     a.status === "active"
-                      ? "bg-violet-500/15 text-violet-600 dark:text-violet-400"
+                      ? "bg-primary/10 text-primary"
                       : a.status === "pending"
                       ? "bg-muted/60 text-muted-foreground/60"
                       : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
