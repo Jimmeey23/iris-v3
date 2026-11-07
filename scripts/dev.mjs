@@ -1,7 +1,7 @@
 // Start `next dev` on the first free port at or above PORT (default 3000).
 import net from "node:net";
 import { spawn, execSync } from "node:child_process";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, existsSync, readFileSync, rmSync } from "node:fs";
 
 const start = Number(process.env.PORT) || 3000;
 const maxTries = 50;
@@ -35,12 +35,28 @@ for (const pid of pids) {
   }
 }
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+// Next.js 16 allows one `next dev` per project (any port) and records it in
+// .next/dev/lock. Stop that server too, wherever it's listening, and clear a
+// lock left behind by a crashed server.
+const lockFile = `${root}/.next/dev/lock`;
+if (existsSync(lockFile)) {
+  let lock = {};
+  try { lock = JSON.parse(readFileSync(lockFile, "utf8")); } catch {}
+  const pid = Number(lock.pid);
+  if (pid && pid !== process.pid && alive(pid) && !killed.includes(pid)) {
+    killed.push(pid);
+    try { process.kill(pid, "SIGTERM"); } catch {}
+  }
+}
 for (let i = 0; i < 20 && killed.some(alive); i++) await new Promise((r) => setTimeout(r, 100));
 for (const pid of killed) {
   if (alive(pid)) try { process.kill(pid, "SIGKILL"); } catch {}
   console.log(`Killed old dev server (pid ${pid})`);
 }
 if (killed.length) await new Promise((r) => setTimeout(r, 300));
+// Any lock still on disk now belongs to a dead process.
+if (existsSync(lockFile)) try { rmSync(lockFile, { force: true }); } catch {}
 
 let port = start;
 while (!(await isFree(port))) {
