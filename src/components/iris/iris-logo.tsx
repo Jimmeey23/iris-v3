@@ -14,12 +14,12 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
     >
       <defs>
         <linearGradient id="iris-bg" x1="0" y1="0" x2="40" y2="40">
-          <stop stopColor="#007bff" />
-          <stop offset="1" stopColor="#0056d2" />
+          <stop stopColor="#0083ff" />
+          <stop offset="1" stopColor="#0058b8" />
         </linearGradient>
         <radialGradient id="iris-glow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0%" stopColor="#5ac8fa" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#007bff" stopOpacity="0" />
+          <stop offset="0%" stopColor="#33b5ff" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#0083ff" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -47,7 +47,7 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
           style={{ animation: "iris-core-pulse 2s ease-in-out infinite" }} />
 
         {/* Inner accent — blue dot in center */}
-        <circle cx="20" cy="20" r="1.5" fill="#007bff" />
+        <circle cx="20" cy="20" r="1.5" fill="#0083ff" />
 
         {/* Radiating spokes — 4 dots at cardinal positions */}
         <circle cx="20" cy="7" r="1" fill="white" opacity="0.4"
@@ -94,8 +94,8 @@ export function IrisLogoMark({ size = 20, className }: { size?: number; classNam
     >
       <defs>
         <linearGradient id="iris-mark-bg" x1="0" y1="0" x2="20" y2="20">
-          <stop stopColor="#007bff" />
-          <stop offset="1" stopColor="#0056d2" />
+          <stop stopColor="#0083ff" />
+          <stop offset="1" stopColor="#0058b8" />
         </linearGradient>
       </defs>
       <rect width="20" height="20" rx="5" fill="url(#iris-mark-bg)" />
@@ -105,7 +105,7 @@ export function IrisLogoMark({ size = 20, className }: { size?: number; classNam
           style={{ animation: "iris-mark-ring 3s ease-in-out infinite" }} />
         <circle cx="10" cy="10" r="2" fill="white" opacity="0.9"
           style={{ animation: "iris-mark-core 2s ease-in-out infinite" }} />
-        <circle cx="10" cy="10" r="0.8" fill="#007bff" />
+        <circle cx="10" cy="10" r="0.8" fill="#0083ff" />
       </g>
       <style>{`
         @keyframes iris-mark-breathe {
