@@ -104,33 +104,48 @@ export function OverviewView() {
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-2">
-            <span className="iris-live-dot" />
-            Operations Overview
+      {/* Hero Section */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 iris-fade-in-up">
+        <div className="absolute inset-0 iris-grid-bg opacity-30" />
+        <div className="relative flex items-center justify-between flex-wrap gap-6">
+          <div className="flex-1 min-w-[300px]">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-3">
+              <span className="iris-live-dot" />
+              Operations Overview - Live
+            </div>
+            <h1 className="text-[28px] font-bold tracking-tight leading-tight">
+              Welcome back, <span className="iris-text-gradient">{currentUser.name.split(" ")[0]}</span>
+            </h1>
+            <p className="text-[14px] text-muted-foreground mt-2 max-w-md">
+              Here's what's happening across all Physique 57 India studios today.
+            </p>
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={() => setCurrentView("ai_assistant")}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium transition-opacity hover:opacity-90"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Ask IRIS
+              </button>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card text-[11px] font-medium">
+                <Timer className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">SLA Compliance</span>
+                <span className="font-bold tabular-nums text-primary">{slaCompliance}%</span>
+              </div>
+            </div>
           </div>
-          <h1 className="text-[22px] font-semibold tracking-tight">
-            Welcome back, {currentUser.name.split(" ")[0]}
-          </h1>
-          <p className="text-[13px] text-muted-foreground mt-1">
-            Here's what's happening across all Physique 57 India studios today.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card text-[11px] font-medium">
-            <Timer className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">SLA</span>
-            <span className="font-semibold tabular-nums">{slaCompliance}%</span>
+          {/* Animated stats circle */}
+          <div className="relative shrink-0">
+            <svg width="120" height="120" viewBox="0 0 120 120" className="iris-spin-slow">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" strokeWidth="2" />
+              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" strokeWidth="2" strokeDasharray={`${(slaCompliance / 100) * 314} 314`} strokeLinecap="round" transform="rotate(-90 60 60)" style={{ animation: "iris-hero-ring 2s ease-out" }} />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center flex-col">
+              <span className="text-[24px] font-bold tabular-nums">{stats.total}</span>
+              <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Tickets</span>
+            </div>
+            <style>{`@keyframes iris-hero-ring { from { stroke-dashoffset: 314; } to { stroke-dashoffset: 0; } } .iris-spin-slow { animation: iris-spin-slow 20s linear infinite; } @keyframes iris-spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           </div>
-          <button
-            onClick={() => setCurrentView("ai_assistant")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium transition-opacity hover:opacity-90"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Ask IRIS
-          </button>
         </div>
       </div>
 

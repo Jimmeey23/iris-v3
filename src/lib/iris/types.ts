@@ -43,71 +43,97 @@ export type Employee = {
 };
 
 export const STUDIOS: Studio[] = [
-  {
-    id: "studio_kwality",
-    name: "Kwality House",
-    city: "Mumbai",
-    code: "KH",
-    address: "Kwality House, August Kranti Marg, Kemps Corner, Mumbai",
-  },
-  {
-    id: "studio_supreme",
-    name: "Supreme HQ",
-    city: "Mumbai",
-    code: "SHQ",
-    address: "Supreme Business Park, Hiranandani Gardens, Powai, Mumbai",
-  },
-  {
-    id: "studio_kenkere",
-    name: "Kenkere House",
-    city: "Bengaluru",
-    code: "KHB",
-    address: "Kenkere House, Indiranagar, Bengaluru",
-  },
-  {
-    id: "studio_popup",
-    name: "Pop Up Studio",
-    city: "Mumbai",
-    code: "PU",
-    address: "Pop-up Location, Bandra West, Mumbai",
-  },
+  { id: "studio_kwality", name: "Kwality House, Kemps Corner", city: "Mumbai", code: "KH", address: "Kwality House, Kemps Corner, Mumbai" },
+  { id: "studio_supreme", name: "Supreme HQ, Bandra", city: "Mumbai", code: "SHQ", address: "Supreme HQ, Bandra, Mumbai" },
+  { id: "studio_kenkere", name: "Kenkere House, Bengaluru", city: "Bengaluru", code: "KHB", address: "Kenkere House, Bengaluru" },
+  { id: "studio_popup", name: "Pop Up Studio", city: "Mumbai", code: "PU", address: "Pop-up Location, Mumbai" },
 ];
 
 export const DEPARTMENTS: Department[] = [
-  { id: "dept_frt", name: "Front Desk & Operations", code: "FRT", description: "Studio front desk, check-ins, member facing operations" },
-  { id: "dept_mem", name: "Memberships & Client Services", code: "MEM", description: "Membership management, freezes, credit adjustments, refunds" },
-  { id: "dept_pay", name: "Payments & Finance", code: "PAY", description: "Payments, refunds, billing reconciliation, financial reporting" },
-  { id: "dept_fac", name: "Facilities & Maintenance", code: "FAC", description: "Studio equipment, AC, sound, cleanliness, infrastructure" },
-  { id: "dept_it", name: "IT & Systems", code: "ITS", description: "Momence, network, hardware, software, integrations" },
-  { id: "dept_sch", name: "Scheduling & Bookings", code: "SCH", description: "Session scheduling, recurring bookings, waitlists, cancellations" },
-  { id: "dept_trn", name: "Training & Instruction", code: "TRN", description: "Trainer schedules, attendance, class quality, instructor issues" },
-  { id: "dept_mkt", name: "Marketing & Communications", code: "MKT", description: "Promotions, campaigns, social, member communications" },
-  { id: "dept_hrv", name: "HR & People", code: "HRV", description: "Staff, payroll, leaves, performance, hiring" },
-  { id: "dept_mgt", name: "Management & Strategy", code: "MGT", description: "Studio management, escalations, strategy, leadership" },
+  { id: "dept_ops", name: "Operations", code: "OPS", description: "Studio operations, facilities, maintenance" },
+  { id: "dept_scs", name: "Sales & Client Servicing", code: "SCS", description: "Client servicing, memberships, front desk" },
+  { id: "dept_trn", name: "Training", code: "TRN", description: "Trainers, instruction, class quality" },
+  { id: "dept_mkt", name: "Marketing", code: "MKT", description: "Marketing, campaigns, communications" },
+  { id: "dept_mgt", name: "Management", code: "MGT", description: "Leadership, strategy, escalations" },
 ];
 
+export type Employee = {
+  id: string;
+  employeeCode: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  title?: string;
+  departmentCode: string;
+  departmentName: string;
+  location: string;
+  reportingManager?: string;
+  birthday?: string;
+  studioCodes: string[];
+  skills: string[];
+  availability: "available" | "busy" | "offline" | "on_leave";
+  workload: number;
+  maxWorkload: number;
+  escalationOrder: number;
+};
+
 export const EMPLOYEES: Employee[] = [
-  { id: "emp_001", employeeCode: "P57-FRT-001", name: "Aarav Mehta", email: "aarav.mehta@physique57.in", phone: "+91 98200 11111", role: "Front Desk Lead", title: "Senior Front Desk Lead", departmentCode: "FRT", studioCodes: ["KH"], skills: ["check-in", "member-services", "Momence"], availability: "available", workload: 4, maxWorkload: 15, escalationOrder: 1 },
-  { id: "emp_002", employeeCode: "P57-FRT-002", name: "Diya Sharma", email: "diya.sharma@physique57.in", phone: "+91 98200 22222", role: "Front Desk Associate", title: "Front Desk Associate", departmentCode: "FRT", studioCodes: ["SHQ"], skills: ["check-in", "member-services"], availability: "available", workload: 2, maxWorkload: 12, escalationOrder: 2 },
-  { id: "emp_003", employeeCode: "P57-FRT-003", name: "Kabir Reddy", email: "kabir.reddy@physique57.in", phone: "+91 80 33333 444", role: "Front Desk Lead", title: "Bengaluru Front Desk Lead", departmentCode: "FRT", studioCodes: ["KHB"], skills: ["check-in", "member-services", "Momence"], availability: "busy", workload: 6, maxWorkload: 15, escalationOrder: 1 },
-  { id: "emp_004", employeeCode: "P57-FRT-004", name: "Ananya Iyer", email: "ananya.iyer@physique57.in", phone: "+91 98200 44444", role: "Front Desk Associate", title: "Front Desk Associate", departmentCode: "FRT", studioCodes: ["PU"], skills: ["check-in", "events"], availability: "available", workload: 1, maxWorkload: 12, escalationOrder: 2 },
-  { id: "emp_010", employeeCode: "P57-MEM-010", name: "Ishita Nair", email: "ishita.nair@physique57.in", phone: "+91 98200 55555", role: "Memberships Manager", title: "Head of Memberships", departmentCode: "MEM", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["memberships", "Momence", "freezes", "credits", "refunds"], availability: "available", workload: 7, maxWorkload: 20, escalationOrder: 1 },
-  { id: "emp_011", employeeCode: "P57-MEM-011", name: "Rohan Desai", email: "rohan.desai@physique57.in", phone: "+91 98200 66666", role: "Memberships Associate", title: "Memberships Associate", departmentCode: "MEM", studioCodes: ["KH", "SHQ"], skills: ["memberships", "Momence"], availability: "available", workload: 3, maxWorkload: 15, escalationOrder: 2 },
-  { id: "emp_020", employeeCode: "P57-PAY-020", name: "Meera Krishnan", email: "meera.krishnan@physique57.in", phone: "+91 98200 77777", role: "Finance Manager", title: "Finance Manager", departmentCode: "PAY", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["payments", "reconciliation", "billing", "Momence"], availability: "available", workload: 5, maxWorkload: 18, escalationOrder: 1 },
-  { id: "emp_021", employeeCode: "P57-PAY-021", name: "Vivaan Gupta", email: "vivaan.gupta@physique57.in", phone: "+91 98200 88888", role: "Payments Associate", title: "Payments Associate", departmentCode: "PAY", studioCodes: ["KH", "SHQ"], skills: ["payments", "billing"], availability: "available", workload: 2, maxWorkload: 12, escalationOrder: 2 },
-  { id: "emp_030", employeeCode: "P57-FAC-030", name: "Arjun Pillai", email: "arjun.pillai@physique57.in", phone: "+91 98200 99999", role: "Facilities Manager", title: "Head of Facilities", departmentCode: "FAC", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["HVAC", "electrical", "plumbing", "equipment"], availability: "available", workload: 6, maxWorkload: 18, escalationOrder: 1 },
-  { id: "emp_031", employeeCode: "P57-FAC-031", name: "Sara Khan", email: "sara.khan@physique57.in", phone: "+91 98200 10101", role: "Maintenance Associate", title: "Maintenance Associate", departmentCode: "FAC", studioCodes: ["KH"], skills: ["cleaning", "equipment"], availability: "busy", workload: 8, maxWorkload: 14, escalationOrder: 2 },
-  { id: "emp_032", employeeCode: "P57-FAC-032", name: "Devraj Singh", email: "devraj.singh@physique57.in", phone: "+91 80 45678 901", role: "Bengaluru Facilities Lead", title: "Bengaluru Facilities Lead", departmentCode: "FAC", studioCodes: ["KHB"], skills: ["HVAC", "electrical", "equipment"], availability: "available", workload: 3, maxWorkload: 15, escalationOrder: 1 },
-  { id: "emp_040", employeeCode: "P57-ITS-040", name: "Neel Patel", email: "neel.patel@physique57.in", phone: "+91 98200 12121", role: "IT Manager", title: "Head of IT & Systems", departmentCode: "ITS", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["Momence", "network", "hardware", "software", "integrations"], availability: "available", workload: 5, maxWorkload: 20, escalationOrder: 1 },
-  { id: "emp_041", employeeCode: "P57-ITS-041", name: "Priya Joshi", email: "priya.joshi@physique57.in", phone: "+91 98200 13131", role: "Systems Administrator", title: "Systems Administrator", departmentCode: "ITS", studioCodes: ["KH", "SHQ"], skills: ["Momence", "network"], availability: "available", workload: 4, maxWorkload: 14, escalationOrder: 2 },
-  { id: "emp_050", employeeCode: "P57-SCH-050", name: "Aanya Verma", email: "aanya.verma@physique57.in", phone: "+91 98200 14141", role: "Scheduling Manager", title: "Scheduling Manager", departmentCode: "SCH", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["Momence", "scheduling", "waitlists"], availability: "available", workload: 5, maxWorkload: 16, escalationOrder: 1 },
-  { id: "emp_051", employeeCode: "P57-SCH-051", name: "Vihaan Rao", email: "vihaan.rao@physique57.in", phone: "+91 98200 15151", role: "Bookings Associate", title: "Bookings Associate", departmentCode: "SCH", studioCodes: ["KH", "SHQ"], skills: ["Momence", "bookings"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 2 },
-  { id: "emp_060", employeeCode: "P57-TRN-060", name: "Tara Kapoor", email: "tara.kapoor@physique57.in", phone: "+91 98200 16161", role: "Head Trainer", title: "Head Trainer & Training Manager", departmentCode: "TRN", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction", "attendance"], availability: "available", workload: 4, maxWorkload: 16, escalationOrder: 1 },
-  { id: "emp_061", employeeCode: "P57-TRN-061", name: "Reyaan Malhotra", email: "reyaan.malhotra@physique57.in", phone: "+91 98200 17171", role: "Senior Trainer", title: "Senior Trainer", departmentCode: "TRN", studioCodes: ["KHB"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 1 },
-  { id: "emp_070", employeeCode: "P57-MKT-070", name: "Kiara Bhatia", email: "kiara.bhatia@physique57.in", phone: "+91 98200 18181", role: "Marketing Manager", title: "Marketing Manager", departmentCode: "MKT", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["campaigns", "social", "email", "communications"], availability: "available", workload: 4, maxWorkload: 16, escalationOrder: 1 },
-  { id: "emp_080", employeeCode: "P57-HRV-080", name: "Aditya Menon", email: "aditya.menon@physique57.in", phone: "+91 98200 19191", role: "HR Manager", title: "HR Manager", departmentCode: "HRV", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["hr", "payroll", "performance", "hiring"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 1 },
-  { id: "emp_090", employeeCode: "P57-MGT-090", name: "Sanaya Wadia", email: "sanaya.wadia@physique57.in", phone: "+91 98200 20202", role: "Studio Director", title: "India Director — Physique 57", departmentCode: "MGT", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["leadership", "strategy", "operations", "escalations"], availability: "available", workload: 2, maxWorkload: 10, escalationOrder: 1 },
-  { id: "emp_091", employeeCode: "P57-MGT-091", name: "Farhan Ali", email: "farhan.ali@physique57.in", phone: "+91 98200 21212", role: "Operations Manager", title: "Operations Manager", departmentCode: "MGT", studioCodes: ["KH", "SHQ"], skills: ["operations", "process"], availability: "available", workload: 4, maxWorkload: 14, escalationOrder: 2 },
+  // Management
+  { id: "emp_mallika", employeeCode: "EMP-001", name: "Mallika Parekh", email: "mallika@physique57india.com", role: "Owner", title: "Owner", departmentCode: "MGT", departmentName: "Management", location: "India", reportingManager: "", birthday: "Dec 06", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["leadership", "strategy", "ownership"], availability: "available", workload: 0, maxWorkload: 5, escalationOrder: 0 },
+  { id: "emp_mitali", employeeCode: "EMP-002", name: "Mitali Kumar", email: "mitali@physique57india.com", role: "Chief Operations Officer", title: "COO", departmentCode: "MGT", departmentName: "Management", location: "India", reportingManager: "Mallika Parekh", birthday: "Nov 17", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["operations", "leadership", "escalations"], availability: "available", workload: 2, maxWorkload: 10, escalationOrder: 1 },
+  { id: "emp_jimmeey", employeeCode: "EMP-003", name: "Jimmeey Gondaa", email: "jimmeey@physique57india.com", role: "Head of Sales & Client Servicing", title: "Head of SCS", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "India", reportingManager: "Mitali Kumar", birthday: "Mar 23", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["sales", "client-servicing", "leadership"], availability: "available", workload: 3, maxWorkload: 12, escalationOrder: 1 },
+  { id: "emp_reyna", employeeCode: "EMP-004", name: "Reyna Jagtiani", email: "reyna@physique57india.com", role: "Marketing Head", title: "Marketing Head", departmentCode: "MKT", departmentName: "Marketing", location: "India", reportingManager: "Mitali Kumar", birthday: "", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["marketing", "branding", "strategy"], availability: "available", workload: 2, maxWorkload: 10, escalationOrder: 1 },
+  { id: "emp_anisha", employeeCode: "EMP-005", name: "Anisha Shah", email: "anisha@physique57india.com", role: "Master Trainer", title: "Master Trainer", departmentCode: "TRN", departmentName: "Training", location: "India", reportingManager: "Mallika Parekh", birthday: "Dec 11", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["training", "instruction", "leadership"], availability: "available", workload: 3, maxWorkload: 12, escalationOrder: 1 },
+
+  // Operations
+  { id: "emp_saachi", employeeCode: "EMP-006", name: "Saachi Shetty", email: "saachi@physique57india.com", role: "Ops Manager", title: "Operations Manager", departmentCode: "OPS", departmentName: "Operations", location: "India", reportingManager: "Mitali Kumar", birthday: "Jan 18", studioCodes: ["KH", "SHQ", "KHB", "PU"], skills: ["operations", "facilities", "process"], availability: "available", workload: 5, maxWorkload: 16, escalationOrder: 2 },
+  { id: "emp_zahur", employeeCode: "EMP-007", name: "Zahur Shaikh", email: "zahur@physique57mumbai.com", role: "Asst. Studio Operations Manager", title: "Asst. Ops Manager", departmentCode: "OPS", departmentName: "Operations", location: "Mumbai", reportingManager: "Saachi Shetty", birthday: "Oct 05", studioCodes: ["KH", "SHQ"], skills: ["operations", "facilities"], availability: "available", workload: 6, maxWorkload: 15, escalationOrder: 3 },
+  { id: "emp_shifa", employeeCode: "EMP-008", name: "Shifa Ali", email: "shifa@physique57bengaluru.com", role: "Regional Head of Ops - South", title: "Regional Ops Head South", departmentCode: "OPS", departmentName: "Operations", location: "Bengaluru", reportingManager: "Mitali Kumar", birthday: "Sep 22", studioCodes: ["KHB"], skills: ["operations", "facilities", "regional"], availability: "available", workload: 4, maxWorkload: 14, escalationOrder: 2 },
+
+  // Sales & Client Servicing - Mumbai Kemps
+  { id: "emp_akshay", employeeCode: "EMP-009", name: "Akshay Rane", email: "akshay@physique57mumbai.com", role: "Team Leader - SCS", title: "Team Lead SCS Kemps", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Kemps", reportingManager: "Jimmeey Gondaa", birthday: "Aug 04", studioCodes: ["KH"], skills: ["sales", "client-servicing", "leadership"], availability: "available", workload: 5, maxWorkload: 15, escalationOrder: 2 },
+  { id: "emp_vahishta", employeeCode: "EMP-010", name: "Vaishtha Fitter", email: "vahishta@physique57mumbai.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Kemps", reportingManager: "Akshay Rane", birthday: "Dec 25", studioCodes: ["KH"], skills: ["sales", "client-servicing"], availability: "available", workload: 3, maxWorkload: 12, escalationOrder: 3 },
+  { id: "emp_sheetal", employeeCode: "EMP-011", name: "Sheetal Kataria", email: "sheetal@physique57mumbai.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Kemps", reportingManager: "Akshay Rane", birthday: "Mar 24", studioCodes: ["KH"], skills: ["sales", "client-servicing"], availability: "available", workload: 3, maxWorkload: 12, escalationOrder: 3 },
+  { id: "emp_tahira", employeeCode: "EMP-012", name: "Tahira Sayyed", email: "tahira@physique57mumbai.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Kemps", reportingManager: "Akshay Rane", birthday: "Sep 26", studioCodes: ["KH"], skills: ["sales", "client-servicing"], availability: "available", workload: 2, maxWorkload: 12, escalationOrder: 3 },
+
+  // Sales & Client Servicing - Mumbai Bandra
+  { id: "emp_shipra", employeeCode: "EMP-013", name: "Shipra Bhika", email: "shipra@physique57mumbai.com", role: "Team Leader - SCS", title: "Team Lead SCS Bandra", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Bandra", reportingManager: "Jimmeey Gondaa", birthday: "Nov 30", studioCodes: ["SHQ"], skills: ["sales", "client-servicing", "leadership"], availability: "available", workload: 4, maxWorkload: 15, escalationOrder: 2 },
+  { id: "emp_deesha", employeeCode: "EMP-014", name: "Deesha Changwani", email: "deesha@physique57mumbai.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Bandra", reportingManager: "Shipra Bhika", birthday: "Sep 06", studioCodes: ["SHQ"], skills: ["sales", "client-servicing"], availability: "available", workload: 3, maxWorkload: 12, escalationOrder: 3 },
+  { id: "emp_nadiya", employeeCode: "EMP-015", name: "Nadiya Shaikh", email: "nadiya@physique57mumbai.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Bandra", reportingManager: "Shipra Bhika", birthday: "Sep 20", studioCodes: ["SHQ"], skills: ["sales", "client-servicing"], availability: "available", workload: 2, maxWorkload: 12, escalationOrder: 3 },
+  { id: "emp_imran", employeeCode: "EMP-016", name: "Imran Shaikh", email: "imran@physique57mumbai.com", role: "Sr. CST", title: "Senior CST", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Mumbai - Bandra", reportingManager: "Shipra Bhika", birthday: "Sep 27", studioCodes: ["SHQ"], skills: ["sales", "client-servicing", "senior"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 2 },
+
+  // Sales & Client Servicing - Bengaluru
+  { id: "emp_prathap", employeeCode: "EMP-017", name: "Prathap Kp", email: "prathap@physique57bengaluru.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Bengaluru", reportingManager: "Shifa Ali", birthday: "Dec 24", studioCodes: ["KHB"], skills: ["sales", "client-servicing"], availability: "available", workload: 3, maxWorkload: 12, escalationOrder: 3 },
+  { id: "emp_yashas", employeeCode: "EMP-018", name: "Yashas K", email: "yashas@physique57bengaluru.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Bengaluru", reportingManager: "Shifa Ali", birthday: "Mar 06", studioCodes: ["KHB"], skills: ["sales", "client-servicing"], availability: "available", workload: 2, maxWorkload: 12, escalationOrder: 3 },
+  { id: "emp_sashi", employeeCode: "EMP-019", name: "Sashi Singh", email: "sashi@physique57bengaluru.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Bengaluru", reportingManager: "Shifa Ali", birthday: "Mar 06", studioCodes: ["KHB"], skills: ["sales", "client-servicing"], availability: "available", workload: 2, maxWorkload: 12, escalationOrder: 3 },
+  { id: "emp_wungsingla", employeeCode: "EMP-020", name: "Wungsingla Serou", email: "api@physique57bengaluru.com", role: "SCS Executive", title: "SCS Executive", departmentCode: "SCS", departmentName: "Sales & Client Servicing", location: "Bengaluru", reportingManager: "Shifa Ali", birthday: "May 03", studioCodes: ["KHB"], skills: ["sales", "client-servicing"], availability: "available", workload: 2, maxWorkload: 12, escalationOrder: 3 },
+
+  // Training - Mumbai
+  { id: "emp_vivaran", employeeCode: "EMP-021", name: "Vivaran Dhasmana", email: "vivaran@physique57mumbai.com", role: "Head Trainer", title: "Head Trainer Mumbai", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Anisha Shah", birthday: "Jan 26", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction", "leadership"], availability: "available", workload: 4, maxWorkload: 16, escalationOrder: 2 },
+  { id: "emp_mrigakshi", employeeCode: "EMP-022", name: "Mrigakshi Jaiswal", email: "mrigakshi@physique57mumbai.com", role: "Head Trainer", title: "Head Trainer Mumbai", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Anisha Shah", birthday: "Oct 19", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction", "leadership"], availability: "available", workload: 4, maxWorkload: 16, escalationOrder: 2 },
+  { id: "emp_karan", employeeCode: "EMP-023", name: "Karan Bhatia", email: "karan@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Vivaran Dhasmana", birthday: "May 04", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_cauveri", employeeCode: "EMP-024", name: "Cauveri Vikrant", email: "cauveri@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Mrigakshi Jaiswal", birthday: "Aug 31", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_pranjali", employeeCode: "EMP-025", name: "Pranjali Jain", email: "pranjali@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Vivaran Dhasmana", birthday: "Sep 06", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_atulan", employeeCode: "EMP-026", name: "Atulan Purohit", email: "atulan@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Mrigakshi Jaiswal", birthday: "Oct 02", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_richard", employeeCode: "EMP-027", name: "Richard D'souza", email: "richard@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Vivaran Dhasmana", birthday: "Oct 06", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_raunak", employeeCode: "EMP-028", name: "Raunak Nadkarni", email: "raunak@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Mrigakshi Jaiswal", birthday: "Oct 11", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_bret", employeeCode: "EMP-029", name: "Bret Saldhana", email: "bret@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Vivaran Dhasmana", birthday: "Nov 19", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_simonelle", employeeCode: "EMP-030", name: "Simonelle De Vitre", email: "simonelle@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Mrigakshi Jaiswal", birthday: "Dec 08", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_anmol", employeeCode: "EMP-031", name: "Anmol Sharma", email: "anmol@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Vivaran Dhasmana", birthday: "", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_rohan", employeeCode: "EMP-032", name: "Rohan Dahima", email: "rohan@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Mrigakshi Jaiswal", birthday: "Dec 31", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_reshma", employeeCode: "EMP-033", name: "Reshma Sharma", email: "reshma@physique57mumbai.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Mumbai", reportingManager: "Mrigakshi Jaiswal", birthday: "Nov 28", studioCodes: ["KH", "SHQ"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+
+  // Training - Bengaluru
+  { id: "emp_pushyank", employeeCode: "EMP-034", name: "Pushyank Nahar", email: "pushyank@physique57bengaluru.com", role: "Head Trainer", title: "Head Trainer Bengaluru", departmentCode: "TRN", departmentName: "Training", location: "Bengaluru", reportingManager: "Anisha Shah", birthday: "Nov 29", studioCodes: ["KHB"], skills: ["training", "instruction", "leadership"], availability: "available", workload: 4, maxWorkload: 16, escalationOrder: 2 },
+  { id: "emp_shruthi", employeeCode: "EMP-035", name: "Shruthi Kulkarni", email: "shruthi@physique57bengaluru.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Bengaluru", reportingManager: "Pushyank Nahar", birthday: "Apr 29", studioCodes: ["KHB"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_chaitanya", employeeCode: "EMP-036", name: "Chaitanya Nahar", email: "chaitanya@physique57bengaluru.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Bengaluru", reportingManager: "Pushyank Nahar", birthday: "Apr 04", studioCodes: ["KHB"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_kajol", employeeCode: "EMP-037", name: "Kajol Kanchan", email: "kajol@physique57bengaluru.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Bengaluru", reportingManager: "Pushyank Nahar", birthday: "May 12", studioCodes: ["KHB"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+  { id: "emp_siddhartha", employeeCode: "EMP-038", name: "Siddhartha Kasuma", email: "siddhartha@physique57bengaluru.com", role: "Trainer", title: "Trainer", departmentCode: "TRN", departmentName: "Training", location: "Bengaluru", reportingManager: "Pushyank Nahar", birthday: "Jul 30", studioCodes: ["KHB"], skills: ["training", "instruction"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 3 },
+
+  // Marketing
+  { id: "emp_shaina", employeeCode: "EMP-039", name: "Shaina Saraiya", email: "shaina@physique57mumbai.com", role: "Marketing Lead", title: "Marketing Lead Mumbai", departmentCode: "MKT", departmentName: "Marketing", location: "Mumbai", reportingManager: "Reyna Jagtiani", birthday: "Jun 11", studioCodes: ["KH", "SHQ"], skills: ["marketing", "social", "campaigns"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 2 },
+  { id: "emp_saachi_jr", employeeCode: "EMP-040", name: "Saachi Shetty Jr", email: "saachi.s@physique57bengaluru.com", role: "Marketing Lead", title: "Marketing Lead Bengaluru", departmentCode: "MKT", departmentName: "Marketing", location: "Bengaluru", reportingManager: "Shifa Ali", birthday: "Dec 29", studioCodes: ["KHB"], skills: ["marketing", "social", "campaigns"], availability: "available", workload: 3, maxWorkload: 14, escalationOrder: 2 },
 ];
 
 export const EMPLOYEE_MAP: Record<string, Employee> = Object.fromEntries(

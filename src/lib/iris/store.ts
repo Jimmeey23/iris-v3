@@ -159,9 +159,9 @@ export const useAppStore = create<AppState>()(
       resetConversation: () => set({ aiMessages: [], conversationState: createInitialState() }),
 
       currentUser: {
-        id: "emp_001",
-        name: "Aarav Mehta",
-        role: "Front Desk Lead",
+        id: "emp_zahur",
+        name: "Zahur Shaikh",
+        role: "Asst. Studio Operations Manager",
       },
     }),
     {
