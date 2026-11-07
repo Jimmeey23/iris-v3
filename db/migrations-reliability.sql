@@ -74,7 +74,7 @@ alter table iris.email_log add constraint email_log_status_check
 -- 5. Ops settings (defaults only — existing admin edits are never overwritten)
 -- ---------------------------------------------------------------------------
 insert into iris.app_settings (key, value, description, category) values
-  ('ops.sweeps_enabled', true,
+  ('ops.sweeps_enabled', 'true',
    'Master switch for the request-driven sweeps (SLA, escalation, outbox drain).',
    'ops'),
   ('ops.escalate_after_breach_hours', '4',
@@ -83,7 +83,7 @@ insert into iris.app_settings (key, value, description, category) values
   ('ops.escalation_max_level', '3',
    'Maximum escalation level per ticket. Level 1 = tier manager, 2 = department head, 3 = admin / escalation order.',
    'ops'),
-  ('ops.email_via_outbox', true,
+  ('ops.email_via_outbox', 'true',
    'Queue notification email through iris.outbox with retries. Turn off to send inline (not recommended).',
    'ops'),
   ('ops.ticket_create_limit', '20',
