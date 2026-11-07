@@ -1,20 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * Momence OAuth redirect target. Token exchange isn't enabled yet, so this
+ * only sends the user back to the app without leaking the code in the URL.
+ */
 export async function GET(req: NextRequest) {
-  const searchParams = req.nextUrl.searchParams;
-  const code = searchParams.get("code");
-  const state = searchParams.get("state");
-  const error = searchParams.get("error");
-
-  if (error) {
-    return NextResponse.redirect(new URL(`/momence?error=${error}`, req.url));
-  }
-
-  if (!code) {
-    return NextResponse.json({ error: "Missing authorization code" }, { status: 400 });
-  }
-
-  // In production: exchange code for token, store in DB
-  // For now: redirect back to Momence settings with success
-  return NextResponse.redirect(new URL(`/settings?momence_connected=true&code=${code}`, req.url));
+  const failed = req.nextUrl.searchParams.has("error") || !req.nextUrl.searchParams.get("code");
+  return NextResponse.redirect(new URL(failed ? "/?momence=error" : "/?momence=pending", req.url));
 }

@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
+import { ticketsApi } from "@/lib/iris/live-data";
+import { toast } from "sonner";
 import { Ticket, getAssignee, getReporter, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
 import { EMPLOYEES, DEPARTMENTS, EMPLOYEE_MAP, Priority, TicketStatus } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge, SLAProgressBar, StudioBadge, DepartmentBadge } from "../badges";
@@ -40,7 +42,6 @@ import {
   History,
   Tag,
   Link2,
-  PaperPlaneRight,
   Lock,
 } from "lucide-react";
 
@@ -49,7 +50,41 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [activeTab, setActiveTab] = React.useState("resolution");
   const [comment, setComment] = React.useState("");
   const [status, setStatus] = React.useState<TicketStatus>(ticket.status);
-  const [slaPaused, setSlaPaused] = React.useState(false);
+  const [slaPaused, setSlaPaused] = React.useState(ticket.slaStatus === "paused");
+  const [busy, setBusy] = React.useState(false);
+  const [summaryDraft, setSummaryDraft] = React.useState("");
+  const readOnly = Boolean(ticket.legacy);
+
+  /** Persist a change; on failure show why and keep the UI as it was. */
+  const save = async (changes: Record<string, unknown>, success: string) => {
+    if (readOnly) {
+      toast.error("Imported legacy tickets are closed and read-only.");
+      return false;
+    }
+    setBusy(true);
+    try {
+      await ticketsApi.update(ticket.id, changes);
+      toast.success(success);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't save");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startWork = async () => {
+    if (await save({ status: "in_progress" }, "Work started")) setStatus("in_progress");
+  };
+  const toggleSlaPause = async () => {
+    const next = !slaPaused;
+    if (await save({ slaStatus: next ? "paused" : "on_track" }, next ? "SLA paused" : "SLA resumed")) setSlaPaused(next);
+  };
+  const submitSummary = async () => {
+    if (!summaryDraft.trim()) return;
+    if (await save({ resolutionSummary: summaryDraft.trim() }, "Resolution summary saved")) setSummaryDraft("");
+  };
   const [showResolveDialog, setShowResolveDialog] = React.useState(false);
   const [showExtensionDialog, setShowExtensionDialog] = React.useState(false);
   const [resolutionNote, setResolutionNote] = React.useState("");
@@ -68,39 +103,54 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
   // Resolution permission — only owner or their reporting manager can resolve
   const isOwner = currentUser.id === ticket.assigneeId;
-  const isManager = currentUser.role.toLowerCase().includes("manager") || currentUser.role.toLowerCase().includes("director");
+  const isManager = currentUser.tier === "admin" || currentUser.tier === "manager";
   const canResolve = isOwner || isManager;
 
-  const handleAddLogEntry = () => {
-    if (!newLogEntry.trim()) return;
-    setResolutionLog([...resolutionLog, {
-      author: currentUser.name,
-      type: logEntryType,
-      content: newLogEntry,
-      timestamp: new Date().toISOString(),
-    }]);
-    setNewLogEntry("");
+  const logEntry = async (type: string, content: string) => {
+    const saved = await ticketsApi.comment(ticket.id, type === "comment" || type === "note" ? content : `[${type.replace(/_/g, " ")}] ${content}`);
+    setResolutionLog((log) => [...log, { author: saved.author, type, content, timestamp: saved.timestamp }]);
   };
 
-  const handleResolve = () => {
+  const postComment = async () => {
+    if (!comment.trim()) return;
+    setBusy(true);
+    try {
+      await ticketsApi.comment(ticket.id, comment.trim());
+      setComment("");
+      toast.success("Comment added");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't add comment");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAddLogEntry = async () => {
+    if (!newLogEntry.trim()) return;
+    setBusy(true);
+    try {
+      await logEntry(logEntryType, newLogEntry.trim());
+      setNewLogEntry("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't add entry");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResolve = async () => {
     if (!resolutionNote.trim()) return;
+    const summary = `${resolutionNote.trim()}${resolutionActions ? `\nActions taken: ${resolutionActions.trim()}` : ""}`;
+    if (!(await save({ status: "resolved", resolutionSummary: summary }, "Ticket resolved"))) return;
     setStatus("resolved");
-    setResolutionLog([...resolutionLog, {
-      author: currentUser.name,
-      type: "resolution",
-      content: `Ticket resolved. Summary: ${resolutionNote}${resolutionActions ? `\nActions taken: ${resolutionActions}` : ""}`,
-      timestamp: new Date().toISOString(),
-    }]);
+    await logEntry("resolution", `Ticket resolved. Summary: ${summary}`).catch(() => {});
     setShowResolveDialog(false);
   };
 
-  const handleExtension = () => {
-    setResolutionLog([...resolutionLog, {
-      author: currentUser.name,
-      type: "sla_extension",
-      content: `SLA extension requested: +${extensionHours} hours. Reason: ${extensionReason || "Not specified"}`,
-      timestamp: new Date().toISOString(),
-    }]);
+  const handleExtension = async () => {
+    const ok = await save({ extendSlaHours: extensionHours }, `SLA extended by ${extensionHours}h`);
+    if (!ok) return;
+    await logEntry("sla_extension", `SLA extended +${extensionHours} hours. Reason: ${extensionReason || "Not specified"}`).catch(() => {});
     setShowExtensionDialog(false);
     setExtensionReason("");
     setExtensionHours(4);
@@ -210,14 +260,21 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                   {/* Action Buttons — functional */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <ActionButton icon={PlayCircle} label="Start Work" color="violet" onClick={() => setStatus("in_progress")} disabled={status !== "open" && status !== "awaiting_response"} />
-                    <ActionButton icon={PauseCircle} label="Pause SLA" color="amber" onClick={() => setSlaPaused(!slaPaused)} />
-                    <ActionButton icon={Clock} label="Request Extension" color="sky" onClick={() => setShowExtensionDialog(true)} />
-                    <ActionButton icon={CheckCircle2} label="Mark Resolved" color="emerald" onClick={() => setShowResolveDialog(true)} disabled={!canResolve} />
+                    <ActionButton icon={PlayCircle} label="Start Work" color="violet" onClick={startWork} disabled={readOnly || busy || (status !== "open" && status !== "awaiting_response")} />
+                    <ActionButton icon={PauseCircle} label={slaPaused ? "Resume SLA" : "Pause SLA"} color="amber" onClick={toggleSlaPause} disabled={readOnly || busy} />
+                    <ActionButton icon={Clock} label="Extend SLA" color="sky" onClick={() => setShowExtensionDialog(true)} disabled={readOnly || busy} />
+                    <ActionButton icon={CheckCircle2} label="Mark Resolved" color="emerald" onClick={() => setShowResolveDialog(true)} disabled={readOnly || busy || !canResolve || status === "resolved" || status === "closed"} />
                   </div>
 
+                  {readOnly && (
+                    <div className="p-2.5 rounded-md bg-muted/40 border border-border flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">Imported from the previous ticketing system. Closed, read-only and exempt from SLAs. You can still add notes.</span>
+                    </div>
+                  )}
+
                   {/* Resolve permission notice */}
-                  {!canResolve && (
+                  {!canResolve && !readOnly && (
                     <div className="p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 flex items-center gap-2">
                       <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                       <span className="text-[11px] text-muted-foreground">Only the assigned owner or their reporting manager can resolve this ticket. You are viewing as <span className="font-semibold">{currentUser.role}</span>.</span>
@@ -250,8 +307,11 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       <Textarea
                         placeholder="Document the resolution steps taken, root cause, and any preventive measures..."
                         className="text-[12px] min-h-[80px]"
+                        value={summaryDraft}
+                        onChange={(e) => setSummaryDraft(e.target.value)}
+                        disabled={readOnly}
                       />
-                      <Button size="sm" className="mt-2 h-7 text-[12px]">
+                      <Button size="sm" className="mt-2 h-7 text-[12px]" onClick={submitSummary} disabled={readOnly || busy || !summaryDraft.trim()}>
                         <Send className="w-3 h-3 mr-1" />
                         Submit Resolution
                       </Button>
@@ -329,7 +389,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                           placeholder={`Add a ${logEntryType.replace(/_/g, " ")}...`}
                           className="flex-1 h-7 px-2.5 text-[12px] rounded-md border border-border bg-card focus:outline-none focus:border-primary"
                         />
-                        <Button size="sm" className="h-7 text-[11px] px-2" onClick={handleAddLogEntry} disabled={!newLogEntry.trim()}>
+                        <Button size="sm" className="h-7 text-[11px] px-2" onClick={handleAddLogEntry} disabled={busy || !newLogEntry.trim()}>
                           <Send className="w-3 h-3" />
                         </Button>
                       </div>
@@ -564,10 +624,6 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                   <div className="iris-card p-3">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <Button variant="outline" size="sm" className="h-7 text-[11px]">
-                        <Paperclip className="w-3 h-3 mr-1" />
-                        Attach
-                      </Button>
                       <div className="ml-auto flex items-center gap-1.5 text-[10px]">
                         <span className="text-muted-foreground">Visibility:</span>
                         <Badge variant="outline" className="text-[10px] h-5 px-1.5">Internal</Badge>
@@ -581,7 +637,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     />
                     <div className="flex items-center justify-between mt-2">
                       <div className="text-[10px] text-muted-foreground">Markdown supported</div>
-                      <Button size="sm" className="h-7 text-[12px]" disabled={!comment.trim()}>
+                      <Button size="sm" className="h-7 text-[12px]" onClick={postComment} disabled={busy || !comment.trim()}>
                         <Send className="w-3 h-3 mr-1" />
                         Comment
                       </Button>

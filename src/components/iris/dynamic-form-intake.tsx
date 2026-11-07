@@ -2,6 +2,9 @@
 
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
+import { ticketsApi } from "@/lib/iris/live-data";
+import { STUDIOS } from "@/lib/iris/types";
+import { toast } from "sonner";
 import {
   IRIS_STUDIOS,
   IRIS_DEPARTMENTS,
@@ -152,10 +155,45 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
     }
   }, [step, form]);
 
-  const handleSubmit = () => {
-    // Create ticket from form data
-    setCurrentView("all_tickets");
-    onClose();
+  const [submitting, setSubmitting] = React.useState(false);
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    const DEPT: Record<string, string> = {
+      training: "TRN", operations: "OPS", "sales-client-servicing": "SCS", marketing: "MKT", management: "MGT", accounts: "PAY",
+    };
+    const PRIORITY: Record<string, string> = { critical: "P0", high: "P1", medium: "P2", low: "P3" };
+    const studio = STUDIOS.find((s) => s.name === form.studio);
+    const extras: Array<[string, string]> = [
+      ["Area", form.area], ["Trainer", form.trainer], ["Class format", form.classFormat], ["System", form.system],
+      ["When", form.occurred], ["Session", form.sessionTime], ["Payment", [form.paymentAmount, form.paymentMethod, form.paymentReference].filter(Boolean).join(" · ")],
+      ["Requested outcome", form.requestedOutcome], ["Additional context", form.additionalContext],
+    ];
+    const details = extras.filter(([, v]) => v && v.trim()).map(([k, v]) => `${k}: ${v.trim()}`).join("\n");
+    try {
+      const t = await ticketsApi.create({
+        title: form.title,
+        description: [form.summary.trim(), details].filter(Boolean).join("\n\n"),
+        category: form.category,
+        subcategory: form.subcategory,
+        priority: PRIORITY[form.priority] ?? "P2",
+        severity: form.severity,
+        studioCode: studio?.code,
+        departmentCode: DEPT[computedDepartment],
+        affectedClient: form.affectedClient,
+        recommendedResolution: form.requestedOutcome,
+        source: "form_intake",
+        tags: [form.category, form.subcategory].filter(Boolean),
+        collectedInfo: { ...form, attachments: undefined },
+      });
+      toast.success(`Ticket ${t.ticketId} created`);
+      setCurrentView("all_tickets");
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't create the ticket");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const progressPct = ((step + 1) / STEPS.length) * 100;
@@ -516,6 +554,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
               size="sm"
               className="h-8 text-[12px] iris-btn-premium iris-action-shimmer"
               onClick={handleSubmit}
+              disabled={submitting}
             >
               <Send className="w-3 h-3 mr-1" />
               Create Ticket

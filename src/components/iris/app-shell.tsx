@@ -34,7 +34,10 @@ import {
   Flame,
   X,
   UserSearch,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "./auth-gate";
+import { getInitials } from "@/lib/iris/utils";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -68,7 +71,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, group: "main" },
   { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, group: "main" },
   { id: "all_tickets", label: "All Tickets", icon: Ticket, group: "main", badge: () => ALL_TICKETS.filter(t => t.status !== "closed" && t.status !== "resolved").length },
-  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === "emp_001").length },
+  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === useAppStore.getState().currentUser.id && t.status !== "closed" && t.status !== "resolved").length },
   { id: "department_queue", label: "Department", icon: Building2, group: "main" },
   { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
   { id: "trainers", label: "Trainers", icon: Users, group: "main" },
@@ -89,6 +92,7 @@ const NAV_GROUPS: { id: NavItem["group"]; label?: string }[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { currentView, setCurrentView, sidebarCollapsed, toggleSidebar, currentUser } = useAppStore();
+  const { signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
@@ -294,7 +298,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2 flex-1 min-w-0 px-1.5 py-1">
                 <Avatar className="w-7 h-7 shrink-0">
                   <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-semibold">
-                    AM
+                    {getInitials(currentUser.name || currentUser.email)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0 overflow-hidden">
@@ -302,6 +306,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="text-[10px] text-muted-foreground truncate">{currentUser.role}</div>
                 </div>
               </div>
+            )}
+            {!sidebarCollapsed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={signOut}
+                    aria-label="Sign out"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors shrink-0"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Sign out</TooltipContent>
+              </Tooltip>
             )}
             <Tooltip>
               <TooltipTrigger asChild>

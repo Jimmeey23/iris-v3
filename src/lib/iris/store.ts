@@ -51,13 +51,25 @@ interface AppState {
   setConversationState: (state: ConversationState | Partial<ConversationState>) => void;
   resetConversation: () => void;
 
-  // User (mock current user)
-  currentUser: {
-    id: string;
-    name: string;
-    role: string;
-    avatar?: string;
-  };
+  // Signed-in user (set by <AuthGate> from /api/auth/me)
+  currentUser: CurrentUser;
+  setCurrentUser: (user: CurrentUser) => void;
+
+  // Bumped whenever live data changes so views re-read ALL_TICKETS etc.
+  dataVersion: number;
+  bumpData: () => void;
+}
+
+export interface CurrentUser {
+  /** Employee id when linked, otherwise the user id. */
+  id: string;
+  userId: string;
+  email: string;
+  name: string;
+  role: string;
+  tier: "admin" | "manager" | "executive";
+  departmentCode?: string | null;
+  avatar?: string;
 }
 
 export interface AIButton {
@@ -158,11 +170,11 @@ export const useAppStore = create<AppState>()(
         })),
       resetConversation: () => set({ aiMessages: [], conversationState: createInitialState() }),
 
-      currentUser: {
-        id: "emp_zahur",
-        name: "Zahur Shaikh",
-        role: "Asst. Studio Operations Manager",
-      },
+      currentUser: { id: "", userId: "", email: "", name: "", role: "", tier: "executive" },
+      setCurrentUser: (user) => set({ currentUser: user }),
+
+      dataVersion: 0,
+      bumpData: () => set((s) => ({ dataVersion: s.dataVersion + 1 })),
     }),
     {
       name: "iris-app-state-v2",

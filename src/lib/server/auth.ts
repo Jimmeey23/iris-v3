@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { asSystem } from "./db";
 
@@ -14,10 +14,19 @@ export type SessionUser = {
   must_change_password: boolean;
 };
 
+/** Secure cookies on HTTPS (incl. behind a proxy); plain cookies on http://localhost. */
+async function isHttps() {
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto")?.split(",")[0].trim();
+  if (proto) return proto === "https";
+  const host = h.get("host") ?? "";
+  return !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+}
+
 export async function setSessionCookie(token: string) {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await isHttps(),
     sameSite: "lax",
     path: "/",
     maxAge: SEVEN_DAYS,

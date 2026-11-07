@@ -529,7 +529,7 @@ function MarqueeStrip({
   variant = "hero",
 }: {
   items: MarqueeItem[];
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   variant?: "hero" | "studio" | "ai";
 }) {
   // Duplicate items for seamless loop

@@ -444,6 +444,8 @@ function buildRoutingDetail(state: ConversationState, priority: Priority, dept: 
     return {
       ...emp,
       studioCodes: emp.studioCodes,
+      title: emp.title ?? emp.role,
+      currentWorkload: emp.workload,
       workloadPercentage: workloadPct,
       matchScore,
       matchReasons,
@@ -455,7 +457,7 @@ function buildRoutingDetail(state: ConversationState, priority: Priority, dept: 
   // Sort by match score (higher = better), then by lower workload
   candidates.sort((a, b) => {
     if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
-    return a.workload - b.workload;
+    return a.currentWorkload - b.currentWorkload;
   });
 
   // Select the top candidate

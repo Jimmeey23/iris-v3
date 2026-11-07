@@ -60,6 +60,8 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { createTicketFromDetail } from "@/lib/iris/live-data";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -527,7 +529,7 @@ export function AIAssistantView() {
 
       {/* Right Sidebar - Conversation Intelligence */}
       <div className="w-72 border-l border-border hidden lg:flex flex-col bg-sidebar">
-        <ConversationIntelligencePanel state={conversationState} />
+        <ConversationIntelligencePanel state={conversationState} onSend={handleSend} />
       </div>
 
       {/* Dynamic Form Intake Modal */}
@@ -597,7 +599,7 @@ function ContextBar({ state }: { state: ConversationState }) {
   );
 }
 
-function ConversationIntelligencePanel({ state }: { state: ConversationState }) {
+function ConversationIntelligencePanel({ state, onSend }: { state: ConversationState; onSend: (text: string) => void }) {
   const collectedEntries = Object.entries(state.collectedInfo).filter(([_, v]) => v && v !== "");
   const totalQuestions = state.questionsRemaining.length + state.questionsAsked.length;
   const answeredQuestions = state.questionsAsked.length;
@@ -709,7 +711,7 @@ function ConversationIntelligencePanel({ state }: { state: ConversationState }) 
             {["AC malfunction", "Sound system issue", "Membership freeze", "Payment missing", "Credit discrepancy", "Booking cancellation"].map((t) => (
               <button
                 key={t}
-                onClick={() => handleSend(t)}
+                onClick={() => onSend(t)}
                 className="w-full text-left px-2 py-1.5 text-[11px] rounded-md hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-1.5 group"
               >
                 <TicketIcon className="w-3 h-3 text-muted-foreground group-hover:text-violet-500 transition-colors" />
@@ -1121,10 +1123,31 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
   const [showFullModal, setShowFullModal] = React.useState(false);
   const [ticketDetailData, setTicketDetailData] = React.useState<TicketDetailData | null>(null);
 
+  const [creating, setCreating] = React.useState(false);
+  const [created, setCreated] = React.useState<string | null>(null);
+  const selectTicket = useAppStore((s) => s.selectTicket);
+
   const handleReviewFull = () => {
     const detail = buildTicketDetail(conversationState);
     setTicketDetailData(detail);
     setShowFullModal(true);
+  };
+
+  const handleCreate = async () => {
+    if (creating || created) return;
+    setCreating(true);
+    try {
+      const t = await createTicketFromDetail(ticketDetailData ?? buildTicketDetail(conversationState));
+      setCreated(t.ticketId);
+      setShowFullModal(false);
+      toast.success(`Ticket ${t.ticketId} created`, {
+        action: { label: "Open", onClick: () => { setCurrentView("all_tickets"); selectTicket(t.id); } },
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't create the ticket");
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -1208,11 +1231,12 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
           {/* Primary actions */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentView("all_tickets")}
-              className="flex-1 px-3 py-2.5 rounded-lg iris-btn-premium text-[12px] flex items-center justify-center gap-1.5 iris-action-shimmer"
+              onClick={handleCreate}
+              disabled={creating || Boolean(created)}
+              className="flex-1 px-3 py-2.5 rounded-lg iris-btn-premium text-[12px] flex items-center justify-center gap-1.5 iris-action-shimmer disabled:opacity-60"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              Create & Route Ticket
+              {created ? `Created ${created}` : creating ? "Creating…" : "Create & Route Ticket"}
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
             <button
@@ -1223,21 +1247,6 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
               Review Full Details
             </button>
           </div>
-          {/* Secondary actions */}
-          <div className="flex items-center gap-2">
-            <button className="flex-1 px-2.5 py-1.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors flex items-center justify-center gap-1">
-              <FileText className="w-3 h-3" />
-              Save as Draft
-            </button>
-            <button className="flex-1 px-2.5 py-1.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors flex items-center justify-center gap-1">
-              <AlertTriangle className="w-3 h-3" />
-              Escalate Now
-            </button>
-            <button className="flex-1 px-2.5 py-1.5 rounded-md border border-border text-[11px] font-medium hover:bg-muted transition-colors flex items-center justify-center gap-1">
-              <Edit2 className="w-3 h-3" />
-              Edit
-            </button>
-          </div>
         </div>
       </div>
 
@@ -1246,10 +1255,7 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
         <TicketPreviewModal
           data={ticketDetailData}
           onClose={() => setShowFullModal(false)}
-          onCreate={() => {
-            setShowFullModal(false);
-            setCurrentView("all_tickets");
-          }}
+          onCreate={handleCreate}
         />
       )}
     </div>

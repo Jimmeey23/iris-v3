@@ -16,13 +16,15 @@ import { KnowledgeBaseView } from "@/components/iris/views/knowledge-base";
 import { TrainersView } from "@/components/iris/views/trainers";
 import { useAppStore } from "@/lib/iris/store";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthGate } from "@/components/iris/auth-gate";
 
 export default function Home() {
-  const { currentView } = useAppStore();
+  const currentView = useAppStore((s) => s.currentView);
 
   return (
     <TooltipProvider delayDuration={200}>
       <IntroAnimation />
+      <AuthGate>
       <AppShell>
         {currentView === "overview" && <OverviewView />}
         {currentView === "ai_assistant" && <AIAssistantView />}
@@ -39,6 +41,7 @@ export default function Home() {
         {currentView === "email_templates" && <EmailTemplatesView />}
         {currentView === "settings" && <SettingsView />}
       </AppShell>
+      </AuthGate>
     </TooltipProvider>
   );
 }

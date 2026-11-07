@@ -1,196 +1,242 @@
 "use client";
 
 import * as React from "react";
-import { EMPLOYEES, DEPARTMENTS, STUDIOS, PRIORITY_CONFIG } from "@/lib/iris/types";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  Settings as SettingsIcon,
-  Users,
-  Building2,
-  MapPin,
-  Clock,
-  Shield,
-  Brain,
-  Bell,
-  Plug,
-  Mail,
-  Database,
-  GitBranch,
-  ChevronRight,
-  Plus,
-  Edit2,
-  Trash2,
-  Save,
-  Zap,
-  AlertTriangle,
-  CheckCircle2,
-  FileText,
-  MessageSquare,
-  CreditCard,
+  Settings as SettingsIcon, Users, Building2, MapPin, Clock, Shield, Brain, Bell, Plug, Database, GitBranch,
+  ChevronRight, Plus, Trash2, Loader2, CheckCircle2, AlertTriangle, Download, KeyRound, Lock, RefreshCw, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { getInitials, getAvatarColor } from "@/lib/iris/utils";
+import { api, reloadReference } from "@/lib/iris/live-data";
+import { PRIORITY_CONFIG, type Priority } from "@/lib/iris/types";
 
-const SETTINGS_SECTIONS = [
-  { id: "departments", label: "Departments", icon: Building2 },
-  { id: "employees", label: "Employees", icon: Users },
-  { id: "studios", label: "Studios", icon: MapPin },
-  { id: "sla", label: "SLA Configuration", icon: Clock },
-  { id: "routing", label: "Routing Rules", icon: GitBranch },
-  { id: "ai", label: "AI Models", icon: Brain },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "permissions", label: "Permissions & Roles", icon: Shield },
-  { id: "audit", label: "Audit Logs", icon: Database },
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// Data + saving
+// ─────────────────────────────────────────────────────────────────────────────
 
-export function SettingsView() {
-  const [activeSection, setActiveSection] = React.useState("departments");
-  const [departments, setDepartments] = React.useState(DEPARTMENTS);
-  const [employees, setEmployees] = React.useState(EMPLOYEES);
-  const [studios, setStudios] = React.useState(STUDIOS);
-  const [editingDept, setEditingDept] = React.useState<string | null>(null);
-  const [editingEmp, setEditingEmp] = React.useState<string | null>(null);
-  const [showAddDept, setShowAddDept] = React.useState(false);
-  const [showAddEmp, setShowAddEmp] = React.useState(false);
-  const [newDept, setNewDept] = React.useState({ name: "", code: "", description: "" });
-  const [newEmp, setNewEmp] = React.useState({ name: "", email: "", role: "", departmentCode: "", location: "" });
+type Row = Record<string, any>;
+type Bundle = {
+  departments: Row[]; studios: Row[]; employees: Row[]; sla_definitions: Row[]; routing_rules: Row[];
+  ai_models: Row[]; notification_rules: Row[]; roles: Row[]; integrations: Row[]; app_settings: Row[];
+  audit_log: Row[]; users: Row[]; me: { tier: "admin" | "manager" | "executive"; userId: string };
+};
+type Resource = Exclude<keyof Bundle, "app_settings" | "audit_log" | "me">;
 
-  // Persist settings to localStorage
-  React.useEffect(() => {
-    const saved = localStorage.getItem("iris-settings");
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.departments) setDepartments(data.departments);
-        if (data.employees) setEmployees(data.employees);
-        if (data.studios) setStudios(data.studios);
-      } catch {}
+const PK: Record<Resource, string> = {
+  departments: "code", studios: "code", employees: "id", sla_definitions: "priority", routing_rules: "id",
+  ai_models: "id", notification_rules: "event", roles: "name", integrations: "id", users: "id",
+};
+/** Tables the rest of the app reads as lookup data. */
+const REFERENCE: Resource[] = ["departments", "studios", "employees", "sla_definitions"];
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+type Ctx = {
+  data: Bundle;
+  canEdit: boolean;
+  isAdmin: boolean;
+  patch: (r: Resource, key: string, changes: Row) => Promise<boolean>;
+  create: (r: Resource, row: Row) => Promise<boolean>;
+  remove: (r: Resource, key: string, label: string) => Promise<void>;
+  setting: (key: string) => any;
+  saveSetting: (key: string, value: unknown) => Promise<void>;
+  reload: () => Promise<void>;
+};
+const SettingsCtx = React.createContext<Ctx | null>(null);
+const useS = () => React.useContext(SettingsCtx)!;
+
+function useSettingsData() {
+  const [data, setData] = React.useState<Bundle | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [saveState, setSaveState] = React.useState<SaveState>("idle");
+  const pending = React.useRef(0);
+
+  const load = React.useCallback(async () => {
+    try {
+      setError(null);
+      setData(await api<Bundle>("/api/settings"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't load settings");
     }
   }, []);
+  React.useEffect(() => { load(); }, [load]);
 
-  const saveSettings = (key: string, value: any) => {
-    const saved = localStorage.getItem("iris-settings");
-    const data = saved ? JSON.parse(saved) : {};
-    data[key] = value;
-    localStorage.setItem("iris-settings", JSON.stringify(data));
+  const track = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    pending.current++;
+    setSaveState("saving");
+    try {
+      const out = await fn();
+      if (--pending.current === 0) setSaveState("saved");
+      return out;
+    } catch (e) {
+      pending.current--;
+      setSaveState("error");
+      throw e;
+    }
   };
 
-  const handleAddDept = () => {
-    if (!newDept.name || !newDept.code) return;
-    const dept = { id: `dept_${newDept.code.toLowerCase()}`, ...newDept };
-    const updated = [...departments, dept];
-    setDepartments(updated);
-    saveSettings("departments", updated);
-    setNewDept({ name: "", code: "", description: "" });
-    setShowAddDept(false);
+  const afterWrite = (r: Resource) => {
+    if (REFERENCE.includes(r)) reloadReference().catch(() => {});
   };
 
-  const handleDeleteDept = (code: string) => {
-    const updated = departments.filter(d => d.code !== code);
-    setDepartments(updated);
-    saveSettings("departments", updated);
+  const patch: Ctx["patch"] = async (r, key, changes) => {
+    const before = data;
+    setData((d) => d && { ...d, [r]: (d[r] as Row[]).map((x) => (x[PK[r]] === key ? { ...x, ...changes } : x)) });
+    try {
+      const { row } = await track(() => api(`/api/settings/${r}`, { method: "PATCH", json: { key, changes } }));
+      setData((d) => {
+        if (!d) return d;
+        let list = (d[r] as Row[]).map((x) => (x[PK[r]] === key ? { ...x, ...row } : x));
+        if (r === "ai_models" && changes.is_primary === true) list = list.map((x) => (x.id === key ? x : { ...x, is_primary: false }));
+        return { ...d, [r]: list };
+      });
+      afterWrite(r);
+      return true;
+    } catch (e) {
+      setData(before);
+      toast.error(e instanceof Error ? e.message : "Couldn't save");
+      return false;
+    }
   };
 
-  const handleUpdateDept = (code: string, field: string, value: string) => {
-    const updated = departments.map(d => d.code === code ? { ...d, [field]: value } : d);
-    setDepartments(updated);
-    saveSettings("departments", updated);
+  const create: Ctx["create"] = async (r, row) => {
+    try {
+      const res = await track(() => api(`/api/settings/${r}`, { method: "POST", json: row }));
+      if (r === "users") await load();
+      else setData((d) => d && { ...d, [r]: [...(d[r] as Row[]), res.row] });
+      afterWrite(r);
+      toast.success("Added");
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't add");
+      return false;
+    }
   };
 
-  const handleAddEmp = () => {
-    if (!newEmp.name || !newEmp.email) return;
-    const emp: any = {
-      id: `emp_${Date.now()}`,
-      employeeCode: `EMP-${employees.length + 1}`,
-      ...newEmp,
-      studioCodes: [],
-      skills: [],
-      availability: "available",
-      workload: 0,
-      maxWorkload: 12,
-      escalationOrder: 3,
-      departmentName: departments.find(d => d.code === newEmp.departmentCode)?.name || "",
-      reportingManager: "",
-      birthday: "",
-      location: newEmp.location || "Mumbai",
-    };
-    const updated = [...employees, emp];
-    setEmployees(updated);
-    saveSettings("employees", updated);
-    setNewEmp({ name: "", email: "", role: "", departmentCode: "", location: "" });
-    setShowAddEmp(false);
+  const remove: Ctx["remove"] = async (r, key, label) => {
+    if (!window.confirm(`Remove ${label}? This can't be undone.`)) return;
+    try {
+      await track(() => api(`/api/settings/${r}?key=${encodeURIComponent(key)}`, { method: "DELETE" }));
+      setData((d) =>
+        d && {
+          ...d,
+          [r]: r === "employees"
+            ? (d[r] as Row[]).map((x) => (x.id === key ? { ...x, is_active: false } : x))
+            : (d[r] as Row[]).filter((x) => x[PK[r]] !== key),
+        },
+      );
+      afterWrite(r);
+      toast.success(`${label} removed`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't remove");
+    }
   };
 
-  const handleDeleteEmp = (id: string) => {
-    const updated = employees.filter(e => e.id !== id);
-    setEmployees(updated);
-    saveSettings("employees", updated);
+  const setting = (key: string) => data?.app_settings.find((s) => s.key === key)?.value;
+  const saveSetting: Ctx["saveSetting"] = async (key, value) => {
+    const before = data;
+    setData((d) => {
+      if (!d) return d;
+      const exists = d.app_settings.some((s) => s.key === key);
+      return {
+        ...d,
+        app_settings: exists ? d.app_settings.map((s) => (s.key === key ? { ...s, value } : s)) : [...d.app_settings, { key, value }],
+      };
+    });
+    try {
+      await track(() => api("/api/settings", { method: "PUT", json: { key, value } }));
+    } catch (e) {
+      setData(before);
+      toast.error(e instanceof Error ? e.message : "Couldn't save");
+    }
   };
 
-  const handleUpdateEmp = (id: string, field: string, value: string) => {
-    const updated = employees.map(e => e.id === id ? { ...e, [field]: value } as any : e);
-    setEmployees(updated);
-    saveSettings("employees", updated);
-  };
+  return { data, error, saveState, load, patch, create, remove, setting, saveSetting };
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Small auto-saving inputs
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Text/number input that saves when it loses focus (or on Enter) if the value changed. */
+function AutoInput({
+  value, onSave, type = "text", className, placeholder, disabled, min, step,
+}: {
+  value: string | number | null | undefined;
+  onSave: (v: string) => unknown;
+  type?: "text" | "number" | "email";
+  className?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  min?: number;
+  step?: number;
+}) {
+  const initial = value === null || value === undefined ? "" : String(value);
+  const [v, setV] = React.useState(initial);
+  React.useEffect(() => setV(initial), [initial]);
+  const commit = () => {
+    if (v.trim() === initial.trim()) return;
+    if (type === "number" && v.trim() !== "" && !Number.isFinite(Number(v))) {
+      setV(initial);
+      return;
+    }
+    onSave(v.trim());
+  };
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-4">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground mb-1">
-          <SettingsIcon className="w-3 h-3 text-violet-500" />
-          System Configuration
-        </div>
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Manage all aspects of the IRIS platform — departments, employees, SLA, AI models, integrations & more.
-        </p>
-      </div>
+    <Input
+      type={type}
+      value={v}
+      min={min}
+      step={step}
+      placeholder={placeholder}
+      disabled={disabled}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") setV(initial);
+      }}
+      className={cn("h-7 text-[12px]", className)}
+    />
+  );
+}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
-        {/* Sidebar */}
-        <div className="iris-card overflow-hidden h-fit sticky top-0">
-          <div className="p-2 space-y-0.5">
-            {SETTINGS_SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setActiveSection(s.id)}
-                className={cn(
-                  "w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-[12px] font-medium transition-colors",
-                  activeSection === s.id
-                    ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
-                    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                )}
-              >
-                <s.icon className="w-3.5 h-3.5" />
-                {s.label}
-                <ChevronRight className={cn("w-3 h-3 ml-auto", activeSection === s.id ? "opacity-100" : "opacity-0")} />
-              </button>
-            ))}
-          </div>
-        </div>
+function NativeSelect({
+  value, onChange, options, disabled, className,
+}: {
+  value: string | null | undefined;
+  onChange: (v: string) => void;
+  options: Array<{ value: string; label: string }>;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <select
+      value={value ?? ""}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn(
+        "h-7 px-2 text-[12px] rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-60",
+        className,
+      )}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </select>
+  );
+}
 
-        {/* Content */}
-        <div>
-          {activeSection === "departments" && <DepartmentsSettings />}
-          {activeSection === "employees" && <EmployeesSettings />}
-          {activeSection === "studios" && <StudiosSettings />}
-          {activeSection === "sla" && <SLASettings />}
-          {activeSection === "routing" && <RoutingSettings />}
-          {activeSection === "ai" && <AIModelSettings />}
-          {activeSection === "notifications" && <NotificationsSettings />}
-          {activeSection === "integrations" && <IntegrationsSettings />}
-          {activeSection === "permissions" && <PermissionsSettings />}
-          {activeSection === "audit" && <AuditLogsSettings />}
-        </div>
-      </div>
-    </div>
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={cn("block", className)}>
+      <div className="text-[10px] font-medium text-muted-foreground mb-1">{label}</div>
+      {children}
+    </label>
   );
 }
 
@@ -209,115 +255,336 @@ function SettingsCard({ title, description, children, action }: { title: string;
   );
 }
 
-function DepartmentsSettings() {
+function IconButton({ onClick, label, danger, disabled, children }: { onClick: () => void; label: string; danger?: boolean; disabled?: boolean; children: React.ReactNode }) {
   return (
-    <>
-      <SettingsCard
-        title="Departments"
-        description="Manage organizational departments and their responsibilities"
-        action={<Button size="sm" className="h-7 text-[11px]"><Plus className="w-3 h-3 mr-1" />Add Department</Button>}
-      >
-        <div className="space-y-2">
-          {DEPARTMENTS.map((d) => {
-            const employeeCount = EMPLOYEES.filter((e) => e.departmentCode === d.code).length;
-            return (
-              <div key={d.code} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-violet-500/30 transition-colors">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500/10 to-indigo-500/10 flex items-center justify-center">
-                  <Building2 className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold">{d.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{d.description}</div>
-                </div>
-                <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">{d.code}</Badge>
-                <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{employeeCount} staff</Badge>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7"><Edit2 className="w-3 h-3" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600"><Trash2 className="w-3 h-3" /></Button>
-                </div>
-              </div>
-            );
-          })}
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn("h-7 w-7 shrink-0", danger && "text-rose-500 hover:text-rose-600")}
+    >
+      {children}
+    </Button>
+  );
+}
+
+/** Inline "add" form shown under a card's header. */
+function AddForm({ open, onCancel, onSubmit, children }: { open: boolean; onCancel: () => void; onSubmit: () => Promise<boolean>; children: React.ReactNode }) {
+  const [busy, setBusy] = React.useState(false);
+  if (!open) return null;
+  return (
+    <form
+      className="mb-3 p-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 space-y-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        const ok = await onSubmit();
+        setBusy(false);
+        if (ok) onCancel();
+      }}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">{children}</div>
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" size="sm" className="h-7 text-[11px]" disabled={busy}>
+          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : "Add"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function AddButton({ onClick, label, disabled }: { onClick: () => void; label: string; disabled?: boolean }) {
+  return (
+    <Button size="sm" className="h-7 text-[11px]" onClick={onClick} disabled={disabled}>
+      <Plus className="w-3 h-3 mr-1" />{label}
+    </Button>
+  );
+}
+
+const deptOptions = (d: Bundle) => d.departments.map((x) => ({ value: x.code, label: `${x.name} (${x.code})` }));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shell
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SETTINGS_SECTIONS = [
+  { id: "departments", label: "Departments", icon: Building2 },
+  { id: "employees", label: "Employees", icon: Users },
+  { id: "studios", label: "Studios", icon: MapPin },
+  { id: "sla", label: "SLA Configuration", icon: Clock },
+  { id: "routing", label: "Routing Rules", icon: GitBranch },
+  { id: "ai", label: "AI Models", icon: Brain },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "integrations", label: "Integrations", icon: Plug },
+  { id: "permissions", label: "Users & Roles", icon: Shield },
+  { id: "audit", label: "Audit Logs", icon: Database },
+] as const;
+
+export function SettingsView() {
+  const [activeSection, setActiveSection] = React.useState<(typeof SETTINGS_SECTIONS)[number]["id"]>("departments");
+  const s = useSettingsData();
+
+  if (s.error) {
+    return (
+      <div className="p-6 max-w-xl mx-auto">
+        <div className="iris-card p-6 text-center space-y-3">
+          <AlertTriangle className="w-6 h-6 text-amber-500 mx-auto" />
+          <div className="text-[13px]">{s.error}</div>
+          <Button size="sm" onClick={s.load}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Retry</Button>
         </div>
-      </SettingsCard>
-    </>
+      </div>
+    );
+  }
+  if (!s.data) {
+    return (
+      <div className="p-6 flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" />Loading settings…
+      </div>
+    );
+  }
+
+  const tier = s.data.me.tier;
+  const ctx: Ctx = {
+    data: s.data,
+    canEdit: tier === "admin" || tier === "manager",
+    isAdmin: tier === "admin",
+    patch: s.patch,
+    create: s.create,
+    remove: s.remove,
+    setting: s.setting,
+    saveSetting: s.saveSetting,
+    reload: s.load,
+  };
+
+  return (
+    <SettingsCtx.Provider value={ctx}>
+      <div className="p-6 max-w-[1600px] mx-auto space-y-4">
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground mb-1">
+              <SettingsIcon className="w-3 h-3 text-primary" />
+              System Configuration
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Changes save automatically to the IRIS database.
+              {!ctx.isAdmin && " Some sections are admin-only, so they're read-only for you."}
+            </p>
+          </div>
+          <SaveIndicator state={s.saveState} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
+          <div className="iris-card overflow-hidden h-fit lg:sticky lg:top-0">
+            <div className="p-2 space-y-0.5">
+              {SETTINGS_SECTIONS.map((sec) => (
+                <button
+                  key={sec.id}
+                  onClick={() => setActiveSection(sec.id)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-[12px] font-medium transition-colors",
+                    activeSection === sec.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                  )}
+                >
+                  <sec.icon className="w-3.5 h-3.5" />
+                  {sec.label}
+                  <ChevronRight className={cn("w-3 h-3 ml-auto", activeSection === sec.id ? "opacity-100" : "opacity-0")} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            {activeSection === "departments" && <DepartmentsSettings />}
+            {activeSection === "employees" && <EmployeesSettings />}
+            {activeSection === "studios" && <StudiosSettings />}
+            {activeSection === "sla" && <SLASettings />}
+            {activeSection === "routing" && <RoutingSettings />}
+            {activeSection === "ai" && <AIModelSettings />}
+            {activeSection === "notifications" && <NotificationsSettings />}
+            {activeSection === "integrations" && <IntegrationsSettings />}
+            {activeSection === "permissions" && <PermissionsSettings />}
+            {activeSection === "audit" && <AuditLogsSettings />}
+          </div>
+        </div>
+      </div>
+    </SettingsCtx.Provider>
+  );
+}
+
+function SaveIndicator({ state }: { state: SaveState }) {
+  if (state === "idle") return null;
+  return (
+    <div
+      aria-live="polite"
+      className={cn(
+        "flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-md",
+        state === "saving" && "text-muted-foreground",
+        state === "saved" && "text-emerald-600 dark:text-emerald-400",
+        state === "error" && "text-rose-600 dark:text-rose-400",
+      )}
+    >
+      {state === "saving" && <><Loader2 className="w-3 h-3 animate-spin" />Saving…</>}
+      {state === "saved" && <><CheckCircle2 className="w-3 h-3" />All changes saved</>}
+      {state === "error" && <><AlertTriangle className="w-3 h-3" />Last change not saved</>}
+    </div>
+  );
+}
+
+function ReadOnlyNote({ show, text = "Only admins can change this section." }: { show: boolean; text?: string }) {
+  if (!show) return null;
+  return (
+    <div className="mb-3 p-2.5 rounded-md bg-muted/40 border border-border flex items-center gap-2 text-[11px] text-muted-foreground">
+      <Lock className="w-3.5 h-3.5 shrink-0" />{text}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sections
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DepartmentsSettings() {
+  const { data, isAdmin, patch, create, remove } = useS();
+  const [adding, setAdding] = React.useState(false);
+  const [n, setN] = React.useState({ code: "", name: "", description: "" });
+  return (
+    <SettingsCard
+      title="Departments"
+      description="Departments tickets are routed to"
+      action={<AddButton label="Add Department" onClick={() => setAdding(true)} disabled={!isAdmin} />}
+    >
+      <ReadOnlyNote show={!isAdmin} />
+      <AddForm open={adding} onCancel={() => { setAdding(false); setN({ code: "", name: "", description: "" }); }} onSubmit={() => create("departments", { ...n, code: n.code.toUpperCase() })}>
+        <Field label="Code (e.g. FAC)"><Input className="h-7 text-[12px]" required maxLength={6} value={n.code} onChange={(e) => setN({ ...n, code: e.target.value })} /></Field>
+        <Field label="Name"><Input className="h-7 text-[12px]" required value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></Field>
+        <Field label="Description"><Input className="h-7 text-[12px]" value={n.description} onChange={(e) => setN({ ...n, description: e.target.value })} /></Field>
+      </AddForm>
+      <div className="space-y-2">
+        {data.departments.map((d) => {
+          const staff = data.employees.filter((e) => e.department_code === d.code && e.is_active).length;
+          return (
+            <div key={d.code} className="flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border">
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">{d.code}</Badge>
+              <AutoInput className="w-48" value={d.name} disabled={!isAdmin} onSave={(v) => v && patch("departments", d.code, { name: v })} />
+              <AutoInput className="flex-1 min-w-[200px]" value={d.description} placeholder="Description" disabled={!isAdmin} onSave={(v) => patch("departments", d.code, { description: v })} />
+              <NativeSelect
+                className="w-40"
+                value={d.head_employee_id ?? ""}
+                disabled={!isAdmin}
+                onChange={(v) => patch("departments", d.code, { head_employee_id: v || null })}
+                options={[{ value: "", label: "No head" }, ...data.employees.filter((e) => e.is_active).map((e) => ({ value: e.id, label: e.name }))]}
+              />
+              <Badge variant="secondary" className={cn("text-[10px] h-5 px-1.5", staff === 0 && "text-amber-600")}>{staff} staff</Badge>
+              <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Switch checked={d.is_active} disabled={!isAdmin} onCheckedChange={(v) => patch("departments", d.code, { is_active: v })} />Active
+              </label>
+              <IconButton label={`Delete ${d.name}`} danger disabled={!isAdmin} onClick={() => remove("departments", d.code, d.name)}>
+                <Trash2 className="w-3 h-3" />
+              </IconButton>
+            </div>
+          );
+        })}
+      </div>
+    </SettingsCard>
   );
 }
 
 function EmployeesSettings() {
+  const { data, canEdit, patch, create, remove } = useS();
+  const [adding, setAdding] = React.useState(false);
+  const [q, setQ] = React.useState("");
+  const [showInactive, setShowInactive] = React.useState(false);
+  const blank = { name: "", email: "", role: "", department_code: data.departments[0]?.code ?? "", location: "Mumbai" };
+  const [n, setN] = React.useState(blank);
+  const list = data.employees.filter(
+    (e) => (showInactive || e.is_active) && (!q || `${e.name} ${e.email} ${e.role}`.toLowerCase().includes(q.toLowerCase())),
+  );
+  const studioCodes = data.studios.map((s) => s.code).join(", ");
   return (
     <SettingsCard
       title="Employees"
-      description="Manage employee records, roles, and department assignments"
-      action={<Button size="sm" className="h-7 text-[11px]"><Plus className="w-3 h-3 mr-1" />Add Employee</Button>}
+      description="Staff records used for routing, workload and assignment. Managers can edit their own department."
+      action={<AddButton label="Add Employee" onClick={() => setAdding(true)} disabled={!canEdit} />}
     >
+      <ReadOnlyNote show={!canEdit} text="Only managers and admins can edit employees." />
+      <AddForm open={adding} onCancel={() => { setAdding(false); setN(blank); }} onSubmit={() => create("employees", n)}>
+        <Field label="Full name"><Input className="h-7 text-[12px]" required value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></Field>
+        <Field label="Work email"><Input type="email" className="h-7 text-[12px]" required value={n.email} onChange={(e) => setN({ ...n, email: e.target.value })} /></Field>
+        <Field label="Role / title"><Input className="h-7 text-[12px]" required value={n.role} onChange={(e) => setN({ ...n, role: e.target.value })} /></Field>
+        <Field label="Department">
+          <NativeSelect className="w-full" value={n.department_code} onChange={(v) => setN({ ...n, department_code: v })} options={deptOptions(data)} />
+        </Field>
+        <Field label="Location"><Input className="h-7 text-[12px]" value={n.location} onChange={(e) => setN({ ...n, location: e.target.value })} /></Field>
+      </AddForm>
+
+      <div className="flex items-center gap-2 mb-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search staff" className="h-7 text-[12px] pl-7" />
+        </div>
+        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Switch checked={showInactive} onCheckedChange={setShowInactive} />Show inactive
+        </label>
+        <span className="ml-auto text-[11px] text-muted-foreground">{list.length} shown · studio codes: {studioCodes}</span>
+      </div>
+
       <div className="overflow-x-auto iris-scrollbar">
-        <table className="w-full text-[12px]">
+        <table className="w-full text-[12px] min-w-[1000px]">
           <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Employee</th>
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Code</th>
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Role</th>
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Studios</th>
-              <th className="text-right py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Workload</th>
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Status</th>
+            <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+              <th className="text-left py-2 px-1.5 font-semibold">Name / email</th>
+              <th className="text-left py-2 px-1.5 font-semibold">Role</th>
+              <th className="text-left py-2 px-1.5 font-semibold">Department</th>
+              <th className="text-left py-2 px-1.5 font-semibold">Studios</th>
+              <th className="text-left py-2 px-1.5 font-semibold">Availability</th>
+              <th className="text-right py-2 px-1.5 font-semibold">Load / max</th>
+              <th className="py-2 px-1.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {EMPLOYEES.map((e) => {
-              const dept = DEPARTMENTS.find((d) => d.code === e.departmentCode);
-              return (
-                <tr key={e.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="py-2 px-2">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="w-7 h-7">
-                        <AvatarFallback className={cn("text-white text-[10px] font-semibold", getAvatarColor(e.name))}>
-                          {getInitials(e.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="text-[12px] font-medium">{e.name}</div>
-                        <div className="text-[10px] text-muted-foreground">{e.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-2 px-2 font-mono text-[10px] text-muted-foreground">{e.employeeCode}</td>
-                  <td className="py-2 px-2">
-                    <div className="text-[12px]">{e.role}</div>
-                    <div className="text-[10px] text-muted-foreground">{dept?.name}</div>
-                  </td>
-                  <td className="py-2 px-2">
-                    <div className="flex flex-wrap gap-0.5">
-                      {e.studioCodes.slice(0, 2).map((s) => (
-                        <span key={s} className="px-1 py-0.5 text-[9px] rounded bg-muted text-muted-foreground">{s}</span>
-                      ))}
-                      {e.studioCodes.length > 2 && (
-                        <span className="px-1 py-0.5 text-[9px] rounded bg-muted text-muted-foreground">+{e.studioCodes.length - 2}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-2 px-2 text-right">
-                    <div className="flex items-center gap-1.5 justify-end">
-                      <div className="w-12 h-1 rounded-full bg-muted overflow-hidden">
-                        <div className={cn("h-full rounded-full", e.workload / e.maxWorkload > 0.8 ? "bg-rose-500" : e.workload / e.maxWorkload > 0.5 ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${(e.workload / e.maxWorkload) * 100}%` }} />
-                      </div>
-                      <span className="text-[10px] font-semibold tabular-nums">{e.workload}/{e.maxWorkload}</span>
-                    </div>
-                  </td>
-                  <td className="py-2 px-2">
-                    <span className={cn(
-                      "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
-                      e.availability === "available" ? "bg-emerald-500/10 text-emerald-600" :
-                      e.availability === "busy" ? "bg-amber-500/10 text-amber-600" :
-                      e.availability === "offline" ? "bg-muted text-muted-foreground" :
-                      "bg-rose-500/10 text-rose-600"
-                    )}>
-                      {e.availability.replace("_", " ")}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+            {list.map((e) => (
+              <tr key={e.id} className={cn(!e.is_active && "opacity-50")}>
+                <td className="py-1.5 px-1.5 w-[260px]">
+                  <AutoInput value={e.name} disabled={!canEdit} onSave={(v) => v && patch("employees", e.id, { name: v })} />
+                  <AutoInput type="email" className="mt-1 text-[11px] text-muted-foreground" value={e.email} disabled={!canEdit} onSave={(v) => v && patch("employees", e.id, { email: v })} />
+                </td>
+                <td className="py-1.5 px-1.5"><AutoInput value={e.role} disabled={!canEdit} onSave={(v) => v && patch("employees", e.id, { role: v })} /></td>
+                <td className="py-1.5 px-1.5">
+                  <NativeSelect value={e.department_code} disabled={!canEdit} onChange={(v) => patch("employees", e.id, { department_code: v })} options={deptOptions(data)} />
+                </td>
+                <td className="py-1.5 px-1.5 w-[140px]">
+                  <AutoInput value={(e.studio_codes ?? []).join(", ")} placeholder="KH, SHQ" disabled={!canEdit} onSave={(v) => patch("employees", e.id, { studio_codes: v.toUpperCase() })} />
+                </td>
+                <td className="py-1.5 px-1.5">
+                  <NativeSelect
+                    value={e.availability}
+                    disabled={!canEdit}
+                    onChange={(v) => patch("employees", e.id, { availability: v })}
+                    options={["available", "busy", "offline", "on_leave"].map((v) => ({ value: v, label: v.replace("_", " ") }))}
+                  />
+                </td>
+                <td className="py-1.5 px-1.5">
+                  <div className="flex items-center gap-1 justify-end">
+                    <span className="tabular-nums text-[11px] text-muted-foreground">{e.workload} /</span>
+                    <AutoInput type="number" min={1} className="w-14" value={e.max_workload} disabled={!canEdit} onSave={(v) => patch("employees", e.id, { max_workload: v })} />
+                  </div>
+                </td>
+                <td className="py-1.5 px-1.5 text-right">
+                  {e.is_active ? (
+                    <IconButton label={`Deactivate ${e.name}`} danger disabled={!canEdit} onClick={() => remove("employees", e.id, e.name)}>
+                      <Trash2 className="w-3 h-3" />
+                    </IconButton>
+                  ) : (
+                    <Button variant="outline" size="sm" className="h-6 text-[10px]" disabled={!canEdit} onClick={() => patch("employees", e.id, { is_active: true })}>Restore</Button>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -326,24 +593,44 @@ function EmployeesSettings() {
 }
 
 function StudiosSettings() {
+  const { data, isAdmin, patch, create, remove } = useS();
+  const [adding, setAdding] = React.useState(false);
+  const blank = { code: "", name: "", city: "Mumbai", address: "" };
+  const [n, setN] = React.useState(blank);
   return (
-    <SettingsCard title="Studios" description="Manage Physique 57 India studio locations" action={<Button size="sm" className="h-7 text-[11px]"><Plus className="w-3 h-3 mr-1" />Add Studio</Button>}>
+    <SettingsCard
+      title="Studios"
+      description="Physique 57 India studio locations"
+      action={<AddButton label="Add Studio" onClick={() => setAdding(true)} disabled={!isAdmin} />}
+    >
+      <ReadOnlyNote show={!isAdmin} />
+      <AddForm open={adding} onCancel={() => { setAdding(false); setN(blank); }} onSubmit={() => create("studios", { ...n, code: n.code.toUpperCase() })}>
+        <Field label="Code (e.g. KH)"><Input className="h-7 text-[12px]" required maxLength={6} value={n.code} onChange={(e) => setN({ ...n, code: e.target.value })} /></Field>
+        <Field label="Name"><Input className="h-7 text-[12px]" required value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></Field>
+        <Field label="City">
+          <NativeSelect className="w-full" value={n.city} onChange={(v) => setN({ ...n, city: v })} options={[{ value: "Mumbai", label: "Mumbai" }, { value: "Bengaluru", label: "Bengaluru" }]} />
+        </Field>
+        <Field label="Address" className="md:col-span-3"><Input className="h-7 text-[12px]" value={n.address} onChange={(e) => setN({ ...n, address: e.target.value })} /></Field>
+      </AddForm>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {STUDIOS.map((s) => (
-          <div key={s.id} className="p-3 rounded-lg border border-border">
-            <div className="flex items-start gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500/10 to-indigo-500/10 flex items-center justify-center">
-                <MapPin className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-              </div>
-              <div className="flex-1">
-                <div className="text-[13px] font-semibold">{s.name}</div>
-                <div className="text-[11px] text-muted-foreground">{s.address}</div>
-              </div>
+        {data.studios.map((s) => (
+          <div key={s.code} className="p-3 rounded-lg border border-border space-y-2">
+            <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">{s.code}</Badge>
+              <AutoInput className="flex-1" value={s.name} disabled={!isAdmin} onSave={(v) => v && patch("studios", s.code, { name: v })} />
+              <IconButton label={`Delete ${s.name}`} danger disabled={!isAdmin} onClick={() => remove("studios", s.code, s.name)}>
+                <Trash2 className="w-3 h-3" />
+              </IconButton>
             </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{s.city}</Badge>
-              <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Active</Badge>
+            <AutoInput value={s.address} placeholder="Address" disabled={!isAdmin} onSave={(v) => patch("studios", s.code, { address: v })} />
+            <div className="flex items-center gap-2">
+              <NativeSelect value={s.city} disabled={!isAdmin} onChange={(v) => patch("studios", s.code, { city: v })} options={[{ value: "Mumbai", label: "Mumbai" }, { value: "Bengaluru", label: "Bengaluru" }]} />
+              <Field label="" className="flex-1">
+                <AutoInput type="number" placeholder="Momence location id" value={s.momence_location_id} disabled={!isAdmin} onSave={(v) => patch("studios", s.code, { momence_location_id: v })} />
+              </Field>
+              <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Switch checked={s.is_active} disabled={!isAdmin} onCheckedChange={(v) => patch("studios", s.code, { is_active: v })} />Active
+              </label>
             </div>
           </div>
         ))}
@@ -352,26 +639,40 @@ function StudiosSettings() {
   );
 }
 
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 function SLASettings() {
+  const { data, isAdmin, patch, setting, saveSetting } = useS();
+  const hours: Record<string, string> = setting("sla.business_hours") ?? {};
+  const mins = (v: string) => (Number(v) > 0 ? v : null);
   return (
     <>
-      <SettingsCard title="SLA Configuration" description="Configure response and resolution targets for each priority level">
+      <SettingsCard title="SLA Targets" description="Response and resolution targets per priority, in minutes. New and reprioritised tickets use these.">
+        <ReadOnlyNote show={!isAdmin} />
         <div className="space-y-3">
-          {(["P0", "P1", "P2", "P3"] as const).map((p) => {
-            const config = PRIORITY_CONFIG[p];
+          {data.sla_definitions.map((d) => {
+            const cfg = PRIORITY_CONFIG[d.priority as Priority];
             return (
-              <div key={p} className={cn("p-3 rounded-lg border", config.bg, config.ring, "ring-1")}>
-                <div className="flex items-center gap-3 mb-3">
-                  <span className={cn("text-[14px] font-bold", config.text)}>{p}</span>
-                  <div className="flex-1">
-                    <div className="text-[12px] font-semibold">{config.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{config.description}</div>
-                  </div>
+              <div key={d.priority} className={cn("p-3 rounded-lg border ring-1", cfg?.bg, cfg?.ring)}>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className={cn("text-[14px] font-bold", cfg?.text)}>{d.priority}</span>
+                  <AutoInput className="w-48" value={d.name} disabled={!isAdmin} onSave={(v) => v && patch("sla_definitions", d.priority, { name: v })} />
+                  <AutoInput className="flex-1" value={d.description} disabled={!isAdmin} onSave={(v) => v && patch("sla_definitions", d.priority, { description: v })} />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <SLAField label="First Response (mins)" defaultValue={config.responseMins} />
-                  <SLAField label="Resolution (mins)" defaultValue={config.resolutionMins} />
-                  <SLAField label="Escalation Threshold (mins)" defaultValue={Math.floor(config.responseMins * 1.5)} />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Field label="First response (mins)">
+                    <AutoInput type="number" min={1} value={d.response_target_mins} disabled={!isAdmin} onSave={(v) => mins(v) && patch("sla_definitions", d.priority, { response_target_mins: v })} />
+                  </Field>
+                  <Field label="Resolution (mins)">
+                    <AutoInput type="number" min={1} value={d.resolution_target_mins} disabled={!isAdmin} onSave={(v) => mins(v) && patch("sla_definitions", d.priority, { resolution_target_mins: v })} />
+                  </Field>
+                  <Field label="Escalate after (mins)">
+                    <AutoInput type="number" min={1} value={d.escalation_threshold_mins} disabled={!isAdmin} onSave={(v) => mins(v) && patch("sla_definitions", d.priority, { escalation_threshold_mins: v })} />
+                  </Field>
+                  <label className="flex items-end gap-1.5 text-[11px] pb-1.5">
+                    <Switch checked={d.business_hours_only} disabled={!isAdmin} onCheckedChange={(v) => patch("sla_definitions", d.priority, { business_hours_only: v })} />
+                    Business hours only
+                  </label>
                 </div>
               </div>
             );
@@ -379,13 +680,23 @@ function SLASettings() {
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Business Hours" description="Configure business hours and holidays for SLA calculations">
-        <div className="grid grid-cols-7 gap-2">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-            <div key={day} className="p-2 rounded-md border border-border">
-              <div className="text-[11px] font-medium mb-1">{day}</div>
-              <Input defaultValue={day === "Sun" ? "Closed" : "09:00 - 21:00"} className="h-7 text-[10px]" />
-            </div>
+      <SettingsCard title="Business Hours" description='Per day, like "09:00-21:00", or "Closed". Timezone: Asia/Kolkata.'>
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+          {DAYS.map((day) => (
+            <Field key={day} label={day}>
+              <AutoInput
+                value={hours[day] ?? ""}
+                disabled={!isAdmin}
+                placeholder="09:00-21:00"
+                onSave={(v) => {
+                  if (v && v.toLowerCase() !== "closed" && !/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(v)) {
+                    toast.error(`Use HH:MM-HH:MM or "Closed" for ${day}`);
+                    return;
+                  }
+                  return saveSetting("sla.business_hours", { ...hours, [day]: v.toLowerCase() === "closed" ? "Closed" : v || "Closed" });
+                }}
+              />
+            </Field>
           ))}
         </div>
       </SettingsCard>
@@ -393,325 +704,210 @@ function SLASettings() {
   );
 }
 
-function SLAField({ label, defaultValue }: { label: string; defaultValue: number }) {
-  return (
-    <div>
-      <div className="text-[10px] font-medium text-muted-foreground mb-1">{label}</div>
-      <Input type="number" defaultValue={defaultValue} className="h-7 text-[12px]" />
-    </div>
-  );
-}
+const ROUTE_PRIORITIES = ["Auto", "Critical", "High", "Medium", "Low"].map((v) => ({ value: v, label: v }));
 
 function RoutingSettings() {
+  const { data, isAdmin, patch, create, remove, setting, saveSetting } = useS();
+  const [adding, setAdding] = React.useState(false);
+  const blank = { name: "", condition: "", department_code: "", priority: "Auto" };
+  const [n, setN] = React.useState(blank);
+  const depts = [{ value: "", label: "Any department" }, ...deptOptions(data)];
   return (
-    <SettingsCard title="Routing Rules" description="Configure automatic ticket routing without modifying code" action={<Button size="sm" className="h-7 text-[11px]"><Plus className="w-3 h-3 mr-1" />Add Rule</Button>}>
-      <div className="space-y-2">
-        {[
-          { name: "HVAC issues → Facilities Lead", condition: "category=Facilities AND subcategory=HVAC", dept: "FAC", priority: "High", active: true },
-          { name: "Momence payment → Finance", condition: "category=Payment AND source=Momence", dept: "PAY", priority: "Medium", active: true },
-          { name: "VIP client → Director escalation", condition: "client.tier=VIP AND priority>=P1", dept: "MGT", priority: "Critical", active: true },
-          { name: "Bengaluru → Bengaluru team", condition: "studio.city=Bengaluru", dept: "Any", priority: "Auto", active: true },
-          { name: "Trainer complaints → HR", condition: "category=HR AND subcategory=Performance", dept: "HRV", priority: "Medium", active: false },
-        ].map((r, i) => (
-          <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border">
-            <Switch checked={r.active} />
-            <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-medium">{r.name}</div>
-              <div className="text-[10px] text-muted-foreground font-mono truncate">{r.condition}</div>
+    <>
+      <SettingsCard title="Assignment" description="How new tickets get an owner">
+        <ReadOnlyNote show={!isAdmin} />
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-[12px]">
+            <Switch checked={setting("routing.auto_assign") !== false} disabled={!isAdmin} onCheckedChange={(v) => saveSetting("routing.auto_assign", v)} />
+            Auto-assign new tickets to the least-loaded available person in the department
+          </label>
+          <label className="flex items-center gap-2 text-[12px]">
+            <Switch checked={setting("routing.require_acknowledgment") !== false} disabled={!isAdmin} onCheckedChange={(v) => saveSetting("routing.require_acknowledgment", v)} />
+            Require the assignee to acknowledge new tickets
+          </label>
+        </div>
+      </SettingsCard>
+      <SettingsCard
+        title="Routing Rules"
+        description="Applied in order (lowest number first). Condition syntax: field=value AND field=value"
+        action={<AddButton label="Add Rule" onClick={() => setAdding(true)} disabled={!isAdmin} />}
+      >
+        <AddForm open={adding} onCancel={() => { setAdding(false); setN(blank); }} onSubmit={() => create("routing_rules", { ...n, department_code: n.department_code || null })}>
+          <Field label="Rule name"><Input className="h-7 text-[12px]" required value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></Field>
+          <Field label="Condition" className="md:col-span-2"><Input className="h-7 text-[12px] font-mono" required placeholder="category=Facilities AND studio=KH" value={n.condition} onChange={(e) => setN({ ...n, condition: e.target.value })} /></Field>
+          <Field label="Route to"><NativeSelect className="w-full" value={n.department_code} onChange={(v) => setN({ ...n, department_code: v })} options={depts} /></Field>
+          <Field label="Priority"><NativeSelect className="w-full" value={n.priority} onChange={(v) => setN({ ...n, priority: v })} options={ROUTE_PRIORITIES} /></Field>
+        </AddForm>
+        <div className="space-y-2">
+          {data.routing_rules.map((r) => (
+            <div key={r.id} className="flex flex-wrap items-center gap-2 p-2.5 rounded-md border border-border">
+              <Switch checked={r.is_active} disabled={!isAdmin} onCheckedChange={(v) => patch("routing_rules", r.id, { is_active: v })} aria-label="Active" />
+              <AutoInput type="number" className="w-14" value={r.sort_order} disabled={!isAdmin} onSave={(v) => patch("routing_rules", r.id, { sort_order: v })} />
+              <AutoInput className="w-56" value={r.name} disabled={!isAdmin} onSave={(v) => v && patch("routing_rules", r.id, { name: v })} />
+              <AutoInput className="flex-1 min-w-[220px] font-mono text-[11px]" value={r.condition} disabled={!isAdmin} onSave={(v) => v && patch("routing_rules", r.id, { condition: v })} />
+              <NativeSelect value={r.department_code ?? ""} disabled={!isAdmin} onChange={(v) => patch("routing_rules", r.id, { department_code: v || null })} options={depts} />
+              <NativeSelect value={r.priority} disabled={!isAdmin} onChange={(v) => patch("routing_rules", r.id, { priority: v })} options={ROUTE_PRIORITIES} />
+              <IconButton label={`Delete ${r.name}`} danger disabled={!isAdmin} onClick={() => remove("routing_rules", r.id, r.name)}>
+                <Trash2 className="w-3 h-3" />
+              </IconButton>
             </div>
-            <Badge variant="outline" className="text-[10px] h-5 px-1.5">{r.dept}</Badge>
-            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{r.priority}</Badge>
-            <Button variant="ghost" size="icon" className="h-7 w-7"><Edit2 className="w-3 h-3" /></Button>
-          </div>
-        ))}
-      </div>
-    </SettingsCard>
+          ))}
+          {!data.routing_rules.length && <div className="text-[12px] text-muted-foreground">No rules yet.</div>}
+        </div>
+      </SettingsCard>
+    </>
   );
 }
 
 function AIModelSettings() {
+  const { data, isAdmin, patch, create, remove, setting, saveSetting } = useS();
+  const [adding, setAdding] = React.useState(false);
+  const blank = { provider: "Anthropic", model: "", purpose: "", temperature: "0.5", max_tokens: "4096" };
+  const [n, setN] = React.useState(blank);
+  const num = (key: string, v: string, min = 0) => {
+    const x = Number(v);
+    if (!Number.isFinite(x) || x < min) return toast.error("Enter a valid number");
+    return saveSetting(key, x);
+  };
   return (
     <>
-      <SettingsCard title="AI Model Configuration" description="Configure OpenAI and Anthropic Claude models with intelligent routing">
-        <div className="space-y-3">
-          {[
-            { provider: "OpenAI", model: "GPT-4o", purpose: "Primary Conversational", temp: "0.7", maxTokens: "4096", primary: true, active: true },
-            { provider: "OpenAI", model: "GPT-4o-mini", purpose: "Classification & Extraction", temp: "0.3", maxTokens: "2048", primary: false, active: true },
-            { provider: "Anthropic", model: "Claude Sonnet 4", purpose: "Investigation & Reasoning", temp: "0.5", maxTokens: "4096", primary: false, active: true },
-            { provider: "Anthropic", model: "Claude Haiku", purpose: "Summarization", temp: "0.4", maxTokens: "2048", primary: false, active: true },
-            { provider: "OpenAI", model: "GPT-4o", purpose: "Fallback (auto)", temp: "0.7", maxTokens: "4096", primary: false, active: true },
-          ].map((m, i) => (
-            <div key={i} className={cn("p-3 rounded-lg border", m.primary ? "border-violet-500/30 bg-violet-500/5" : "border-border")}>
-              <div className="flex items-center gap-3 mb-2">
-                <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center text-white",
-                  m.provider === "OpenAI" ? "bg-emerald-500" : "bg-orange-500"
-                )}>
-                  <Brain className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-[12px] font-semibold flex items-center gap-2">
-                    {m.provider} · {m.model}
-                    {m.primary && <Badge variant="outline" className="text-[9px] h-4 px-1 bg-violet-500/10 text-violet-600 border-violet-500/20">PRIMARY</Badge>}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">{m.purpose}</div>
-                </div>
-                <Switch checked={m.active} />
+      <SettingsCard
+        title="AI Models"
+        description="Models IRIS uses per task. Exactly one can be primary."
+        action={<AddButton label="Add Model" onClick={() => setAdding(true)} disabled={!isAdmin} />}
+      >
+        <ReadOnlyNote show={!isAdmin} />
+        <AddForm open={adding} onCancel={() => { setAdding(false); setN(blank); }} onSubmit={() => create("ai_models", n)}>
+          <Field label="Provider"><NativeSelect className="w-full" value={n.provider} onChange={(v) => setN({ ...n, provider: v })} options={["Anthropic", "OpenAI"].map((v) => ({ value: v, label: v }))} /></Field>
+          <Field label="Model id"><Input className="h-7 text-[12px] font-mono" required placeholder="claude-sonnet-5-5" value={n.model} onChange={(e) => setN({ ...n, model: e.target.value })} /></Field>
+          <Field label="Used for"><Input className="h-7 text-[12px]" required placeholder="Summarization" value={n.purpose} onChange={(e) => setN({ ...n, purpose: e.target.value })} /></Field>
+          <Field label="Temperature (0–2)"><Input type="number" step={0.1} min={0} max={2} className="h-7 text-[12px]" value={n.temperature} onChange={(e) => setN({ ...n, temperature: e.target.value })} /></Field>
+          <Field label="Max tokens"><Input type="number" min={1} className="h-7 text-[12px]" value={n.max_tokens} onChange={(e) => setN({ ...n, max_tokens: e.target.value })} /></Field>
+        </AddForm>
+        <div className="space-y-2">
+          {data.ai_models.map((m) => (
+            <div key={m.id} className={cn("p-3 rounded-lg border", m.is_primary ? "border-primary/40 bg-primary/5" : "border-border")}>
+              <div className="flex flex-wrap items-center gap-2">
+                <Brain className={cn("w-4 h-4", m.provider === "OpenAI" ? "text-emerald-500" : "text-orange-500")} />
+                <NativeSelect value={m.provider} disabled={!isAdmin} onChange={(v) => patch("ai_models", m.id, { provider: v })} options={["Anthropic", "OpenAI"].map((v) => ({ value: v, label: v }))} />
+                <AutoInput className="w-52 font-mono" value={m.model} disabled={!isAdmin} onSave={(v) => v && patch("ai_models", m.id, { model: v })} />
+                <AutoInput className="flex-1 min-w-[160px]" value={m.purpose} disabled={!isAdmin} onSave={(v) => v && patch("ai_models", m.id, { purpose: v })} />
+                {m.is_primary ? (
+                  <Badge variant="outline" className="text-[9px] h-5 px-1.5 bg-primary/10 text-primary border-primary/30">PRIMARY</Badge>
+                ) : (
+                  <Button variant="outline" size="sm" className="h-6 text-[10px]" disabled={!isAdmin} onClick={() => patch("ai_models", m.id, { is_primary: true })}>Make primary</Button>
+                )}
+                <Switch checked={m.is_active} disabled={!isAdmin} onCheckedChange={(v) => patch("ai_models", m.id, { is_active: v })} aria-label="Active" />
+                <IconButton label={`Delete ${m.model}`} danger disabled={!isAdmin || m.is_primary} onClick={() => remove("ai_models", m.id, `${m.provider} ${m.model}`)}>
+                  <Trash2 className="w-3 h-3" />
+                </IconButton>
               </div>
-              <div className="grid grid-cols-3 gap-2 ml-11">
-                <div>
-                  <div className="text-[10px] text-muted-foreground">Temperature</div>
-                  <Input defaultValue={m.temp} className="h-7 text-[11px]" />
-                </div>
-                <div>
-                  <div className="text-[10px] text-muted-foreground">Max Tokens</div>
-                  <Input defaultValue={m.maxTokens} className="h-7 text-[11px]" />
-                </div>
-                <div className="flex items-end">
-                  <Button variant="outline" size="sm" className="h-7 text-[11px]">Edit</Button>
-                </div>
+              <div className="grid grid-cols-2 gap-2 mt-2 max-w-sm">
+                <Field label="Temperature (0–2)">
+                  <AutoInput type="number" step={0.1} min={0} value={m.temperature} disabled={!isAdmin} onSave={(v) => (Number(v) >= 0 && Number(v) <= 2 ? patch("ai_models", m.id, { temperature: v }) : toast.error("Temperature must be 0–2"))} />
+                </Field>
+                <Field label="Max tokens">
+                  <AutoInput type="number" min={1} value={m.max_tokens} disabled={!isAdmin} onSave={(v) => (Number(v) > 0 ? patch("ai_models", m.id, { max_tokens: v }) : toast.error("Must be above 0"))} />
+                </Field>
               </div>
             </div>
           ))}
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Model Routing Strategy" description="How IRIS selects models for different tasks">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-md bg-muted/30 border border-border">
-            <div className="text-[11px] font-semibold mb-2 flex items-center gap-1.5"><Zap className="w-3 h-3 text-amber-500" />Simple Tasks</div>
-            <div className="text-[11px] text-muted-foreground">Use economical models (GPT-4o-mini, Haiku) for:</div>
-            <ul className="text-[11px] mt-1 space-y-0.5">
-              <li>• Issue classification</li>
-              <li>• Field extraction</li>
-              <li>• Routine responses</li>
-              <li>• Tag suggestions</li>
-            </ul>
-          </div>
-          <div className="p-3 rounded-md bg-muted/30 border border-border">
-            <div className="text-[11px] font-semibold mb-2 flex items-center gap-1.5"><Brain className="w-3 h-3 text-violet-500" />Complex Tasks</div>
-            <div className="text-[11px] text-muted-foreground">Use capable models (GPT-4o, Sonnet) for:</div>
-            <ul className="text-[11px] mt-1 space-y-0.5">
-              <li>• Multi-step investigations</li>
-              <li>• Ambiguous case reasoning</li>
-              <li>• Ticket generation</li>
-              <li>• Resolution recommendations</li>
-            </ul>
-          </div>
+      <SettingsCard title="AI Behaviour & Spending" description="Limits and defaults for the AI assistant">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <Field label="Daily token limit"><AutoInput type="number" min={0} value={setting("ai.daily_token_limit")} disabled={!isAdmin} onSave={(v) => num("ai.daily_token_limit", v)} /></Field>
+          <Field label="Monthly budget (USD)"><AutoInput type="number" min={0} value={setting("ai.monthly_budget_usd")} disabled={!isAdmin} onSave={(v) => num("ai.monthly_budget_usd", v)} /></Field>
+          <Field label="Alert at (% of budget)"><AutoInput type="number" min={1} value={setting("ai.alert_threshold_pct")} disabled={!isAdmin} onSave={(v) => num("ai.alert_threshold_pct", v, 1)} /></Field>
+          <Field label="Min. confidence to auto-route (%)"><AutoInput type="number" min={0} value={setting("ai.confidence_threshold")} disabled={!isAdmin} onSave={(v) => num("ai.confidence_threshold", v)} /></Field>
         </div>
-      </SettingsCard>
-
-      <SettingsCard title="Spending Controls" description="Set token usage limits and alerts">
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <div className="text-[10px] font-medium text-muted-foreground mb-1">Daily Token Limit</div>
-            <Input defaultValue="50000" className="h-8 text-[12px]" />
-          </div>
-          <div>
-            <div className="text-[10px] font-medium text-muted-foreground mb-1">Monthly Budget (USD)</div>
-            <Input defaultValue="500" className="h-8 text-[12px]" />
-          </div>
-          <div>
-            <div className="text-[10px] font-medium text-muted-foreground mb-1">Alert Threshold (%)</div>
-            <Input defaultValue="80" className="h-8 text-[12px]" />
-          </div>
-        </div>
+        <label className="flex items-center gap-2 text-[12px] mt-3">
+          <Switch checked={setting("ai.auto_investigate") !== false} disabled={!isAdmin} onCheckedChange={(v) => saveSetting("ai.auto_investigate", v)} />
+          Let the assistant investigate automatically (Momence lookups, similar tickets)
+        </label>
       </SettingsCard>
     </>
   );
 }
 
 function NotificationsSettings() {
-  return (
-    <SettingsCard title="Notification Preferences" description="Configure in-app, email, WhatsApp notifications">
-      <div className="space-y-2">
-        {[
-          { event: "Ticket assigned", inApp: true, email: true, whatsapp: false },
-          { event: "Ticket escalated", inApp: true, email: true, whatsapp: true },
-          { event: "SLA approaching", inApp: true, email: true, whatsapp: false },
-          { event: "SLA breached", inApp: true, email: true, whatsapp: true },
-          { event: "Ticket resolved", inApp: true, email: false, whatsapp: false },
-          { event: "Ticket reopened", inApp: true, email: true, whatsapp: false },
-          { event: "New comment", inApp: true, email: false, whatsapp: false },
-        ].map((n, i) => (
-          <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border">
-            <div className="flex-1 text-[12px] font-medium">{n.event}</div>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-1.5 text-[11px]">
-                <Switch checked={n.inApp} /> In-App
-              </label>
-              <label className="flex items-center gap-1.5 text-[11px]">
-                <Switch checked={n.email} /> Email
-              </label>
-              <label className="flex items-center gap-1.5 text-[11px]">
-                <Switch checked={n.whatsapp} /> WhatsApp
-              </label>
-            </div>
-          </div>
-        ))}
-      </div>
-    </SettingsCard>
-  );
-}
-
-function IntegrationsSettings() {
+  const { data, isAdmin, patch, create, remove, setting, saveSetting } = useS();
+  const [adding, setAdding] = React.useState(false);
+  const [event, setEvent] = React.useState("");
+  const channels = [
+    { key: "notifications.in_app_enabled", label: "In-app" },
+    { key: "notifications.email_enabled", label: "Email" },
+    { key: "notifications.whatsapp_enabled", label: "WhatsApp" },
+  ];
   return (
     <>
-      <SettingsCard title="Integrations" description="Manage external service integrations — fetched from iris-ai-v2 integration catalogue">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[
-            { name: "Momence", desc: "Member, booking, payment & session data", status: "connected", icon: Plug, category: "Operations", type: "API" },
-            { name: "Fillout", desc: "Dynamic form builder & submission intake", status: "connected", icon: FileText, category: "Forms", type: "API" },
-            { name: "Response.io", desc: "WhatsApp & messaging automation", status: "connected", icon: MessageSquare, category: "Communication", type: "API" },
-            { name: "OpenAI", desc: "GPT-4o & GPT-4o-mini models", status: "connected", icon: Brain, category: "AI", type: "AI" },
-            { name: "Anthropic", desc: "Claude Sonnet & Haiku models", status: "connected", icon: Brain, category: "AI", type: "AI" },
-            { name: "Razorpay", desc: "Payment gateway for UPI/card transactions", status: "connected", icon: CreditCard, category: "Payments", type: "Payment" },
-            { name: "Stripe", desc: "International payment processing", status: "connected", icon: CreditCard, category: "Payments", type: "Payment" },
-            { name: "Gmail", desc: "Email notifications & digest delivery", status: "connected", icon: Mail, category: "Email", type: "Email" },
-            { name: "Zoho Shift", desc: "Staff shifts & HR management", status: "connected", icon: Users, category: "HR", type: "HR" },
-            { name: "Yellow Messenger", desc: "Chatbot & customer communication", status: "connected", icon: MessageSquare, category: "Communication", type: "Chat" },
-          ].map((int, i) => (
-            <div key={i} className="p-3 rounded-lg border border-border hover:border-violet-500/30 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className={cn(
-                  "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-                  int.status === "connected" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-                  int.status === "pending" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
-                  "bg-muted text-muted-foreground"
-                )}>
-                  <int.icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="text-[13px] font-semibold">{int.name}</div>
-                    <Badge variant="outline" className="text-[9px] h-4 px-1">{int.category}</Badge>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">{int.desc}</div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline" className={cn(
-                      "text-[10px] h-5 px-1.5 capitalize",
-                      int.status === "connected" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                      int.status === "pending" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                      "bg-muted text-muted-foreground"
-                    )}>
-                      {int.status}
-                    </Badge>
-                    <span className="text-[9px] text-muted-foreground">{int.type}</span>
-                    <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 ml-auto">Configure</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <SettingsCard title="Channels" description="Switch a channel off to stop every notification on it">
+        <ReadOnlyNote show={!isAdmin} />
+        <div className="flex flex-wrap gap-6">
+          {channels.map((c) => (
+            <label key={c.key} className="flex items-center gap-2 text-[12px]">
+              <Switch checked={setting(c.key) !== false} disabled={!isAdmin} onCheckedChange={(v) => saveSetting(c.key, v)} />{c.label}
+            </label>
           ))}
         </div>
       </SettingsCard>
-
-      {/* Fillout Forms Configuration */}
-      <SettingsCard title="Fillout Forms Integration" description="Dynamic form builder — import submissions as tickets">
-        <div className="space-y-3">
-          <div className="p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-violet-500" />
-              <div className="text-[12px] font-semibold">Fillout API Configuration</div>
-              <Badge variant="outline" className="text-[9px] h-4 px-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 ml-auto">Connected</Badge>
+      <SettingsCard
+        title="Events"
+        description="Which events notify on which channel"
+        action={<AddButton label="Add Event" onClick={() => setAdding(true)} disabled={!isAdmin} />}
+      >
+        <AddForm open={adding} onCancel={() => { setAdding(false); setEvent(""); }} onSubmit={() => create("notification_rules", { event, in_app: true })}>
+          <Field label="Event name" className="md:col-span-3"><Input className="h-7 text-[12px]" required value={event} onChange={(e) => setEvent(e.target.value)} /></Field>
+        </AddForm>
+        <div className="space-y-2">
+          {data.notification_rules.map((n) => (
+            <div key={n.event} className="flex flex-wrap items-center gap-3 p-2.5 rounded-md border border-border">
+              <div className="flex-1 text-[12px] font-medium">{n.event}</div>
+              {(["in_app", "email", "whatsapp"] as const).map((ch) => (
+                <label key={ch} className="flex items-center gap-1.5 text-[11px]">
+                  <Switch checked={n[ch]} disabled={!isAdmin} onCheckedChange={(v) => patch("notification_rules", n.event, { [ch]: v })} />
+                  {ch === "in_app" ? "In-app" : ch === "email" ? "Email" : "WhatsApp"}
+                </label>
+              ))}
+              <IconButton label={`Delete ${n.event}`} danger disabled={!isAdmin} onClick={() => remove("notification_rules", n.event, n.event)}>
+                <Trash2 className="w-3 h-3" />
+              </IconButton>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-muted-foreground">API Endpoint:</span> <span className="font-mono">api.fillout.com/v1/api</span></div>
-              <div><span className="text-muted-foreground">Auth:</span> <span className="font-mono">Bearer token</span></div>
-              <div><span className="text-muted-foreground">Forms configured:</span> <span className="font-semibold">3</span></div>
-              <div><span className="text-muted-foreground">Submissions imported:</span> <span className="font-semibold">147</span></div>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Configured Forms</div>
-            {[
-              { name: "Trainer Assessment Form", id: "fillout_trainer_001", submissions: 89, lastSync: "2h ago" },
-              { name: "Member Feedback Form", id: "fillout_feedback_002", submissions: 42, lastSync: "5h ago" },
-              { name: "Class Experience Survey", id: "fillout_class_003", submissions: 16, lastSync: "1d ago" },
-            ].map((f, i) => (
-              <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border">
-                <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-medium truncate">{f.name}</div>
-                  <div className="text-[10px] text-muted-foreground font-mono">{f.id}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[11px] font-semibold tabular-nums">{f.submissions}</div>
-                  <div className="text-[9px] text-muted-foreground">{f.lastSync}</div>
-                </div>
-                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2">Sync</Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </SettingsCard>
-
-      {/* Response.io Configuration */}
-      <SettingsCard title="Response.io Integration" description="WhatsApp & messaging automation for notifications">
-        <div className="space-y-3">
-          <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageSquare className="w-4 h-4 text-emerald-500" />
-              <div className="text-[12px] font-semibold">Response.io API Configuration</div>
-              <Badge variant="outline" className="text-[9px] h-4 px-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 ml-auto">Connected</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div><span className="text-muted-foreground">Channels:</span> <span className="font-semibold">WhatsApp, SMS</span></div>
-              <div><span className="text-muted-foreground">Messages sent:</span> <span className="font-semibold">1,247</span></div>
-              <div><span className="text-muted-foreground">Delivery rate:</span> <span className="font-semibold text-emerald-600">98.4%</span></div>
-              <div><span className="text-muted-foreground">Avg response time:</span> <span className="font-semibold">2.1s</span></div>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Message Templates</div>
-            {[
-              { name: "Ticket Created — WhatsApp", trigger: "ticket_created", sent: 342 },
-              { name: "SLA Breach Alert — WhatsApp", trigger: "sla_breached", sent: 28 },
-              { name: "Resolution Confirmation — WhatsApp", trigger: "resolved", sent: 198 },
-            ].map((t, i) => (
-              <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border">
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-medium truncate">{t.name}</div>
-                  <div className="text-[10px] text-muted-foreground font-mono">{t.trigger}</div>
-                </div>
-                <div className="text-[11px] font-semibold tabular-nums">{t.sent} sent</div>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </SettingsCard>
     </>
   );
 }
 
-function PermissionsSettings() {
+function IntegrationsSettings() {
+  const { data, isAdmin, patch } = useS();
   return (
-    <SettingsCard title="Permissions & Roles" description="Role-based access control configuration">
-      <div className="space-y-2">
-        {[
-          { role: "Studio Director", permissions: ["all"], users: 1, color: "violet" },
-          { role: "Operations Manager", permissions: ["tickets.all", "reports.all", "settings.limited"], users: 1, color: "indigo" },
-          { role: "Department Manager", permissions: ["tickets.department", "reports.department"], users: 6, color: "sky" },
-          { role: "Front Desk Lead", permissions: ["tickets.create", "tickets.view", "memberships.read"], users: 2, color: "emerald" },
-          { role: "Front Desk Associate", permissions: ["tickets.create", "tickets.view.own"], users: 2, color: "amber" },
-          { role: "IT Administrator", permissions: ["all", "settings.system"], users: 1, color: "rose" },
-        ].map((r, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border">
-            <div className={cn("w-2 h-10 rounded-full", `bg-${r.color}-500`)} />
-            <div className="flex-1">
-              <div className="text-[13px] font-semibold">{r.role}</div>
-              <div className="text-[11px] text-muted-foreground">{r.users} user{r.users > 1 ? "s" : ""}</div>
+    <SettingsCard title="Integrations" description="Turn integrations on or off and set how often they sync. API keys live in the server environment, never in the database or the browser.">
+      <ReadOnlyNote show={!isAdmin} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {data.integrations.map((i) => (
+          <div key={i.id} className="p-3 rounded-lg border border-border space-y-2">
+            <div className="flex items-start gap-2">
+              <Plug className={cn("w-4 h-4 mt-0.5", i.is_enabled ? "text-emerald-500" : "text-muted-foreground")} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-semibold">{i.name}</span>
+                  {i.category && <Badge variant="outline" className="text-[9px] h-4 px-1">{i.category}</Badge>}
+                </div>
+                <div className="text-[11px] text-muted-foreground">{i.description}</div>
+              </div>
+              <Switch checked={i.is_enabled} disabled={!isAdmin} onCheckedChange={(v) => patch("integrations", i.id, { is_enabled: v, status: v ? "enabled" : "disconnected" })} aria-label={`Enable ${i.name}`} />
             </div>
-            <div className="flex flex-wrap gap-1 max-w-md justify-end">
-              {r.permissions.slice(0, 3).map((p) => (
-                <span key={p} className="px-1.5 py-0.5 text-[10px] rounded bg-muted text-muted-foreground font-mono">{p}</span>
-              ))}
-              {r.permissions.length > 3 && (
-                <span className="px-1.5 py-0.5 text-[10px] rounded bg-muted text-muted-foreground">+{r.permissions.length - 3}</span>
-              )}
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span>Sync every</span>
+              <AutoInput type="number" min={5} className="w-16" value={i.sync_interval_mins} disabled={!isAdmin} onSave={(v) => (Number(v) >= 5 ? patch("integrations", i.id, { sync_interval_mins: v }) : toast.error("Minimum 5 minutes"))} />
+              <span>mins</span>
+              <span className="ml-auto">
+                {i.last_synced_at ? `Last sync ${new Date(i.last_synced_at).toLocaleString()}` : "Never synced"}
+              </span>
             </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7"><Edit2 className="w-3 h-3" /></Button>
           </div>
         ))}
       </div>
@@ -719,40 +915,202 @@ function PermissionsSettings() {
   );
 }
 
-function AuditLogsSettings() {
-  const logs = [
-    { action: "TICKET_CREATED", actor: "Aarav Mehta", resource: "IRIS-2026-0142", timestamp: "5m ago", ip: "103.21.45.12" },
-    { action: "MOMENCE_MEMBER_LOOKUP", actor: "IRIS AI", resource: "MM-89342", timestamp: "8m ago", ip: "system" },
-    { action: "TICKET_ASSIGNED", actor: "Routing Agent", resource: "IRIS-2026-0141", timestamp: "15m ago", ip: "system" },
-    { action: "SETTINGS_UPDATED", actor: "Sanaya Wadia", resource: "SLA Config", timestamp: "1h ago", ip: "103.21.45.12" },
-    { action: "REFUND_AUTHORIZED", actor: "Meera Krishnan", resource: "MM-89334", timestamp: "2h ago", ip: "103.21.45.15" },
-    { action: "MEMBERSHIP_FROZEN", actor: "Ishita Nair", resource: "MM-85112", timestamp: "3h ago", ip: "103.21.45.13" },
-  ];
+const TIERS = [
+  { value: "executive", label: "Executive — own & department tickets" },
+  { value: "manager", label: "Manager — department + staff edits" },
+  { value: "admin", label: "Admin — everything" },
+];
+
+function PermissionsSettings() {
+  const { data, isAdmin, patch, create, remove } = useS();
+  const [addingUser, setAddingUser] = React.useState(false);
+  const [u, setU] = React.useState({ employee_id: "", email: "", password: "", role: "executive" });
+  const [addingRole, setAddingRole] = React.useState(false);
+  const [r, setR] = React.useState({ name: "", access_tier: "executive", permissions: "" });
+  const withLogin = new Set(data.users.map((x) => x.employee_id).filter(Boolean));
+  const empOptions = data.employees.filter((e) => e.is_active && !withLogin.has(e.id));
+
+  const tempPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    const a = new Uint32Array(14);
+    crypto.getRandomValues(a);
+    return Array.from(a, (x) => chars[x % chars.length]).join("");
+  };
+
+  const resetPassword = async (user: Row) => {
+    const pw = tempPassword();
+    if (!window.confirm(`Reset the password for ${user.email}? They'll be signed out everywhere.`)) return;
+    if (await patch("users", user.id, { password: pw })) {
+      window.prompt(`Temporary password for ${user.email} (copy it now, it won't be shown again). They must change it on next sign-in.`, pw);
+    }
+  };
+
   return (
-    <SettingsCard title="Audit Logs" description="Complete record of consequential actions" action={<Button variant="outline" size="sm" className="h-7 text-[11px]">Export Logs</Button>}>
+    <>
+      <SettingsCard
+        title="User Accounts"
+        description="Who can sign in to IRIS, and with what access"
+        action={<AddButton label="Add Login" onClick={() => { setU({ employee_id: "", email: "", password: tempPassword(), role: "executive" }); setAddingUser(true); }} disabled={!isAdmin} />}
+      >
+        {!isAdmin ? (
+          <ReadOnlyNote show text="Only admins can see and manage user accounts." />
+        ) : (
+          <>
+            <AddForm
+              open={addingUser}
+              onCancel={() => setAddingUser(false)}
+              onSubmit={async () => {
+                const ok = await create("users", u);
+                if (ok) window.prompt(`Account created. Temporary password for ${u.email} (copy it now). They must change it on first sign-in.`, u.password);
+                return ok;
+              }}
+            >
+              <Field label="Employee">
+                <NativeSelect
+                  className="w-full"
+                  value={u.employee_id}
+                  onChange={(v) => setU({ ...u, employee_id: v, email: data.employees.find((e) => e.id === v)?.email ?? u.email })}
+                  options={[{ value: "", label: "Not linked" }, ...empOptions.map((e) => ({ value: e.id, label: e.name }))]}
+                />
+              </Field>
+              <Field label="Sign-in email"><Input type="email" required className="h-7 text-[12px]" value={u.email} onChange={(e) => setU({ ...u, email: e.target.value })} /></Field>
+              <Field label="Access"><NativeSelect className="w-full" value={u.role} onChange={(v) => setU({ ...u, role: v })} options={TIERS} /></Field>
+              <Field label="Temporary password (10+ chars)" className="md:col-span-3">
+                <Input required minLength={10} className="h-7 text-[12px] font-mono" value={u.password} onChange={(e) => setU({ ...u, password: e.target.value })} />
+              </Field>
+            </AddForm>
+            <div className="overflow-x-auto iris-scrollbar">
+              <table className="w-full text-[12px] min-w-[720px]">
+                <thead>
+                  <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <th className="text-left py-2 px-1.5 font-semibold">User</th>
+                    <th className="text-left py-2 px-1.5 font-semibold">Access</th>
+                    <th className="text-left py-2 px-1.5 font-semibold">Last sign-in</th>
+                    <th className="text-left py-2 px-1.5 font-semibold">Active</th>
+                    <th className="py-2 px-1.5" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {data.users.map((x) => {
+                    const self = x.id === data.me.userId;
+                    return (
+                      <tr key={x.id} className={cn(!x.is_active && "opacity-50")}>
+                        <td className="py-1.5 px-1.5">
+                          <div className="font-medium">{x.name ?? x.email}{self && <span className="text-muted-foreground"> (you)</span>}</div>
+                          <div className="text-[10px] text-muted-foreground">{x.email}{x.must_change_password && " · must set password"}</div>
+                        </td>
+                        <td className="py-1.5 px-1.5">
+                          <NativeSelect value={x.role} disabled={self} onChange={(v) => patch("users", x.id, { role: v })} options={TIERS} />
+                        </td>
+                        <td className="py-1.5 px-1.5 text-[11px] text-muted-foreground">{x.last_login_at ? new Date(x.last_login_at).toLocaleString() : "Never"}</td>
+                        <td className="py-1.5 px-1.5">
+                          <Switch checked={x.is_active} disabled={self} onCheckedChange={(v) => patch("users", x.id, { is_active: v })} aria-label="Active" />
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right">
+                          <Button variant="outline" size="sm" className="h-6 text-[10px]" disabled={self} onClick={() => resetPassword(x)}>
+                            <KeyRound className="w-3 h-3 mr-1" />Reset password
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </SettingsCard>
+
+      <SettingsCard
+        title="Role Catalogue"
+        description="Job roles and the access tier each one maps to"
+        action={<AddButton label="Add Role" onClick={() => setAddingRole(true)} disabled={!isAdmin} />}
+      >
+        <AddForm open={addingRole} onCancel={() => { setAddingRole(false); setR({ name: "", access_tier: "executive", permissions: "" }); }} onSubmit={() => create("roles", r)}>
+          <Field label="Role name"><Input required className="h-7 text-[12px]" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} /></Field>
+          <Field label="Access tier"><NativeSelect className="w-full" value={r.access_tier} onChange={(v) => setR({ ...r, access_tier: v })} options={TIERS} /></Field>
+          <Field label="Permissions (comma-separated)"><Input className="h-7 text-[12px] font-mono" value={r.permissions} onChange={(e) => setR({ ...r, permissions: e.target.value })} /></Field>
+        </AddForm>
+        <div className="space-y-2">
+          {data.roles.map((role) => (
+            <div key={role.name} className="flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border">
+              <div className="w-44 text-[12px] font-semibold">{role.name}</div>
+              <NativeSelect value={role.access_tier} disabled={!isAdmin} onChange={(v) => patch("roles", role.name, { access_tier: v })} options={TIERS} />
+              <AutoInput className="flex-1 min-w-[220px] font-mono text-[11px]" value={(role.permissions ?? []).join(", ")} disabled={!isAdmin} onSave={(v) => patch("roles", role.name, { permissions: v })} />
+              <IconButton label={`Delete ${role.name}`} danger disabled={!isAdmin} onClick={() => remove("roles", role.name, role.name)}>
+                <Trash2 className="w-3 h-3" />
+              </IconButton>
+            </div>
+          ))}
+        </div>
+      </SettingsCard>
+    </>
+  );
+}
+
+function AuditLogsSettings() {
+  const { data, isAdmin, setting, saveSetting, reload } = useS();
+  const [q, setQ] = React.useState("");
+  const logs = data.audit_log.filter(
+    (l) => !q || `${l.action} ${l.actor} ${l.entity_type} ${l.entity_id}`.toLowerCase().includes(q.toLowerCase()),
+  );
+  const exportCsv = () => {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [
+      ["timestamp", "action", "actor", "entity_type", "entity_id", "ip"].join(","),
+      ...logs.map((l) => [l.created_at, l.action, l.actor, l.entity_type, l.entity_id, l.ip].map(esc).join(",")),
+    ];
+    const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `iris-audit-${new Date().toISOString().slice(0, 10)}.csv` });
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <SettingsCard
+      title="Audit Log"
+      description="Latest 300 recorded actions (sign-ins, edits to tickets and settings)"
+      action={
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={reload}><RefreshCw className="w-3 h-3 mr-1" />Refresh</Button>
+          <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={exportCsv} disabled={!logs.length}><Download className="w-3 h-3 mr-1" />Export CSV</Button>
+        </div>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter by action, person or record" className="h-7 text-[12px] pl-7" />
+        </div>
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground ml-auto">
+          Keep logs for
+          <AutoInput type="number" min={30} className="w-16" value={setting("audit.retention_days")} disabled={!isAdmin} onSave={(v) => (Number(v) >= 30 ? saveSetting("audit.retention_days", Number(v)) : toast.error("Minimum 30 days"))} />
+          days
+        </div>
+      </div>
       <div className="overflow-x-auto iris-scrollbar">
         <table className="w-full text-[12px]">
           <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Action</th>
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Actor</th>
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Resource</th>
-              <th className="text-left py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">IP</th>
-              <th className="text-right py-2 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Timestamp</th>
+            <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+              <th className="text-left py-2 px-2 font-semibold">Action</th>
+              <th className="text-left py-2 px-2 font-semibold">By</th>
+              <th className="text-left py-2 px-2 font-semibold">Record</th>
+              <th className="text-left py-2 px-2 font-semibold">IP</th>
+              <th className="text-right py-2 px-2 font-semibold">When</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {logs.map((log, i) => (
-              <tr key={i} className="hover:bg-muted/30 transition-colors">
-                <td className="py-2 px-2">
-                  <span className="font-mono text-[11px] font-medium">{log.action}</span>
-                </td>
-                <td className="py-2 px-2 text-[12px]">{log.actor}</td>
-                <td className="py-2 px-2 font-mono text-[11px] text-muted-foreground">{log.resource}</td>
-                <td className="py-2 px-2 font-mono text-[10px] text-muted-foreground">{log.ip}</td>
-                <td className="py-2 px-2 text-right text-[11px] text-muted-foreground">{log.timestamp}</td>
+            {logs.map((l) => (
+              <tr key={l.id} className="hover:bg-muted/30">
+                <td className="py-1.5 px-2 font-mono text-[11px]">{l.action}</td>
+                <td className="py-1.5 px-2">{l.actor}</td>
+                <td className="py-1.5 px-2 font-mono text-[11px] text-muted-foreground">{l.entity_type}{l.entity_id ? ` · ${l.entity_id}` : ""}</td>
+                <td className="py-1.5 px-2 font-mono text-[10px] text-muted-foreground">{l.ip ?? "—"}</td>
+                <td className="py-1.5 px-2 text-right text-[11px] text-muted-foreground">{new Date(l.created_at).toLocaleString()}</td>
               </tr>
             ))}
+            {!logs.length && (
+              <tr><td colSpan={5} className="py-6 text-center text-[12px] text-muted-foreground">No audit entries{q ? " match that filter" : " yet"}.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

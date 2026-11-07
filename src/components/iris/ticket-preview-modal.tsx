@@ -571,7 +571,7 @@ function RoutingTab({ data }: { data: TicketDetailData }) {
                       <div className="w-10 h-1 rounded-full bg-muted overflow-hidden">
                         <div className={cn("h-full rounded-full", c.workloadPercentage > 80 ? "bg-rose-500" : c.workloadPercentage > 60 ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${c.workloadPercentage}%` }} />
                       </div>
-                      <span className="text-[9px] tabular-nums">{c.workload}/{c.maxWorkload}</span>
+                      <span className="text-[9px] tabular-nums">{c.currentWorkload}/{c.maxWorkload}</span>
                     </div>
                   </td>
                   <td className="py-2 px-2">
@@ -868,7 +868,6 @@ function ResolutionTab({ data }: { data: TicketDetailData }) {
                   {action.step}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-medium mb-1">{data.action}</div>
                   <div className="text-[11px] text-foreground/90">{action.action}</div>
                   <div className="flex items-center gap-3 mt-1.5 text-[9px] text-muted-foreground">
                     <span className="flex items-center gap-1"><User className="w-2.5 h-2.5" />{action.owner}</span>
@@ -1212,7 +1211,7 @@ function AssigneeCard({ assignee, selected }: { assignee: AssigneeDetail; select
         <div className="p-1.5 rounded-md bg-card border border-border text-center">
           <div className="text-[8px] text-muted-foreground uppercase tracking-wider">Workload</div>
           <div className="text-[11px] font-bold tabular-nums">{assignee.workloadPercentage}%</div>
-          <div className="text-[8px] text-muted-foreground">{assignee.workload}/{assignee.maxWorkload}</div>
+          <div className="text-[8px] text-muted-foreground">{assignee.currentWorkload}/{assignee.maxWorkload}</div>
         </div>
         <div className="p-1.5 rounded-md bg-card border border-border text-center">
           <div className="text-[8px] text-muted-foreground uppercase tracking-wider">Availability</div>

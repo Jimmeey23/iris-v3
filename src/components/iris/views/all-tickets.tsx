@@ -48,7 +48,7 @@ import { SmartBadges } from "../smart-badges";
 import { SmartBulkActions } from "../smart-bulk-actions";
 
 export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "my" | "department" | "escalations" }) {
-  const { selectedTicketId, selectTicket, ticketFilters, setTicketFilter, resetTicketFilters, currentUser } = useAppStore();
+  const { selectedTicketId, selectTicket, ticketFilters, setTicketFilter, resetTicketFilters, currentUser, dataVersion } = useAppStore();
   const [view, setView] = React.useState<"list" | "grid">("list");
   const [sortBy, setSortBy] = React.useState<"created" | "priority" | "sla" | "updated" | "title">("created");
   const [groupBy, setGroupBy] = React.useState<"none" | "priority" | "status" | "studio" | "department">("none");
@@ -108,7 +108,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
     }
 
     return result;
-  }, [filterMode, ticketFilters, sortBy, currentUser.id]);
+  }, [filterMode, ticketFilters, sortBy, currentUser.id, dataVersion]);
 
   // Group tickets
   const groupedTickets = React.useMemo(() => {
@@ -366,6 +366,7 @@ function TicketList({ tickets, onSelect, selectedIds, onToggleSelect, onToggleSe
   onToggleSelectAll?: () => void;
   allSelected?: boolean;
 }) {
+  const [limit, setLimit] = React.useState(PAGE);
   if (tickets.length === 0) {
     return (
       <div className="text-center py-20">
@@ -396,7 +397,7 @@ function TicketList({ tickets, onSelect, selectedIds, onToggleSelect, onToggleSe
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {tickets.map((t) => {
+            {tickets.slice(0, limit).map((t) => {
               const assignee = getAssignee(t);
               const studio = getStudio(t);
               const isSelected = selectedIds?.has(t.id);
@@ -449,14 +450,29 @@ function TicketList({ tickets, onSelect, selectedIds, onToggleSelect, onToggleSe
           </tbody>
         </table>
       </div>
+      <ShowMore shown={Math.min(limit, tickets.length)} total={tickets.length} onMore={() => setLimit((l) => l + PAGE)} />
+    </div>
+  );
+}
+
+const PAGE = 100;
+
+function ShowMore({ shown, total, onMore }: { shown: number; total: number; onMore: () => void }) {
+  if (shown >= total) return null;
+  return (
+    <div className="flex items-center justify-center gap-3 py-3 border-t border-border text-[11px] text-muted-foreground">
+      Showing {shown} of {total}
+      <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={onMore}>Show {Math.min(PAGE, total - shown)} more</Button>
     </div>
   );
 }
 
 function TicketGrid({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: string) => void }) {
+  const [limit, setLimit] = React.useState(PAGE);
   return (
+    <>
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-      {tickets.map((t) => {
+      {tickets.slice(0, limit).map((t) => {
         const assignee = getAssignee(t);
         const studio = getStudio(t);
         return (
@@ -483,5 +499,7 @@ function TicketGrid({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: s
         );
       })}
     </div>
+    <ShowMore shown={Math.min(limit, tickets.length)} total={tickets.length} onMore={() => setLimit((l) => l + PAGE)} />
+    </>
   );
 }
