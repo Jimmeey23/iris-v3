@@ -1030,100 +1030,8 @@
   .btn-danger-ghost:hover { background: color-mix(in srgb, #ff3b30 16%, transparent); }
   .btn-danger-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* Trainer grid cards */
-  .trainer-groups { display: grid; gap: 26px; }
-  .trainer-city-group { display: grid; gap: 14px; }
-  .trainer-group-heading {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .trainer-group-heading > span {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--foreground);
-  }
-  .trainer-group-heading small {
-    font-size: 11px;
-    color: var(--muted-foreground);
-    font-weight: 500;
-  }
-
-  /* Trainer profile card — the entry on the grid */
-  .trainer-profile-card-wrap { position: relative; }
-  .trainer-profile-card {
-    width: 100%;
-    text-align: left;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--card);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
-    padding: 0;
-    cursor: pointer;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-    overflow: hidden;
-    display: block;
-    color: inherit;
-  }
-  .dark .trainer-profile-card { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
-  .trainer-profile-card:hover {
-    transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.10);
-  }
-  .dark .trainer-profile-card:hover { box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35); }
-  .trainer-profile-card:active { transform: none; }
-  .trainer-profile-meta { padding: 14px; display: grid; gap: 10px; }
-  .tpc-head {
-    display: flex;
-    align-items: center;
-    gap: 11px;
-    min-width: 0;
-  }
-  .tpc-photo {
-    position: relative;
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    border-radius: 11px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background: linear-gradient(135deg, var(--primary), var(--iris-hero-to));
-    display: grid;
-    place-items: center;
-    color: var(--primary-foreground);
-    font-size: 13px;
-    font-weight: 700;
-    transition: box-shadow 0.22s ease;
-  }
-  .trainer-profile-card:hover .tpc-photo {
-    box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--primary) 50%, transparent);
-  }
-  .tpc-id { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
-  .tpc-id h3 {
-    margin: 0;
-    font-size: 13.5px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .tpc-id p {
-    margin: 0;
-    font-size: 10.5px;
-    color: var(--muted-foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .tpc-head .iris-tr-badge {
-    flex-shrink: 0;
+  /* Badge used inside the trainer report */
+  .iris-tr-badge {
     display: inline-flex;
     align-items: center;
     padding: 3px 7px;
@@ -1136,49 +1044,6 @@
   .iris-tr-badge.tone-amber { background: rgba(255, 149, 0, 0.12); color: #ff9500; }
   .iris-tr-badge.tone-red   { background: rgba(255, 59, 48, 0.12); color: #ff3b30; }
   .iris-tr-badge.tone-none  { background: var(--muted); color: var(--muted-foreground); }
-
-  .trainer-profile-meta .tpc-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
-  }
-  .tpc-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 7px;
-    font-size: 10px;
-    font-weight: 500;
-    border-radius: 6px;
-    background: var(--muted);
-    color: var(--muted-foreground);
-  }
-  .tpc-tag.tag-red { background: rgba(255, 59, 48, 0.1); color: #ff3b30; }
-  .tpc-note {
-    margin: 4px 0 0;
-    font-size: 10px;
-    color: var(--muted-foreground);
-    line-height: 1.4;
-  }
-  .tpc-note-warn { color: #ff9500; }
-  .trainer-profile-meta .entity-foot {
-    margin-top: 1px;
-    padding-top: 9px;
-    border-top: 1px solid var(--border);
-    font-size: 10.5px;
-    color: var(--muted-foreground);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  /* Trainer grid: leaner cards fit more per row */
-  .entity-grid.trainer-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-    gap: 12px;
-  }
 
   /* Edit modal forms (templates + knowledge base) */
   .iris-edit-form-row {
