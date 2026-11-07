@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # A throwaway Postgres so every db/*.sql file is exercised from scratch on each PR —
+    # a migration that only applies to an already-migrated database fails here.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iris_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Dummy values: enough for the app to import its modules and build. Nothing here
+      # is a real credential and no external service is contacted.
+      NEON_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iris_ci
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: bun test scripts/unit
+
+      # Schema + migrations apply cleanly, in file order, to an empty database.
+      # Idempotent files mean a re-run of the whole folder must also succeed.
+      - name: Migrations apply cleanly to an empty database
+        run: |
+          export PGURL="postgresql://postgres:postgres@localhost:5432/iris_ci"
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f db/iris-neon-complete.sql
+          for f in db/migrations-*.sql; do
+            echo "Applying $f"
+            psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          echo "Re-running migrations (idempotency check)"
+          for f in db/migrations-*.sql; do
+            psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      - name: Ported reliability objects exist
+        run: |
+          export PGURL="postgresql://postgres:postgres@localhost:5432/iris_ci"
+          psql "$PGURL" -v ON_ERROR_STOP=1 -tAc "
+            select 'outbox:'      || count(*) from information_schema.tables where table_schema='iris' and table_name='outbox';
+          " | grep -qx "outbox:1"
+          psql "$PGURL" -v ON_ERROR_STOP=1 -tAc "
+            select 'rate_limits:' || count(*) from information_schema.tables where table_schema='iris' and table_name='rate_limits';
+          " | grep -qx "rate_limits:1"
+          psql "$PGURL" -v ON_ERROR_STOP=1 -tAc "
+            select 'idem_idx:'    || count(*) from pg_indexes where schemaname='iris' and indexname='uq_tickets_idempotency';
+          " | grep -qx "idem_idx:1"
+          psql "$PGURL" -v ON_ERROR_STOP=1 -tAc "
+            select 'ops_settings:' || count(*) from iris.app_settings where key like 'ops.%';
+          " | grep -qx "ops_settings:5"
+
+      - name: Build
+        run: bun run build
