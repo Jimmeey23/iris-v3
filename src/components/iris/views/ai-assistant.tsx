@@ -66,6 +66,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { createTicketFromDetail, api, ticketsApi } from "@/lib/iris/live-data";
 import type { AgentTicketDraft } from "@/lib/iris/store";
+import { routeDeterministic } from "@/lib/iris/intent-router";
 import { PRIORITY_CONFIG, DEPT_MAP, STUDIO_MAP, EMPLOYEE_MAP } from "@/lib/iris/types";
 import { toast } from "sonner";
 import {
@@ -169,7 +170,41 @@ export function AIAssistantView() {
       timestamp: new Date().toISOString(),
     });
 
-    // Ask the IRIS agent (Claude + live tools) on the server.
+    // Deterministic first: predictable requests are answered instantly with no AI tokens.
+    const pendingMsg = [...useAppStore.getState().aiMessages].reverse().find((m) => m.ticketDraft);
+    const pendingDraft = pendingMsg && !pendingMsg.createdTicket ? pendingMsg : undefined;
+    const ruled = await routeDeterministic(trimmed, {
+      user: currentUser,
+      pendingDraft: pendingDraft?.ticketDraft ?? null,
+      fetchJson: (url) => api(url),
+    }).catch(() => null);
+    if (ruled) {
+      if (ruled.action === "create_draft" && pendingDraft?.ticketDraft) {
+        const t = await createAgentDraft(pendingDraft.id, pendingDraft.ticketDraft);
+        ruled.content = t ? `Created **${t.ticketId}**. You'll find it under All Tickets.` : "I couldn't create the ticket — see the error above and try again.";
+      }
+      addAIMessage({
+        id: generateId("msg"),
+        role: "assistant",
+        content: ruled.content,
+        timestamp: new Date().toISOString(),
+        variant: "default",
+        source: "rules",
+        rule: ruled.rule,
+      });
+      // Keep Claude aware of what happened, without spending a call now.
+      const { aiTranscript, setAiTranscript } = useAppStore.getState();
+      setAiTranscript([
+        ...aiTranscript,
+        { role: "user", content: trimmed },
+        { role: "assistant", content: [{ type: "text", text: `[Answered automatically] ${ruled.content}` }] },
+      ]);
+      setIsProcessing(false);
+      isProcessingRef.current = false;
+      return;
+    }
+
+    // Open-ended or complex: ask the IRIS agent (Claude + live tools) on the server.
     try {
       const { aiTranscript, setAiTranscript } = useAppStore.getState();
       const out = await api<{
@@ -185,6 +220,7 @@ export function AIAssistantView() {
         content: out.reply || (out.draft ? "I've drafted a ticket — review it below." : "Done."),
         timestamp: new Date().toISOString(),
         variant: "default",
+        source: "ai",
         tools: out.trace.length
           ? out.trace.map((t) => ({ name: t.summary, status: "complete" as const, result: t.ok ? undefined : "failed" }))
           : undefined,
@@ -197,6 +233,7 @@ export function AIAssistantView() {
           timestamp: new Date().toISOString(),
           variant: "draft",
           ticketDraft: out.draft,
+          source: "ai",
         });
       }
     } catch (e) {
@@ -686,6 +723,7 @@ function MessageBubble({
         {/* Header */}
         <div className="flex items-baseline gap-2 mb-1">
           <span className="text-[11px] font-semibold">{isUser ? "You" : "IRIS"}</span>
+          {!isUser && message.variant !== "error" && <SourceBadge source={message.source ?? "rules"} rule={message.rule} />}
           <span className="text-[9px] text-muted-foreground tabular-nums">
             {new Date(message.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
           </span>
@@ -758,7 +796,7 @@ function MessageBubble({
           )}
         >
           {variant === "draft" && message.ticketDraft ? (
-            <AgentDraftCard draft={message.ticketDraft} />
+            <AgentDraftCard messageId={message.id} draft={message.ticketDraft} created={message.createdTicket} />
           ) : variant === "ticket" && message.ticketPreview ? (
             <TicketPreviewCard ticket={message.ticketPreview} metadata={message.metadata} />
           ) : (
@@ -1254,24 +1292,47 @@ function sleep(ms: number) {
 
 
 /** Ticket proposed by the agent; nothing is saved until the user clicks Create. */
-function AgentDraftCard({ draft }: { draft: AgentTicketDraft }) {
+/** Create a ticket from an agent draft and mark that draft message as done. */
+async function createAgentDraft(messageId: string, draft: AgentTicketDraft) {
+  try {
+    const t = await ticketsApi.create({ ...draft, source: "ai_assistant", collectedInfo: { agentDraft: true } });
+    useAppStore.getState().updateAIMessage(messageId, { createdTicket: { id: t.id, ticketId: t.ticketId } });
+    toast.success(`Ticket ${t.ticketId} created`);
+    return t;
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "Couldn't create the ticket");
+    return null;
+  }
+}
+
+/** Small marker showing whether a reply came from Claude or an instant rule. */
+function SourceBadge({ source, rule }: { source: "ai" | "rules"; rule?: string }) {
+  const ai = source === "ai";
+  return (
+    <span
+      title={ai ? "Answered by AI (Claude) — uses tokens" : `Instant answer${rule ? ` (${rule})` : ""} — no AI, no tokens`}
+      className={cn(
+        "inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[9px] font-medium",
+        ai ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      )}
+    >
+      {ai ? <Sparkles className="w-2.5 h-2.5" /> : <Zap className="w-2.5 h-2.5" />}
+      {ai ? "AI" : "Instant · no AI"}
+    </span>
+  );
+}
+
+/** Ticket proposed by the agent; nothing is saved until the user clicks Create. */
+function AgentDraftCard({ messageId, draft, created }: { messageId: string; draft: AgentTicketDraft; created?: { id: string; ticketId: string } }) {
   const { setCurrentView, selectTicket } = useAppStore();
-  const [state, setState] = React.useState<"idle" | "creating" | "created">("idle");
-  const [createdId, setCreatedId] = React.useState<{ id: string; ticketId: string } | null>(null);
+  const [creating, setCreating] = React.useState(false);
   const p = PRIORITY_CONFIG[draft.priority];
   const assignee = draft.assigneeId ? EMPLOYEE_MAP[draft.assigneeId] : undefined;
 
   const create = async () => {
-    setState("creating");
-    try {
-      const t = await ticketsApi.create({ ...draft, source: "ai_assistant", collectedInfo: { agentDraft: true } });
-      setCreatedId({ id: t.id, ticketId: t.ticketId });
-      setState("created");
-      toast.success(`Ticket ${t.ticketId} created`);
-    } catch (e) {
-      setState("idle");
-      toast.error(e instanceof Error ? e.message : "Couldn't create the ticket");
-    }
+    setCreating(true);
+    await createAgentDraft(messageId, draft);
+    setCreating(false);
   };
 
   const rows: Array<[string, string | undefined]> = [
@@ -1316,20 +1377,20 @@ function AgentDraftCard({ draft }: { draft: AgentTicketDraft }) {
           </div>
         )}
         <div className="flex items-center gap-2 pt-2 border-t border-border">
-          {state === "created" && createdId ? (
+          {created ? (
             <>
               <span className="text-[12px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />Created {createdId.ticketId}
+                <CheckCircle2 className="w-3.5 h-3.5" />Created {created.ticketId}
               </span>
-              <Button size="sm" variant="outline" className="ml-auto h-7 text-[11px]" onClick={() => { setCurrentView("all_tickets"); selectTicket(createdId.id); }}>
+              <Button size="sm" variant="outline" className="ml-auto h-7 text-[11px]" onClick={() => { setCurrentView("all_tickets"); selectTicket(created.id); }}>
                 Open ticket<ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </>
           ) : (
             <>
-              <span className="text-[11px] text-muted-foreground">Want changes? Just tell IRIS below.</span>
-              <Button size="sm" className="ml-auto h-8 text-[12px]" onClick={create} disabled={state === "creating"}>
-                {state === "creating" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Create ticket</>}
+              <span className="text-[11px] text-muted-foreground">Want changes? Tell IRIS below, or reply "create it".</span>
+              <Button size="sm" className="ml-auto h-8 text-[12px]" onClick={create} disabled={creating}>
+                {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Create ticket</>}
               </Button>
             </>
           )}

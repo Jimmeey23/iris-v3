@@ -49,6 +49,7 @@ interface AppState {
   aiTranscript: unknown[];
   setAiTranscript: (t: unknown[]) => void;
   addAIMessage: (msg: AIMessage) => void;
+  updateAIMessage: (id: string, patch: Partial<AIMessage>) => void;
   clearAIChat: () => void;
   conversationState: ConversationState;
   setConversationState: (state: ConversationState | Partial<ConversationState>) => void;
@@ -144,6 +145,12 @@ export interface AIMessage {
   variant?: "default" | "question" | "info" | "success" | "investigation" | "ticket" | "draft" | "error";
   /** Ticket proposed by the AI agent, awaiting the user's confirmation. */
   ticketDraft?: AgentTicketDraft;
+  /** Set once the draft has been created. */
+  createdTicket?: { id: string; ticketId: string };
+  /** Who produced this reply: Claude ("ai") or a deterministic rule ("rules"). */
+  source?: "ai" | "rules";
+  /** Name of the rule that answered (when source is "rules"). */
+  rule?: string;
 }
 
 export const useAppStore = create<AppState>()(
@@ -183,6 +190,7 @@ export const useAppStore = create<AppState>()(
 
       aiMessages: [],
       addAIMessage: (msg) => set((s) => ({ aiMessages: [...s.aiMessages, msg] })),
+      updateAIMessage: (id, patch) => set((s) => ({ aiMessages: s.aiMessages.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
       clearAIChat: () => set({ aiMessages: [], aiTranscript: [], conversationState: createInitialState() }),
       aiTranscript: [],
       setAiTranscript: (t) => set({ aiTranscript: t }),
