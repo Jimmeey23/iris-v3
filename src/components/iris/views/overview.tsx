@@ -104,47 +104,82 @@ export function OverviewView() {
 
   return (
     <div className="p-8 max-w-[1400px] mx-auto space-y-6">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 iris-fade-in-up">
-        <div className="absolute inset-0 iris-grid-bg opacity-30" />
+      {/* Hero Section - Premium animated design */}
+      <div className="relative overflow-hidden rounded-2xl border border-border p-8 iris-fade-in-up" style={{ background: "linear-gradient(135deg, rgba(0,131,255,0.08) 0%, rgba(0,131,255,0.02) 50%, transparent 100%)" }}>
+        {/* Animated background orbs */}
+        <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-20" style={{ background: "radial-gradient(circle, #0083ff, transparent 70%)", animation: "iris-orb-1 8s ease-in-out infinite" }} />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #00d4aa, transparent 70%)", animation: "iris-orb-2 10s ease-in-out infinite" }} />
+        {/* Grid pattern */}
+        <div className="absolute inset-0 iris-grid-bg opacity-20" />
+
         <div className="relative flex items-center justify-between flex-wrap gap-6">
           <div className="flex-1 min-w-[300px]">
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-3">
               <span className="iris-live-dot" />
               Operations Overview - Live
             </div>
-            <h1 className="text-[28px] font-bold tracking-tight leading-tight">
+            <h1 className="text-[32px] font-bold tracking-tight leading-tight">
               Welcome back, <span className="iris-text-gradient">{currentUser.name.split(" ")[0]}</span>
             </h1>
             <p className="text-[14px] text-muted-foreground mt-2 max-w-md">
               Here's what's happening across all Physique 57 India studios today.
             </p>
-            <div className="flex items-center gap-3 mt-4">
+            <div className="flex items-center gap-3 mt-5">
               <button
                 onClick={() => setCurrentView("ai_assistant")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium transition-opacity hover:opacity-90"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 Ask IRIS
               </button>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card text-[11px] font-medium">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card/80 backdrop-blur text-[11px] font-medium">
                 <Timer className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-muted-foreground">SLA Compliance</span>
+                <span className="text-muted-foreground">SLA</span>
                 <span className="font-bold tabular-nums text-primary">{slaCompliance}%</span>
+              </div>
+              {/* Mini stats */}
+              <div className="hidden sm:flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card/80 backdrop-blur">
+                <div className="text-center">
+                  <div className="text-[14px] font-bold tabular-nums">{stats.open}</div>
+                  <div className="text-[8px] text-muted-foreground uppercase tracking-wider">Open</div>
+                </div>
+                <div className="w-px h-8 bg-border" />
+                <div className="text-center">
+                  <div className="text-[14px] font-bold tabular-nums text-amber-500">{stats.critical}</div>
+                  <div className="text-[8px] text-muted-foreground uppercase tracking-wider">Critical</div>
+                </div>
+                <div className="w-px h-8 bg-border" />
+                <div className="text-center">
+                  <div className="text-[14px] font-bold tabular-nums text-emerald-500">{stats.resolved}</div>
+                  <div className="text-[8px] text-muted-foreground uppercase tracking-wider">Resolved</div>
+                </div>
               </div>
             </div>
           </div>
-          {/* Animated stats circle */}
-          <div className="relative shrink-0">
-            <svg width="120" height="120" viewBox="0 0 120 120" className="iris-spin-slow">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" strokeWidth="2" />
-              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--primary)" strokeWidth="2" strokeDasharray={`${(slaCompliance / 100) * 314} 314`} strokeLinecap="round" transform="rotate(-90 60 60)" style={{ animation: "iris-hero-ring 2s ease-out" }} />
+          {/* Animated circular progress */}
+          <div className="relative shrink-0" style={{ width: 140, height: 140 }}>
+            <svg width="140" height="140" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r="58" fill="none" stroke="var(--border)" strokeWidth="3" />
+              <circle
+                cx="70" cy="70" r="58" fill="none" stroke="var(--primary)" strokeWidth="3"
+                strokeDasharray={`${(slaCompliance / 100) * 364} 364`}
+                strokeLinecap="round"
+                transform="rotate(-90 70 70)"
+                style={{ animation: "iris-hero-ring 1.5s cubic-bezier(0.16, 1, 0.3, 1)", filter: "drop-shadow(0 0 6px rgba(0,131,255,0.3))" }}
+              />
+              {/* Inner rotating ring */}
+              <circle cx="70" cy="70" r="48" fill="none" stroke="var(--primary)" strokeWidth="1" opacity="0.15" strokeDasharray="4 8" style={{ animation: "iris-hero-rotate 30s linear infinite", transformOrigin: "70px 70px" }} />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center flex-col">
-              <span className="text-[24px] font-bold tabular-nums">{stats.total}</span>
-              <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Tickets</span>
+              <span className="text-[28px] font-bold tabular-nums">{stats.total}</span>
+              <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Total Tickets</span>
             </div>
-            <style>{`@keyframes iris-hero-ring { from { stroke-dashoffset: 314; } to { stroke-dashoffset: 0; } } .iris-spin-slow { animation: iris-spin-slow 20s linear infinite; } @keyframes iris-spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`
+              @keyframes iris-hero-ring { from { stroke-dashoffset: 364; } to { stroke-dashoffset: 0; } }
+              @keyframes iris-hero-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+              @keyframes iris-orb-1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-20px,20px) scale(1.1); } }
+              @keyframes iris-orb-2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20px,-20px) scale(0.9); } }
+            `}</style>
           </div>
         </div>
       </div>
