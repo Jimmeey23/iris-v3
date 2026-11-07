@@ -205,19 +205,52 @@ export function AIAssistantView() {
 
       await sleep(500);
 
-      // Final ticket preview
-      addAIMessage({
-        id: generateId("msg"),
-        role: "assistant",
-        content: investigationResult.content,
-        timestamp: new Date().toISOString(),
-        variant: "ticket",
-        ticketPreview: investigationResult.ticketPreview,
-        tools: investigationResult.tools,
-        metadata: investigationResult.metadata,
-      });
+      // Check confidence threshold — minimum 90% required to show ticket draft
+      const confidenceScore = newState.intent.confidenceScore || 0;
+      const allFieldsCaptured = Object.values(newState.collectedInfo).filter(v => v && v !== "").length;
 
-      setConversationState({ stage: "ready" });
+      if (confidenceScore >= 90 && allFieldsCaptured >= 5) {
+        // Final ticket preview
+        addAIMessage({
+          id: generateId("msg"),
+          role: "assistant",
+          content: investigationResult.content,
+          timestamp: new Date().toISOString(),
+          variant: "ticket",
+          ticketPreview: investigationResult.ticketPreview,
+          tools: investigationResult.tools,
+          metadata: investigationResult.metadata,
+        });
+
+        setConversationState({ stage: "ready" });
+      } else {
+        // Confidence too low or not enough fields — ask more questions
+        addAIMessage({
+          id: generateId("msg"),
+          role: "assistant",
+          content: `I've gathered some information but my confidence is at ${confidenceScore}% (minimum 90% required to prepare a ticket draft). Let me ask a few more clarifying questions to improve accuracy.\n\n${allFieldsCaptured < 5 ? "I need more details about this issue before I can create a comprehensive ticket." : "I need to verify a few more details."}`,
+          timestamp: new Date().toISOString(),
+          variant: "question",
+          isQuestion: true,
+          metadata: { confidenceScore },
+        });
+
+        // Ask for additional context
+        addAIMessage({
+          id: generateId("msg"),
+          role: "assistant",
+          content: "Can you provide any additional details about this issue? For example, when exactly did it start, who is affected, or what impact it's having?",
+          timestamp: new Date().toISOString(),
+          variant: "question",
+          isQuestion: true,
+          buttons: [
+            { label: "Let me add more context", value: "more_context", captures: "Additional context requested" },
+            { label: "Proceed with current info (lower confidence)", value: "proceed_anyway", captures: "Proceeding with lower confidence" },
+          ],
+        });
+
+        setConversationState({ stage: "collecting" });
+      }
     }
 
     setIsProcessing(false);
@@ -278,6 +311,9 @@ export function AIAssistantView() {
             New
           </Button>
         </div>
+
+        {/* Context Bar — highlights fields as they're identified */}
+        <ContextBar state={conversationState} />
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -358,6 +394,65 @@ export function AIAssistantView() {
       {showFormIntake && (
         <DynamicFormIntake onClose={() => setShowFormIntake(false)} />
       )}
+    </div>
+  );
+}
+
+// === CONTEXT BAR — highlights identified fields during conversation ===
+
+function ContextBar({ state }: { state: ConversationState }) {
+  const info = state.collectedInfo;
+  const fields = [
+    { key: "category", label: "Category", value: info.category },
+    { key: "subcategory", label: "Subcategory", value: info.subcategory },
+    { key: "studio", label: "Studio", value: info.studio },
+    { key: "location", label: "Location", value: info.location },
+    { key: "severity", label: "Severity", value: info.severity },
+    { key: "affectedClient", label: "Client", value: info.affectedClient },
+    { key: "equipment", label: "Equipment", value: info.equipment },
+    { key: "sentiment", label: "Sentiment", value: info.sentiment },
+    { key: "department", label: "Dept", value: state.intent.suggestedDepartment },
+    { key: "priority", label: "Priority", value: state.intent.suggestedPriority },
+  ];
+
+  const identified = fields.filter(f => f.value);
+  const confidence = state.intent.confidenceScore || 0;
+
+  if (identified.length === 0 && state.stage === "greeting") return null;
+
+  return (
+    <div className="border-b border-border bg-muted/30 px-5 py-2 shrink-0">
+      <div className="max-w-2xl mx-auto flex items-center gap-2 flex-wrap">
+        <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Context:</div>
+        {identified.map((f) => (
+          <div
+            key={f.key}
+            className="iris-chip iris-scale-in"
+            style={{ background: "var(--accent)", color: "var(--accent-foreground)", borderColor: "var(--primary)" }}
+          >
+            <CheckCircle2 className="w-2 h-2" />
+            <span className="font-semibold">{f.label}:</span>
+            <span className="truncate max-w-[80px]">{String(f.value)}</span>
+          </div>
+        ))}
+        {identified.length === 0 && (
+          <div className="text-[10px] text-muted-foreground italic">Fields will appear here as they're identified...</div>
+        )}
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <div className="text-[9px] text-muted-foreground">Confidence:</div>
+          <div className="flex items-center gap-1">
+            <div className="w-12 h-1 rounded-full bg-muted overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all", confidence >= 90 ? "bg-emerald-500" : confidence >= 70 ? "bg-amber-500" : "bg-rose-500")}
+                style={{ width: `${confidence}%` }}
+              />
+            </div>
+            <span className={cn("text-[9px] font-semibold tabular-nums", confidence >= 90 ? "text-emerald-500" : confidence >= 70 ? "text-amber-500" : "text-rose-500")}>
+              {confidence}%
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

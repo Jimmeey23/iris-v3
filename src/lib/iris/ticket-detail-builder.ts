@@ -132,7 +132,8 @@ export interface RoutingDetail {
   department: string;
   departmentCode: string;
   departmentDescription: string;
-  selectedAssignee: AssigneeDetail;
+  selectedAssignee: AssigneeDetail; // Lead owner
+  coOwners: AssigneeDetail[]; // Additional owners
   candidateAssignees: CandidateAssignee[];
   routingRulesApplied: RoutingRule[];
   routingReasoning: string;
@@ -470,14 +471,22 @@ function buildRoutingDetail(state: ConversationState, priority: Priority, dept: 
     `Ticket Ready for Creation`,
   ];
 
+  // Select co-owners (2nd and 3rd best candidates)
+  const coOwners = candidates.slice(1, 3).map(c => {
+    // Strip the CandidateAssignee-specific fields
+    const { selected, selectionReason, ...rest } = c;
+    return rest;
+  });
+
   return {
     department: dept?.name || "Operations",
     departmentCode: deptCode,
     departmentDescription: dept?.description || "",
     selectedAssignee,
+    coOwners,
     candidateAssignees: candidates,
     routingRulesApplied: routingRules,
-    routingReasoning: `Based on category "${intent.suggestedCategory}" and subcategory "${intent.suggestedCategory}", the issue was routed to the ${dept?.name} department. ${selectedAssignee?.name} was selected from ${candidates.length} candidates as the primary assignee due to: ${selectedAssignee?.matchReasons.join(", ")}. Their current workload is at ${selectedAssignee?.workloadPercentage}% capacity, leaving sufficient bandwidth for this ${priority} ticket.`,
+    routingReasoning: `Based on category "${intent.suggestedCategory}" and subcategory "${intent.suggestedCategory}", the issue was routed to the ${dept?.name} department. ${selectedAssignee?.name} was selected as lead owner from ${candidates.length} candidates due to: ${selectedAssignee?.matchReasons.join(", ")}. ${coOwners.length > 0 ? `Co-owners: ${coOwners.map(c => c.name).join(", ")} assigned for collaborative resolution.` : ""} Lead owner workload at ${selectedAssignee?.workloadPercentage}% capacity.`,
     escalationChain,
     secondaryStakeholders,
     routingConfidence: Math.min(95, 70 + candidates.length * 5),

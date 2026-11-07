@@ -504,9 +504,28 @@ function RoutingTab({ data }: { data: TicketDetailData }) {
         </div>
       </Section>
 
-      {/* Selected Assignee */}
-      <Section title="Selected Assignee" icon={User} subtitle="Primary person responsible for resolution">
+      {/* Lead Owner + Co-Owners */}
+      <Section title="Lead Owner & Co-Owners" icon={User} subtitle="Lead owner is responsible; co-owners collaborate on resolution">
         <AssigneeCard assignee={r.selectedAssignee} selected />
+        {r.coOwners && r.coOwners.length > 0 && (
+          <div className="mt-2 space-y-2">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Co-Owners</div>
+            {r.coOwners.map((co, i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg border border-border">
+                <Avatar className="w-8 h-8 shrink-0">
+                  <AvatarFallback className={cn("text-white text-[10px] font-semibold", getAvatarColor(co.name))}>
+                    {getInitials(co.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-medium">{co.name}</div>
+                  <div className="text-[10px] text-muted-foreground">{co.role} · Match: {co.matchScore}%</div>
+                </div>
+                <Badge variant="outline" className="text-[9px] h-4 px-1 bg-muted">Co-Owner</Badge>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
 
       {/* Candidate Comparison */}
