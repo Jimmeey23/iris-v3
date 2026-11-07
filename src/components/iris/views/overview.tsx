@@ -6,9 +6,10 @@ import { ALL_TICKETS, getAssignee, getStudio, getDepartment } from "@/lib/iris/s
 import { EMPLOYEES, DEPARTMENTS, STUDIOS } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge } from "../badges";
 import { RelativeTime } from "../relative-time";
+import { PremiumMetricCard } from "../premium-metric-card";
 import { cn } from "@/lib/utils";
 import {
-  Ticket as TicketIcon, AlertTriangle, Clock, CheckCircle2, TrendingUp, TrendingDown,
+  Ticket as TicketIcon, AlertTriangle, Clock, CheckCircle2, TrendingUp,
   Activity, Building2, Sparkles, ArrowRight, Brain, Timer, Target, Flame, ChevronRight,
   Zap, Shield, Cpu, Radio, Gauge, Layers, Users, Star,
 } from "lucide-react";
@@ -16,9 +17,6 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const CHART_COLORS = ["#007bff", "#00d4aa", "#ff9500", "#af52de", "#10b981", "#6366f1", "#f43f5e", "#84cc16"];
 
@@ -210,52 +208,130 @@ export function OverviewView() {
         ]} icon={Activity} variant="hero" />
       </div>
 
-      {/* === METRIC CARDS with flip + tooltips + sparklines === */}
-      <TooltipProvider delayDuration={300}>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-          <MetricCard label="Total" value={stats.total} icon={TicketIcon} trend="+8%" trendUp tooltip="All tickets across all studios" sparkData={trendData.map(d => d.created)} color="#007bff" />
-          <MetricCard label="Open" value={stats.open} icon={Activity} tooltip="Tickets not yet resolved" sparkData={trendData.map(d => d.created - d.resolved)} color="#06b6d4" />
-          <MetricCard label="Critical" value={stats.critical} icon={Flame} tooltip="P0 priority tickets requiring immediate attention" sparkData={[3,4,5,6,4,3,5]} color="#f43f5e" />
-          <MetricCard label="Escalated" value={stats.escalated} icon={AlertTriangle} tooltip="Tickets that have been escalated to management" sparkData={[1,2,1,3,2,1,2]} color="#ff9500" />
-          <MetricCard label="Overdue" value={stats.overdue} icon={Clock} tooltip="Tickets with breached SLA deadlines" sparkData={[0,1,2,1,0,1,2]} color="#f43f5e" />
-          <MetricCard label="Resolved" value={stats.resolved} icon={CheckCircle2} trend="+12%" trendUp tooltip="Tickets resolved or closed" sparkData={trendData.map(d => d.resolved)} color="#10b981" />
-          <MetricCard label="My Queue" value={stats.myTickets} icon={Target} tooltip="Tickets assigned to you" sparkData={[2,3,2,4,3,2,3]} color="#007bff" />
-        </div>
-      </TooltipProvider>
+      {/* === METRIC CARDS — polished glassmorphic cards with smooth sparkline curves === */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+        <PremiumMetricCard
+          label="Total"
+          value={stats.total}
+          icon={TicketIcon}
+          trend="+8%"
+          trendUp
+          tooltip="All tickets across all studios"
+          sparkData={trendData.map(d => d.created)}
+          caption="vs last week"
+        />
+        <PremiumMetricCard
+          label="Open"
+          value={stats.open}
+          icon={Activity}
+          tooltip="Tickets not yet resolved"
+          sparkData={trendData.map(d => d.created - d.resolved)}
+          caption="active queue"
+        />
+        <PremiumMetricCard
+          label="Critical"
+          value={stats.critical}
+          icon={Flame}
+          tooltip="P0 priority tickets requiring immediate attention"
+          sparkData={[3, 4, 5, 6, 4, 3, 5]}
+          caption="P0 priority"
+        />
+        <PremiumMetricCard
+          label="Escalated"
+          value={stats.escalated}
+          icon={AlertTriangle}
+          tooltip="Tickets escalated to management"
+          sparkData={[1, 2, 1, 3, 2, 1, 2]}
+          caption="needs attention"
+        />
+        <PremiumMetricCard
+          label="Overdue"
+          value={stats.overdue}
+          icon={Clock}
+          tooltip="Tickets with breached SLA deadlines"
+          sparkData={[0, 1, 2, 1, 0, 1, 2]}
+          caption="SLA breached"
+        />
+        <PremiumMetricCard
+          label="Resolved"
+          value={stats.resolved}
+          icon={CheckCircle2}
+          trend="+12%"
+          trendUp
+          tooltip="Tickets resolved or closed"
+          sparkData={trendData.map(d => d.resolved)}
+          caption="this week"
+        />
+        <PremiumMetricCard
+          label="My Queue"
+          value={stats.myTickets}
+          icon={Target}
+          tooltip="Tickets assigned to you"
+          sparkData={[2, 3, 2, 4, 3, 2, 3]}
+          caption="assigned to you"
+        />
+      </div>
 
-      {/* === MARQUEE STRIP 2 - Studio + Department status === */}
-      <MarqueeStrip
-        items={[
-          ...STUDIOS.map(s => ({ label: s.name, value: `${ALL_TICKETS.filter(t => t.studioCode === s.code).length} tickets` })),
-          ...DEPARTMENTS.slice(0, 5).map(d => ({ label: d.name, value: `${ALL_TICKETS.filter(t => t.departmentCode === d.code).length} active` })),
-        ]}
-        icon={Building2}
-        variant="studio"
-      />
-
-      {/* === Charts Row === */}
+      {/* === Charts Row — polished with smooth bezier curves + accent-color strokes === */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Ticket Activity" subtitle="Daily creation vs resolution" icon={TrendingUp} />
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+              <AreaChart data={trendData} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
                 <defs>
                   <linearGradient id="grad-created" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#007bff" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#007bff" stopOpacity={0} />
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.28} />
+                    <stop offset="60%" stopColor="var(--primary)" stopOpacity={0.10} />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="grad-resolved" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00d4aa" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#00d4aa" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.24} />
+                    <stop offset="60%" stopColor="#10b981" stopOpacity={0.08} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="stroke-created" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="var(--primary)" />
+                    <stop offset="100%" stopColor="var(--iris-hero-to)" />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke="currentColor" strokeOpacity={0.05} vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
-                <RTooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11 }} />
-                <Area type="monotone" dataKey="created" name="Created" stroke="#007bff" strokeWidth={1.5} fill="url(#grad-created)" />
-                <Area type="monotone" dataKey="resolved" name="Resolved" stroke="#00d4aa" strokeWidth={1.5} fill="url(#grad-resolved)" />
+                <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} width={32} />
+                <RTooltip
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    fontSize: 11,
+                    boxShadow: "0 4px 16px -4px rgba(0,0,0,0.12)",
+                  }}
+                  cursor={{ stroke: "var(--primary)", strokeWidth: 1, strokeDasharray: "3 3", strokeOpacity: 0.4 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="created"
+                  name="Created"
+                  stroke="url(#stroke-created)"
+                  strokeWidth={2.5}
+                  fill="url(#grad-created)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--card)", strokeWidth: 2 }}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="resolved"
+                  name="Resolved"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fill="url(#grad-resolved)"
+                  dot={false}
+                  activeDot={{ r: 3.5, fill: "#10b981", stroke: "var(--card)", strokeWidth: 2 }}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -266,10 +342,26 @@ export function OverviewView() {
           <CardContent>
             <ResponsiveContainer width="100%" height={160}>
               <PieChart>
-                <Pie data={priorityData} innerRadius={45} outerRadius={70} paddingAngle={2} dataKey="value">
+                <Pie
+                  data={priorityData}
+                  innerRadius={45}
+                  outerRadius={70}
+                  paddingAngle={3}
+                  dataKey="value"
+                  stroke="var(--card)"
+                  strokeWidth={2}
+                >
                   {priorityData.map((entry, idx) => <Cell key={idx} fill={entry.color} stroke="none" />)}
                 </Pie>
-                <RTooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11 }} />
+                <RTooltip
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    fontSize: 11,
+                    boxShadow: "0 4px 16px -4px rgba(0,0,0,0.12)",
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
             <div className="grid grid-cols-2 gap-1 mt-2">
@@ -285,19 +377,38 @@ export function OverviewView() {
         </Card>
       </div>
 
-      {/* === Studio + Department === */}
+      {/* === Studio + Department — polished bars with rounded corners + accent gradient === */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Studio Performance" subtitle="Tickets by studio" icon={Building2} />
           <CardContent>
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={studioData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
+              <BarChart data={studioData} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="bar-tickets" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.6} />
+                  </linearGradient>
+                  <linearGradient id="bar-resolved" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.6} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 4" stroke="currentColor" strokeOpacity={0.05} vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} />
-                <RTooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11 }} cursor={{ fill: "currentColor", fillOpacity: 0.03 }} />
-                <Bar dataKey="tickets" name="Total" fill="#007bff" radius={[4, 4, 0, 0]} barSize={24} />
-                <Bar dataKey="resolved" name="Resolved" fill="#00d4aa" radius={[4, 4, 0, 0]} barSize={24} />
+                <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} axisLine={false} tickLine={false} width={32} />
+                <RTooltip
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    fontSize: 11,
+                    boxShadow: "0 4px 16px -4px rgba(0,0,0,0.12)",
+                  }}
+                  cursor={{ fill: "var(--primary)", fillOpacity: 0.04 }}
+                />
+                <Bar dataKey="tickets" name="Total" fill="url(#bar-tickets)" radius={[6, 6, 0, 0]} barSize={22} />
+                <Bar dataKey="resolved" name="Resolved" fill="url(#bar-resolved)" radius={[6, 6, 0, 0]} barSize={22} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -375,21 +486,9 @@ export function OverviewView() {
         </Card>
       </div>
 
-      {/* === MARQUEE STRIP 3 - AI insights === */}
-      <MarqueeStrip
-        items={[
-          { label: "AI Insight", value: "HVAC pattern detected at Kwality House", emphasize: true },
-          { label: "AI Insight", value: "Payment resolution 28% over SLA target" },
-          { label: "AI Insight", value: "Facilities team workload at 67% capacity" },
-          { label: "AI Insight", value: "34% of freeze requests auto-resolvable", emphasize: true },
-          { label: "AI Insight", value: "Bengaluru check-in errors 3x higher" },
-          { label: "AI Insight", value: "Org average trainer score 82%" },
-        ]}
-        icon={Brain}
-        variant="ai"
-      />
-
-      {/* AI Insights */}
+      {/* AI Insights — only one marquee strip remains (under the hero).
+          Previously there were 3 marquee strips; per user request, only the
+          hero strip is kept so the page feels less cluttered. */}
       <Card className="iris-ai-border">
         <CardHeader title="AI Insights" subtitle="Generated by IRIS Intelligence" icon={Brain} action={<Sparkles className="w-4 h-4 text-primary" />} />
         <CardContent>
@@ -404,61 +503,13 @@ export function OverviewView() {
   );
 }
 
-// === METRIC CARD with flip, tooltip, sparkline, floating icon ===
-function MetricCard({
-  label, value, icon: Icon, trend, trendUp, tooltip, sparkData, color,
-}: {
-  label: string; value: number; icon: React.ComponentType<{ className?: string }>;
-  trend?: string; trendUp?: boolean; tooltip: string; sparkData: number[]; color: string;
-}) {
-  const [hovered, setHovered] = React.useState(false);
-  const max = Math.max(...sparkData, 1);
-  const sparkPoints = sparkData.map((v, i) => `${(i / (sparkData.length - 1)) * 100},${30 - (v / max) * 25}`).join(" ");
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          className="iris-card p-3 relative overflow-hidden cursor-pointer transition-all"
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{ transform: hovered ? "translateY(-2px)" : undefined }}
-        >
-          {/* Floating background icon */}
-          <Icon className="absolute -top-1 -right-1 w-8 h-8 opacity-5" style={{ color, animation: hovered ? "metric-float 2s ease-in-out" : undefined }} />
-          {/* Sparkline */}
-          <svg className="absolute bottom-0 left-0 w-full h-8 opacity-30" viewBox="0 0 100 30" preserveAspectRatio="none">
-            <polyline points={sparkPoints} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {/* Content */}
-          <div className="relative">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">{label}</div>
-              <Icon className="w-3 h-3" style={{ color }} />
-            </div>
-            <div className="text-[18px] font-bold tabular-nums iris-ticker">{value}</div>
-            {trend && (
-              <div className={cn("text-[9px] font-medium mt-0.5 flex items-center gap-0.5", trendUp ? "text-emerald-500" : "text-rose-500")}>
-                {trendUp ? <TrendingUp className="w-2 h-2" /> : <TrendingDown className="w-2 h-2" />}
-                {trend}
-              </div>
-            )}
-          </div>
-          <style>{`@keyframes metric-float { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-4px) rotate(8deg); } }`}</style>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-[11px]">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 // === MARQUEE STRIP ===
 // Variants:
 //   hero   - flush against hero, tinted background, slightly taller
 //   studio - clean white card style with emerald accent
 //   ai     - violet/purple tinted for AI insights
+// (Currently only the "hero" variant is used; studio and ai variants kept
+// for future use.)
 type MarqueeItem = { label: string; value: string; emphasize?: boolean };
 
 function MarqueeStrip({

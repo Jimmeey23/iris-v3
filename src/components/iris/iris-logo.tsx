@@ -2,13 +2,41 @@
 
 import * as React from "react";
 
+/**
+ * IrisLogo / IrisLogoMark
+ *
+ * The logo background now follows the active accent color via CSS variables
+ * (var(--primary) and var(--iris-hero-to)) instead of hardcoded hex values.
+ * This means:
+ *   - When the accent randomizer picks "green", the logo bg is green
+ *   - When it picks "rose", the logo bg is rose
+ *   - The logo color always matches the rest of the app
+ *
+ * Implementation notes:
+ *   - SVG `stop-color` does NOT accept `var(--...)` directly in all browsers
+ *     when the gradient is defined inside an inline SVG. The robust solution
+ *     is to use `currentColor` for the stop colors and set the SVG's `color`
+ *     via CSS, OR to use plain CSS variables via the `style` attribute on
+ *     the `<stop>` element. We use the latter approach (style attribute)
+ *     which is well-supported in modern browsers.
+ *   - The first stop uses `--primary` (the accent color), the second stop
+ *     uses `--iris-hero-to` (the secondary hero gradient color) for a
+ *     nice 2-color gradient that matches the hero section.
+ */
+
 export function IrisLogo({ size = 32, className }: { size?: number; className?: string }) {
+  // Use CSS variables via the `style` attribute - the most reliable way to
+  // theme SVG elements across browsers. `fill="var(--primary)"` works in
+  // modern browsers but `style={{ fill: "var(--primary)" }}` is universal.
+  const primaryFill: React.CSSProperties = { fill: "var(--primary)" };
+  const primaryStop: React.CSSProperties = { stopColor: "var(--primary)" };
+  const secondaryStop: React.CSSProperties = { stopColor: "var(--iris-hero-to)" };
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={className}>
       <defs>
         <linearGradient id="iris-bg-grad" x1="0" y1="0" x2="40" y2="40">
-          <stop stopColor="#007bff" />
-          <stop offset="1" stopColor="#0058b8" />
+          <stop style={primaryStop} />
+          <stop offset="1" style={secondaryStop} />
         </linearGradient>
       </defs>
       <rect width="40" height="40" rx="10" fill="url(#iris-bg-grad)" />
@@ -23,7 +51,8 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
         <circle cx="20" cy="20" r="4" fill="white" opacity="0.12" style={{ animation: "iris-ring-3 2s ease-in-out infinite" }} />
         {/* Pupil */}
         <circle cx="20" cy="20" r="2.5" fill="white" opacity="0.9" style={{ animation: "iris-pupil 2s ease-in-out infinite" }} />
-        <circle cx="20" cy="20" r="1" fill="#007bff" />
+        {/* Inner dot uses the accent color */}
+        <circle cx="20" cy="20" r="1" style={primaryFill} />
         {/* Highlight */}
         <circle cx="19" cy="19" r="0.8" fill="white" style={{ animation: "iris-blink 3.5s ease-in-out infinite" }} />
       </g>
@@ -39,12 +68,15 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
 }
 
 export function IrisLogoMark({ size = 20, className }: { size?: number; className?: string }) {
+  const primaryFill: React.CSSProperties = { fill: "var(--primary)" };
+  const primaryStop: React.CSSProperties = { stopColor: "var(--primary)" };
+  const secondaryStop: React.CSSProperties = { stopColor: "var(--iris-hero-to)" };
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className}>
       <defs>
         <linearGradient id="iris-mark-bg-2" x1="0" y1="0" x2="20" y2="20">
-          <stop stopColor="#007bff" />
-          <stop offset="1" stopColor="#0058b8" />
+          <stop style={primaryStop} />
+          <stop offset="1" style={secondaryStop} />
         </linearGradient>
       </defs>
       <rect width="20" height="20" rx="5" fill="url(#iris-mark-bg-2)" />
@@ -52,7 +84,7 @@ export function IrisLogoMark({ size = 20, className }: { size?: number; classNam
       <circle cx="10" cy="10" r="3.5" fill="none" stroke="white" strokeWidth="0.5" opacity="0.3" />
       <circle cx="10" cy="10" r="2.5" fill="white" opacity="0.12" />
       <circle cx="10" cy="10" r="1.3" fill="white" opacity="0.9" style={{ animation: "iris-mark-pulse 2s ease-in-out infinite" }} />
-      <circle cx="10" cy="10" r="0.5" fill="#007bff" />
+      <circle cx="10" cy="10" r="0.5" style={primaryFill} />
       <style>{`@keyframes iris-mark-pulse { 0%,100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }`}</style>
     </svg>
   );
