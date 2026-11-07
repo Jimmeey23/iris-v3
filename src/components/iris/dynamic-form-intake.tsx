@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
 import { ticketsApi } from "@/lib/iris/live-data";
-import { STUDIOS } from "@/lib/iris/types";
+import { STUDIOS, DEPARTMENTS, EMPLOYEES } from "@/lib/iris/types";
+import { MultiSelect } from "@/components/iris/multi-select";
 import { toast } from "sonner";
 import {
   IRIS_STUDIOS,
@@ -70,6 +71,9 @@ interface FormData {
   attachments: string[];
 }
 
+const DEPT_CODE: Record<string, string> = {
+  training: "TRN", operations: "OPS", "sales-client-servicing": "SCS", marketing: "MKT", management: "MGT", accounts: "PAY",
+};
 const STEPS = [
   { id: "issue", title: "Describe Issue", icon: FileText, desc: "What happened?" },
   { id: "category", title: "Classify", icon: Tag, desc: "Category & subcategory" },
@@ -82,6 +86,8 @@ const STEPS = [
 export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
   const { setCurrentView, setConversationState } = useAppStore();
   const [step, setStep] = React.useState(0);
+  const [extraDepts, setExtraDepts] = React.useState<string[]>([]);
+  const [owners, setOwners] = React.useState<string[]>([]);
   const [form, setForm] = React.useState<FormData>({
     title: "",
     summary: "",
@@ -159,9 +165,7 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
   const handleSubmit = async () => {
     if (submitting) return;
     setSubmitting(true);
-    const DEPT: Record<string, string> = {
-      training: "TRN", operations: "OPS", "sales-client-servicing": "SCS", marketing: "MKT", management: "MGT", accounts: "PAY",
-    };
+    const DEPT = DEPT_CODE;
     const PRIORITY: Record<string, string> = { critical: "P0", high: "P1", medium: "P2", low: "P3" };
     const studio = STUDIOS.find((s) => s.name === form.studio);
     const extras: Array<[string, string]> = [
@@ -180,6 +184,8 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
         severity: form.severity,
         studioCode: studio?.code,
         departmentCode: DEPT[computedDepartment],
+        departmentCodes: [...new Set([DEPT[computedDepartment], ...extraDepts].filter(Boolean))],
+        assigneeIds: owners,
         affectedClient: form.affectedClient,
         recommendedResolution: form.requestedOutcome,
         source: "form_intake",
@@ -507,6 +513,20 @@ export function DynamicFormIntake({ onClose }: { onClose: () => void }) {
                   {form.classFormat && <ReviewRow label="Class Format" value={form.classFormat} />}
                   {form.occurred && <ReviewRow label="Occurred" value={form.occurred} />}
                   {form.reportedBy && <ReviewRow label="Reported By" value={form.reportedBy} />}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border">
+                  <div>
+                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Also involve departments (optional)</div>
+                    <MultiSelect size="md" value={extraDepts} onChange={setExtraDepts}
+                      options={DEPARTMENTS.filter((d) => d.code !== DEPT_CODE[computedDepartment]).map((d) => ({ value: d.code, label: d.name, hint: d.code }))}
+                      placeholder="None" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Owners (optional, otherwise auto-assigned)</div>
+                    <MultiSelect size="md" value={owners} onChange={setOwners}
+                      options={EMPLOYEES.map((e) => ({ value: e.id, label: e.name, hint: e.departmentCode }))}
+                      placeholder="Auto-assign" />
+                  </div>
                 </div>
                 {computedSLA && (
                   <div className="pt-2 border-t border-border">

@@ -54,7 +54,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
+import { ALL_TICKETS, isOwner } from "@/lib/iris/sample-tickets";
 import { RelativeTime } from "./relative-time";
 import { CommandPalette } from "./command-palette";
 import { Member360Lookup } from "./member-360";
@@ -71,7 +71,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, group: "main" },
   { id: "ai_assistant", label: "AI Assistant", icon: Sparkles, group: "main" },
   { id: "all_tickets", label: "All Tickets", icon: Ticket, group: "main", badge: () => ALL_TICKETS.filter(t => t.status !== "closed" && t.status !== "resolved").length },
-  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === useAppStore.getState().currentUser.id && t.status !== "closed" && t.status !== "resolved").length },
+  { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => isOwner(t, useAppStore.getState().currentUser.id) && t.status !== "closed" && t.status !== "resolved").length },
   { id: "department_queue", label: "Department", icon: Building2, group: "main" },
   { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
   { id: "trainers", label: "Trainers", icon: Users, group: "main" },

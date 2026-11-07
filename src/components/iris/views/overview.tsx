@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
-import { ALL_TICKETS, getAssignee, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
+import { ALL_TICKETS, isOwner, getAssignee, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
 import { EMPLOYEES, DEPARTMENTS, STUDIOS } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge } from "../badges";
 import { SmartBadges } from "../smart-badges";
@@ -34,7 +34,7 @@ export function OverviewView() {
     const critical = ALL_TICKETS.filter((t) => t.priority === "P0").length;
     const resolved = ALL_TICKETS.filter((t) => t.status === "resolved" || t.status === "closed").length;
     const escalated = ALL_TICKETS.filter((t) => t.status === "escalated").length;
-    const myTickets = ALL_TICKETS.filter((t) => t.assigneeId === currentUser.id).length;
+    const myTickets = ALL_TICKETS.filter((t) => isOwner(t, currentUser.id)).length;
     return { open, unassigned, overdue, critical, resolved, escalated, myTickets, total: ALL_TICKETS.length };
   }, [currentUser.id]);
 

@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { api, reloadReference } from "@/lib/iris/live-data";
 import { PRIORITY_CONFIG, type Priority } from "@/lib/iris/types";
+import { CATEGORY_MAP } from "@/lib/iris/iris-constants";
+import { MultiSelect } from "@/components/iris/multi-select";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data + saving
@@ -164,8 +166,10 @@ function useSettingsData() {
 
 /** Text/number input that saves when it loses focus (or on Enter) if the value changed. */
 function AutoInput({
-  value, onSave, type = "text", className, placeholder, disabled, min, step,
+  value, onSave, type = "text", className, placeholder, disabled, min, step, suggestions,
 }: {
+  /** Known values offered as a dropdown; free text is still accepted. */
+  suggestions?: string[];
   value: string | number | null | undefined;
   onSave: (v: string) => unknown;
   type?: "text" | "number" | "email";
@@ -177,6 +181,7 @@ function AutoInput({
 }) {
   const initial = value === null || value === undefined ? "" : String(value);
   const [v, setV] = React.useState(initial);
+  const listId = React.useId();
   React.useEffect(() => setV(initial), [initial]);
   const commit = () => {
     if (v.trim() === initial.trim()) return;
@@ -187,7 +192,12 @@ function AutoInput({
     onSave(v.trim());
   };
   return (
+    <>
+    {suggestions && (
+      <datalist id={listId}>{suggestions.map((x) => <option key={x} value={x} />)}</datalist>
+    )}
     <Input
+      list={suggestions ? listId : undefined}
       type={type}
       value={v}
       min={min}
@@ -202,6 +212,7 @@ function AutoInput({
       }}
       className={cn("h-7 text-[12px]", className)}
     />
+    </>
   );
 }
 
@@ -306,6 +317,81 @@ function AddButton({ onClick, label, disabled }: { onClick: () => void; label: s
 }
 
 const deptOptions = (d: Bundle) => d.departments.map((x) => ({ value: x.code, label: `${x.name} (${x.code})` }));
+const studioOptions = (d: Bundle) => d.studios.map((x) => ({ value: x.code, label: `${x.name} (${x.code})` }));
+const CITIES = ["Mumbai", "Bengaluru"];
+const AVAILABILITY = ["available", "busy", "offline", "on_leave"];
+const KNOWN_EVENTS = [
+  "Ticket created", "Ticket assigned", "Ticket in progress", "Awaiting response", "Ticket escalated", "SLA approaching",
+  "SLA breached", "Ticket resolved", "Ticket reopened", "Ticket closed", "New comment", "Owner added", "Department added",
+];
+const KNOWN_PERMISSIONS = [
+  "all", "tickets.all", "tickets.department", "tickets.create", "tickets.view", "tickets.view.own", "reports.all",
+  "reports.department", "settings.limited", "settings.system", "memberships.read", "memberships.write", "users.manage",
+];
+const AI_MODELS: Record<string, string[]> = {
+  Anthropic: ["Claude Sonnet 4", "Claude Haiku", "Claude Opus"],
+  OpenAI: ["GPT-4o", "GPT-4o-mini"],
+};
+const AI_PURPOSES = ["Primary Conversational", "Classification & Extraction", "Investigation & Reasoning", "Summarization", "Fallback (auto)"];
+const withCurrent = (opts: string[], cur?: string | null) => {
+  const list = cur && !opts.includes(cur) ? [cur, ...opts] : opts;
+  return list.map((v) => ({ value: v, label: v }));
+};
+
+// ── Routing condition builder ────────────────────────────────────────────────
+type Clause = { field: string; op: string; value: string };
+const COND_FIELDS: Record<string, { label: string; values: (d: Bundle) => string[] }> = {
+  category: { label: "Category", values: () => Object.keys(CATEGORY_MAP) },
+  subcategory: { label: "Subcategory", values: () => Object.values(CATEGORY_MAP).flat() },
+  source: { label: "Source", values: () => ["manual", "ai_assistant", "email", "webhook", "form_intake", "voice", "Momence"] },
+  studio: { label: "Studio", values: (d) => d.studios.map((x) => x.code) },
+  "studio.city": { label: "Studio city", values: () => CITIES },
+  department: { label: "Department", values: (d) => d.departments.map((x) => x.code) },
+  priority: { label: "Ticket priority", values: () => ["P0", "P1", "P2", "P3"] },
+  "client.tier": { label: "Client tier", values: () => ["VIP", "Standard"] },
+};
+const parseCondition = (c: string): Clause[] =>
+  c.split(/\s+AND\s+/i).map((part) => {
+    const m = part.trim().match(/^([\w.]+)\s*(>=|<=|=)\s*(.*)$/);
+    return m ? { field: m[1], op: m[2], value: m[3] } : { field: "category", op: "=", value: "" };
+  });
+const serializeCondition = (cl: Clause[]) => cl.filter((c) => c.value).map((c) => `${c.field}${c.op}${c.value}`).join(" AND ");
+
+function ConditionBuilder({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const { data } = useS();
+  const clauses = value.trim() ? parseCondition(value) : [];
+  const commit = (next: Clause[]) => onChange(serializeCondition(next));
+  const fieldOpts = (cur: string) =>
+    withCurrent(Object.keys(COND_FIELDS), cur).map((o) => ({ value: o.value, label: COND_FIELDS[o.value]?.label ?? o.value }));
+  return (
+    <div className="flex flex-col gap-1 flex-1 min-w-[260px]">
+      {clauses.map((c, i) => {
+        const vals = COND_FIELDS[c.field]?.values(data) ?? [];
+        return (
+          <div key={i} className="flex items-center gap-1">
+            {i > 0 && <span className="text-[9px] font-semibold text-muted-foreground w-7">AND</span>}
+            {i === 0 && clauses.length > 1 && <span className="w-7" />}
+            <NativeSelect value={c.field} disabled={disabled} options={fieldOpts(c.field)}
+              onChange={(f) => commit(clauses.map((x, j) => (j === i ? { field: f, op: "=", value: COND_FIELDS[f]?.values(data)[0] ?? "" } : x)))} />
+            <NativeSelect value={c.op} disabled={disabled} options={(c.field === "priority" ? ["=", ">="] : ["="]).map((v) => ({ value: v, label: v }))}
+              onChange={(op) => commit(clauses.map((x, j) => (j === i ? { ...x, op } : x)))} />
+            <NativeSelect className="flex-1 min-w-[120px]" value={c.value} disabled={disabled}
+              options={withCurrent(vals, c.value || null)}
+              onChange={(v) => commit(clauses.map((x, j) => (j === i ? { ...x, value: v } : x)))} />
+            <button type="button" aria-label="Remove condition" disabled={disabled}
+              className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-40"
+              onClick={() => commit(clauses.filter((_, j) => j !== i))}><Trash2 className="w-3 h-3" /></button>
+          </div>
+        );
+      })}
+      <button type="button" disabled={disabled}
+        className="self-start text-[11px] text-primary hover:underline disabled:opacity-40"
+        onClick={() => onChange(`${value.trim() ? value.trim() + " AND " : ""}category=${Object.keys(CATEGORY_MAP)[0]}`)}>
+        + {clauses.length ? "Add condition" : "Add first condition"}
+      </button>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shell
@@ -499,12 +585,13 @@ function EmployeesSettings() {
   const [adding, setAdding] = React.useState(false);
   const [q, setQ] = React.useState("");
   const [showInactive, setShowInactive] = React.useState(false);
-  const blank = { name: "", email: "", role: "", department_code: data.departments[0]?.code ?? "", location: "Mumbai" };
+  const blank = { name: "", email: "", role: "", department_code: data.departments[0]?.code ?? "", location: "Mumbai", studio_codes: [] as string[], reporting_manager: "" };
   const [n, setN] = React.useState(blank);
+  const roleSuggestions = [...new Set([...data.roles.map((r) => r.name), ...data.employees.map((e) => e.role).filter(Boolean)])].sort();
+  const managerOptions = [{ value: "", label: "No manager" }, ...data.employees.filter((e) => e.is_active).map((e) => ({ value: e.name, label: e.name }))];
   const list = data.employees.filter(
     (e) => (showInactive || e.is_active) && (!q || `${e.name} ${e.email} ${e.role}`.toLowerCase().includes(q.toLowerCase())),
   );
-  const studioCodes = data.studios.map((s) => s.code).join(", ");
   return (
     <SettingsCard
       title="Employees"
@@ -515,11 +602,13 @@ function EmployeesSettings() {
       <AddForm open={adding} onCancel={() => { setAdding(false); setN(blank); }} onSubmit={() => create("employees", n)}>
         <Field label="Full name"><Input className="h-7 text-[12px]" required value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></Field>
         <Field label="Work email"><Input type="email" className="h-7 text-[12px]" required value={n.email} onChange={(e) => setN({ ...n, email: e.target.value })} /></Field>
-        <Field label="Role / title"><Input className="h-7 text-[12px]" required value={n.role} onChange={(e) => setN({ ...n, role: e.target.value })} /></Field>
+        <Field label="Role / title"><AutoInput className="w-full" suggestions={roleSuggestions} value={n.role} onSave={(v) => setN({ ...n, role: v })} placeholder="Pick or type a role" /></Field>
         <Field label="Department">
           <NativeSelect className="w-full" value={n.department_code} onChange={(v) => setN({ ...n, department_code: v })} options={deptOptions(data)} />
         </Field>
-        <Field label="Location"><Input className="h-7 text-[12px]" value={n.location} onChange={(e) => setN({ ...n, location: e.target.value })} /></Field>
+        <Field label="Location"><NativeSelect className="w-full" value={n.location} onChange={(v) => setN({ ...n, location: v })} options={withCurrent(CITIES, n.location)} /></Field>
+        <Field label="Studios"><MultiSelect size="md" value={n.studio_codes} onChange={(v) => setN({ ...n, studio_codes: v })} options={studioOptions(data)} placeholder="All / none" /></Field>
+        <Field label="Reporting manager"><NativeSelect className="w-full" value={n.reporting_manager} onChange={(v) => setN({ ...n, reporting_manager: v })} options={managerOptions} /></Field>
       </AddForm>
 
       <div className="flex items-center gap-2 mb-3">
@@ -530,17 +619,18 @@ function EmployeesSettings() {
         <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Switch checked={showInactive} onCheckedChange={setShowInactive} />Show inactive
         </label>
-        <span className="ml-auto text-[11px] text-muted-foreground">{list.length} shown · studio codes: {studioCodes}</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">{list.length} shown</span>
       </div>
 
       <div className="overflow-x-auto iris-scrollbar">
-        <table className="w-full text-[12px] min-w-[1000px]">
+        <table className="w-full text-[12px] min-w-[1200px]">
           <thead>
             <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
               <th className="text-left py-2 px-1.5 font-semibold">Name / email</th>
               <th className="text-left py-2 px-1.5 font-semibold">Role</th>
               <th className="text-left py-2 px-1.5 font-semibold">Department</th>
               <th className="text-left py-2 px-1.5 font-semibold">Studios</th>
+              <th className="text-left py-2 px-1.5 font-semibold">Reports to</th>
               <th className="text-left py-2 px-1.5 font-semibold">Availability</th>
               <th className="text-right py-2 px-1.5 font-semibold">Load / max</th>
               <th className="py-2 px-1.5" />
@@ -553,19 +643,22 @@ function EmployeesSettings() {
                   <AutoInput value={e.name} disabled={!canEdit} onSave={(v) => v && patch("employees", e.id, { name: v })} />
                   <AutoInput type="email" className="mt-1 text-[11px] text-muted-foreground" value={e.email} disabled={!canEdit} onSave={(v) => v && patch("employees", e.id, { email: v })} />
                 </td>
-                <td className="py-1.5 px-1.5"><AutoInput value={e.role} disabled={!canEdit} onSave={(v) => v && patch("employees", e.id, { role: v })} /></td>
+                <td className="py-1.5 px-1.5"><AutoInput suggestions={roleSuggestions} value={e.role} disabled={!canEdit} onSave={(v) => v && patch("employees", e.id, { role: v })} /></td>
                 <td className="py-1.5 px-1.5">
                   <NativeSelect value={e.department_code} disabled={!canEdit} onChange={(v) => patch("employees", e.id, { department_code: v })} options={deptOptions(data)} />
                 </td>
-                <td className="py-1.5 px-1.5 w-[140px]">
-                  <AutoInput value={(e.studio_codes ?? []).join(", ")} placeholder="KH, SHQ" disabled={!canEdit} onSave={(v) => patch("employees", e.id, { studio_codes: v.toUpperCase() })} />
+                <td className="py-1.5 px-1.5 w-[190px]">
+                  <MultiSelect value={e.studio_codes ?? []} options={studioOptions(data)} placeholder="None" disabled={!canEdit} onChange={(v) => patch("employees", e.id, { studio_codes: v })} />
+                </td>
+                <td className="py-1.5 px-1.5">
+                  <NativeSelect value={e.reporting_manager ?? ""} disabled={!canEdit} options={withCurrent(managerOptions.map((o) => o.value), e.reporting_manager).map((o) => ({ value: o.value, label: o.value || "No manager" }))} onChange={(v) => patch("employees", e.id, { reporting_manager: v || null })} />
                 </td>
                 <td className="py-1.5 px-1.5">
                   <NativeSelect
                     value={e.availability}
                     disabled={!canEdit}
                     onChange={(v) => patch("employees", e.id, { availability: v })}
-                    options={["available", "busy", "offline", "on_leave"].map((v) => ({ value: v, label: v.replace("_", " ") }))}
+                    options={AVAILABILITY.map((v) => ({ value: v, label: v.replace("_", " ") }))}
                   />
                 </td>
                 <td className="py-1.5 px-1.5">
@@ -709,7 +802,7 @@ const ROUTE_PRIORITIES = ["Auto", "Critical", "High", "Medium", "Low"].map((v) =
 function RoutingSettings() {
   const { data, isAdmin, patch, create, remove, setting, saveSetting } = useS();
   const [adding, setAdding] = React.useState(false);
-  const blank = { name: "", condition: "", department_code: "", priority: "Auto" };
+  const blank = { name: "", condition: "category=" + Object.keys(CATEGORY_MAP)[0], department_code: "", priority: "Auto" };
   const [n, setN] = React.useState(blank);
   const depts = [{ value: "", label: "Any department" }, ...deptOptions(data)];
   return (
@@ -729,12 +822,12 @@ function RoutingSettings() {
       </SettingsCard>
       <SettingsCard
         title="Routing Rules"
-        description="Applied in order (lowest number first). Condition syntax: field=value AND field=value"
+        description="Applied in order (lowest number first). All conditions in a rule must match"
         action={<AddButton label="Add Rule" onClick={() => setAdding(true)} disabled={!isAdmin} />}
       >
         <AddForm open={adding} onCancel={() => { setAdding(false); setN(blank); }} onSubmit={() => create("routing_rules", { ...n, department_code: n.department_code || null })}>
           <Field label="Rule name"><Input className="h-7 text-[12px]" required value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></Field>
-          <Field label="Condition" className="md:col-span-2"><Input className="h-7 text-[12px] font-mono" required placeholder="category=Facilities AND studio=KH" value={n.condition} onChange={(e) => setN({ ...n, condition: e.target.value })} /></Field>
+          <Field label="Condition (all must match)" className="md:col-span-2"><ConditionBuilder value={n.condition} onChange={(v) => setN({ ...n, condition: v })} /></Field>
           <Field label="Route to"><NativeSelect className="w-full" value={n.department_code} onChange={(v) => setN({ ...n, department_code: v })} options={depts} /></Field>
           <Field label="Priority"><NativeSelect className="w-full" value={n.priority} onChange={(v) => setN({ ...n, priority: v })} options={ROUTE_PRIORITIES} /></Field>
         </AddForm>
@@ -744,7 +837,7 @@ function RoutingSettings() {
               <Switch checked={r.is_active} disabled={!isAdmin} onCheckedChange={(v) => patch("routing_rules", r.id, { is_active: v })} aria-label="Active" />
               <AutoInput type="number" className="w-14" value={r.sort_order} disabled={!isAdmin} onSave={(v) => patch("routing_rules", r.id, { sort_order: v })} />
               <AutoInput className="w-56" value={r.name} disabled={!isAdmin} onSave={(v) => v && patch("routing_rules", r.id, { name: v })} />
-              <AutoInput className="flex-1 min-w-[220px] font-mono text-[11px]" value={r.condition} disabled={!isAdmin} onSave={(v) => v && patch("routing_rules", r.id, { condition: v })} />
+              <ConditionBuilder value={r.condition} disabled={!isAdmin} onChange={(v) => v && patch("routing_rules", r.id, { condition: v })} />
               <NativeSelect value={r.department_code ?? ""} disabled={!isAdmin} onChange={(v) => patch("routing_rules", r.id, { department_code: v || null })} options={depts} />
               <NativeSelect value={r.priority} disabled={!isAdmin} onChange={(v) => patch("routing_rules", r.id, { priority: v })} options={ROUTE_PRIORITIES} />
               <IconButton label={`Delete ${r.name}`} danger disabled={!isAdmin} onClick={() => remove("routing_rules", r.id, r.name)}>
@@ -790,8 +883,8 @@ function AIModelSettings() {
               <div className="flex flex-wrap items-center gap-2">
                 <Brain className={cn("w-4 h-4", m.provider === "OpenAI" ? "text-emerald-500" : "text-orange-500")} />
                 <NativeSelect value={m.provider} disabled={!isAdmin} onChange={(v) => patch("ai_models", m.id, { provider: v })} options={["Anthropic", "OpenAI"].map((v) => ({ value: v, label: v }))} />
-                <AutoInput className="w-52 font-mono" value={m.model} disabled={!isAdmin} onSave={(v) => v && patch("ai_models", m.id, { model: v })} />
-                <AutoInput className="flex-1 min-w-[160px]" value={m.purpose} disabled={!isAdmin} onSave={(v) => v && patch("ai_models", m.id, { purpose: v })} />
+                <NativeSelect className="w-52" value={m.model} disabled={!isAdmin} options={withCurrent(AI_MODELS[m.provider] ?? [], m.model)} onChange={(v) => patch("ai_models", m.id, { model: v })} />
+                <NativeSelect className="flex-1 min-w-[160px]" value={m.purpose} disabled={!isAdmin} options={withCurrent(AI_PURPOSES, m.purpose)} onChange={(v) => patch("ai_models", m.id, { purpose: v })} />
                 {m.is_primary ? (
                   <Badge variant="outline" className="text-[9px] h-5 px-1.5 bg-primary/10 text-primary border-primary/30">PRIMARY</Badge>
                 ) : (
@@ -857,8 +950,11 @@ function NotificationsSettings() {
         description="Which events notify on which channel"
         action={<AddButton label="Add Event" onClick={() => setAdding(true)} disabled={!isAdmin} />}
       >
-        <AddForm open={adding} onCancel={() => { setAdding(false); setEvent(""); }} onSubmit={() => create("notification_rules", { event, in_app: true })}>
-          <Field label="Event name" className="md:col-span-3"><Input className="h-7 text-[12px]" required value={event} onChange={(e) => setEvent(e.target.value)} /></Field>
+        <AddForm open={adding} onCancel={() => { setAdding(false); setEvent(""); }} onSubmit={() => (event ? create("notification_rules", { event, in_app: true }) : Promise.resolve(false))}>
+          <Field label="Event" className="md:col-span-3">
+            <NativeSelect className="w-full" value={event} onChange={setEvent}
+              options={[{ value: "", label: "Select an event…" }, ...KNOWN_EVENTS.filter((k) => !data.notification_rules.some((r) => r.event === k)).map((v) => ({ value: v, label: v }))]} />
+          </Field>
         </AddForm>
         <div className="space-y-2">
           {data.notification_rules.map((n) => (
@@ -926,7 +1022,8 @@ function PermissionsSettings() {
   const [addingUser, setAddingUser] = React.useState(false);
   const [u, setU] = React.useState({ employee_id: "", email: "", password: "", role: "executive" });
   const [addingRole, setAddingRole] = React.useState(false);
-  const [r, setR] = React.useState({ name: "", access_tier: "executive", permissions: "" });
+  const [r, setR] = React.useState({ name: "", access_tier: "executive", permissions: [] as string[] });
+  const permOptions = [...new Set([...KNOWN_PERMISSIONS, ...data.roles.flatMap((x) => x.permissions ?? [])])].sort().map((v) => ({ value: v, label: v }));
   const withLogin = new Set(data.users.map((x) => x.employee_id).filter(Boolean));
   const empOptions = data.employees.filter((e) => e.is_active && !withLogin.has(e.id));
 
@@ -1026,17 +1123,17 @@ function PermissionsSettings() {
         description="Job roles and the access tier each one maps to"
         action={<AddButton label="Add Role" onClick={() => setAddingRole(true)} disabled={!isAdmin} />}
       >
-        <AddForm open={addingRole} onCancel={() => { setAddingRole(false); setR({ name: "", access_tier: "executive", permissions: "" }); }} onSubmit={() => create("roles", r)}>
+        <AddForm open={addingRole} onCancel={() => { setAddingRole(false); setR({ name: "", access_tier: "executive", permissions: [] }); }} onSubmit={() => create("roles", r)}>
           <Field label="Role name"><Input required className="h-7 text-[12px]" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} /></Field>
           <Field label="Access tier"><NativeSelect className="w-full" value={r.access_tier} onChange={(v) => setR({ ...r, access_tier: v })} options={TIERS} /></Field>
-          <Field label="Permissions (comma-separated)"><Input className="h-7 text-[12px] font-mono" value={r.permissions} onChange={(e) => setR({ ...r, permissions: e.target.value })} /></Field>
+          <Field label="Permissions"><MultiSelect size="md" value={r.permissions} onChange={(v) => setR({ ...r, permissions: v })} options={permOptions} placeholder="None" /></Field>
         </AddForm>
         <div className="space-y-2">
           {data.roles.map((role) => (
             <div key={role.name} className="flex flex-wrap items-center gap-2 p-2.5 rounded-lg border border-border">
               <div className="w-44 text-[12px] font-semibold">{role.name}</div>
               <NativeSelect value={role.access_tier} disabled={!isAdmin} onChange={(v) => patch("roles", role.name, { access_tier: v })} options={TIERS} />
-              <AutoInput className="flex-1 min-w-[220px] font-mono text-[11px]" value={(role.permissions ?? []).join(", ")} disabled={!isAdmin} onSave={(v) => patch("roles", role.name, { permissions: v })} />
+              <div className="flex-1 min-w-[220px]"><MultiSelect value={role.permissions ?? []} options={permOptions} placeholder="No permissions" disabled={!isAdmin} onChange={(v) => patch("roles", role.name, { permissions: v })} /></div>
               <IconButton label={`Delete ${role.name}`} danger disabled={!isAdmin} onClick={() => remove("roles", role.name, role.name)}>
                 <Trash2 className="w-3 h-3" />
               </IconButton>
