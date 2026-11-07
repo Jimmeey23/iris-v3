@@ -44,6 +44,8 @@ import {
   Layers,
 } from "lucide-react";
 import { TicketWorkspace } from "./ticket-workspace";
+import { SmartBadges } from "../smart-badges";
+import { SmartBulkActions } from "../smart-bulk-actions";
 
 export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "my" | "department" | "escalations" }) {
   const { selectedTicketId, selectTicket, ticketFilters, setTicketFilter, resetTicketFilters, currentUser } = useAppStore();
@@ -267,35 +269,12 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
         )}
       </div>
 
-      {/* Bulk Actions Bar */}
+      {/* === Smart Bulk Actions Bar === */}
       {showBulkActions && (
-        <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5 iris-scale-in">
-          <span className="text-[12px] font-semibold text-primary">{selectedIds.size} selected</span>
-          <div className="flex-1" />
-          <Button variant="outline" size="sm" className="h-7 text-[11px]">
-            <UserCheck className="w-3 h-3 mr-1" />
-            Assign
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-[11px]">
-            <Tag className="w-3 h-3 mr-1" />
-            Add Tag
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-[11px]">
-            <Layers className="w-3 h-3 mr-1" />
-            Change Priority
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-[11px]">
-            <RotateCcw className="w-3 h-3 mr-1" />
-            Change Status
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-[11px] text-rose-600 hover:text-rose-700">
-            <Trash2 className="w-3 h-3 mr-1" />
-            Close
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={clearSelection}>
-            <X className="w-3 h-3" />
-          </Button>
-        </div>
+        <SmartBulkActions
+          selectedTickets={filteredTickets.filter((t) => selectedIds.has(t.id))}
+          onClear={clearSelection}
+        />
       )}
 
       {/* Grouped or Flat ticket list */}
@@ -492,10 +471,11 @@ function TicketGrid({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: s
               <span className="text-[10px] font-mono text-muted-foreground ml-auto">{t.ticketId}</span>
             </div>
             <div className="text-[13px] font-medium leading-snug line-clamp-2 mb-2">{t.title}</div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
               {studio && <StudioBadge studioCode={studio.code} />}
               {assignee && <span>· {assignee.name}</span>}
             </div>
+            <SmartBadges ticket={t} variant="xs" />
             <div className="mt-2">
               <SLABadge status={t.slaStatus} targetDate={t.slaResolutionTarget} />
             </div>

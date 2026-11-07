@@ -52,6 +52,7 @@ import {
   ZAxis,
 } from "recharts";
 import { Card, CardHeader, CardContent } from "./overview";
+import { WorkloadHeatmap } from "../workload-heatmap";
 
 const CHART_COLORS = ["#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#10b981", "#6366f1", "#f43f5e", "#84cc16"];
 
@@ -417,6 +418,9 @@ export function AnalyticsView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* === FEATURE: Workload Heatmap — team capacity visualization === */}
+      <WorkloadHeatmap />
 
       {/* AI Insights */}
       <Card className="iris-ai-border">

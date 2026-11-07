@@ -1239,6 +1239,16 @@
     0% { left: -60%; }
     50%, 100% { left: 100%; }
   }
+
+  /* === COMMAND PALETTE overlay === */
+  .iris-cmd-overlay {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .dark .iris-cmd-overlay {
+    background: rgba(0, 0, 0, 0.6);
+  }
 }
 
 *:focus-visible {

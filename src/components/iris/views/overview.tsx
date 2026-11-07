@@ -5,8 +5,11 @@ import { useAppStore } from "@/lib/iris/store";
 import { ALL_TICKETS, getAssignee, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
 import { EMPLOYEES, DEPARTMENTS, STUDIOS } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge } from "../badges";
+import { SmartBadges } from "../smart-badges";
 import { RelativeTime } from "../relative-time";
 import { PremiumMetricCard } from "../premium-metric-card";
+import { DailyBriefing } from "../daily-briefing";
+import { AnomalyFeed } from "../anomaly-feed";
 import { cn } from "@/lib/utils";
 import {
   Ticket as TicketIcon, AlertTriangle, Clock, CheckCircle2, TrendingUp,
@@ -272,6 +275,12 @@ export function OverviewView() {
         />
       </div>
 
+      {/* === SMART WIDGETS: Daily Briefing + Anomaly Detection === */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <DailyBriefing />
+        <AnomalyFeed />
+      </div>
+
       {/* === Charts Row — polished with smooth bezier curves + accent-color strokes === */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card className="lg:col-span-2">
@@ -456,6 +465,7 @@ export function OverviewView() {
                     {assignee && <span>{assignee.name}</span>}
                     <span className="ml-auto"><RelativeTime date={t.createdAt} /></span>
                   </div>
+                  <SmartBadges ticket={t} variant="xs" className="mt-1.5" />
                 </button>
               );
             })}
@@ -480,6 +490,7 @@ export function OverviewView() {
                   <span>{getDepartment(t)?.name}</span>
                   <span className="ml-auto"><RelativeTime date={t.createdAt} /></span>
                 </div>
+                <SmartBadges ticket={t} variant="xs" className="mt-1.5" />
               </button>
             ))}
           </CardContent>

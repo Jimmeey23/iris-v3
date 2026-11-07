@@ -5,6 +5,8 @@ import { useAppStore } from "@/lib/iris/store";
 import { Ticket, getAssignee, getReporter, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
 import { EMPLOYEES, DEPARTMENTS, EMPLOYEE_MAP, Priority, TicketStatus } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge, SLAProgressBar, StudioBadge, DepartmentBadge } from "../badges";
+import { SmartBadges } from "../smart-badges";
+import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -129,6 +131,8 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
             </div>
           </div>
           <h1 className="text-[18px] font-semibold leading-tight tracking-tight mb-1">{ticket.title}</h1>
+          {/* Smart intelligence badges — breach risk, ETA, recurrence */}
+          <SmartBadges ticket={ticket} variant="sm" className="mb-1" />
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
             {studio && <StudioBadge studioCode={studio.code} showCity />}
             {department && <DepartmentBadge departmentCode={department.code} />}
@@ -173,6 +177,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                 {/* Resolution Center Tab */}
                 <TabsContent value="resolution" className="mt-3 space-y-3">
+                  {/* AI Resolution Suggestions — auto-matched KB articles, similar tickets, template */}
+                  <AIResolutionSuggestions ticket={ticket} />
+
                   {/* AI Investigation Panel */}
                   <div className="iris-card iris-ai-border p-4">
                     <div className="flex items-center gap-2 mb-3">

@@ -33,6 +33,7 @@ import {
   Clock,
   Flame,
   X,
+  UserSearch,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,8 @@ import {
 } from "@/components/ui/popover";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
 import { RelativeTime } from "./relative-time";
+import { CommandPalette } from "./command-palette";
+import { Member360Lookup } from "./member-360";
 
 interface NavItem {
   id: ViewName;
@@ -89,6 +92,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
+
+  // ⌘K Command Palette state
+  const [cmdOpen, setCmdOpen] = React.useState(false);
+  // Member 360 Lookup state
+  const [memberLookupOpen, setMemberLookupOpen] = React.useState(false);
+  const [memberLookupQuery, setMemberLookupQuery] = React.useState("");
+
+  // Global ⌘K / Ctrl+K keyboard listener
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   // Notifications derived from real ticket data so the panel always shows
   // something meaningful (critical/escalated/SLA-breach tickets).
@@ -302,22 +323,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Top Bar */}
         <header className="h-12 border-b border-border bg-background flex items-center px-4 gap-3 shrink-0 z-20">
           <div className="flex items-center gap-2 flex-1 max-w-sm">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="Search..."
-                className="h-7 pl-8 pr-10 text-[12px] bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-border"
-              />
-              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium text-muted-foreground bg-background px-1 py-px rounded border border-border flex items-center gap-0.5">
+            {/* Click-to-open the ⌘K command palette. The visual is a fake input
+                so it looks like a search field, but clicking it opens the palette. */}
+            <button
+              type="button"
+              onClick={() => setCmdOpen(true)}
+              className="relative flex-1 text-left h-7 pl-8 pr-10 text-[12px] bg-muted/50 border border-transparent hover:border-border rounded-md text-muted-foreground cursor-pointer transition-colors"
+            >
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" />
+              Search tickets, members, articles...
+              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium text-muted-foreground bg-background px-1 py-px rounded border border-border flex items-center gap-0.5 pointer-events-none">
                 <Command className="w-2.5 h-2.5" />K
               </kbd>
-            </div>
+            </button>
           </div>
 
           <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground">
             <span className="iris-live-dot" />
             Operational
           </div>
+
+          {/* Member 360 Lookup button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Member 360 Lookup"
+                onClick={() => { setMemberLookupQuery(""); setMemberLookupOpen(true); }}
+                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <UserSearch className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Member 360 Lookup</TooltipContent>
+          </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -430,6 +469,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="iris-fade-in h-full overflow-y-auto">{children}</div>
         </main>
       </div>
+
+      {/* === GLOBAL OVERLAYS === */}
+      {/* ⌘K Command Palette — global smart search across tickets / members / KB / templates */}
+      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
+      {/* Member 360 Lookup — full member profile modal */}
+      <Member360Lookup
+        open={memberLookupOpen}
+        onOpenChange={setMemberLookupOpen}
+        initialQuery={memberLookupQuery}
+      />
     </div>
   );
 }
