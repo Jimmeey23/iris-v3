@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { api, reloadReference } from "@/lib/iris/live-data";
-import { PRIORITY_CONFIG, type Priority } from "@/lib/iris/types";
+import { PRIORITY_CONFIG, DEPARTMENTS, STUDIOS, type Priority } from "@/lib/iris/types";
 import { CATEGORY_MAP } from "@/lib/iris/iris-constants";
 import { MultiSelect } from "@/components/iris/multi-select";
 
@@ -60,7 +60,14 @@ function useSettingsData() {
   const load = React.useCallback(async () => {
     try {
       setError(null);
-      setData(await api<Bundle>("/api/settings"));
+      if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true") {
+        setData({
+          departments: DEPARTMENTS.map((d) => ({ ...d })),
+          studios: STUDIOS.map((studio) => ({ ...studio })),
+          employees: [], sla_definitions: [], routing_rules: [], ai_models: [], notification_rules: [], roles: [], integrations: [], app_settings: [], audit_log: [], users: [],
+          me: { tier: "executive", userId: "preview" },
+        });
+      } else setData(await api<Bundle>("/api/settings"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load settings");
     }
@@ -253,15 +260,15 @@ function Field({ label, children, className }: { label: string; children: React.
 
 function SettingsCard({ title, description, children, action }: { title: string; description?: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="iris-card overflow-hidden mb-4">
-      <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+    <div className="iris-card overflow-hidden mb-5 rounded-2xl border border-border/70 shadow-sm">
+      <div className="px-5 sm:px-6 py-5 border-b border-border/70 flex items-center gap-3">
         <div className="flex-1">
-          <div className="text-[13px] font-semibold">{title}</div>
-          {description && <div className="text-[11px] text-muted-foreground mt-0.5">{description}</div>}
+          <div className="text-[15px] font-semibold tracking-tight">{title}</div>
+          {description && <div className="text-[12px] text-muted-foreground mt-1 leading-relaxed">{description}</div>}
         </div>
         {action}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-5 sm:p-6">{children}</div>
     </div>
   );
 }
@@ -410,9 +417,14 @@ const SETTINGS_SECTIONS = [
   { id: "audit", label: "Audit Logs", icon: Database },
 ] as const;
 
+const SECTION_DESCRIPTIONS: Record<(typeof SETTINGS_SECTIONS)[number]["id"], string> = {
+  departments: "Organize the teams responsible for resolutions.", employees: "Manage your people, assignments and availability.", studios: "Keep your locations and their details in one place.", sla: "Set expectations for response, resolution and escalation.", routing: "Direct the right work to the right team automatically.", ai: "Configure the intelligence behind your workspace.", notifications: "Choose which events reach your team and where.", integrations: "Manage the services connected to your workspace.", permissions: "Control access, accounts and role permissions.", audit: "Review activity and manage your audit history.",
+};
+
 export function SettingsView() {
   const [activeSection, setActiveSection] = React.useState<(typeof SETTINGS_SECTIONS)[number]["id"]>("departments");
   const s = useSettingsData();
+  const [search, setSearch] = React.useState("");
 
   if (s.error) {
     return (
@@ -448,43 +460,48 @@ export function SettingsView() {
 
   return (
     <SettingsCtx.Provider value={ctx}>
-      <div className="p-6 max-w-[1600px] mx-auto space-y-4">
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground mb-1">
-              <SettingsIcon className="w-3 h-3 text-primary" />
-              System Configuration
+      <div className="settings-workspace max-w-[1500px] mx-auto px-4 sm:px-8 py-8 sm:py-10">
+        <div className="flex flex-wrap items-end gap-4 mb-8">
+          <div className="flex-1 min-w-[240px]">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-primary mb-3">
+              <SettingsIcon className="w-3.5 h-3.5" /> Workspace / Configuration
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Changes save automatically to the IRIS database.
-              {!ctx.isAdmin && " Some sections are admin-only, so they're read-only for you."}
-            </p>
+            <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+            <p className="text-sm text-muted-foreground mt-2">Make IRIS work the way your team does.</p>
+          </div>
+          <div className="flex items-center gap-3 rounded-full border border-border bg-card px-3 py-2 text-[11px] text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" /> {ctx.isAdmin ? "Admin access" : `${tier} access`} <span className="text-border">|</span> <span>Auto-save on</span>
           </div>
           <SaveIndicator state={s.saveState} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
-          <div className="iris-card overflow-hidden h-fit lg:sticky lg:top-0">
-            <div className="p-2 space-y-0.5">
-              {SETTINGS_SECTIONS.map((sec) => (
-                <button
-                  key={sec.id}
-                  onClick={() => setActiveSection(sec.id)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-[12px] font-medium transition-colors",
-                    activeSection === sec.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-                  )}
-                >
-                  <sec.icon className="w-3.5 h-3.5" />
-                  {sec.label}
-                  <ChevronRight className={cn("w-3 h-3 ml-auto", activeSection === sec.id ? "opacity-100" : "opacity-0")} />
-                </button>
-              ))}
+        <div className="grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] gap-6 xl:gap-8">
+          <aside className="iris-card rounded-2xl overflow-hidden h-fit lg:sticky lg:top-4 border border-border/70">
+            <div className="p-4 border-b border-border/70">
+              <div className="text-[10px] font-bold uppercase tracking-[.16em] text-muted-foreground mb-3">Explore settings</div>
+              <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a section..." aria-label="Find a settings section" className="h-9 pl-9 text-xs bg-muted/30" /></div>
             </div>
-          </div>
+            <nav aria-label="Settings sections" className="p-2.5">
+              {[
+                { label: "Workspace", ids: ["departments", "employees", "studios"] },
+                { label: "Operations", ids: ["sla", "routing", "ai", "notifications"] },
+                { label: "Administration", ids: ["integrations", "permissions", "audit"] },
+              ].map((group) => {
+                const sections = SETTINGS_SECTIONS.filter((sec) => group.ids.includes(sec.id) && sec.label.toLowerCase().includes(search.toLowerCase().trim()));
+                if (!sections.length) return null;
+                return <div key={group.label} className="mb-2"><div className="px-3 pt-3 pb-2 text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground/70">{group.label}</div>
+                  {sections.map((sec) => <button key={sec.id} onClick={() => setActiveSection(sec.id)} aria-current={activeSection === sec.id ? "page" : undefined} className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[12px] font-medium transition-colors text-left", activeSection === sec.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground")}><sec.icon className="w-4 h-4 shrink-0" />{sec.label}<ChevronRight className={cn("w-3.5 h-3.5 ml-auto", activeSection === sec.id ? "opacity-100" : "opacity-0")} /></button>)}
+                </div>;
+              })}
+              {!SETTINGS_SECTIONS.some((sec) => sec.label.toLowerCase().includes(search.toLowerCase().trim())) && <p className="px-3 py-4 text-xs text-muted-foreground">No sections found.</p>}
+            </nav>
+            <div className="m-3 mt-1 rounded-xl bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground"><span className="font-semibold text-foreground">Changes save automatically.</span><br />Your workspace stays up to date as you edit.</div>
+          </aside>
 
           <div className="min-w-0">
+            <div className="mb-6 flex items-start gap-4">
+              {(() => { const section = SETTINGS_SECTIONS.find((item) => item.id === activeSection)!; const Icon = section.icon; return <><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div><div><div className="text-[10px] font-bold uppercase tracking-[.16em] text-muted-foreground mb-1">Workspace settings</div><h2 className="text-xl font-semibold tracking-tight">{section.label}</h2><p className="text-xs text-muted-foreground mt-1">{SECTION_DESCRIPTIONS[activeSection]}</p></div></>; })()}
+            </div>
             {activeSection === "departments" && <DepartmentsSettings />}
             {activeSection === "employees" && <EmployeesSettings />}
             {activeSection === "studios" && <StudiosSettings />}
@@ -773,28 +790,28 @@ function SLASettings() {
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Business Hours" description='Per day, like "09:00-21:00", or "Closed". Timezone: Asia/Kolkata.'>
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
-          {DAYS.map((day) => (
-            <Field key={day} label={day}>
-              <AutoInput
-                value={hours[day] ?? ""}
-                disabled={!isAdmin}
-                placeholder="09:00-21:00"
-                onSave={(v) => {
-                  if (v && v.toLowerCase() !== "closed" && !/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(v)) {
-                    toast.error(`Use HH:MM-HH:MM or "Closed" for ${day}`);
-                    return;
-                  }
-                  return saveSetting("sla.business_hours", { ...hours, [day]: v.toLowerCase() === "closed" ? "Closed" : v || "Closed" });
-                }}
-              />
-            </Field>
-          ))}
+      <SettingsCard title="Business hours" description="Set the working window for each day. All times are in Asia/Kolkata.">
+        <ReadOnlyNote show={!isAdmin} />
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+          {DAYS.map((day) => <BusinessHoursRow key={day} day={day} value={hours[day] || "Closed"} disabled={!isAdmin} onSave={(value) => saveSetting("sla.business_hours", { ...hours, [day]: value })} />)}
         </div>
       </SettingsCard>
     </>
   );
+}
+
+function BusinessHoursRow({ day, value, disabled, onSave }: { day: string; value: string; disabled: boolean; onSave: (value: string) => void }) {
+  const closed = value.toLowerCase() === "closed" || !/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(value);
+  const [start, end] = closed ? ["09:00", "21:00"] : value.split("-");
+  const update = (nextStart: string, nextEnd: string) => {
+    if (!nextStart || !nextEnd || nextStart >= nextEnd) { toast.error("Closing time must be after opening time"); return; }
+    onSave(`${nextStart}-${nextEnd}`);
+  };
+  return <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 px-4 py-3">
+    <span className="w-10 text-xs font-semibold">{day}</span>
+    <Switch checked={!closed} disabled={disabled} aria-label={`${day} open`} onCheckedChange={(open) => onSave(open ? "09:00-21:00" : "Closed")} />
+    {closed ? <span className="text-xs text-muted-foreground">Closed</span> : <div className="flex items-center gap-2 text-xs text-muted-foreground"><input aria-label={`${day} opening time`} type="time" value={start} disabled={disabled} onChange={(e) => update(e.target.value, end)} className="h-8 rounded-md border border-input bg-background px-2 text-foreground disabled:opacity-60" /><span>to</span><input aria-label={`${day} closing time`} type="time" value={end} disabled={disabled} onChange={(e) => update(start, e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-foreground disabled:opacity-60" /></div>}
+  </div>;
 }
 
 const ROUTE_PRIORITIES = ["Auto", "Critical", "High", "Medium", "Low"].map((v) => ({ value: v, label: v }));
@@ -873,7 +890,7 @@ function AIModelSettings() {
         <AddForm open={adding} onCancel={() => { setAdding(false); setN(blank); }} onSubmit={() => create("ai_models", n)}>
           <Field label="Provider"><NativeSelect className="w-full" value={n.provider} onChange={(v) => setN({ ...n, provider: v })} options={["Anthropic", "OpenAI"].map((v) => ({ value: v, label: v }))} /></Field>
           <Field label="Model id"><Input className="h-7 text-[12px] font-mono" required placeholder="claude-sonnet-5-5" value={n.model} onChange={(e) => setN({ ...n, model: e.target.value })} /></Field>
-          <Field label="Used for"><Input className="h-7 text-[12px]" required placeholder="Summarization" value={n.purpose} onChange={(e) => setN({ ...n, purpose: e.target.value })} /></Field>
+          <Field label="Used for"><NativeSelect className="w-full" value={n.purpose} onChange={(v) => setN({ ...n, purpose: v })} options={[{ value: "", label: "Select a purpose…" }, ...AI_PURPOSES.map((v) => ({ value: v, label: v }))]} /></Field>
           <Field label="Temperature (0–2)"><Input type="number" step={0.1} min={0} max={2} className="h-7 text-[12px]" value={n.temperature} onChange={(e) => setN({ ...n, temperature: e.target.value })} /></Field>
           <Field label="Max tokens"><Input type="number" min={1} className="h-7 text-[12px]" value={n.max_tokens} onChange={(e) => setN({ ...n, max_tokens: e.target.value })} /></Field>
         </AddForm>
@@ -998,8 +1015,7 @@ function IntegrationsSettings() {
             </div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span>Sync every</span>
-              <AutoInput type="number" min={5} className="w-16" value={i.sync_interval_mins} disabled={!isAdmin} onSave={(v) => (Number(v) >= 5 ? patch("integrations", i.id, { sync_interval_mins: v }) : toast.error("Minimum 5 minutes"))} />
-              <span>mins</span>
+              <NativeSelect value={String(i.sync_interval_mins ?? 60)} disabled={!isAdmin} options={withCurrent(["5", "15", "30", "60", "120", "360", "720", "1440"], String(i.sync_interval_mins ?? 60)).map((o) => ({ ...o, label: `${o.value} minutes` }))} onChange={(v) => patch("integrations", i.id, { sync_interval_mins: Number(v) })} />
               <span className="ml-auto">
                 {i.last_synced_at ? `Last sync ${new Date(i.last_synced_at).toLocaleString()}` : "Never synced"}
               </span>

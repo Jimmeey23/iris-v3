@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 ease-out relative z-30",
+          "iris-app-sidebar flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 ease-out relative z-30",
           sidebarCollapsed ? "w-[60px]" : "w-[240px]"
         )}
       >
@@ -231,10 +231,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <button
                             onClick={() => setCurrentView(item.id)}
                             className={cn(
-                              "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors",
+                              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors",
                               isActive
-                                ? "bg-[#f9f9f9] dark:bg-[#1c1c1e] text-primary"
-                                : "text-muted-foreground hover:bg-[#f9f9f9]/50 dark:hover:bg-[#1c1c1e]/50 hover:text-foreground",
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                               sidebarCollapsed && "justify-center px-0"
                             )}
                           >
@@ -319,15 +319,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true" && <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/25 px-5 py-2 text-[11px] text-amber-700 dark:text-amber-300">Preview mode · Authentication is bypassed locally. Live data and changes are unavailable.</div>}
         {/* Top Bar */}
-        <header className="h-12 border-b border-border bg-background flex items-center px-4 gap-3 shrink-0 z-20">
+        <header className="iris-app-header h-16 border-b border-border bg-background flex items-center px-5 gap-3 shrink-0 z-20">
           <div className="flex items-center gap-2 flex-1 max-w-sm">
             {/* Click-to-open the ⌘K command palette. The visual is a fake input
                 so it looks like a search field, but clicking it opens the palette. */}
             <button
               type="button"
               onClick={() => setCmdOpen(true)}
-              className="relative flex-1 text-left h-7 pl-8 pr-10 text-[12px] bg-muted/50 border border-transparent hover:border-border rounded-md text-muted-foreground cursor-pointer transition-colors"
+              className="relative flex-1 text-left h-9 pl-9 pr-10 text-[12px] bg-muted/50 border border-border/50 hover:border-border rounded-lg text-muted-foreground cursor-pointer transition-colors"
             >
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" />
               Search tickets, members, articles...
@@ -467,7 +468,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-hidden">
+        <main className="iris-app-main flex-1 overflow-hidden">
           <div className="iris-fade-in h-full overflow-y-auto">{children}</div>
         </main>
       </div>

@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import { Loader2, Lock, Eye, AlertTriangle, RefreshCw } from "lucide-react";
+import { IrisLogo } from "./iris-logo";
+import { IrisLoadingScreen } from "./intro-animation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api, loadAll } from "@/lib/iris/live-data";
+import { api, ApiError, loadAll } from "@/lib/iris/live-data";
 import { loadLibrary } from "@/lib/iris/library-api";
 import { useAppStore, type CurrentUser } from "@/lib/iris/store";
 
@@ -33,12 +35,21 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
 
   const boot = React.useCallback(async () => {
+    if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true") {
+      setCurrentUser({ id: "preview", userId: "preview", email: "", name: "Preview User", role: "Preview", tier: "executive", departmentCode: null });
+      setPhase("ready");
+      return;
+    }
     setError(null);
     let me: Me;
     try {
-      me = (await api<{ user: Me }>("/api/auth/me")).user;
-    } catch {
-      setPhase("login");
+      me = (await api<{ user: Me }>("/api/auth/me", { signal: AbortSignal.timeout(12000) })).user;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) setPhase("login");
+      else {
+        setError("We couldn't connect to the workspace. Check the server and database configuration, then try again.");
+        setPhase("error");
+      }
       return;
     }
     setCurrentUser({
@@ -56,7 +67,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
     setPhase("loading");
     try {
-      await loadAll();
+      await Promise.race([
+        loadAll(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 15000)),
+      ]);
       void loadLibrary(); // templates + knowledge docs; non-blocking, falls back to built-in defaults
       setPhase("ready");
     } catch (e) {
@@ -67,7 +81,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     boot();
-    const onSignedOut = () => setPhase("login");
+    const onSignedOut = () => {
+      if (!(process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true")) setPhase("login");
+    };
     window.addEventListener("iris:signed-out", onSignedOut);
     return () => window.removeEventListener("iris:signed-out", onSignedOut);
   }, [boot]);
@@ -81,24 +97,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return <AuthContext.Provider value={{ signOut, refresh: boot }}>{children}</AuthContext.Provider>;
   }
 
+  if (phase === "checking" || phase === "loading") return <IrisLoadingScreen label={phase === "loading" ? "Loading your workspace" : "Checking your session"} />;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm">
+    <div className="iris-auth-screen min-h-screen flex items-center justify-center p-5">
+      <div className="relative w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center mb-3 shadow-lg">
-            <Eye className="w-6 h-6 text-white" />
-          </div>
+          <div className="mb-3 shadow-lg rounded-2xl"><IrisLogo size={48} /></div>
           <div className="text-lg font-semibold tracking-tight">IRIS</div>
           <div className="text-[12px] text-muted-foreground">Physique 57 India · Issue Resolution</div>
         </div>
 
-        <div className="iris-card p-5">
-          {(phase === "checking" || phase === "loading") && (
-            <div className="flex flex-col items-center gap-2 py-6 text-[13px] text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              {phase === "loading" ? "Loading tickets…" : "Checking your session…"}
-            </div>
-          )}
+        <div className="iris-card p-6 sm:p-8 shadow-2xl">
           {phase === "login" && <LoginForm onDone={boot} />}
           {phase === "change_password" && <ChangePasswordForm onDone={boot} onCancel={signOut} />}
           {phase === "error" && (
@@ -148,7 +158,7 @@ function LoginForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <div className="text-[14px] font-semibold">Sign in</div>
+      <div className="mb-5"><div className="text-[10px] font-bold tracking-[.18em] uppercase text-primary mb-2">Your workspace awaits</div><div className="text-xl font-semibold tracking-tight">Welcome back</div><p className="text-xs text-muted-foreground mt-2">Sign in to continue to your workspace.</p></div>
       <label className="block space-y-1">
         <span className="text-[11px] font-medium text-muted-foreground">Work email</span>
         <Input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />

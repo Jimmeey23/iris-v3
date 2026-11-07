@@ -2,127 +2,29 @@
 
 import * as React from "react";
 
-/**
- * IrisLogo / IrisLogoMark
- *
- * Redesigned logo: an abstract "intelligence node" mark — a hexagonal hub
- * with three orbiting signal arcs, suggesting a central routing brain that
- * connects to multiple agents/studios.
- *
- * Design rationale:
- *   - Hexagon = stability + structure (operations platform)
- *   - Central node = the IRIS core (routing engine)
- *   - Three orbiting arcs = the multi-agent system + Mumbai/Bengaluru studios
- *   - Slow rotation = continuous monitoring / "always-on"
- *
- * The mark uses CSS variables (var(--primary), var(--iris-hero-to)) so it
- * follows the random accent color like the rest of the app.
- *
- * Style attribute on <stop> is used for SVG gradient stops because it's
- * the most reliable cross-browser way to theme inline SVGs with CSS vars.
- */
-
+/** A geometric iris: four overlapping apertures around a point of clarity. */
 export function IrisLogo({ size = 32, className }: { size?: number; className?: string }) {
-  const primaryStop: React.CSSProperties = { stopColor: "var(--primary)" };
-  const secondaryStop: React.CSSProperties = { stopColor: "var(--iris-hero-to)" };
-  const primaryFill: React.CSSProperties = { fill: "var(--primary)" };
-
+  const id = React.useId().replace(/:/g, "");
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={className} aria-label="IRIS">
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" className={className} role="img" aria-label="IRIS">
       <defs>
-        <linearGradient id="iris-bg-grad" x1="0" y1="0" x2="40" y2="40">
-          <stop style={primaryStop} />
-          <stop offset="1" style={secondaryStop} />
+        <linearGradient id={id} x1="5" y1="2" x2="60" y2="64" gradientUnits="userSpaceOnUse">
+          <stop stopColor="var(--primary, #7357dd)"/><stop offset="1" stopColor="var(--iris-hero-to, #44319e)"/>
         </linearGradient>
       </defs>
-
-      {/* Rounded-square background with the accent gradient */}
-      <rect width="40" height="40" rx="11" fill="url(#iris-bg-grad)" />
-
-      {/* Outer hex ring — slow rotation, low opacity */}
-      <g style={{ transformOrigin: "20px 20px", animation: "iris-orbit-slow 18s linear infinite" }}>
-        <polygon
-          points="20,5 31.5,11.5 31.5,28.5 20,35 8.5,28.5 8.5,11.5"
-          fill="none"
-          stroke="white"
-          strokeWidth="1"
-          strokeOpacity="0.25"
-        />
+      <rect width="64" height="64" rx="19" fill={`url(#${id})`}/>
+      <rect x=".5" y=".5" width="63" height="63" rx="18.5" stroke="white" strokeOpacity=".22"/>
+      <g className="iris-logo-aperture" style={{ transformOrigin: "32px 32px" }}>
+        <path d="M32 11C38.6 17.2 40.3 24.2 32 32C23.7 24.2 25.4 17.2 32 11Z" fill="white" fillOpacity=".95"/>
+        <path d="M53 32C46.8 38.6 39.8 40.3 32 32C39.8 23.7 46.8 25.4 53 32Z" fill="white" fillOpacity=".72"/>
+        <path d="M32 53C25.4 46.8 23.7 39.8 32 32C40.3 39.8 38.6 46.8 32 53Z" fill="white" fillOpacity=".9"/>
+        <path d="M11 32C17.2 25.4 24.2 23.7 32 32C24.2 40.3 17.2 38.6 11 32Z" fill="white" fillOpacity=".58"/>
       </g>
-
-      {/* Three orbiting signal arcs — medium rotation, medium opacity */}
-      <g style={{ transformOrigin: "20px 20px", animation: "iris-orbit-med 8s linear infinite" }}>
-        <path d="M 20 5 A 15 15 0 0 1 33 14" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeOpacity="0.55" />
-        <path d="M 33 26 A 15 15 0 0 1 20 35" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeOpacity="0.55" />
-        <path d="M 7 14 A 15 15 0 0 1 7 26" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeOpacity="0.55" />
-      </g>
-
-      {/* Inner hex — solid white-tint, marks the routing core */}
-      <polygon
-        points="20,11 27,15 27,25 20,29 13,25 13,15"
-        fill="white"
-        fillOpacity="0.18"
-        stroke="white"
-        strokeWidth="0.8"
-        strokeOpacity="0.45"
-      />
-
-      {/* Pulsing center node — the IRIS core */}
-      <circle
-        cx="20" cy="20" r="3.2"
-        fill="white"
-        style={{ animation: "iris-core-pulse 2.4s ease-in-out infinite" }}
-      />
-      {/* Inner accent dot — picks up the active accent color */}
-      <circle cx="20" cy="20" r="1.4" style={primaryFill} />
-
-      <style>{`
-        @keyframes iris-orbit-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes iris-orbit-med  { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-        @keyframes iris-core-pulse { 0%,100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
-      `}</style>
+      <circle cx="32" cy="32" r="3.2" fill="white"/>
     </svg>
   );
 }
 
-export function IrisLogoMark({ size = 20, className }: { size?: number; className?: string }) {
-  const primaryStop: React.CSSProperties = { stopColor: "var(--primary)" };
-  const secondaryStop: React.CSSProperties = { stopColor: "var(--iris-hero-to)" };
-  const primaryFill: React.CSSProperties = { fill: "var(--primary)" };
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-label="IRIS">
-      <defs>
-        <linearGradient id="iris-mark-bg-2" x1="0" y1="0" x2="20" y2="20">
-          <stop style={primaryStop} />
-          <stop offset="1" style={secondaryStop} />
-        </linearGradient>
-      </defs>
-      <rect width="20" height="20" rx="5.5" fill="url(#iris-mark-bg-2)" />
-
-      {/* Hex outline */}
-      <polygon
-        points="10,2.5 16,6 16,14 10,17.5 4,14 4,6"
-        fill="none"
-        stroke="white"
-        strokeWidth="0.6"
-        strokeOpacity="0.3"
-      />
-      {/* Three short signal arcs */}
-      <g style={{ transformOrigin: "10px 10px", animation: "iris-mark-orbit 6s linear infinite" }}>
-        <path d="M 10 2.5 A 7.5 7.5 0 0 1 16.5 7" fill="none" stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.55" />
-        <path d="M 16.5 13 A 7.5 7.5 0 0 1 10 17.5" fill="none" stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.55" />
-        <path d="M 3.5 7 A 7.5 7.5 0 0 1 3.5 13" fill="none" stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.55" />
-      </g>
-
-      {/* Center node */}
-      <circle cx="10" cy="10" r="1.8" fill="white" style={{ animation: "iris-mark-pulse 2.4s ease-in-out infinite" }} />
-      <circle cx="10" cy="10" r="0.8" style={primaryFill} />
-
-      <style>{`
-        @keyframes iris-mark-orbit { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-        @keyframes iris-mark-pulse { 0%,100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
-      `}</style>
-    </svg>
-  );
+export function IrisLogoMark(props: { size?: number; className?: string }) {
+  return <IrisLogo size={props.size ?? 20} className={props.className} />;
 }

@@ -6,8 +6,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Inter Variable", sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -1136,3 +1136,41 @@
 .dark ::selection {
   background: rgba(10, 132, 255, 0.25);
 }
+
+/* IRIS brand and loading experience */
+.iris-loading-screen { position: relative; min-height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #101021; color: #f8f7ff; font-family: inherit; }
+.iris-loading-screen::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 42% 45% at 50% 44%, rgba(112,86,207,.24), transparent 75%), radial-gradient(ellipse 35% 45% at 5% 100%, rgba(62,79,151,.15), transparent 75%); }
+.iris-loading-grid { position: absolute; inset: 0; opacity: .13; background-image: linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(ellipse at center, black, transparent 75%); }
+.iris-loading-top, .iris-loading-bottom { position: absolute; left: 5%; right: 5%; display: flex; align-items: center; justify-content: space-between; color: #8f8ba6; font-size: 9px; letter-spacing: .16em; font-weight: 600; }
+.iris-loading-top { top: 32px; }.iris-loading-bottom { bottom: 32px; font-size: 9px; }
+.iris-loading-top-mark { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 13px; letter-spacing: .18em; }
+.iris-loading-center { position: relative; display: flex; align-items: center; flex-direction: column; text-align: center; padding: 30px; animation: iris-reveal .8s both; }
+.iris-loading-orbit { width: 250px; height: 250px; position: relative; display: grid; place-items: center; margin-bottom: 24px; }
+.iris-loading-orbit::before { content: ''; position: absolute; width: 160px; height: 160px; border-radius: 50%; background: #8766fa; filter: blur(65px); opacity: .27; }
+.iris-loading-ring { position: absolute; border: 1px solid rgba(201,190,255,.15); border-radius: 50%; inset: 12px; }
+.iris-loading-ring-one::after { content: ''; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #b9a5ff; top: 24px; left: 26px; box-shadow: 0 0 14px #ac94ff; }
+.iris-loading-ring-one { animation: iris-circle 16s linear infinite; }.iris-loading-ring-two { inset: 35px; border-color: rgba(201,190,255,.1); border-style: dashed; animation: iris-circle 25s linear infinite reverse; }
+.iris-loading-logo { position: relative; filter: drop-shadow(0 18px 35px rgba(70,39,167,.45)); animation: iris-float 4s ease-in-out infinite; }
+.iris-logo-aperture { animation: iris-aperture 12s ease-in-out infinite; }
+.iris-loading-satellite { position: absolute; width: 3px; height: 3px; background: #d4c8ff; border-radius: 50%; top: 60px; right: 27px; box-shadow: 0 0 12px #c6b4ff; }
+.iris-loading-kicker { color: #b3a3ee; font-weight: 700; letter-spacing: .25em; font-size: 10px; margin-bottom: 15px; }
+.iris-loading-center h1 { font-size: clamp(27px, 4vw, 40px); letter-spacing: -.045em; font-weight: 600; line-height: 1.1; }
+.iris-loading-center p { color: #a7a4bb; font-size: 13px; margin-top: 12px; }
+.iris-loading-progress { width: 180px; height: 2px; background: #343148; border-radius: 4px; overflow: hidden; margin-top: 36px; }
+.iris-loading-progress span { display: block; width: 45%; height: 100%; background: linear-gradient(90deg, transparent, #b5a0ff, #e5dfff); animation: iris-progress 1.7s ease-in-out infinite; }
+.iris-loading-status { color: #a7a4bb; font-size: 11px; margin-top: 14px; display: flex; align-items: center; gap: 8px; }.iris-loading-dot { width: 5px; height: 5px; border-radius: 50%; background: #a793f5; }
+@keyframes iris-circle { to { transform: rotate(360deg); } } @keyframes iris-aperture { 0%, 75%, 100% { transform: rotate(0); } 85% { transform: rotate(90deg); } } @keyframes iris-float { 50% { transform: translateY(-7px); } } @keyframes iris-progress { from { transform: translateX(-110%); } to { transform: translateX(330%); } } @keyframes iris-reveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) { .iris-loading-top, .iris-loading-bottom { left: 24px; right: 24px; }.iris-loading-bottom span:last-child { display: none; }.iris-loading-orbit { width: 210px; height: 210px; } }
+@media (prefers-reduced-motion: reduce) { .iris-logo-aperture, .iris-loading-ring, .iris-loading-logo, .iris-loading-progress span, .iris-loading-center { animation: none !important; } .iris-loading-progress span { width: 45%; } }
+
+/* Shared workspace surfaces */
+:root { --background: #f7f7fb; --card: #ffffff; --sidebar: #fdfdff; --border: #e7e6ef; --input: #dedde9; --radius: .85rem; }
+.dark { --background: #10101e; --foreground: #f3f2fa; --card: #191929; --card-foreground: #f3f2fa; --popover: #1b1b2b; --popover-foreground: #f3f2fa; --sidebar: #141422; --sidebar-foreground: #f3f2fa; --border: #303042; --input: #39394e; --muted: #252538; --muted-foreground: #a5a2b8; --secondary: #29293c; --secondary-foreground: #ebeaf5; --sidebar-border: #2b2b3e; }
+.iris-app-sidebar { box-shadow: 8px 0 32px rgba(15, 12, 40, .025); }
+.iris-app-header { background: color-mix(in srgb, var(--background) 88%, var(--card)); backdrop-filter: blur(18px); }
+.iris-app-main { background: radial-gradient(ellipse at 80% 0%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 40%), var(--background); }
+.iris-card { border-radius: 16px; box-shadow: 0 8px 30px -20px rgba(35, 28, 73, .22); }
+.iris-card:hover, .dark .iris-card:hover { border-color: color-mix(in srgb, var(--primary) 24%, var(--border)); }
+.iris-auth-screen { position: relative; background: radial-gradient(ellipse at 50% 30%, rgba(110, 86, 201, .19), transparent 46%), #101021; }
+.iris-auth-screen::before { content: ''; position: absolute; inset: 0; opacity: .12; background-image: linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(ellipse at center, black, transparent 75%); }
+.iris-auth-screen > div > .flex { color: #f8f7ff; }
