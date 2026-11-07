@@ -5,6 +5,7 @@ import { Loader2, Lock, Eye, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, loadAll } from "@/lib/iris/live-data";
+import { loadLibrary } from "@/lib/iris/library-api";
 import { useAppStore, type CurrentUser } from "@/lib/iris/store";
 
 type Me = {
@@ -56,6 +57,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setPhase("loading");
     try {
       await loadAll();
+      void loadLibrary(); // templates + knowledge docs; non-blocking, falls back to built-in defaults
       setPhase("ready");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load data");

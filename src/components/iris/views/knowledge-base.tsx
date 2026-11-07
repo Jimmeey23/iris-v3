@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
-import { KNOWLEDGE_ARTICLES, KNOWLEDGE_CATEGORIES, type KnowledgeArticle } from "@/lib/iris/knowledge-base-data";
+import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
+import { KNOWLEDGE_ARTICLES, knowledgeCategories, type KnowledgeArticle } from "@/lib/iris/knowledge-base-data";
+import { knowledgeApi } from "@/lib/iris/library-api";
 import { cn } from "@/lib/utils";
 import {
   BookOpen,
@@ -26,6 +29,8 @@ import {
   Trash2,
   Save,
   X,
+  Copy,
+  Tag,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,24 +51,25 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
 
 export function KnowledgeBaseView() {
   const { setCurrentView } = useAppStore();
+  const dataVersion = useAppStore((st) => st.dataVersion);
+  const tier = useAppStore((st) => st.currentUser?.tier);
+  const canEdit = tier === "admin" || tier === "manager";
 
-  // Lift articles into state so edits persist for the session.
-  const [articles, setArticles] = React.useState<KnowledgeArticle[]>(() =>
-    KNOWLEDGE_ARTICLES.map((a) => ({ ...a, steps: [...a.steps] })),
-  );
+  // KNOWLEDGE_ARTICLES is updated in place by library-api; dataVersion re-reads it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const articles = React.useMemo(() => [...KNOWLEDGE_ARTICLES], [dataVersion]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const KNOWLEDGE_CATEGORIES = React.useMemo(() => knowledgeCategories(), [dataVersion]);
 
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState("all");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editing, setEditing] = React.useState<{ article: KnowledgeArticle; isNew: boolean } | null>(null);
+  const [busy, setBusy] = React.useState(false);
 
   const selectedArticle = React.useMemo(
     () => articles.find((a) => a.id === selectedId) ?? null,
     [articles, selectedId],
-  );
-  const editingArticle = React.useMemo(
-    () => articles.find((a) => a.id === editingId) ?? null,
-    [articles, editingId],
   );
 
   const filtered = React.useMemo(() => {
@@ -72,48 +78,54 @@ export function KnowledgeBaseView() {
         const q = search.toLowerCase();
         if (!a.title.toLowerCase().includes(q) &&
             !a.summary.toLowerCase().includes(q) &&
-            !a.steps.some((s) => s.toLowerCase().includes(q))) return false;
+            !(a.body ?? "").toLowerCase().includes(q) &&
+            !(a.tags ?? []).some((t) => t.includes(q)) &&
+            !a.steps.some((st) => st.toLowerCase().includes(q))) return false;
       }
       if (category !== "all" && a.category !== category) return false;
       return true;
     });
   }, [articles, search, category]);
 
-  const handleSaveArticle = (updated: KnowledgeArticle) => {
-    setArticles((prev) =>
-      prev.map((a) => (a.id === updated.id ? updated : a)),
+  const run = async (fn: () => Promise<unknown>, okMsg: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(okMsg);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveArticle = async (draft: KnowledgeArticle, isNew: boolean) => {
+    const { id, ...body } = draft;
+    const ok = await run(
+      () => (isNew ? knowledgeApi.create({ ...body, ...(id ? { id } : {}) }) : knowledgeApi.update(id, body)),
+      isNew ? "Document created" : "Document saved",
     );
-    setEditingId(null);
-    if (selectedId === updated.id) setSelectedId(updated.id);
+    if (ok) setEditing(null);
   };
 
   const handleNewArticle = () => {
-    // Generate a fresh id that doesn't collide with existing articles
-    const maxNum = articles.reduce((max, a) => {
-      const m = a.id.match(/^KB-(\d+)$/);
-      return m ? Math.max(max, parseInt(m[1], 10)) : max;
-    }, 0);
-    const id = `KB-${String(maxNum + 1).padStart(3, "0")}`;
-    const fresh: KnowledgeArticle = {
-      id,
-      title: "Untitled Article",
-      category: KNOWLEDGE_CATEGORIES[0] || "Repair and Maintenance",
-      summary: "",
-      steps: [""],
-      prevention: "",
-      escalation: "",
-      relatedTemplates: [],
-    };
-    setArticles((prev) => [fresh, ...prev]);
-    setEditingId(id);
-    setSelectedId(null);
+    setEditing({
+      isNew: true,
+      article: { id: "", title: "", category: KNOWLEDGE_CATEGORIES[0] || "Repair and Maintenance", summary: "", steps: [""], prevention: "", escalation: "", relatedTemplates: [], body: "", tags: [] },
+    });
   };
 
-  const handleDeleteArticle = (id: string) => {
-    if (!window.confirm(`Delete article ${id}? This cannot be undone.`)) return;
-    setArticles((prev) => prev.filter((a) => a.id !== id));
-    setEditingId(null);
-    setSelectedId(null);
+  const handleDeleteArticle = async (id: string) => {
+    if (!window.confirm(`Delete document ${id}? This cannot be undone.`)) return;
+    const ok = await run(() => knowledgeApi.remove(id), "Document deleted");
+    if (ok) { setEditing(null); setSelectedId(null); }
+  };
+
+  const handleDuplicate = async (a: KnowledgeArticle) => {
+    const ok = await run(() => knowledgeApi.duplicate(a), "Document duplicated");
+    if (ok) setSelectedId(null);
   };
 
   return (
@@ -126,13 +138,15 @@ export function KnowledgeBaseView() {
           </div>
           <h1 className="text-[22px] font-semibold tracking-tight">Knowledge Base</h1>
           <p className="text-[13px] text-muted-foreground mt-1">
-            Operational guides, troubleshooting steps, and protocols - curated from the P57 Brand Book and member issue data. Click any article to view, then "Edit Article" to revise steps or add new sections.
+            Operational guides, troubleshooting steps, and protocols - curated from the P57 Brand Book and member issue data. Click any article to read it.{canEdit ? " Managers can create, edit, duplicate and delete documents." : ""}
           </p>
         </div>
-        <Button className="h-8 text-[12px]" onClick={handleNewArticle}>
-          <Plus className="w-3 h-3 mr-1.5" />
-          New Article
-        </Button>
+        {canEdit && (
+          <Button className="h-8 text-[12px]" onClick={handleNewArticle}>
+            <Plus className="w-3 h-3 mr-1.5" />
+            New Article
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -232,7 +246,7 @@ export function KnowledgeBaseView() {
       {/* Article Detail Dialog */}
       <Dialog open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedId(null)}>
         {selectedArticle && (
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-3xl max-h-[88vh] overflow-y-auto iris-scrollbar">
             <DialogHeader>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-mono text-muted-foreground">{selectedArticle.id}</span>
@@ -262,6 +276,20 @@ export function KnowledgeBaseView() {
                   ))}
                 </div>
               </div>
+
+              {selectedArticle.body && (
+                <div className="iris-kb-md text-[13px] leading-relaxed space-y-2 [&_h1]:text-[16px] [&_h1]:font-semibold [&_h2]:text-[14px] [&_h2]:font-semibold [&_h3]:text-[13px] [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_table]:text-[12px] [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2">
+                  <ReactMarkdown>{selectedArticle.body}</ReactMarkdown>
+                </div>
+              )}
+
+              {selectedArticle.tags && selectedArticle.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {selectedArticle.tags.map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-muted text-muted-foreground"><Tag className="w-2.5 h-2.5" />{t}</span>
+                  ))}
+                </div>
+              )}
 
               {selectedArticle.prevention && (
                 <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
@@ -300,42 +328,37 @@ export function KnowledgeBaseView() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 pt-3 border-t border-border">
-                <Button
-                  variant="outline"
-                  className="h-8 text-[12px]"
-                  onClick={() => {
-                    setEditingId(selectedArticle.id);
-                    setSelectedId(null);
-                  }}
-                >
-                  <Edit2 className="w-3 h-3 mr-1.5" />
-                  Edit Article
-                </Button>
-                <div className="flex-1" />
-                <Button
-                  variant="ghost"
-                  className="h-8 text-[12px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
-                  onClick={() => handleDeleteArticle(selectedArticle.id)}
-                >
-                  <Trash2 className="w-3 h-3 mr-1.5" />
-                  Delete
-                </Button>
-              </div>
+              {canEdit && (
+                <div className="flex items-center gap-2 pt-3 border-t border-border">
+                  <Button variant="outline" className="h-8 text-[12px]" onClick={() => { setEditing({ article: selectedArticle, isNew: false }); setSelectedId(null); }}>
+                    <Edit2 className="w-3 h-3 mr-1.5" />Edit Article
+                  </Button>
+                  <Button variant="outline" className="h-8 text-[12px]" disabled={busy} onClick={() => handleDuplicate(selectedArticle)}>
+                    <Copy className="w-3 h-3 mr-1.5" />Duplicate
+                  </Button>
+                  <div className="flex-1" />
+                  <Button variant="ghost" className="h-8 text-[12px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10" disabled={busy} onClick={() => handleDeleteArticle(selectedArticle.id)}>
+                    <Trash2 className="w-3 h-3 mr-1.5" />Delete
+                  </Button>
+                </div>
+              )}
             </div>
           </DialogContent>
         )}
       </Dialog>
 
       {/* === EDIT ARTICLE DIALOG === */}
-      <Dialog open={!!editingArticle} onOpenChange={(open) => !open && setEditingId(null)}>
-        {editingArticle && (
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        {editing && (
           <EditArticleModal
-            article={editingArticle}
+            key={editing.article.id || "new"}
+            article={editing.article}
+            isNew={editing.isNew}
             categories={KNOWLEDGE_CATEGORIES}
-            onSave={handleSaveArticle}
-            onCancel={() => setEditingId(null)}
-            onDelete={() => handleDeleteArticle(editingArticle.id)}
+            busy={busy}
+            onSave={(d) => handleSaveArticle(d, editing.isNew)}
+            onCancel={() => setEditing(null)}
+            onDelete={() => handleDeleteArticle(editing.article.id)}
           />
         )}
       </Dialog>
@@ -346,10 +369,12 @@ export function KnowledgeBaseView() {
 /* === Edit modal — full editable form === */
 
 function EditArticleModal({
-  article, categories, onSave, onCancel, onDelete,
+  article, isNew, categories, busy, onSave, onCancel, onDelete,
 }: {
   article: KnowledgeArticle;
+  isNew: boolean;
   categories: string[];
+  busy: boolean;
   onSave: (updated: KnowledgeArticle) => void;
   onCancel: () => void;
   onDelete: () => void;
@@ -360,15 +385,8 @@ function EditArticleModal({
     relatedTemplates: article.relatedTemplates ? [...article.relatedTemplates] : [],
   });
   const [newTemplate, setNewTemplate] = React.useState("");
-
-  React.useEffect(() => {
-    setDraft({
-      ...article,
-      steps: [...article.steps],
-      relatedTemplates: article.relatedTemplates ? [...article.relatedTemplates] : [],
-    });
-    setNewTemplate("");
-  }, [article]);
+  const [tagText, setTagText] = React.useState((article.tags ?? []).join(", "));
+  const [preview, setPreview] = React.useState(false);
 
   const update = <K extends keyof KnowledgeArticle>(key: K, value: KnowledgeArticle[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -416,20 +434,18 @@ function EditArticleModal({
       alert("Title is required");
       return;
     }
-    if (!draft.id.trim()) {
-      alert("ID is required");
-      return;
-    }
     // Filter out empty steps and trim
     const cleanedSteps = draft.steps.map((s) => s.trim()).filter((s) => s.length > 0);
-    if (cleanedSteps.length === 0) {
-      alert("At least one step is required");
+    if (cleanedSteps.length === 0 && !(draft.body ?? "").trim()) {
+      alert("Add at least one step or a markdown body");
       return;
     }
     onSave({
       ...draft,
-      id: draft.id.trim(),
+      id: draft.id.trim().toUpperCase(),
       title: draft.title.trim(),
+      body: draft.body ?? "",
+      tags: tagText.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean),
       summary: draft.summary.trim(),
       steps: cleanedSteps,
       prevention: draft.prevention?.trim() || undefined,
@@ -439,12 +455,12 @@ function EditArticleModal({
   };
 
   return (
-    <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto iris-scrollbar">
+    <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto iris-scrollbar">
       <DialogHeader>
         <div className="flex items-center gap-2 mb-1">
           <Edit2 className="w-3.5 h-3.5 text-violet-500" />
           <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Edit Article
+            {isNew ? "New Article" : "Edit Article"}
           </span>
         </div>
         <DialogTitle className="text-[16px] leading-tight">
@@ -467,8 +483,9 @@ function EditArticleModal({
         {/* ID + Category */}
         <div className="grid grid-cols-2 gap-3">
           <div className="iris-edit-form-row">
-            <label className="iris-edit-form-label">Article ID</label>
+            <label className="iris-edit-form-label">Article ID {isNew && <span className="font-normal">(auto if blank)</span>}</label>
             <Input
+              disabled={!isNew}
               value={draft.id}
               onChange={(e) => update("id", e.target.value.toUpperCase())}
               className="text-[12px] font-mono h-9"
@@ -570,6 +587,34 @@ function EditArticleModal({
           </div>
         </div>
 
+        {/* Markdown body */}
+        <div className="iris-edit-form-row">
+          <div className="flex items-center justify-between">
+            <label className="iris-edit-form-label">Body (markdown)</label>
+            <button type="button" className="text-[11px] text-primary hover:underline" onClick={() => setPreview((p) => !p)}>
+              {preview ? "Edit" : "Preview"}
+            </button>
+          </div>
+          {preview ? (
+            <div className="rounded-md border border-border p-3 min-h-[160px] text-[13px] leading-relaxed space-y-2 [&_h1]:text-[16px] [&_h1]:font-semibold [&_h2]:text-[14px] [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded">
+              {(draft.body ?? "").trim() ? <ReactMarkdown>{draft.body ?? ""}</ReactMarkdown> : <span className="italic text-muted-foreground">Nothing to preview</span>}
+            </div>
+          ) : (
+            <Textarea
+              value={draft.body ?? ""}
+              onChange={(e) => update("body", e.target.value)}
+              className="text-[12px] min-h-[160px] resize-y font-mono"
+              placeholder={"## Heading\nFree-form notes, **bold**, lists, [links](https://...)"}
+            />
+          )}
+        </div>
+
+        {/* Tags */}
+        <div className="iris-edit-form-row">
+          <label className="iris-edit-form-label">Tags (comma separated)</label>
+          <Input value={tagText} onChange={(e) => setTagText(e.target.value)} className="text-[12px] h-9" placeholder="ac, hvac, urgent" />
+        </div>
+
         {/* Prevention */}
         <div className="iris-edit-form-row">
           <label className="iris-edit-form-label">Prevention (optional)</label>
@@ -647,14 +692,17 @@ function EditArticleModal({
 
         {/* Actions */}
         <div className="flex items-center gap-2 pt-3 border-t border-border">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-8 text-[12px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
-            onClick={onDelete}
-          >
-            <Trash2 className="w-3 h-3 mr-1" />Delete
-          </Button>
+          {!isNew && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 text-[12px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+              onClick={onDelete}
+              disabled={busy}
+            >
+              <Trash2 className="w-3 h-3 mr-1" />Delete
+            </Button>
+          )}
           <div className="flex-1" />
           <Button
             type="button"
@@ -668,8 +716,9 @@ function EditArticleModal({
             type="button"
             className="h-8 text-[12px]"
             onClick={handleSave}
+            disabled={busy}
           >
-            <Save className="w-3 h-3 mr-1.5" />Save Changes
+            <Save className="w-3 h-3 mr-1.5" />{busy ? "Saving…" : "Save"}
           </Button>
         </div>
       </div>
