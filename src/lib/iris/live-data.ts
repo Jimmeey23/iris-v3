@@ -19,7 +19,10 @@ export class ApiError extends Error {
 
 export async function api<T = any>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const { json, ...rest } = init ?? {};
-  const res = await fetch(url, {
+  // Absolute URL: some browser extensions wrap fetch and call `new URL(input)`
+  // without a base, which throws "Failed to construct 'URL'" on relative paths.
+  const absolute = typeof window !== "undefined" ? new URL(url, window.location.origin).toString() : url;
+  const res = await fetch(absolute, {
     ...rest,
     headers: { ...(json !== undefined ? { "Content-Type": "application/json" } : {}), ...rest.headers },
     body: json !== undefined ? JSON.stringify(json) : rest.body,
