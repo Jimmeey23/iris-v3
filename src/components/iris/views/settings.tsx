@@ -650,6 +650,7 @@ function EmployeesSettings() {
               <th className="text-left py-2 px-1.5 font-semibold">Reports to</th>
               <th className="text-left py-2 px-1.5 font-semibold">Availability</th>
               <th className="text-right py-2 px-1.5 font-semibold">Load / max</th>
+              <th className="text-center py-2 px-1.5 font-semibold" title="Can receive escalated tickets">Escalations</th>
               <th className="py-2 px-1.5" />
             </tr>
           </thead>
@@ -683,6 +684,14 @@ function EmployeesSettings() {
                     <span className="tabular-nums text-[11px] text-muted-foreground">{e.workload} /</span>
                     <AutoInput type="number" min={1} className="w-14" value={e.max_workload} disabled={!canEdit} onSave={(v) => patch("employees", e.id, { max_workload: v })} />
                   </div>
+                </td>
+                <td className="py-1.5 px-1.5 text-center">
+                  <Switch
+                    checked={!e.exclude_from_escalation}
+                    disabled={!canEdit}
+                    aria-label={`${e.name} receives escalations`}
+                    onCheckedChange={(v) => patch("employees", e.id, { exclude_from_escalation: !v })}
+                  />
                 </td>
                 <td className="py-1.5 px-1.5 text-right">
                   {e.is_active ? (

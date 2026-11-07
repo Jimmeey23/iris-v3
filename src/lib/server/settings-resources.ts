@@ -33,7 +33,7 @@ export const RESOURCES: Record<string, Resource> = {
     columns: {
       name: "text", email: "text", phone: "text", role: "text", title: "text", department_code: "text",
       location: "text", reporting_manager: "text", birthday: "text", studio_codes: "text[]", skills: "text[]",
-      availability: "text", max_workload: "int", escalation_order: "int", is_active: "bool",
+      availability: "text", max_workload: "int", escalation_order: "int", is_active: "bool", exclude_from_escalation: "bool",
     },
     create: true, remove: "soft", required: ["name", "email", "role", "department_code"],
   },

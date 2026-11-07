@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { withUser } from "@/lib/server/db";
+import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { fetchTicket } from "@/lib/server/tickets";
 import { notifyTicketEvent, statusEvent } from "@/lib/server/notify";
@@ -78,6 +78,34 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     vals.push(Math.min(168, b.extendSlaHours));
     sets.push(`sla_resolution_target = coalesce(sla_resolution_target, now()) + make_interval(hours => $${vals.length}::int)`);
   }
+  // Reopening clears the resolution timestamp so SLA and reports treat it as live again.
+  if (b.status !== undefined && !["resolved", "closed"].includes(b.status)) sets.push("resolved_at = null");
+
+  // Admins can edit the ticket's content directly; everyone else only works it.
+  const isAdmin = auth.session.role === "admin";
+  if (isAdmin) {
+    const text = (k: string, col: string, max: number, required = false) => {
+      if (typeof b[k] !== "string") return;
+      const v = b[k].trim().slice(0, max);
+      if (required && !v) return;
+      set(col, v || null);
+    };
+    text("title", "title", 300, true);
+    text("description", "description", 20000, true);
+    text("category", "category", 120, true);
+    text("subcategory", "subcategory", 160);
+    text("studioCode", "studio_code", 16);
+    text("recommendedResolution", "recommended_resolution", 10000);
+    text("businessImpact", "business_impact", 5000);
+    text("severity", "severity", 40);
+    if (Array.isArray(b.tags)) set("tags", strList(b.tags, 30));
+    if (b.slaResolutionTarget === null || typeof b.slaResolutionTarget === "string") {
+      const d = b.slaResolutionTarget ? new Date(b.slaResolutionTarget) : null;
+      if (d && Number.isNaN(d.getTime())) return NextResponse.json({ error: "Invalid SLA target" }, { status: 400 });
+      set("sla_resolution_target", d);
+    }
+    if (b.unlock === true) sets.push("metadata = metadata - 'legacy_import' - 'lock_assignment' - 'sla_exempt'");
+  }
   if (!sets.length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   try {
@@ -86,10 +114,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       const cur = (await c.query("select metadata, status, assignee_id, escalation_level, sla_status from tickets where id = $1", [id])).rows[0];
       before = cur ?? null;
       if (!cur) return null;
-      if (cur.metadata?.lock_assignment && (b.assigneeId !== undefined || b.assigneeIds !== undefined)) {
+      if (!isAdmin && cur.metadata?.lock_assignment && (b.assigneeId !== undefined || b.assigneeIds !== undefined)) {
         throw Object.assign(new Error("Imported legacy tickets can't be reassigned"), { code: "P0001" });
       }
-      if (cur.metadata?.legacy_import && (b.status !== undefined || b.extendSlaHours !== undefined || b.slaStatus !== undefined)) {
+      if (!isAdmin && cur.metadata?.legacy_import && (b.status !== undefined || b.extendSlaHours !== undefined || b.slaStatus !== undefined)) {
         throw Object.assign(new Error("Imported legacy tickets are closed and read-only"), { code: "P0001" });
       }
       vals.push(id);
@@ -99,6 +127,32 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (before) notifyPatchChanges(before, ticket, auth.session);
     return NextResponse.json({ ticket });
+  } catch (err) {
+    return dbError(err);
+  }
+}
+
+/** Admin-only hard delete. Activities, comments and attachments cascade; the audit log keeps a copy. */
+export async function DELETE(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id]">) {
+  const auth = await requireSession({ admin: true });
+  if ("error" in auth) return auth.error;
+  const { id } = await ctx.params;
+  try {
+    const gone = await asSystem(async (c) => {
+      const { rows } = await c.query(
+        "delete from tickets where id = $1 or ticket_id = $1 returning id, ticket_id, title, status, priority, studio_code, assignee_id",
+        [id],
+      );
+      if (!rows[0]) return null;
+      await c.query(
+        `insert into audit_log (actor_user_id, actor_name, action, entity_type, entity_id, before_state)
+         values ($1, $2, 'ticket_deleted', 'tickets', $3, $4)`,
+        [auth.session.user_id, auth.session.email, rows[0].id, JSON.stringify(rows[0])],
+      );
+      return rows[0];
+    });
+    if (!gone) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ deleted: gone.ticket_id });
   } catch (err) {
     return dbError(err);
   }

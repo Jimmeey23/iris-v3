@@ -235,10 +235,12 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
       await client.query<EscalationRow>(
         `select t.id, t.title, t.status, t.escalation_level, t.sla_resolution_target, t.assignee_id,
                 m.id  as manager_id, m.name as manager_name,
-                d.head_employee_id as dept_head_id
+                h.id as dept_head_id
            from tickets t
-           left join employees m on m.name = (select e.reporting_manager from employees e where e.id = t.assignee_id) and m.is_active
+           left join employees m on m.name = (select e.reporting_manager from employees e where e.id = t.assignee_id)
+                                and m.is_active and not m.exclude_from_escalation
            left join departments d on d.code = t.department_code
+           left join employees h on h.id = d.head_employee_id and h.is_active and not h.exclude_from_escalation
           where t.status not in ('resolved','closed')
             and t.sla_status = 'breached'
             and t.sla_resolution_target is not null

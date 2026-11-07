@@ -249,12 +249,12 @@ async function resolveRecipients(c: PoolClient, event: NotifyEvent, t: NotifyTic
   const managerOf = async (employeeId: string | null | undefined) => {
     if (!employeeId) return null;
     const { rows } = await c.query(
-      "select m.id from employees e join employees m on m.name = e.reporting_manager and m.is_active where e.id = $1 limit 1", [employeeId]);
+      "select m.id from employees e join employees m on m.name = e.reporting_manager and m.is_active and not m.exclude_from_escalation where e.id = $1 limit 1", [employeeId]);
     return (rows[0]?.id as string) ?? null;
   };
   const deptHead = async () => {
     if (!t.departmentCode) return null;
-    return ((await c.query("select head_employee_id from departments where code = $1", [t.departmentCode])).rows[0]?.head_employee_id as string) ?? null;
+    return ((await c.query("select h.id as head_employee_id from departments d join employees h on h.id = d.head_employee_id and h.is_active and not h.exclude_from_escalation where d.code = $1", [t.departmentCode])).rows[0]?.head_employee_id as string) ?? null;
   };
 
   switch (event) {

@@ -156,6 +156,13 @@ export const ticketsApi = {
   },
   update: async (id: string, body: Record<string, unknown>) =>
     upsertTicket((await api(`/api/tickets/${encodeURIComponent(id)}`, { method: "PATCH", json: body })).ticket),
+  /** Admin-only hard delete. */
+  remove: async (id: string) => {
+    await api(`/api/tickets/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const i = ALL_TICKETS.findIndex((x) => x.id === id);
+    if (i >= 0) ALL_TICKETS.splice(i, 1);
+    useAppStore.getState().bumpData();
+  },
   comment: async (id: string, content: string, isInternal = true) => {
     const { comment } = await api(`/api/tickets/${encodeURIComponent(id)}/comments`, { method: "POST", json: { content, isInternal } });
     const t = ALL_TICKETS.find((x) => x.id === id);

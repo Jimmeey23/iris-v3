@@ -11,6 +11,7 @@ import { MultiSelect } from "../multi-select";
 import { SmartBadges } from "../smart-badges";
 import { MomenceContextPanel } from "../momence-member-panel";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
+import { AdminTicketControls } from "../admin-ticket-controls";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -55,8 +56,10 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [slaPaused, setSlaPaused] = React.useState(ticket.slaStatus === "paused");
   const [busy, setBusy] = React.useState(false);
   const [summaryDraft, setSummaryDraft] = React.useState("");
-  const readOnly = Boolean(ticket.legacy);
-  const assignmentLocked = readOnly || Boolean(ticket.assignmentLocked);
+  const isAdmin = currentUser.tier === "admin";
+  // Admins can act on any ticket, including imported ones.
+  const readOnly = Boolean(ticket.legacy) && !isAdmin;
+  const assignmentLocked = !isAdmin && (readOnly || Boolean(ticket.assignmentLocked));
   const [ownerIds, setOwnerIds] = React.useState<string[]>(ticket.assigneeIds?.length ? ticket.assigneeIds : ticket.assigneeId ? [ticket.assigneeId] : []);
   const [primaryOwner, setPrimaryOwner] = React.useState<string | null>(ticket.assigneeId ?? null);
   const [deptCodes, setDeptCodes] = React.useState<string[]>(ticket.departmentCodes?.length ? ticket.departmentCodes : ticket.departmentCode ? [ticket.departmentCode] : []);
@@ -285,6 +288,10 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       </div>
                     </div>
                   </div>
+
+                  {isAdmin && (
+                    <AdminTicketControls ticket={ticket} onStatus={setStatus} onDeleted={() => selectTicket(null)} />
+                  )}
 
                   {/* Action Buttons — functional */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -714,7 +721,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       placeholder="Unassigned"
                       options={EMPLOYEES.map((e) => ({ value: e.id, label: e.name, hint: e.role }))}
                     />
-                    {ticket.assignmentLocked && <div className="text-[10px] text-muted-foreground mt-1">Imported legacy ticket: owners are locked.</div>}
+                    {ticket.assignmentLocked && !isAdmin && <div className="text-[10px] text-muted-foreground mt-1">Imported legacy ticket: owners are locked.</div>}
                   </div>
                   <div>
                     <div className="text-[10px] font-medium text-muted-foreground mb-1">Escalation Level</div>
