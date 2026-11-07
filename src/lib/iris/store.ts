@@ -45,6 +45,9 @@ interface AppState {
 
   // AI Chat state
   aiMessages: AIMessage[];
+  /** Raw Claude transcript for the current chat (sent back to /api/ai/chat each turn). */
+  aiTranscript: unknown[];
+  setAiTranscript: (t: unknown[]) => void;
   addAIMessage: (msg: AIMessage) => void;
   clearAIChat: () => void;
   conversationState: ConversationState;
@@ -98,6 +101,25 @@ export interface AITicketPreview {
   collectedFields?: Array<{ field: string; value: string }>;
 }
 
+export interface AgentTicketDraft {
+  title: string;
+  description: string;
+  category: string;
+  subcategory?: string;
+  priority: "P0" | "P1" | "P2" | "P3";
+  studioCode?: string;
+  departmentCode?: string;
+  assigneeId?: string;
+  affectedClient?: string;
+  clientMomenceId?: string;
+  membershipId?: string;
+  bookingId?: string;
+  severity?: string;
+  businessImpact?: string;
+  recommendedResolution?: string;
+  tags?: string[];
+}
+
 export interface AIMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -119,7 +141,9 @@ export interface AIMessage {
     confidenceScore?: number;
     capturedFields?: Array<{ field: string; value: string }>;
   };
-  variant?: "default" | "question" | "info" | "success" | "investigation" | "ticket";
+  variant?: "default" | "question" | "info" | "success" | "investigation" | "ticket" | "draft" | "error";
+  /** Ticket proposed by the AI agent, awaiting the user's confirmation. */
+  ticketDraft?: AgentTicketDraft;
 }
 
 export const useAppStore = create<AppState>()(
@@ -159,7 +183,9 @@ export const useAppStore = create<AppState>()(
 
       aiMessages: [],
       addAIMessage: (msg) => set((s) => ({ aiMessages: [...s.aiMessages, msg] })),
-      clearAIChat: () => set({ aiMessages: [], conversationState: createInitialState() }),
+      clearAIChat: () => set({ aiMessages: [], aiTranscript: [], conversationState: createInitialState() }),
+      aiTranscript: [],
+      setAiTranscript: (t) => set({ aiTranscript: t }),
       conversationState: createInitialState(),
       setConversationState: (state) =>
         set((s) => ({
@@ -168,7 +194,7 @@ export const useAppStore = create<AppState>()(
               ? { ...s.conversationState, ...(state as Partial<ConversationState>) }
               : s.conversationState,
         })),
-      resetConversation: () => set({ aiMessages: [], conversationState: createInitialState() }),
+      resetConversation: () => set({ aiMessages: [], aiTranscript: [], conversationState: createInitialState() }),
 
       currentUser: { id: "", userId: "", email: "", name: "", role: "", tier: "executive" },
       setCurrentUser: (user) => set({ currentUser: user }),

@@ -57,10 +57,16 @@ import {
   FileSpreadsheet,
   Hash,
   Check,
+  CreditCard,
+  Calendar,
+  Users,
+  History as HistoryIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { createTicketFromDetail } from "@/lib/iris/live-data";
+import { createTicketFromDetail, api, ticketsApi } from "@/lib/iris/live-data";
+import type { AgentTicketDraft } from "@/lib/iris/store";
+import { PRIORITY_CONFIG, DEPT_MAP, STUDIO_MAP, EMPLOYEE_MAP } from "@/lib/iris/types";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -163,112 +169,44 @@ export function AIAssistantView() {
       timestamp: new Date().toISOString(),
     });
 
-    // Process through conversation engine — use the LATEST conversationState
-    const currentState = useAppStore.getState().conversationState;
-    const response = processUserInput(currentState, trimmed);
-
-    // Update conversation state
-    const newState = { ...currentState, ...response.newState } as ConversationState;
-    setConversationState(newState);
-
-    // Stream the AI messages with appropriate delays
-    for (let i = 0; i < response.messages.length; i++) {
-      const msg = response.messages[i];
-
-      // Show "thinking" indicator before each message
-      if (msg.thinkingDuration && msg.thinkingDuration > 0) {
-        await sleep(msg.thinkingDuration);
-      }
-
+    // Ask the IRIS agent (Claude + live tools) on the server.
+    try {
+      const { aiTranscript, setAiTranscript } = useAppStore.getState();
+      const out = await api<{
+        transcript: unknown[];
+        reply: string;
+        draft: AgentTicketDraft | null;
+        trace: Array<{ name: string; summary: string; ok: boolean }>;
+      }>("/api/ai/chat", { method: "POST", json: { history: aiTranscript, message: trimmed } });
+      setAiTranscript(out.transcript);
       addAIMessage({
         id: generateId("msg"),
         role: "assistant",
-        content: msg.content,
-        timestamp: new Date().toISOString(),
-        buttons: msg.buttons,
-        inputType: msg.inputType,
-        inputPlaceholder: msg.inputPlaceholder,
-        isQuestion: msg.isQuestion,
-        isAcknowledgment: msg.isAcknowledgment,
-        isTransition: msg.isTransition,
-        ticketPreview: msg.ticketPreview,
-        agentActivity: msg.agentActivity,
-        tools: msg.tools,
-        metadata: msg.metadata,
-        variant: msg.variant || "default",
-      });
-    }
-
-    // If investigation needed, run it
-    if (response.shouldInvestigate) {
-      await sleep(900);
-      const investigationResult = buildInvestigationResult(newState);
-      await sleep(investigationResult.thinkingDuration || 200);
-
-      addAIMessage({
-        id: generateId("msg"),
-        role: "assistant",
-        content: "Investigation complete. Compiling findings...",
-        timestamp: new Date().toISOString(),
-        variant: "investigation",
-        tools: investigationResult.tools?.map((t) => ({
-          ...t,
-          status: "complete" as const,
-        })),
-        agentActivity: [
-          { agent: "Classification", action: "Intent classified successfully", status: "complete" },
-          { agent: "Investigation", action: "Momence API queried, historical tickets checked", status: "complete" },
-          { agent: "Routing", action: "Best assignee selected based on workload + expertise", status: "complete" },
-          { agent: "SLA", action: "Response & resolution targets computed", status: "complete" },
-        ],
-      });
-
-      // Stream tool completions
-      if (investigationResult.tools) {
-        for (let i = 0; i < investigationResult.tools.length; i++) {
-          await sleep(investigationResult.tools[i].duration || 400);
-        }
-      }
-
-      await sleep(500);
-
-      // After investigation — always show the ticket draft
-      // Confidence is boosted by completed questions + investigation tools
-      const baseConfidence = newState.intent.confidenceScore || 0;
-      const answeredQuestions = newState.questionsAsked?.length || 0;
-      const totalQuestions = (newState.questionsRemaining?.length || 0) + answeredQuestions;
-      const questionBoost = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 20 : 0; // up to +20%
-      const toolBoost = (investigationResult.tools?.length || 0) * 2; // each tool adds 2%
-      const finalConfidence = Math.min(98, baseConfidence + questionBoost + toolBoost);
-
-      // Update confidence in state
-      setConversationState({ ...newState, intent: { ...newState.intent, confidenceScore: finalConfidence } });
-
-      // Always show the ticket draft after investigation — the questions + tools provide enough info
-      // Split into two messages: the text content, then the ticket preview card
-      addAIMessage({
-        id: generateId("msg"),
-        role: "assistant",
-        content: `Investigation complete (confidence: ${Math.round(finalConfidence)}%). Here's the structured ticket I've prepared — review and confirm to create and route it.`,
+        content: out.reply || (out.draft ? "I've drafted a ticket — review it below." : "Done."),
         timestamp: new Date().toISOString(),
         variant: "default",
-        thinkingDuration: 0,
+        tools: out.trace.length
+          ? out.trace.map((t) => ({ name: t.summary, status: "complete" as const, result: t.ok ? undefined : "failed" }))
+          : undefined,
       });
-
-      await sleep(300);
-
+      if (out.draft) {
+        addAIMessage({
+          id: generateId("msg"),
+          role: "assistant",
+          content: "",
+          timestamp: new Date().toISOString(),
+          variant: "draft",
+          ticketDraft: out.draft,
+        });
+      }
+    } catch (e) {
       addAIMessage({
         id: generateId("msg"),
         role: "assistant",
-        content: "",
+        content: e instanceof Error ? e.message : "Something went wrong. Try again.",
         timestamp: new Date().toISOString(),
-        variant: "ticket",
-        ticketPreview: investigationResult.ticketPreview,
-        tools: investigationResult.tools,
-        metadata: { ...investigationResult.metadata, confidenceScore: Math.round(finalConfidence) },
+        variant: "error",
       });
-
-      setConversationState({ stage: "ready" });
     }
 
     setIsProcessing(false);
@@ -350,7 +288,7 @@ export function AIAssistantView() {
               </span>
             </div>
             <div className="text-[10px] text-muted-foreground">
-              Multi-agent · GPT-4o + Claude
+              Claude · live Momence & ticket data
             </div>
           </div>
           <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => setShowFormIntake(true)}>
@@ -434,7 +372,6 @@ export function AIAssistantView() {
         </div>
 
         {/* Context Bar — highlights fields as they're identified */}
-        <ContextBar state={conversationState} />
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -599,162 +536,71 @@ function ContextBar({ state }: { state: ConversationState }) {
   );
 }
 
-function ConversationIntelligencePanel({ state, onSend }: { state: ConversationState; onSend: (text: string) => void }) {
-  const collectedEntries = Object.entries(state.collectedInfo).filter(([_, v]) => v && v !== "");
-  const totalQuestions = state.questionsRemaining.length + state.questionsAsked.length;
-  const answeredQuestions = state.questionsAsked.length;
-  const progressPct = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
-
+function ConversationIntelligencePanel({ onSend }: { state?: ConversationState; onSend: (text: string) => void }) {
+  const tools: Array<{ icon: React.ComponentType<{ className?: string }>; label: string; detail: string }> = [
+    { icon: Search, label: "Momence members", detail: "Mumbai + Bengaluru: contact, visits, tags" },
+    { icon: CreditCard, label: "Memberships & bookings", detail: "Credits left, freezes, recent classes, check-ins" },
+    { icon: Calendar, label: "Classes & trainers", detail: "Schedules, capacity, cancellations" },
+    { icon: HistoryIcon, label: "Ticket history", detail: "Similar past issues and how they were resolved" },
+    { icon: Users, label: "Staff workload", detail: "Who's available in the right department" },
+    { icon: TicketIcon, label: "Ticket draft", detail: "Proposed for your review; nothing is saved until you click Create" },
+  ];
   return (
-    <>
-      {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-          <Activity className="w-3 h-3 text-violet-500" />
-          Conversation Intelligence
-        </div>
-
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-semibold tabular-nums">{Math.round(progressPct)}%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-violet-500 via-indigo-500 to-violet-500 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {answeredQuestions} of {totalQuestions} questions answered · Stage: <span className="font-medium text-foreground">{state.stage.replace("_", " ")}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Captured Info */}
-      <div className="flex-1 overflow-y-auto iris-scrollbar p-4">
+    <div className="flex-1 overflow-y-auto iris-scrollbar p-4 space-y-6">
+      <div>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-1.5">
-          <Target className="w-3 h-3 text-emerald-500" />
-          Captured Information
-          {collectedEntries.length > 0 && (
-            <span className="ml-auto text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded">
-              {collectedEntries.length}
-            </span>
-          )}
+          <Brain className="w-3 h-3 text-violet-500" />
+          What IRIS can check
         </div>
-        {collectedEntries.length === 0 ? (
-          <div className="p-3 rounded-lg border border-dashed border-border text-center">
-            <Target className="w-5 h-5 mx-auto text-muted-foreground/50 mb-1" />
-            <div className="text-[11px] text-muted-foreground">No info captured yet. Start describing your issue.</div>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {collectedEntries.map(([key, value]) => (
-              <div key={key} className="p-2 rounded-md bg-card border border-border iris-slide-up">
-                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
-                  {formatFieldName(key)}
-                </div>
-                <div className="text-[12px] font-medium leading-tight truncate">{String(value)}</div>
+        <div className="space-y-2">
+          {tools.map((t) => (
+            <div key={t.label} className="flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-md bg-muted/60 flex items-center justify-center shrink-0">
+                <t.icon className="w-3.5 h-3.5 text-muted-foreground" />
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Active Agents */}
-        <div className="mt-6">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-1.5">
-            <Cpu className="w-3 h-3 text-violet-500" />
-            AI Agents Status
-          </div>
-          <div className="space-y-1">
-            {AGENTS.map((agent) => {
-              const isActive =
-                (state.stage === "collecting" && agent.name === "Conversational Agent") ||
-                (state.stage === "investigating" && agent.name === "Investigation Agent") ||
-                (state.stage === "ready" && agent.name === "Quality Agent");
-              return (
-                <div
-                  key={agent.name}
-                  className={cn(
-                    "flex items-center gap-2 p-2 rounded-md border transition-all",
-                    isActive
-                      ? "border-violet-500/40 bg-violet-500/5"
-                      : "border-transparent hover:bg-muted/40"
-                  )}
-                >
-                  <div className={cn("w-7 h-7 rounded-md flex items-center justify-center shrink-0", isActive ? "bg-violet-500/15" : "bg-muted")}>
-                    <agent.icon className={cn("w-3.5 h-3.5", isActive ? agent.color : "text-muted-foreground")} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-medium truncate">{agent.name}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{agent.desc}</div>
-                  </div>
-                  {isActive ? (
-                    <Loader2 className="w-3 h-3 text-violet-500 animate-spin" />
-                  ) : (
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/60" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Quick Templates */}
-        <div className="mt-6">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-1.5">
-            <Wand2 className="w-3 h-3 text-amber-500" />
-            Quick Templates
-          </div>
-          <div className="space-y-1">
-            {["AC malfunction", "Sound system issue", "Membership freeze", "Payment missing", "Credit discrepancy", "Booking cancellation"].map((t) => (
-              <button
-                key={t}
-                onClick={() => onSend(t)}
-                className="w-full text-left px-2 py-1.5 text-[11px] rounded-md hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-1.5 group"
-              >
-                <TicketIcon className="w-3 h-3 text-muted-foreground group-hover:text-violet-500 transition-colors" />
-                {t}
-                <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* AI Tip */}
-        <div className="mt-6 p-3 rounded-lg bg-gradient-to-br from-violet-500/10 to-indigo-500/5 border border-violet-500/20">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Lightbulb className="w-3 h-3 text-violet-500" />
-            <div className="text-[11px] font-semibold">How IRIS Works</div>
-          </div>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            I analyse each message, extract key info, and ask only the questions genuinely needed — one at a time. The conversation shapes the ticket.
-          </p>
+              <div className="min-w-0">
+                <div className="text-[12px] font-medium">{t.label}</div>
+                <div className="text-[10px] text-muted-foreground leading-snug">{t.detail}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Footer — API Usage */}
-      <div className="p-3 border-t border-sidebar-border">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-          <Zap className="w-3 h-3 text-amber-500" />
-          API Usage Today
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-1.5">
+          <Wand2 className="w-3 h-3 text-amber-500" />
+          Try asking
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-muted-foreground">Tokens used</span>
-            <span className="font-semibold tabular-nums">{847 + state.turnCount * 120}</span>
-          </div>
-          <div className="h-1 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-all duration-500"
-              style={{ width: `${Math.min(100, 23 + state.turnCount * 3)}%` }}
-            />
-          </div>
-          <div className="text-[9px] text-muted-foreground">{Math.min(100, 23 + state.turnCount * 3)}% of daily limit · ${((847 + state.turnCount * 120) * 0.00003).toFixed(2)} spent</div>
+        <div className="space-y-1">
+          {[
+            "The AC in Studio 2 at Kwality House isn't cooling",
+            "A client says her credits are wrong after her last class",
+            "The 7pm class at Supreme HQ started 15 minutes late",
+            "Has the sound system at Kenkere House failed before?",
+          ].map((t) => (
+            <button
+              key={t}
+              onClick={() => onSend(t)}
+              className="w-full text-left px-2 py-1.5 text-[11px] rounded-md hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-1.5 group"
+            >
+              <MessageSquare className="w-3 h-3 text-muted-foreground group-hover:text-violet-500 shrink-0" />
+              <span className="truncate">{t}</span>
+            </button>
+          ))}
         </div>
       </div>
-    </>
+
+      <div className="p-3 rounded-lg bg-gradient-to-br from-violet-500/10 to-indigo-500/5 border border-violet-500/20">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Lightbulb className="w-3 h-3 text-violet-500" />
+          <div className="text-[11px] font-semibold">Tip</div>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Describe it the way you'd tell a colleague: who, where, when. IRIS looks up the member and class itself and only asks what it can't find.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -903,12 +749,16 @@ function MessageBubble({
               ? "bg-card border border-border rounded-tl-sm"
               : variant === "investigation"
               ? "bg-muted/50 border border-border rounded-tl-sm"
-              : variant === "ticket"
+              : variant === "ticket" || variant === "draft"
               ? "bg-card border border-border rounded-tl-sm p-0 overflow-hidden"
+              : variant === "error"
+              ? "bg-rose-500/5 border border-rose-500/30 text-rose-700 dark:text-rose-300 rounded-tl-sm"
               : "bg-card border border-border rounded-tl-sm"
           )}
         >
-          {variant === "ticket" && message.ticketPreview ? (
+          {variant === "draft" && message.ticketDraft ? (
+            <AgentDraftCard draft={message.ticketDraft} />
+          ) : variant === "ticket" && message.ticketPreview ? (
             <TicketPreviewCard ticket={message.ticketPreview} metadata={message.metadata} />
           ) : (
             <div className="text-[13px] leading-relaxed whitespace-pre-line">
@@ -1295,4 +1145,91 @@ function ThinkingIndicator() {
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+
+/** Ticket proposed by the agent; nothing is saved until the user clicks Create. */
+function AgentDraftCard({ draft }: { draft: AgentTicketDraft }) {
+  const { setCurrentView, selectTicket } = useAppStore();
+  const [state, setState] = React.useState<"idle" | "creating" | "created">("idle");
+  const [createdId, setCreatedId] = React.useState<{ id: string; ticketId: string } | null>(null);
+  const p = PRIORITY_CONFIG[draft.priority];
+  const assignee = draft.assigneeId ? EMPLOYEE_MAP[draft.assigneeId] : undefined;
+
+  const create = async () => {
+    setState("creating");
+    try {
+      const t = await ticketsApi.create({ ...draft, source: "ai_assistant", collectedInfo: { agentDraft: true } });
+      setCreatedId({ id: t.id, ticketId: t.ticketId });
+      setState("created");
+      toast.success(`Ticket ${t.ticketId} created`);
+    } catch (e) {
+      setState("idle");
+      toast.error(e instanceof Error ? e.message : "Couldn't create the ticket");
+    }
+  };
+
+  const rows: Array<[string, string | undefined]> = [
+    ["Department", draft.departmentCode ? DEPT_MAP[draft.departmentCode]?.name ?? draft.departmentCode : undefined],
+    ["Studio", draft.studioCode ? STUDIO_MAP[draft.studioCode]?.name ?? draft.studioCode : undefined],
+    ["Assignee", assignee ? `${assignee.name} · ${assignee.role}` : "Auto-assign"],
+    ["Category", [draft.category, draft.subcategory].filter(Boolean).join(" › ")],
+    ["Client", [draft.affectedClient, draft.clientMomenceId].filter(Boolean).join(" · ") || undefined],
+    ["Severity", draft.severity],
+    ["Impact", draft.businessImpact],
+  ];
+
+  return (
+    <div>
+      <div className="px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white flex items-center gap-2">
+        <TicketIcon className="w-4 h-4" />
+        <div className="text-[12px] font-semibold">Ticket draft — review before creating</div>
+        {p && <span className="ml-auto text-[10px] font-semibold bg-white/15 px-1.5 py-0.5 rounded">{p.label}</span>}
+      </div>
+      <div className="p-4 space-y-3">
+        <div>
+          <div className="text-[14px] font-semibold leading-snug">{draft.title}</div>
+          <div className="text-[12px] text-muted-foreground mt-1 whitespace-pre-line">{draft.description}</div>
+        </div>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+          {rows.filter(([, v]) => v).map(([k, v]) => (
+            <div key={k} className="flex gap-2 min-w-0">
+              <dt className="text-muted-foreground shrink-0 w-20">{k}</dt>
+              <dd className="font-medium truncate" title={v}>{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {draft.recommendedResolution && (
+          <div className="text-[11px] rounded-md bg-amber-500/5 border border-amber-500/20 p-2.5 whitespace-pre-line">
+            <div className="font-semibold mb-0.5">Recommended next steps</div>
+            {draft.recommendedResolution}
+          </div>
+        )}
+        {draft.tags && draft.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {draft.tags.map((t) => <span key={t} className="iris-chip text-[9px]">{t}</span>)}
+          </div>
+        )}
+        <div className="flex items-center gap-2 pt-2 border-t border-border">
+          {state === "created" && createdId ? (
+            <>
+              <span className="text-[12px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />Created {createdId.ticketId}
+              </span>
+              <Button size="sm" variant="outline" className="ml-auto h-7 text-[11px]" onClick={() => { setCurrentView("all_tickets"); selectTicket(createdId.id); }}>
+                Open ticket<ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="text-[11px] text-muted-foreground">Want changes? Just tell IRIS below.</span>
+              <Button size="sm" className="ml-auto h-8 text-[12px]" onClick={create} disabled={state === "creating"}>
+                {state === "creating" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Create ticket</>}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Search, User, Calendar, Users, Check, Loader2, X } from "lucide-react";
-import { MEMBERS } from "@/lib/iris/member-directory";
 
 export interface MomenceEntity {
   id: string;
@@ -14,35 +13,45 @@ export interface MomenceEntity {
   avatarColor?: string;
 }
 
-// Build the dropdown-shaped entities from the shared MEMBERS list.
-// Kept as a derived const (not a re-export) so the field's entity shape stays
-// decoupled from the canonical Member shape (e.g. credits are formatted into
-// a subtitle string here, not stored as a number).
-const MOMENCE_MEMBERS: MomenceEntity[] = MEMBERS.map((m) => ({
-  id: m.id,
-  name: m.name,
-  subtitle: `${m.membership} · ${m.credits} credit${m.credits === 1 ? "" : "s"}`,
-  meta: `${m.phone} · ${m.email}`,
-  tags: m.tags,
-  avatarColor: m.avatarColor,
-}));
+const REGION: Record<string, string> = { mum: "Mumbai", blr: "Bengaluru" };
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
-const MOMENCE_SESSIONS: MomenceEntity[] = [
-  { id: "S-4451", name: "Barre Class — Beginner", subtitle: "Today 7:00 AM · 60 min · Tara Kapoor", meta: "Kwality House · 18/20 booked", tags: ["Studio 1"], avatarColor: "violet" },
-  { id: "S-4452", name: "Cardio Barre — Intermediate", subtitle: "Today 9:00 AM · 60 min · Tara Kapoor", meta: "Kwality House · 20/20 (full)", tags: ["Full", "Studio 1"], avatarColor: "rose" },
-  { id: "S-4453", name: "Sculpt & Tone", subtitle: "Today 10:30 AM · 45 min · Maya Sharma", meta: "Supreme HQ · 12/15 booked", tags: ["Studio 2"], avatarColor: "emerald" },
-  { id: "S-4454", name: "Advanced Barre", subtitle: "Today 6:00 PM · 60 min · Reyaan Malhotra", meta: "Kenkere House · 14/18 booked", tags: ["Bengaluru"], avatarColor: "sky" },
-  { id: "S-4455", name: "Stretch & Restore", subtitle: "Tomorrow 8:00 AM · 45 min · Tara Kapoor", meta: "Kwality House · 8/20 booked", tags: ["Studio 1"], avatarColor: "amber" },
-  { id: "S-4456", name: "Barre Express", subtitle: "Tomorrow 12:30 PM · 30 min · Maya Sharma", meta: "Supreme HQ · 5/15 booked", tags: ["Lunch"], avatarColor: "indigo" },
-  { id: "S-4457", name: "Power Barre — Advanced", subtitle: "Tomorrow 7:00 PM · 60 min · Reyaan Malhotra", meta: "Kenkere House · 16/18 booked", tags: ["Evening"], avatarColor: "violet" },
-];
-
-const MOMENCE_TRAINERS: MomenceEntity[] = [
-  { id: "TRN-060", name: "Tara Kapoor", subtitle: "Head Trainer · Mumbai", meta: "tara.kapoor@physique57.in", tags: ["Barre", "Cardio", "Stretch"], avatarColor: "violet" },
-  { id: "TRN-061", name: "Reyaan Malhotra", subtitle: "Senior Trainer · Bengaluru", meta: "reyaan.m@physique57.in", tags: ["Advanced", "Power"], avatarColor: "sky" },
-  { id: "TRN-062", name: "Maya Sharma", subtitle: "Trainer · Mumbai", meta: "maya.s@physique57.in", tags: ["Sculpt", "Express"], avatarColor: "emerald" },
-  { id: "TRN-063", name: "Diya Patel", subtitle: "Junior Trainer · Mumbai", meta: "diya.p@physique57.in", tags: ["Beginner"], avatarColor: "amber" },
-];
+/** Live search against Momence via the IRIS server (credentials never reach the browser). */
+async function searchMomence(type: "momence_member" | "momence_session" | "momence_trainer", q: string, signal: AbortSignal): Promise<MomenceEntity[]> {
+  const path = type === "momence_member" ? "members" : type === "momence_session" ? "sessions" : "trainers";
+  const res = await fetch(new URL(`/api/momence/${path}?q=${encodeURIComponent(q)}`, window.location.origin), { signal, cache: "no-store" });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `Momence search failed (${res.status})`);
+  if (type === "momence_member") {
+    return (j.members ?? []).map((m: any) => ({
+      id: m.id,
+      name: m.name,
+      subtitle: `${REGION[m.region] ?? m.region} · ${m.totalVisits} visit${m.totalVisits === 1 ? "" : "s"}${m.lastSeen ? ` · last ${new Date(m.lastSeen).toLocaleDateString("en-IN")}` : ""}`,
+      meta: [m.phone, m.email].filter(Boolean).join(" · "),
+      tags: (m.tags ?? []).slice(0, 3),
+      avatarColor: m.region === "blr" ? "sky" : "violet",
+    }));
+  }
+  if (type === "momence_session") {
+    return (j.sessions ?? []).map((x: any) => ({
+      id: x.id,
+      name: x.name,
+      subtitle: `${fmtDate(x.startsAt)}${x.durationMins ? ` · ${x.durationMins} min` : ""}${x.teacher ? ` · ${x.teacher}` : ""}`,
+      meta: `${x.location ?? REGION[x.region]} · ${x.booked}${x.capacity ? `/${x.capacity}` : ""} booked${x.cancelled ? " · cancelled" : ""}`,
+      tags: x.cancelled ? ["Cancelled"] : x.capacity && x.booked >= x.capacity ? ["Full"] : [],
+      avatarColor: x.cancelled ? "rose" : "emerald",
+    }));
+  }
+  return (j.trainers ?? []).map((t: any) => ({
+    id: t.id,
+    name: t.name,
+    subtitle: `${REGION[t.region] ?? t.region} · ${t.classes} classes (30 days)`,
+    meta: (t.locations ?? []).join(" · "),
+    tags: [],
+    avatarColor: "amber",
+  }));
+}
 
 const COLOR_MAP: Record<string, string> = {
   violet: "from-violet-500 to-violet-600",
@@ -69,35 +78,30 @@ export function MomenceSearchField({
   const [showResults, setShowResults] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const dataSource =
-    type === "momence_member" ? MOMENCE_MEMBERS :
-    type === "momence_session" ? MOMENCE_SESSIONS :
-    MOMENCE_TRAINERS;
+  const [error, setError] = React.useState<string | null>(null);
 
   const iconName = type === "momence_member" ? "Member" : type === "momence_session" ? "Session" : "Trainer";
   const Icon = type === "momence_member" ? User : type === "momence_session" ? Calendar : Users;
 
   React.useEffect(() => {
-    if (!query.trim()) {
+    const q = query.trim();
+    // Sessions can be listed with no text (today's classes); members/trainers need 2+ chars.
+    if (type !== "momence_session" && q.length < 2) {
       setResults([]);
+      setError(null);
       return;
     }
+    if (type === "momence_session" && !q && !showResults) return;
+    const ctrl = new AbortController();
     setSearching(true);
     const t = setTimeout(() => {
-      const q = query.toLowerCase();
-      const filtered = dataSource.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.id.toLowerCase().includes(q) ||
-          e.subtitle?.toLowerCase().includes(q) ||
-          e.meta?.toLowerCase().includes(q)
-      );
-      setResults(filtered);
-      setSearching(false);
-      setShowResults(true);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query, dataSource]);
+      searchMomence(type, q, ctrl.signal)
+        .then((r) => { setResults(r); setError(null); setShowResults(true); })
+        .catch((e) => { if (e.name !== "AbortError") { setError(e.message); setResults([]); setShowResults(true); } })
+        .finally(() => setSearching(false));
+    }, 350);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [query, type, showResults]);
 
   const handleSelect = (entity: MomenceEntity) => {
     setSelected(entity);
@@ -192,20 +196,23 @@ export function MomenceSearchField({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => query && setShowResults(true)}
-          placeholder={placeholder || `Search ${iconName.toLowerCase()}...`}
+          onFocus={() => (query || type === "momence_session") && setShowResults(true)}
+          placeholder={placeholder || (type === "momence_member" ? "Search members by name, email or phone" : type === "momence_session" ? "Search classes by name, trainer or studio" : "Search trainers")}
           className="w-full h-11 pl-10 pr-20 text-[13px] rounded-xl border border-violet-500/30 bg-card focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all placeholder:text-muted-foreground"
         />
       </div>
 
       {/* Results dropdown */}
-      {showResults && (query.trim() || results.length > 0) && (
+      {showResults && (query.trim() || results.length > 0 || error) && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 iris-card-elevated max-h-[280px] overflow-y-auto iris-scrollbar iris-scale-in">
           {searching && results.length === 0 && (
             <div className="p-4 text-center text-[12px] text-muted-foreground flex items-center justify-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
               Querying Momence API...
             </div>
+          )}
+          {error && !searching && (
+            <div role="alert" className="px-4 pt-3 text-[11px] text-rose-600 dark:text-rose-400">{error}</div>
           )}
           {!searching && results.length === 0 && query.trim() && (
             <div className="p-4 text-center">
