@@ -1267,7 +1267,8 @@ $$;
 -- 16. VIEWS (security_invoker -> they respect RLS of the caller)
 -- ============================================================================
 
-create or replace view iris.v_tickets_full with (security_invoker = true) as
+drop view if exists iris.v_tickets_full;
+create view iris.v_tickets_full with (security_invoker = true) as
 select t.*, s.name as studio_name, s.city as studio_city, d.name as department_name,
        a.name as assignee_name, a.role as assignee_role, r.name as reporter_name
 from iris.tickets t

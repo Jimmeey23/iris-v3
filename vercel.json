@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "regions": ["cle1"],
   "crons": [
     { "path": "/api/cron/outbox", "schedule": "0 3 * * *" },
     { "path": "/api/cron/sla", "schedule": "30 2 * * *" }
