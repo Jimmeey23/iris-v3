@@ -74,7 +74,7 @@ type ClassifyResponse = {
   candidates: Array<{ category: string; subcategory: string | null; department: string | null; priority: "P0" | "P1" | "P2" | "P3" }>;
   confident: boolean;
   taxonomy: IntakeTaxonomy;
-  fields?: { studioCode?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1" };
+  fields?: { studioCode?: string; area?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1" };
   question?: string | null;
   source: "rules" | "ai";
 };
@@ -290,6 +290,7 @@ export function AIAssistantView() {
       priority: f.urgent ?? (top?.priority === "P0" ? "P1" : top?.priority) ?? "P2",
       prioritySuggested: !f.urgent,
       studioCode: f.studioCode ?? null,
+      area: f.area ?? null,
       when: f.when ?? null,
       classFormat: f.classFormat ?? null,
       title: f.title ?? null,
@@ -336,6 +337,7 @@ export function AIAssistantView() {
       ...state,
       text: `${state.text}\n${text}`,
       studioCode: state.studioCode ?? f.studioCode ?? null,
+      area: state.area ?? f.area ?? null,
       when: state.when ?? f.when ?? null,
       classFormat: state.classFormat ?? f.classFormat ?? null,
       trainerNameHint: state.trainerNameHint ?? f.trainerName ?? null,

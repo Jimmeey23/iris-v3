@@ -138,6 +138,8 @@ export interface IntakeState {
   studioCode: string | null;
   when: string | null;
   classFormat: string | null;
+  /** Room/area on the studio plan, e.g. "PowerCycle Studio". */
+  area?: string | null;
   title: string | null;
   member: { id: string; name: string } | null;
   session: { id: string; name: string; subtitle?: string } | null;

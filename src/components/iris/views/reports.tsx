@@ -262,7 +262,7 @@ export function ReportsView() {
       {/* Report Detail Dialog */}
       <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
         {selectedReport && (
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0 gap-0">
+          <DialogContent className="max-w-[1400px] h-[92vh] max-h-[92vh] overflow-hidden p-0 gap-0 flex flex-col">
             <ReportDetailDialog
               report={selectedReport}
               onCopy={() => handleCopy(selectedReport)}
@@ -349,7 +349,7 @@ function ReportDetailDialog({
                   </Button>
                 </div>
               </div>
-              <div className="overflow-x-auto iris-scrollbar max-h-[400px]">
+              <div className="overflow-x-auto iris-scrollbar max-h-[62vh]">
                 <table className="w-full text-[11px]">
                   <thead className="sticky top-0 bg-muted/40 backdrop-blur z-10">
                     <tr className="border-b border-border">

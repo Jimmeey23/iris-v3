@@ -18,9 +18,9 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 /** Live search against Momence via the IRIS server (credentials never reach the browser). */
-async function searchMomence(type: "momence_member" | "momence_session" | "momence_trainer", q: string, signal: AbortSignal): Promise<MomenceEntity[]> {
+async function searchMomence(type: "momence_member" | "momence_session" | "momence_trainer", q: string): Promise<MomenceEntity[]> {
   const path = type === "momence_member" ? "members" : type === "momence_session" ? "sessions" : "trainers";
-  const res = await fetch(new URL(`/api/momence/${path}?q=${encodeURIComponent(q)}`, window.location.origin), { signal, cache: "no-store" });
+  const res = await fetch(new URL(`/api/momence/${path}?q=${encodeURIComponent(q)}`, window.location.origin), { cache: "no-store" });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error || `Momence search failed (${res.status})`);
   if (type === "momence_member") {
@@ -92,15 +92,17 @@ export function MomenceSearchField({
       return;
     }
     if (type === "momence_session" && !q && !showResults) return;
-    const ctrl = new AbortController();
+    // Stale responses are ignored rather than aborted: some browser
+    // extensions wrap fetch and surface aborts as uncaught errors.
+    let stale = false;
     setSearching(true);
     const t = setTimeout(() => {
-      searchMomence(type, q, ctrl.signal)
-        .then((r) => { setResults(r); setError(null); setShowResults(true); })
-        .catch((e) => { if (e.name !== "AbortError") { setError(e.message); setResults([]); setShowResults(true); } })
-        .finally(() => setSearching(false));
+      searchMomence(type, q)
+        .then((r) => { if (!stale) { setResults(r); setError(null); setShowResults(true); } })
+        .catch((e) => { if (!stale) { setError(e.message); setResults([]); setShowResults(true); } })
+        .finally(() => { if (!stale) setSearching(false); });
     }, 350);
-    return () => { clearTimeout(t); ctrl.abort(); };
+    return () => { stale = true; clearTimeout(t); };
   }, [query, type, showResults]);
 
   const handleSelect = (entity: MomenceEntity) => {

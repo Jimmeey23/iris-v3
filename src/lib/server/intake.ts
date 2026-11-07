@@ -1,6 +1,7 @@
 import "server-only";
 import type { PoolClient } from "pg";
 import { CATEGORY_MAP } from "@/lib/iris/iris-constants";
+import { matchArea, matchFormat, matchStudio, matchTrainer, matchWhen, normalizeText } from "@/lib/iris/aliases";
 
 /**
  * Deterministic intake classification (no AI):
@@ -22,6 +23,7 @@ export type Candidate = {
 
 export type Extracted = {
   studioCode?: string;
+  area?: string;
   when?: string;
   classFormat?: string;
   trainerName?: string;
@@ -75,41 +77,21 @@ const RULES: Array<{ re: RegExp; category: string; subcategory: string }> = [
   { re: /\b(instagram|social media|ad|campaign|poster|brochure|website (copy|content))\b/i, category: "Brand Feedback", subcategory: "Marketing Message Accuracy" },
 ];
 
-const STUDIO_ALIASES: Array<{ re: RegExp; code: string }> = [
-  { re: /\b(kwality|kemps|kemp'?s corner|\bkh\b)/i, code: "KH" },
-  { re: /\b(supreme|bandra|shq)\b/i, code: "SHQ" },
-  { re: /\b(kenkere|khb|bengaluru studio|bangalore studio)\b/i, code: "KHB" },
-  { re: /\b(copper|cloves|ccb)\b/i, code: "CCB" },
-  { re: /\b(courtside|cts)\b/i, code: "CTS" },
-  { re: /\b(pop-?up)\b/i, code: "PU" },
-];
-
 const STOP_NAMES = new Set(["says", "said", "was", "is", "has", "had", "at", "in", "from", "who", "complained", "wants"]);
 
-const FORMATS = [
-  "barre 57", "barre57", "cardio barre", "powercycle", "power cycle", "strength lab", "mat 57", "mat57", "fit", "hiit",
-  "back body blaze", "recovery", "pre/post natal", "amped up", "sweat in 30", "foundations", "trainer's choice",
-];
-
-export function extractFields(text: string, trainerNames: string[]): Extracted {
+export function extractFields(raw: string, trainerNames: string[]): Extracted {
   const out: Extracted = {};
-  const studio = STUDIO_ALIASES.find((s) => s.re.test(text));
-  if (studio) out.studioCode = studio.code;
-
-  const when =
-    text.match(/\b(today|yesterday|tonight|this (morning|afternoon|evening)|last (night|week)|(mon|tues|wednes|thurs|fri|satur|sun)day)\b/i)?.[0] ??
-    text.match(/\b\d{1,2}(:\d{2})?\s?(am|pm)\b/i)?.[0];
-  const time = text.match(/\b\d{1,2}(:\d{2})?\s?(am|pm)\b/i)?.[0];
-  if (when || time) out.when = [when, time && time !== when ? time : null].filter(Boolean).join(" ");
-
-  const lower = text.toLowerCase();
-  const fmt = FORMATS.find((f) => lower.includes(f));
-  if (fmt) out.classFormat = fmt.replace(/\b\w/g, (c) => c.toUpperCase());
-
-  const trainer = trainerNames.find((n) => {
-    const first = n.split(" ")[0].toLowerCase();
-    return first.length > 2 && new RegExp(`\\b${first}\\b`, "i").test(text);
-  });
+  // Match on the original and the slang-expanded text ("ac nt wrkng at kh tmrw").
+  const text = `${raw}\n${normalizeText(raw)}`;
+  const studio = matchStudio(raw);
+  if (studio) out.studioCode = studio;
+  const area = matchArea(raw, studio);
+  if (area) out.area = area;
+  const when = matchWhen(raw);
+  if (when) out.when = when;
+  const fmt = matchFormat(raw);
+  if (fmt) out.classFormat = fmt;
+  const trainer = matchTrainer(raw, trainerNames);
   if (trainer) out.trainerName = trainer;
 
   if (/\b(injur|bleed|faint|unconscious|ambulance|fire|smoke|electric shock|unsafe|harass|stolen|theft)/i.test(text)) out.urgent = "P0";
@@ -161,7 +143,8 @@ const STOP = new Set(
 );
 
 /** Rank categories for a message using rules + similar past tickets. */
-export async function classify(db: PoolClient, text: string, trainerNamed = false) {
+export async function classify(db: PoolClient, rawText: string, trainerNamed = false) {
+  const text = `${rawText}\n${normalizeText(rawText)}`;
   const tax = await taxonomy(db);
   const scores = new Map<string, Candidate>();
   const add = (category: string, subcategory: string | null, score: number, via: Candidate["via"]) => {

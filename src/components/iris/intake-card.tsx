@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MomenceSearchField } from "@/components/iris/momence-search-field";
 import { useAppStore, type AgentTicketDraft, type IntakeState } from "@/lib/iris/store";
 import { STUDIOS, STUDIO_MAP, DEPT_MAP, PRIORITY_CONFIG } from "@/lib/iris/types";
+import { roomsFor } from "@/lib/iris/aliases";
 
 /** Which extra details each category needs before a ticket can be drafted. */
 type Need = "required" | "optional";
@@ -66,6 +67,7 @@ export function draftFromIntake(s: IntakeState): AgentTicketDraft {
     s.classFormat && !s.session && `Format: ${s.classFormat}`,
     s.when && `When: ${s.when}`,
     studio && `Studio: ${studio.name}`,
+    s.area && `Area: ${s.area}`,
   ].filter(Boolean);
   return {
     title: title.slice(0, 200),
@@ -78,7 +80,7 @@ export function draftFromIntake(s: IntakeState): AgentTicketDraft {
     affectedClient: who,
     clientMomenceId: s.member?.id,
     bookingId: s.session?.id,
-    tags: [s.category, s.subcategory, s.classFormat].filter(Boolean) as string[],
+    tags: [s.category, s.subcategory, s.classFormat, s.area].filter(Boolean) as string[],
   };
 }
 
@@ -202,6 +204,25 @@ export function IntakeCard({
                   )}
                 >
                   {s.name.split(",")[0]}
+                </button>
+              ))}
+            </div>
+          </Row>
+        )}
+
+        {state.studioCode && (
+          <Row label="Area" done={!!state.area}>
+            <div className="flex flex-wrap gap-1.5">
+              {roomsFor(state.studioCode).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => set({ area: state.area === r ? null : r })}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full border text-[11px]",
+                    state.area === r ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50",
+                  )}
+                >
+                  {r}
                 </button>
               ))}
             </div>

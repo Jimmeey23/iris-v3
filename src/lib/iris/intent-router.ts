@@ -13,6 +13,7 @@
 import { ALL_TICKETS, getAssignee } from "./sample-tickets";
 import { STATUS_CONFIG, STUDIOS, type Priority } from "./types";
 import type { AgentTicketDraft, CurrentUser } from "./store";
+import { matchStudio, normalizeText } from "./aliases";
 
 export type RuleReply = {
   content: string;
@@ -41,18 +42,15 @@ const ISSUE_WORDS =
   /\b(broken|not working|isn'?t working|stopped|leak|complain|complaint|refund|charged|deducted|missing|wrong|late|no[- ]show|injur|hurt|unsafe|fire|smell|dirty|rude|cancel(l)?ed|issue|problem|error|fail|crash|stuck|down|urgent)\b/i;
 
 function studioFrom(text: string) {
-  const t = norm(text);
-  return STUDIOS.find((s) => {
-    const first = norm(s.name.split(",")[0]);
-    return t.includes(first) || t.split(" ").includes(s.code.toLowerCase());
-  });
+  const code = matchStudio(text);
+  return code ? STUDIOS.find((s) => s.code === code) : undefined;
 }
 
 export async function routeDeterministic(raw: string, ctx: Ctx): Promise<RuleReply | null> {
   const text = raw.trim();
   const t = norm(text);
   if (!t) return null;
-  const hasIssue = ISSUE_WORDS.test(text);
+  const hasIssue = ISSUE_WORDS.test(text) || ISSUE_WORDS.test(normalizeText(text));
   const first = ctx.user.name ? ctx.user.name.split(" ")[0] : "";
 
   // ── Confirm a pending draft ──────────────────────────────────────────────
