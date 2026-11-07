@@ -25,22 +25,10 @@ export type Department = {
   headId?: string;
 };
 
-export type Employee = {
-  id: string;
-  employeeCode: string;
-  name: string;
-  email: string;
-  phone?: string;
-  role: string;
-  title?: string;
-  departmentCode: string;
-  studioCodes: string[];
-  skills: string[];
-  availability: "available" | "busy" | "offline" | "on_leave";
-  workload: number;
-  maxWorkload: number;
-  escalationOrder: number;
-};
+// Note: Employee is declared below (after STUDIOS/DEPARTMENTS) with the full
+// field set including departmentName, location, reportingManager, birthday.
+// Do not redeclare it here — the earlier declaration was a duplicate that
+// TypeScript would silently override anyway.
 
 export const STUDIOS: Studio[] = [
   { id: "studio_kwality", name: "Kwality House, Kemps Corner", city: "Mumbai", code: "KH", address: "Kwality House, Kemps Corner, Mumbai" },
@@ -50,11 +38,24 @@ export const STUDIOS: Studio[] = [
 ];
 
 export const DEPARTMENTS: Department[] = [
+  // Core organisational departments (5)
   { id: "dept_ops", name: "Operations", code: "OPS", description: "Studio operations, facilities, maintenance" },
   { id: "dept_scs", name: "Sales & Client Servicing", code: "SCS", description: "Client servicing, memberships, front desk" },
   { id: "dept_trn", name: "Training", code: "TRN", description: "Trainers, instruction, class quality" },
   { id: "dept_mkt", name: "Marketing", code: "MKT", description: "Marketing, campaigns, communications" },
   { id: "dept_mgt", name: "Management", code: "MGT", description: "Leadership, strategy, escalations" },
+
+  // Operational sub-departments used by ticket routing & sample data.
+  // These are the codes the conversation engine routes to (FAC, MEM, PAY,
+  // SCH, ITS, HRV, FRT) — declaring them here means getDepartment() resolves
+  // correctly instead of returning undefined for routed tickets.
+  { id: "dept_fac", name: "Facilities", code: "FAC", description: "Facilities maintenance, HVAC, audio, equipment, plumbing" },
+  { id: "dept_mem", name: "Memberships", code: "MEM", description: "Membership freezes, credits, changes, cancellations" },
+  { id: "dept_pay", name: "Payments & Finance", code: "PAY", description: "Payment disputes, refunds, invoices, GST" },
+  { id: "dept_sch", name: "Scheduling", code: "SCH", description: "Bookings, recurring sessions, class scheduling" },
+  { id: "dept_its", name: "IT & Systems", code: "ITS", description: "Momence, check-in systems, network, hardware" },
+  { id: "dept_hrv", name: "HR & People", code: "HRV", description: "Staffing, trainer performance, employee concerns" },
+  { id: "dept_frt", name: "Front Desk", code: "FRT", description: "Reception, walk-in inquiries, guest passes" },
 ];
 
 export type Employee = {

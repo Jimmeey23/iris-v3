@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Search, User, Calendar, Users, Check, Loader2, X } from "lucide-react";
+import { MEMBERS } from "@/lib/iris/member-directory";
 
 export interface MomenceEntity {
   id: string;
@@ -13,19 +14,18 @@ export interface MomenceEntity {
   avatarColor?: string;
 }
 
-// Mock Momence data — exported so the conversation engine can verify whether
-// a captured "affected client" value actually matches a real Momence member
-// (vs. free-text the user typed into the regular chat input).
-export const MOMENCE_MEMBERS: MomenceEntity[] = [
-  { id: "MM-89342", name: "Priya Agarwal", subtitle: "Annual Premium · 12 credits", meta: "+91 98765 43210 · priya.a@gmail.com", tags: ["VIP", "Mumbai"], avatarColor: "violet" },
-  { id: "MM-88214", name: "Rhea Malhotra", subtitle: "12-Class Package · 4 credits", meta: "+91 99876 54321 · rhea.m@gmail.com", tags: ["Mumbai"], avatarColor: "sky" },
-  { id: "MM-91234", name: "Karan Singh", subtitle: "5-Class Package · 5 credits", meta: "+91 80 12345 678 · karan.singh@gmail.com", tags: ["Bengaluru"], avatarColor: "emerald" },
-  { id: "MM-85112", name: "Aditi Kapoor", subtitle: "Unlimited Monthly · Frozen", meta: "+91 90123 45678 · aditi.k@gmail.com", tags: ["Frozen", "Mumbai"], avatarColor: "amber" },
-  { id: "MM-89333", name: "Meera Reddy", subtitle: "Annual Premium · 18 credits", meta: "+91 80 99887 766 · meera.r@gmail.com", tags: ["VIP", "Bengaluru"], avatarColor: "rose" },
-  { id: "MM-88445", name: "Sneha Gupta", subtitle: "10-Class Package · 7 credits", meta: "+91 98111 22233 · sneha.g@gmail.com", tags: ["Mumbai"], avatarColor: "indigo" },
-  { id: "MM-89556", name: "Rajiv Khanna", subtitle: "Annual Premium · 24 credits", meta: "+91 98222 33344 · rajiv.k@gmail.com", tags: ["VIP"], avatarColor: "violet" },
-  { id: "MM-89678", name: "Anaya Desai", subtitle: "Drop-in · 1 credit", meta: "+91 98333 44455 · anaya.d@gmail.com", tags: ["New"], avatarColor: "sky" },
-];
+// Build the dropdown-shaped entities from the shared MEMBERS list.
+// Kept as a derived const (not a re-export) so the field's entity shape stays
+// decoupled from the canonical Member shape (e.g. credits are formatted into
+// a subtitle string here, not stored as a number).
+const MOMENCE_MEMBERS: MomenceEntity[] = MEMBERS.map((m) => ({
+  id: m.id,
+  name: m.name,
+  subtitle: `${m.membership} · ${m.credits} credit${m.credits === 1 ? "" : "s"}`,
+  meta: `${m.phone} · ${m.email}`,
+  tags: m.tags,
+  avatarColor: m.avatarColor,
+}));
 
 const MOMENCE_SESSIONS: MomenceEntity[] = [
   { id: "S-4451", name: "Barre Class — Beginner", subtitle: "Today 7:00 AM · 60 min · Tara Kapoor", meta: "Kwality House · 18/20 booked", tags: ["Studio 1"], avatarColor: "violet" },

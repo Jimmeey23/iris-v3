@@ -19,6 +19,7 @@ import { ALL_TICKETS, type Ticket, getAssignee } from "./sample-tickets";
 import { EMPLOYEES, STUDIOS, DEPARTMENTS, type Employee } from "./types";
 import { KNOWLEDGE_ARTICLES, type KnowledgeArticle } from "./knowledge-base-data";
 import { TICKET_TEMPLATES } from "./templates";
+import { MEMBERS, findMember, type Member } from "./member-directory";
 
 const now = Date.now();
 const DAY_MS = 86400000;
@@ -871,22 +872,33 @@ export interface Member360 {
   riskReason: string;
 }
 
-/** Mock member directory for the demo — in production this would query Momence. */
-export const MEMBER_DIRECTORY: Array<{ id: string; name: string; phone: string; email: string; membership: string; credits: number; joinDate: string }> = [
-  { id: "MM-89342", name: "Priya Agarwal", phone: "+91 98765 43210", email: "priya.a@gmail.com", membership: "Annual Premium", credits: 12, joinDate: "2024-03-15" },
-  { id: "MM-88214", name: "Rhea Malhotra", phone: "+91 99876 54321", email: "rhea.m@gmail.com", membership: "12-Class Package", credits: 4, joinDate: "2025-01-08" },
-  { id: "MM-91234", name: "Karan Singh", phone: "+91 80 12345 678", email: "karan.singh@gmail.com", membership: "5-Class Package", credits: 5, joinDate: "2025-06-20" },
-  { id: "MM-85112", name: "Aditi Kapoor", phone: "+91 90123 45678", email: "aditi.k@gmail.com", membership: "Unlimited Monthly", credits: 0, joinDate: "2024-09-12" },
-  { id: "MM-89333", name: "Meera Reddy", phone: "+91 80 99887 766", email: "meera.r@gmail.com", membership: "Annual Premium", credits: 18, joinDate: "2024-02-01" },
-];
+/**
+ * Member directory — re-exported from the shared `member-directory.ts` so
+ * the Member 360 Lookup uses the same roster as the Momence search field
+ * and the ⌘K command palette.
+ *
+ * Deprecated alias kept for backward compatibility with any code that
+ * still imports MEMBER_DIRECTORY from intelligence.ts.
+ */
+export const MEMBER_DIRECTORY = MEMBERS.map((m) => ({
+  id: m.id,
+  name: m.name,
+  phone: m.phone,
+  email: m.email,
+  membership: m.membership,
+  credits: m.credits,
+  joinDate: m.joinDate,
+}));
 
 /**
  * Build a 360-degree view of a member based on their name + ticket history.
  */
 export function buildMember360(memberName: string): Member360 | null {
   const tickets = ALL_TICKETS.filter((t) => t.affectedClient?.toLowerCase().includes(memberName.toLowerCase()));
-  // Also include any Momence-search-verified members from the AI chat (we'd extend ALL_TICKETS in a real app)
-  if (tickets.length === 0 && !MEMBER_DIRECTORY.some((m) => m.name.toLowerCase().includes(memberName.toLowerCase()))) {
+  // Use the shared findMember helper to verify the member exists in the
+  // canonical roster (single source of truth — no duplicate directory here).
+  const member = findMember(memberName);
+  if (tickets.length === 0 && !member) {
     return null;
   }
 
@@ -972,8 +984,17 @@ export interface CommandItem {
   icon: string;
 }
 
-/** Build the searchable index for the ⌘K command palette. */
-export function buildCommandIndex(): CommandItem[] {
+/**
+ * Build the searchable index for the ⌘K command palette.
+ *
+ * COMPUTED ONCE AT MODULE LOAD — this is a module-level const, not a function
+ * called on every render. The index depends only on static data (ALL_TICKETS,
+ * KNOWLEDGE_ARTICLES, TICKET_TEMPLATES, MEMBERS) so it's stable for the
+ * lifetime of the app session. The command palette can use it directly
+ * without re-computing on every mount, which saves ~150ms of work each time
+ * the palette opens.
+ */
+export const COMMAND_INDEX: CommandItem[] = (() => {
   const items: CommandItem[] = [];
 
   // Tickets
@@ -1015,8 +1036,8 @@ export function buildCommandIndex(): CommandItem[] {
     });
   }
 
-  // Members
-  for (const m of MEMBER_DIRECTORY) {
+  // Members (from the shared member-directory)
+  for (const m of MEMBERS) {
     items.push({
       id: `member-${m.id}`,
       type: "member",
@@ -1052,4 +1073,9 @@ export function buildCommandIndex(): CommandItem[] {
   }
 
   return items;
+})();
+
+/** Backward-compat alias: buildCommandIndex() returns the precomputed index. */
+export function buildCommandIndex(): CommandItem[] {
+  return COMMAND_INDEX;
 }

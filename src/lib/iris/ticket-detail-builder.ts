@@ -340,7 +340,16 @@ export function buildTicketDetail(state: ConversationState): TicketDetailData {
   const dept = DEPARTMENTS.find((d) => d.code === intent.suggestedDepartment);
   const studio = STUDIOS.find((s) => s.name === info.studio);
 
-  const ticketId = `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
+  // Deterministic ticket ID — derived from the issue description hash.
+  // Avoids Math.random() which produces different IDs on server vs client
+  // (hydration mismatch) and on re-renders.
+  const issueText = info.issue || info.affectedClient || intent.description || "";
+  let h = 2166136261;
+  for (let i = 0; i < issueText.length; i++) {
+    h ^= issueText.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const ticketId = `IRIS-2026-${String((h >>> 0) % 9999).padStart(4, "0")}`;
 
   // Build routing detail
   const routing = buildRoutingDetail(state, priority, dept);

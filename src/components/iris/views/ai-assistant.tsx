@@ -12,6 +12,7 @@ import { buildTicketDetail, TicketDetailData } from "@/lib/iris/ticket-detail-bu
 import { TicketPreviewModal } from "@/components/iris/ticket-preview-modal";
 import { MomenceSearchField, MomenceEntity } from "@/components/iris/momence-search-field";
 import { DynamicFormIntake } from "@/components/iris/dynamic-form-intake";
+import { IrisLoader } from "@/components/iris/iris-loader";
 import { cn } from "@/lib/utils";
 import { STUDIOS, EMPLOYEES } from "@/lib/iris/types";
 import { generateId, getInitials, getAvatarColor } from "@/lib/iris/utils";
@@ -507,7 +508,7 @@ export function AIAssistantView() {
                 onClick={() => handleSend(input)}
                 disabled={!input.trim() || isProcessing}
               >
-                {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {isProcessing ? <IrisLoader size="sm" /> : <Send className="w-3.5 h-3.5" />}
               </Button>
             </div>
             <div className="flex items-center justify-between mt-2 px-1">
@@ -1278,10 +1279,8 @@ function ThinkingIndicator() {
       </Avatar>
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-semibold">IRIS</span>
-        <div className="bg-card border border-border rounded-xl rounded-tl-sm px-3.5 py-3 flex items-center gap-1.5">
-          <span className="iris-thinking-dot" />
-          <span className="iris-thinking-dot" />
-          <span className="iris-thinking-dot" />
+        <div className="bg-card border border-border rounded-xl rounded-tl-sm px-3.5 py-3">
+          <IrisLoader size="sm" label="Investigating" />
         </div>
       </div>
     </div>

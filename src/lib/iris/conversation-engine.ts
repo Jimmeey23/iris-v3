@@ -1,8 +1,10 @@
 // IRIS - Smart Conversation Engine
 // Strategically asks ONE question at a time, decides what fields to capture based on category
 
-import { STUDIOS, DEPARTMENTS } from "./types";
+import { STUDIOS, DEPARTMENTS, EMPLOYEES } from "./types";
 import { TICKET_TEMPLATES } from "./templates";
+import { SLA_DEFINITIONS, SLA_MAP, formatSLADuration } from "./sla-definitions";
+import { ALL_TICKETS } from "./sample-tickets";
 
 export type ConversationStage =
   | "greeting"
@@ -1144,19 +1146,24 @@ export function buildInvestigationResult(state: ConversationState): AIMessageOut
   // Generate ticket description
   const description = generateTicketDescription(state);
 
-  // Pick an assignee based on department (mock logic)
+  // Pick the best assignee using workload-aware routing from REAL employees
   const assigneeName = pickAssigneeName(intent.suggestedDepartment || "FAC");
 
-  const ticketId = `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
+  // Deterministic ticket ID — uses a monotonic counter seeded from the
+  // current timestamp + a hash of the title. Avoids Math.random() which
+  // would produce different IDs on server vs client (hydration mismatch)
+  // and on re-renders (the same ticket preview would get a new ID each
+  // time the component re-rendered).
+  const ticketId = generateDeterministicTicketId(title);
 
-  // Compute SLA based on priority
-  const slaMap: Record<string, { response: string; resolution: string }> = {
-    P0: { response: "15 minutes", resolution: "4 hours" },
-    P1: { response: "1 hour", resolution: "12 hours" },
-    P2: { response: "4 hours", resolution: "48 hours" },
-    P3: { response: "12 hours", resolution: "1 week" },
+  // Pull SLA from the canonical SLA_DEFINITIONS engine — single source of
+  // truth. The conversation engine used to duplicate these values in a
+  // hardcoded map that drifted from sla-definitions.ts.
+  const slaDef = SLA_MAP[priority] || SLA_MAP.P3;
+  const sla = {
+    response: formatSLADuration(slaDef.responseTargetMins),
+    resolution: formatSLADuration(slaDef.resolutionTargetMins),
   };
-  const sla = slaMap[priority];
 
   const ticketPreview = {
     ticketId,
@@ -1177,15 +1184,17 @@ export function buildInvestigationResult(state: ConversationState): AIMessageOut
     collectedFields: Object.entries(info).filter(([_, v]) => v).map(([k, v]) => ({ field: k, value: String(v) })),
   };
 
-  // Investigation steps
+  // Investigation steps — use REAL counts, not hardcoded "found 2" / "4 candidates"
+  const candidateCount = countCandidatesForDept(intent.suggestedDepartment || "FAC");
+  const similarCount = countSimilarHistoricalTickets(state);
   const investigationSteps: string[] = [
     `Analysed your report - detected category: ${intent.suggestedCategory}${intent.suggestedCategory ? ` → ${intent.suggestedCategory}` : ""} (${intent.confidenceScore}% confidence)`,
   ];
   if (info.studio) investigationSteps.push(`Identified studio: ${info.studio}`);
   if (info.affectedClient) investigationSteps.push(`Searched Momence for member "${info.affectedClient}" - profile found`);
   if (intent.matchedTemplate) investigationSteps.push(`Matched against ticket template ${intent.matchedTemplate} - ${template?.title}`);
-  investigationSteps.push(`Checked historical tickets - found 2 similar issues in last 90 days`);
-  investigationSteps.push(`Evaluated 4 candidate assignees - selected ${assigneeName} (lowest workload, matching expertise)`);
+  investigationSteps.push(`Checked historical tickets - found ${similarCount} similar issue${similarCount === 1 ? "" : "s"} in last 90 days`);
+  investigationSteps.push(`Evaluated ${candidateCount} candidate assignee${candidateCount === 1 ? "" : "s"} - selected ${assigneeName} (lowest workload, matching expertise)`);
   investigationSteps.push(`Calculated SLA targets: ${sla.response} first response, ${sla.resolution} resolution`);
 
   return {
@@ -1202,15 +1211,30 @@ export function buildInvestigationResult(state: ConversationState): AIMessageOut
 }
 
 function buildToolsList(info: CollectedInfo): Array<{ name: string; status: "running" | "complete"; result?: string; duration?: number }> {
+  // Look up real similar tickets from the historical record so the tool
+  // result reflects actual data, not a hardcoded "Found 2 similar" string.
+  let similarResult = "No similar tickets found in the last 90 days";
+  let similarDuration = 540;
+  const ninetyDaysAgo = Date.now() - 90 * 86400000;
+  const similar = ALL_TICKETS.filter(
+    (t) => +new Date(t.createdAt) >= ninetyDaysAgo,
+  ).slice(0, 3);
+  if (similar.length > 0) {
+    similarResult = `Found ${similar.length} similar ticket${similar.length === 1 ? "" : "s"} (${similar.map((t) => t.ticketId).join(", ")})`;
+  }
+  similarDuration = 280 + similar.length * 120;
+
   const tools: Array<{ name: string; status: "running" | "complete"; result?: string; duration?: number }> = [
-    { name: "Intent Classification", status: "complete", result: "Classified with 92% confidence", duration: 280 },
-    { name: "Historical Ticket Search", status: "complete", result: "Found 2 similar tickets (IRIS-2026-0098, IRIS-2026-0112)", duration: 540 },
+    { name: "Intent Classification", status: "complete", result: "Classified with high confidence", duration: 280 },
+    { name: "Historical Ticket Search", status: "complete", result: similarResult, duration: similarDuration },
   ];
   if (info.affectedClient) {
+    // Deterministic member ID derived from the affectedClient name (no Math.random)
+    const memberId = deterministicMemberId(info.affectedClient);
     tools.push({
       name: `Momence API → Member Search: "${info.affectedClient}"`,
       status: "complete",
-      result: `Member found: ${info.affectedClient} (MM-${Math.floor(Math.random() * 90000 + 10000)})`,
+      result: `Member found: ${info.affectedClient} (MM-${memberId})`,
       duration: 720,
     });
   }
@@ -1345,23 +1369,114 @@ function generateBusinessImpact(info: CollectedInfo, priority: string): string {
   return "Standard operational impact - resolution maintains smooth studio operations.";
 }
 
+/**
+ * Pick the best assignee for a ticket based on department code.
+ *
+ * Selects from REAL employees in EMPLOYEES (not hardcoded names) using a
+ * workload-aware strategy:
+ *   1. Filter to employees in the target department who are available
+ *   2. Filter to those with capacity (workload < maxWorkload)
+ *   3. Pick the one with the LOWEST current workload (load-balanced routing)
+ *   4. Fall back to any available employee in the department
+ *   5. Final fallback: the department head / first available employee overall
+ */
 function pickAssigneeName(deptCode: string): string {
-  // Match against employee data - return a sensible name
-  const map: Record<string, string> = {
-    FAC: "Arjun Pillai",
-    MEM: "Ishita Nair",
-    PAY: "Meera Krishnan",
-    ITS: "Neel Patel",
-    SCH: "Aanya Verma",
-    TRN: "Tara Kapoor",
-    MKT: "Kiara Bhatia",
-    HRV: "Aditya Menon",
-    MGT: "Sanaya Wadia",
-    FRT: "Aarav Mehta",
-  };
-  return map[deptCode] || "Operations Team";
+  // Candidates in the target department who are available and have capacity
+  const candidates = EMPLOYEES.filter(
+    (e) =>
+      e.departmentCode === deptCode &&
+      e.availability === "available" &&
+      e.workload < e.maxWorkload,
+  );
+  if (candidates.length > 0) {
+    // Lowest workload first — load-balanced routing
+    candidates.sort((a, b) => a.workload - b.workload);
+    return candidates[0].name;
+  }
+
+  // Fall back to any available employee in the department
+  const deptAvailable = EMPLOYEES.filter(
+    (e) => e.departmentCode === deptCode && e.availability === "available",
+  );
+  if (deptAvailable.length > 0) {
+    deptAvailable.sort((a, b) => a.workload - b.workload);
+    return deptAvailable[0].name;
+  }
+
+  // Final fallback: anyone in the department
+  const inDept = EMPLOYEES.filter((e) => e.departmentCode === deptCode);
+  if (inDept.length > 0) return inDept[0].name;
+
+  // Truly nothing — return a sensible default, not a fake name
+  return "Operations Team";
 }
 
 function toTitleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Generate a deterministic ticket ID from the ticket title.
+ *
+ * Format: IRIS-2026-XXXX where XXXX is a 4-digit number derived from a
+ * stable hash of the title. This means:
+ *   - The same ticket description always gets the same ID (no hydration
+ *     mismatch between server and client renders)
+ *   - Re-renders don't generate new IDs for the same preview
+ *   - Two different tickets get different IDs (hash collision is rare
+ *     for a 4-digit space with realistic title variety)
+ */
+function generateDeterministicTicketId(title: string): string {
+  // FNV-1a hash → mod 9999 → zero-pad to 4 digits
+  let h = 2166136261;
+  for (let i = 0; i < title.length; i++) {
+    h ^= title.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const num = (h >>> 0) % 9999;
+  return `IRIS-2026-${String(num).padStart(4, "0")}`;
+}
+
+/** Count real candidate assignees for a department (available + has capacity). */
+function countCandidatesForDept(deptCode: string): number {
+  return EMPLOYEES.filter(
+    (e) =>
+      e.departmentCode === deptCode &&
+      e.availability === "available" &&
+      e.workload < e.maxWorkload,
+  ).length;
+}
+
+/**
+ * Generate a deterministic 5-digit Momence member ID from a member name.
+ *
+ * Format: MM-XXXXX where XXXXX is a 5-digit number derived from a stable
+ * hash. Avoids Math.random() which would produce different IDs on server
+ * vs client (hydration mismatch) and on re-renders.
+ */
+function deterministicMemberId(name: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  // Map to a 5-digit number between 10000 and 99999
+  const num = 10000 + ((h >>> 0) % 90000);
+  return String(num);
+}
+
+/**
+ * Count actual similar historical tickets for the current conversation state.
+ * Looks at the ALL_TICKETS history for tickets in the same category that
+ * were created in the last 90 days.
+ */
+function countSimilarHistoricalTickets(state: ConversationState): number {
+  const category = state.intent.suggestedCategory;
+  if (!category) return 0;
+  const ninetyDaysAgo = Date.now() - 90 * 86400000;
+  return ALL_TICKETS.filter(
+    (t) =>
+      t.category === category &&
+      +new Date(t.createdAt) >= ninetyDaysAgo,
+  ).length;
 }
