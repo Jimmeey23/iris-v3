@@ -149,7 +149,10 @@ export const ticketsApi = {
         typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : cryptoIdempotencyKey(),
       ...body,
     };
-    upsertTicket((await api("/api/tickets", { method: "POST", json: keyed, headers: { "Idempotency-Key": keyed.idempotencyKey } })).ticket);
+    const saved = (
+      await api("/api/tickets", { method: "POST", json: keyed, headers: { "Idempotency-Key": keyed.idempotencyKey } })
+    ).ticket;
+    return upsertTicket(saved);
   },
   update: async (id: string, body: Record<string, unknown>) =>
     upsertTicket((await api(`/api/tickets/${encodeURIComponent(id)}`, { method: "PATCH", json: body })).ticket),

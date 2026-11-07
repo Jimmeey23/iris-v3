@@ -3,7 +3,7 @@ import { after } from "next/server";
 import type { PoolClient } from "pg";
 import { pool } from "./db";
 import { sendMail, mailConfigured } from "./mailer";
-import { enqueueEmail } from "./outbox";
+import { enqueueEmail, deliverPending } from "./outbox";
 import { RULE_EVENT, statusEvent, type NotifyEvent } from "@/lib/iris/notify-events";
 import {
   BRAND, button, emailDocument, esc, fact, firstName, greeting, grid, label, priorityPill, section,
