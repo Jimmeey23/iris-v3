@@ -51,6 +51,93 @@ const SETTINGS_SECTIONS = [
 
 export function SettingsView() {
   const [activeSection, setActiveSection] = React.useState("departments");
+  const [departments, setDepartments] = React.useState(DEPARTMENTS);
+  const [employees, setEmployees] = React.useState(EMPLOYEES);
+  const [studios, setStudios] = React.useState(STUDIOS);
+  const [editingDept, setEditingDept] = React.useState<string | null>(null);
+  const [editingEmp, setEditingEmp] = React.useState<string | null>(null);
+  const [showAddDept, setShowAddDept] = React.useState(false);
+  const [showAddEmp, setShowAddEmp] = React.useState(false);
+  const [newDept, setNewDept] = React.useState({ name: "", code: "", description: "" });
+  const [newEmp, setNewEmp] = React.useState({ name: "", email: "", role: "", departmentCode: "", location: "" });
+
+  // Persist settings to localStorage
+  React.useEffect(() => {
+    const saved = localStorage.getItem("iris-settings");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.departments) setDepartments(data.departments);
+        if (data.employees) setEmployees(data.employees);
+        if (data.studios) setStudios(data.studios);
+      } catch {}
+    }
+  }, []);
+
+  const saveSettings = (key: string, value: any) => {
+    const saved = localStorage.getItem("iris-settings");
+    const data = saved ? JSON.parse(saved) : {};
+    data[key] = value;
+    localStorage.setItem("iris-settings", JSON.stringify(data));
+  };
+
+  const handleAddDept = () => {
+    if (!newDept.name || !newDept.code) return;
+    const dept = { id: `dept_${newDept.code.toLowerCase()}`, ...newDept };
+    const updated = [...departments, dept];
+    setDepartments(updated);
+    saveSettings("departments", updated);
+    setNewDept({ name: "", code: "", description: "" });
+    setShowAddDept(false);
+  };
+
+  const handleDeleteDept = (code: string) => {
+    const updated = departments.filter(d => d.code !== code);
+    setDepartments(updated);
+    saveSettings("departments", updated);
+  };
+
+  const handleUpdateDept = (code: string, field: string, value: string) => {
+    const updated = departments.map(d => d.code === code ? { ...d, [field]: value } : d);
+    setDepartments(updated);
+    saveSettings("departments", updated);
+  };
+
+  const handleAddEmp = () => {
+    if (!newEmp.name || !newEmp.email) return;
+    const emp: any = {
+      id: `emp_${Date.now()}`,
+      employeeCode: `EMP-${employees.length + 1}`,
+      ...newEmp,
+      studioCodes: [],
+      skills: [],
+      availability: "available",
+      workload: 0,
+      maxWorkload: 12,
+      escalationOrder: 3,
+      departmentName: departments.find(d => d.code === newEmp.departmentCode)?.name || "",
+      reportingManager: "",
+      birthday: "",
+      location: newEmp.location || "Mumbai",
+    };
+    const updated = [...employees, emp];
+    setEmployees(updated);
+    saveSettings("employees", updated);
+    setNewEmp({ name: "", email: "", role: "", departmentCode: "", location: "" });
+    setShowAddEmp(false);
+  };
+
+  const handleDeleteEmp = (id: string) => {
+    const updated = employees.filter(e => e.id !== id);
+    setEmployees(updated);
+    saveSettings("employees", updated);
+  };
+
+  const handleUpdateEmp = (id: string, field: string, value: string) => {
+    const updated = employees.map(e => e.id === id ? { ...e, [field]: value } as any : e);
+    setEmployees(updated);
+    saveSettings("employees", updated);
+  };
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-4">

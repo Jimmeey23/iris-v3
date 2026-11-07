@@ -7,7 +7,7 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={className}>
       <defs>
         <linearGradient id="iris-bg-grad" x1="0" y1="0" x2="40" y2="40">
-          <stop stopColor="#0083ff" />
+          <stop stopColor="#007bff" />
           <stop offset="1" stopColor="#0058b8" />
         </linearGradient>
       </defs>
@@ -23,7 +23,7 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
         <circle cx="20" cy="20" r="4" fill="white" opacity="0.12" style={{ animation: "iris-ring-3 2s ease-in-out infinite" }} />
         {/* Pupil */}
         <circle cx="20" cy="20" r="2.5" fill="white" opacity="0.9" style={{ animation: "iris-pupil 2s ease-in-out infinite" }} />
-        <circle cx="20" cy="20" r="1" fill="#0083ff" />
+        <circle cx="20" cy="20" r="1" fill="#007bff" />
         {/* Highlight */}
         <circle cx="19" cy="19" r="0.8" fill="white" style={{ animation: "iris-blink 3.5s ease-in-out infinite" }} />
       </g>
@@ -43,7 +43,7 @@ export function IrisLogoMark({ size = 20, className }: { size?: number; classNam
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className}>
       <defs>
         <linearGradient id="iris-mark-bg-2" x1="0" y1="0" x2="20" y2="20">
-          <stop stopColor="#0083ff" />
+          <stop stopColor="#007bff" />
           <stop offset="1" stopColor="#0058b8" />
         </linearGradient>
       </defs>
@@ -52,7 +52,7 @@ export function IrisLogoMark({ size = 20, className }: { size?: number; classNam
       <circle cx="10" cy="10" r="3.5" fill="none" stroke="white" strokeWidth="0.5" opacity="0.3" />
       <circle cx="10" cy="10" r="2.5" fill="white" opacity="0.12" />
       <circle cx="10" cy="10" r="1.3" fill="white" opacity="0.9" style={{ animation: "iris-mark-pulse 2s ease-in-out infinite" }} />
-      <circle cx="10" cy="10" r="0.5" fill="#0083ff" />
+      <circle cx="10" cy="10" r="0.5" fill="#007bff" />
       <style>{`@keyframes iris-mark-pulse { 0%,100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }`}</style>
     </svg>
   );

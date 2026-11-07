@@ -48,6 +48,7 @@ import {
   Layers,
   Edit2,
   FileText,
+  Download,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -252,6 +253,26 @@ export function AIAssistantView() {
     handleSend(label);
   };
 
+  const handleExportChat = () => {
+    const lines = aiMessages.map(msg => {
+      const time = new Date(msg.timestamp).toLocaleString("en-IN", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+      const role = msg.role === "user" ? "You" : msg.role === "assistant" ? "IRIS" : "System";
+      let content = msg.content || "";
+      if (msg.buttons?.length) content += "\n[Options: " + msg.buttons.map(b => b.label).join(", ") + "]";
+      if (msg.ticketPreview) content += "\n[Ticket Preview: " + msg.ticketPreview.title + "]";
+      if (msg.tools?.length) content += "\n[Tools: " + msg.tools.map(t => `${t.name} (${t.status})`).join(", ") + "]";
+      return `[${time}] ${role}: ${content}`;
+    });
+    const exportText = `IRIS Chat Export\nDate: ${new Date().toLocaleString()}\nUser: ${currentUser.name}\n\n${lines.join("\n\n")}`;
+    const blob = new Blob([exportText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `iris-chat-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleReset = () => {
     // Clear everything in one go — no setTimeout, no manual welcome message
     // The useEffect on mount won't re-run, so we add the welcome directly here
@@ -296,6 +317,10 @@ export function AIAssistantView() {
           <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => setShowFormIntake(true)}>
             <FileText className="w-3 h-3 mr-1" />
             Form Mode
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={handleExportChat}>
+            <Download className="w-3 h-3 mr-1" />
+            Export
           </Button>
           <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={handleReset}>
             <RefreshCw className="w-3 h-3 mr-1" />

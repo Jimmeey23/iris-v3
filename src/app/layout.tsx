@@ -16,10 +16,21 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IRIS — Issue Resolution & Intelligence System | Physique 57 India",
+  title: "IRIS - Intelligent Routing & Intuitive Systems",
   description:
     "AI-powered internal operations, support & intelligence platform for Physique 57 India studios across Mumbai and Bengaluru.",
   keywords: ["IRIS", "Physique 57", "AI", "operations", "ticketing", "Momence"],
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/favicon.svg",
+  },
+  openGraph: {
+    title: "IRIS - Intelligent Routing & Intuitive Systems",
+    description: "AI-powered operations platform for Physique 57 India",
+    images: ["/favicon.svg"],
+  },
 };
 
 export default function RootLayout({
