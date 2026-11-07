@@ -138,11 +138,14 @@ export function PremiumMetricCard({
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+    // Round to 2 decimals: server and browser float math can differ in the last
+    // digits, which would make the SSR'd SVG attributes mismatch on hydration.
+    const r2 = (n: number) => Math.round(n * 100) / 100;
     return Array.from({ length: 12 }, (_, i) => ({
-      x: 10 + (i % 4) * 22 + (rng() - 0.5) * 8,
-      y: padding.top + 4 + Math.floor(i / 4) * 10 + (rng() - 0.5) * 4,
-      opacity: 0.3 + rng() * 0.3,
-      size: 0.8 + rng() * 1.0,
+      x: r2(10 + (i % 4) * 22 + (rng() - 0.5) * 8),
+      y: r2(padding.top + 4 + Math.floor(i / 4) * 10 + (rng() - 0.5) * 4),
+      opacity: r2(0.3 + rng() * 0.3),
+      size: r2(0.8 + rng() * 1.0),
     }));
   }, [label, value, padding.top]);
 
