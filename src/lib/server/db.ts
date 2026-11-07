@@ -29,11 +29,17 @@ function createPool() {
 export const pool = globalForPool.irisPool ?? createPool();
 if (process.env.NODE_ENV !== "production") globalForPool.irisPool = pool;
 
-async function inTransaction<T>(fn: (c: PoolClient) => Promise<T>, setup: (c: PoolClient) => Promise<void>) {
+/**
+ * `prelude` runs in the same round trip as BEGIN (multi-statement simple
+ * query). The database is far away (~250ms per round trip), so each saved
+ * trip matters on every request.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function inTransaction<T>(fn: (c: PoolClient) => Promise<T>, prelude: string) {
   const client = await pool.connect();
   try {
-    await client.query("begin");
-    await setup(client);
+    await client.query(`begin; ${prelude}`);
     const result = await fn(client);
     await client.query("commit");
     return result;
@@ -47,11 +53,12 @@ async function inTransaction<T>(fn: (c: PoolClient) => Promise<T>, setup: (c: Po
 
 /** Run queries as a signed-in user, with RLS enforced. */
 export function withUser<T>(userId: string, fn: (c: PoolClient) => Promise<T>) {
-  return inTransaction(fn, async (c) => {
-    await c.query("select set_config('app.current_user_id', $1, true)", [userId]);
-    await c.query("set local role iris_app");
-    await c.query("set local search_path = iris, public");
-  });
+  // userId is interpolated (simple protocol can't take params), so it must be a UUID.
+  if (!UUID.test(userId)) throw new Error("Invalid user id");
+  return inTransaction(
+    fn,
+    `select set_config('app.current_user_id', '${userId}', true); set local role iris_app; set local search_path = iris, public;`,
+  );
 }
 
 /**
@@ -59,7 +66,5 @@ export function withUser<T>(userId: string, fn: (c: PoolClient) => Promise<T>) {
  * Only for those functions — never for reading user data.
  */
 export function asSystem<T>(fn: (c: PoolClient) => Promise<T>) {
-  return inTransaction(fn, async (c) => {
-    await c.query("set local search_path = iris, public");
-  });
+  return inTransaction(fn, "set local search_path = iris, public;");
 }

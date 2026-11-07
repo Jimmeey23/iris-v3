@@ -69,7 +69,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     try {
       await Promise.race([
         loadAll(),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 15000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 45000)),
       ]);
       void loadLibrary(); // templates + knowledge docs; non-blocking, falls back to built-in defaults
       setPhase("ready");

@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
-import { withUser } from "@/lib/server/db";
+import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { notifyTicketEvent } from "@/lib/server/notify";
-import { TICKET_SELECT, fetchTicket, toClientTicket } from "@/lib/server/tickets";
+import { TICKET_LIST_SELECT, attachThreads, fetchTicket, toClientTicket } from "@/lib/server/tickets";
 
 export async function GET() {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   try {
+    // RLS decides which tickets are visible; threads for exactly those ids are
+    // then read in one batch without re-checking access per row.
     const rows = await withUser(auth.session.user_id, async (c) =>
-      (await c.query(`${TICKET_SELECT} order by t.created_at desc`)).rows,
+      (await c.query(`${TICKET_LIST_SELECT} order by t.created_at desc`)).rows,
     );
+    await asSystem((c) => attachThreads(c, rows));
     return NextResponse.json({ tickets: rows.map(toClientTicket) });
   } catch (err) {
     return dbError(err);
