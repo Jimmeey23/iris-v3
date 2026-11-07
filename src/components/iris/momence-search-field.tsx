@@ -62,6 +62,27 @@ const COLOR_MAP: Record<string, string> = {
   indigo: "from-indigo-500 to-indigo-600",
 };
 
+/** Live roster numbers for a picked class: booked, checked in, cancelled, waitlist. */
+function SessionRosterLine({ id }: { id: string }) {
+  const [r, setR] = React.useState<{ counts: { booked: number; checkedIn: number; cancelled: number }; waitlist: number } | null | "na">(null);
+  React.useEffect(() => {
+    const ac = new AbortController();
+    fetch(`/api/momence/sessions/${encodeURIComponent(id)}/roster`, { signal: ac.signal, cache: "no-store" })
+      .then((x) => x.json())
+      .then((j) => setR(j.data ?? "na"))
+      .catch(() => {});
+    return () => ac.abort();
+  }, [id]);
+  if (r === "na") return null;
+  if (!r) return <div className="mt-1.5 text-[10px] text-muted-foreground">Loading roster…</div>;
+  return (
+    <div className="mt-1.5 text-[10px] text-muted-foreground">
+      Roster: <b className="text-foreground">{r.counts.booked}</b> booked · <b className="text-foreground">{r.counts.checkedIn}</b> checked in
+      {r.counts.cancelled ? ` · ${r.counts.cancelled} cancelled` : ""}{r.waitlist ? ` · ${r.waitlist} waitlisted` : ""}
+    </div>
+  );
+}
+
 export function MomenceSearchField({
   type,
   placeholder,
@@ -164,6 +185,7 @@ export function MomenceSearchField({
             {selected.meta}
           </div>
         )}
+        {type === "momence_session" && /^(mum|blr):\d+$/.test(selected.id) && <SessionRosterLine id={selected.id} />}
         {selected.tags && selected.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {selected.tags.map((tag) => (
