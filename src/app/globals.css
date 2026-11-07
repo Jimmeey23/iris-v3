@@ -44,91 +44,91 @@
 }
 
 /* ============================================================
-   IRIS Design System v3 — Refined, Minimal, Professional
-   Inspired by Linear, Vercel, Stripe, Arc
+   IRIS Design System v4 — Apple-inspired, #007bff accent
    ============================================================ */
 
 :root {
   --radius: 0.625rem;
 
-  /* Light — Clean, crisp, neutral with blue accent + light gray secondary */
-  --background: oklch(0.992 0.001 240);
-  --foreground: oklch(0.16 0.003 240);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.003 240);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.003 240);
-  --primary: oklch(0.52 0.18 245);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.002 240);
-  --secondary-foreground: oklch(0.40 0.003 240);
-  --muted: oklch(0.97 0.001 240);
-  --muted-foreground: oklch(0.52 0.005 240);
-  --accent: oklch(0.94 0.04 245);
-  --accent-foreground: oklch(0.52 0.18 245);
-  --destructive: oklch(0.55 0.20 25);
-  --border: oklch(0.91 0.002 240);
-  --input: oklch(0.91 0.002 240);
-  --ring: oklch(0.52 0.18 245);
+  /* Light — Apple-inspired: clean white, subtle grays */
+  --background: #ffffff;
+  --foreground: #1d1d1f;
+  --card: #ffffff;
+  --card-foreground: #1d1d1f;
+  --popover: #ffffff;
+  --popover-foreground: #1d1d1f;
+  --primary: #007bff;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;
+  --muted-foreground: #86868b;
+  --accent: #f5f5f7;
+  --accent-foreground: #007bff;
+  --destructive: #ff3b30;
+  --border: #d2d2d7;
+  --input: #d2d2d7;
+  --ring: #007bff;
 
-  --chart-1: oklch(0.52 0.18 245);
-  --chart-2: oklch(0.62 0.14 162);
-  --chart-3: oklch(0.72 0.16 70);
-  --chart-4: oklch(0.60 0.20 340);
-  --chart-5: oklch(0.68 0.16 200);
+  --chart-1: #007bff;
+  --chart-2: #34c759;
+  --chart-3: #ff9500;
+  --chart-4: #af52de;
+  --chart-5: #ff3b30;
 
-  --sidebar: oklch(0.985 0.001 240);
-  --sidebar-foreground: oklch(0.22 0.003 240);
-  --sidebar-primary: oklch(0.52 0.18 245);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.04 245);
-  --sidebar-accent-foreground: oklch(0.52 0.18 245);
-  --sidebar-border: oklch(0.92 0.002 240);
-  --sidebar-ring: oklch(0.52 0.18 245);
+  --sidebar: #f9f9f9;
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-primary: #007bff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f9f9f9;
+  --sidebar-accent-foreground: #007bff;
+  --sidebar-border: #e5e5e7;
+  --sidebar-ring: #007bff;
 
   /* Brand */
-  --iris-primary: oklch(0.52 0.18 245);
-  --iris-blue: oklch(0.52 0.18 245);
-  --iris-violet: oklch(0.58 0.18 295);
-  --iris-amber: oklch(0.72 0.16 70);
-  --iris-rose: oklch(0.60 0.20 340);
+  --iris-blue: #007bff;
+  --iris-light-blue: #5ac8fa;
+  --iris-green: #34c759;
+  --iris-orange: #ff9500;
+  --iris-purple: #af52de;
+  --iris-red: #ff3b30;
 }
 
 .dark {
-  /* Dark — Deep neutral with beautiful blue accent */
-  --background: oklch(0.13 0.004 240);
-  --foreground: oklch(0.93 0.002 240);
-  --card: oklch(0.165 0.004 240);
-  --card-foreground: oklch(0.93 0.002 240);
-  --popover: oklch(0.165 0.004 240);
-  --popover-foreground: oklch(0.93 0.002 240);
-  --primary: oklch(0.62 0.17 245);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.20 0.004 240);
-  --secondary-foreground: oklch(0.75 0.003 240);
-  --muted: oklch(0.185 0.003 240);
-  --muted-foreground: oklch(0.58 0.005 240);
-  --accent: oklch(0.20 0.04 245);
-  --accent-foreground: oklch(0.72 0.10 245);
-  --destructive: oklch(0.62 0.20 25);
-  --border: oklch(1 0 0 / 0.07);
-  --input: oklch(1 0 0 / 0.08);
-  --ring: oklch(0.62 0.17 245);
+  /* Dark — Apple dark mode: deep black, vibrant accent */
+  --background: #000000;
+  --foreground: #f5f5f7;
+  --card: #1c1c1e;
+  --card-foreground: #f5f5f7;
+  --popover: #1c1c1e;
+  --popover-foreground: #f5f5f7;
+  --primary: #0a84ff;
+  --primary-foreground: #ffffff;
+  --secondary: #1c1c1e;
+  --secondary-foreground: #f5f5f7;
+  --muted: #2c2c2e;
+  --muted-foreground: #86868b;
+  --accent: #2c2c2e;
+  --accent-foreground: #0a84ff;
+  --destructive: #ff453a;
+  --border: #38383a;
+  --input: #38383a;
+  --ring: #0a84ff;
 
-  --chart-1: oklch(0.62 0.17 245);
-  --chart-2: oklch(0.68 0.14 162);
-  --chart-3: oklch(0.78 0.16 70);
-  --chart-4: oklch(0.65 0.20 340);
-  --chart-5: oklch(0.72 0.16 200);
+  --chart-1: #0a84ff;
+  --chart-2: #30d158;
+  --chart-3: #ff9f0a;
+  --chart-4: #bf5af2;
+  --chart-5: #ff453a;
 
-  --sidebar: oklch(0.11 0.003 240);
-  --sidebar-foreground: oklch(0.90 0.002 240);
-  --sidebar-primary: oklch(0.62 0.17 245);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.16 0.025 245);
-  --sidebar-accent-foreground: oklch(0.72 0.10 245);
-  --sidebar-border: oklch(1 0 0 / 0.06);
-  --sidebar-ring: oklch(0.62 0.17 245);
+  --sidebar: #0b0b0d;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #0a84ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1c1c1e;
+  --sidebar-accent-foreground: #0a84ff;
+  --sidebar-border: #1c1c1e;
+  --sidebar-ring: #0a84ff;
 }
 
 @layer base {
@@ -137,13 +137,14 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01", "ss03";
+    font-feature-settings: "ss01", "cv01", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    letter-spacing: -0.01em;
   }
 
-  /* Refined scrollbar — thinner, more subtle */
+  /* Apple-style scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -152,84 +153,73 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.5 0.005 264 / 0.15);
-    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 100px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.5 0.005 264 / 0.25);
+    background: rgba(0, 0, 0, 0.25);
     background-clip: padding-box;
     border: 2px solid transparent;
   }
   .dark ::-webkit-scrollbar-thumb {
-    background: oklch(0.7 0.005 264 / 0.12);
+    background: rgba(255, 255, 255, 0.1);
     background-clip: padding-box;
     border: 2px solid transparent;
   }
   .dark ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.7 0.005 264 / 0.2);
+    background: rgba(255, 255, 255, 0.2);
     background-clip: padding-box;
     border: 2px solid transparent;
   }
 }
 
 /* ============================================================
-   Component System — Refined, Minimal
+   Component System — Apple-inspired: clean, refined, minimal
    ============================================================ */
 
 @layer utilities {
-  /* Surface — the foundational card. Border-based, not shadow-based */
   .iris-card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    transition: border-color 150ms ease, background 150ms ease;
+    transition: border-color 200ms ease;
   }
   .iris-card:hover {
-    border-color: oklch(0.5 0.01 264 / 0.2);
+    border-color: rgba(0, 123, 255, 0.2);
   }
   .dark .iris-card:hover {
-    border-color: oklch(1 0 0 / 0.12);
+    border-color: rgba(10, 132, 255, 0.25);
   }
 
-  /* Elevated surface — for modals, dropdowns */
   .iris-card-elevated {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow:
-      0 0 0 1px oklch(0 0 0 / 0.02),
-      0 2px 4px -1px oklch(0 0 0 / 0.03),
-      0 4px 12px -2px oklch(0 0 0 / 0.05);
+    box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
   }
   .dark .iris-card-elevated {
-    box-shadow:
-      0 0 0 1px oklch(0 0 0 / 0.2),
-      0 2px 8px -1px oklch(0 0 0 / 0.3),
-      0 8px 24px -4px oklch(0 0 0 / 0.4);
+    box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.4);
   }
 
-  /* Subtle gradient text — used sparingly */
   .iris-text-gradient {
-    background: linear-gradient(135deg, var(--primary), var(--iris-violet));
+    background: linear-gradient(135deg, var(--primary), var(--iris-light-blue));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
-  /* Glass — for floating bars */
   .iris-glass {
-    background: oklch(1 0 0 / 0.72);
-    backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid oklch(0 0 0 / 0.05);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(0, 0, 0, 0.06);
   }
   .dark .iris-glass {
-    background: oklch(0.165 0.005 264 / 0.72);
-    border: 1px solid oklch(1 0 0 / 0.06);
+    background: rgba(28, 28, 30, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  /* AI border — subtle, not flashy */
   .iris-ai-border {
     position: relative;
   }
@@ -239,14 +229,13 @@
     inset: -1px;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, oklch(0.52 0.16 264 / 0.4), oklch(0.58 0.18 295 / 0.2));
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.3), rgba(90, 200, 250, 0.15));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
   }
 
-  /* Aurora — very subtle background mesh */
   .iris-aurora {
     position: relative;
     overflow: hidden;
@@ -255,24 +244,18 @@
     content: "";
     position: absolute;
     inset: -10%;
-    background:
-      radial-gradient(circle at 20% 30%, oklch(0.52 0.16 264 / 0.04), transparent 50%),
-      radial-gradient(circle at 80% 20%, oklch(0.58 0.18 295 / 0.03), transparent 50%);
-    filter: blur(60px);
+    background: radial-gradient(circle at 30% 20%, rgba(0, 123, 255, 0.03), transparent 50%);
     pointer-events: none;
     z-index: 0;
   }
   .dark .iris-aurora::before {
-    background:
-      radial-gradient(circle at 20% 30%, oklch(0.65 0.15 264 / 0.06), transparent 50%),
-      radial-gradient(circle at 80% 20%, oklch(0.58 0.18 295 / 0.04), transparent 50%);
+    background: radial-gradient(circle at 30% 20%, rgba(10, 132, 255, 0.05), transparent 50%);
   }
   .iris-aurora > * {
     position: relative;
     z-index: 1;
   }
 
-  /* Premium button — clean, no gradient */
   .iris-btn-premium {
     background: var(--primary);
     color: var(--primary-foreground);
@@ -281,13 +264,12 @@
     transition: opacity 150ms ease, transform 100ms ease;
   }
   .iris-btn-premium:hover {
-    opacity: 0.9;
+    opacity: 0.88;
   }
   .iris-btn-premium:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
   }
 
-  /* Option button — clean, border-based */
   .iris-option {
     display: flex;
     align-items: center;
@@ -301,14 +283,13 @@
     font-weight: 500;
     text-align: left;
     cursor: pointer;
-    transition: border-color 150ms ease, background 150ms ease;
+    transition: all 180ms ease;
   }
   .iris-option:hover {
     border-color: var(--primary);
     background: var(--accent);
   }
 
-  /* Chip — small, monochrome */
   .iris-chip {
     display: inline-flex;
     align-items: center;
@@ -322,7 +303,6 @@
     border: 1px solid var(--border);
   }
 
-  /* Badge — refined */
   .iris-badge-premium {
     display: inline-flex;
     align-items: center;
@@ -331,27 +311,25 @@
     border-radius: 5px;
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.01em;
     background: var(--accent);
     color: var(--accent-foreground);
     border: 1px solid var(--border);
   }
 
-  /* Live dot */
   .iris-live-dot {
     position: relative;
     display: inline-block;
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: oklch(0.62 0.14 162);
+    background: #34c759;
   }
   .iris-live-dot::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    background: oklch(0.62 0.14 162);
+    background: #34c759;
     opacity: 0.4;
     animation: iris-live-pulse 2.5s ease-out infinite;
   }
@@ -360,7 +338,6 @@
     100% { transform: scale(3); opacity: 0; }
   }
 
-  /* Thinking dots */
   .iris-thinking-dot {
     display: inline-block;
     width: 5px;
@@ -376,53 +353,22 @@
     30% { transform: translateY(-4px); opacity: 1; }
   }
 
-  /* Animations — smooth, not bouncy */
-  .iris-fade-in {
-    animation: iris-fade-in 200ms ease-out;
-  }
-  @keyframes iris-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
+  .iris-fade-in { animation: iris-fade-in 200ms ease-out; }
+  @keyframes iris-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
-  .iris-fade-in-up {
-    animation: iris-fade-in-up 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  @keyframes iris-fade-in-up {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  .iris-fade-in-up { animation: iris-fade-in-up 300ms cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes iris-fade-in-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-  .iris-scale-in {
-    animation: iris-scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  @keyframes iris-scale-in {
-    from { opacity: 0; transform: scale(0.97); }
-    to { opacity: 1; transform: scale(1); }
-  }
+  .iris-scale-in { animation: iris-scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes iris-scale-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
 
-  .iris-slide-up {
-    animation: iris-slide-up 350ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  @keyframes iris-slide-up {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  .iris-slide-up { animation: iris-slide-up 350ms cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes iris-slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* Divider */
-  .iris-divider {
-    height: 1px;
-    background: var(--border);
-  }
+  .iris-divider { height: 1px; background: var(--border); }
 
-  /* Shimmer for skeletons */
   .iris-skeleton {
-    background: linear-gradient(
-      90deg,
-      oklch(0.5 0.005 264 / 0.03) 0%,
-      oklch(0.5 0.005 264 / 0.08) 50%,
-      oklch(0.5 0.005 264 / 0.03) 100%
-    );
+    background: linear-gradient(90deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.03) 100%);
     background-size: 200% 100%;
     animation: iris-skeleton-shimmer 1.8s ease-in-out infinite;
   }
@@ -431,13 +377,8 @@
     100% { background-position: -200% 0; }
   }
 
-  /* Tabular numbers */
-  .iris-ticker {
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: "tnum";
-  }
+  .iris-ticker { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 
-  /* Action shimmer — very subtle */
   .iris-action-shimmer {
     position: relative;
     overflow: hidden;
@@ -449,29 +390,15 @@
     left: -100%;
     width: 60%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.08), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
     animation: iris-action-shimmer-anim 4s ease-in-out infinite;
   }
   @keyframes iris-action-shimmer-anim {
     0% { left: -60%; }
     50%, 100% { left: 100%; }
   }
-
-  /* Grid background — very subtle */
-  .iris-grid-bg {
-    background-image:
-      linear-gradient(oklch(0 0 0 / 0.015) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(0 0 0 / 0.015) 1px, transparent 1px);
-    background-size: 28px 28px;
-  }
-  .dark .iris-grid-bg {
-    background-image:
-      linear-gradient(oklch(1 0 0 / 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(1 0 0 / 0.02) 1px, transparent 1px);
-  }
 }
 
-/* Focus — refined */
 *:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
@@ -479,8 +406,8 @@
 }
 
 ::selection {
-  background: oklch(0.52 0.16 264 / 0.15);
+  background: rgba(0, 123, 255, 0.15);
 }
 .dark ::selection {
-  background: oklch(0.65 0.15 264 / 0.25);
+  background: rgba(10, 132, 255, 0.25);
 }

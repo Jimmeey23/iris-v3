@@ -13,60 +13,48 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
       className={className}
     >
       <defs>
-        <linearGradient id="iris-grad-main" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#2563eb" />
-          <stop offset="0.5" stopColor="#3b82f6" />
-          <stop offset="1" stopColor="#60a5fa" />
+        <linearGradient id="iris-grad-bg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#007bff" />
+          <stop offset="1" stopColor="#0051d5" />
         </linearGradient>
-        <linearGradient id="iris-grad-eye" x1="10" y1="10" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#bfdbfe" />
-          <stop offset="1" stopColor="#eff6ff" />
-        </linearGradient>
-        <radialGradient id="iris-grad-pupil" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0%" stopColor="#1e3a5f" />
-          <stop offset="100%" stopColor="#2563eb" />
-        </radialGradient>
       </defs>
-      {/* Outer rounded square */}
-      <rect width="40" height="40" rx="10" fill="url(#iris-grad-main)" />
-      {/* Iris eye shape — continuous gentle rotation */}
-      <g style={{ transformOrigin: "20px 20px", animation: "iris-logo-rotate 6s ease-in-out infinite" }}>
-        <ellipse cx="20" cy="20" rx="12" ry="8" fill="url(#iris-grad-eye)" opacity="0.95" />
-        {/* Iris ring details */}
-        <ellipse cx="20" cy="20" rx="10" ry="6.5" fill="none" stroke="#3b82f6" strokeWidth="0.5" opacity="0.4" />
-        <ellipse cx="20" cy="20" rx="8" ry="5" fill="none" stroke="#2563eb" strokeWidth="0.5" opacity="0.5" />
-        {/* Pupil — scales subtly like a real iris adjusting to light */}
-        <circle cx="20" cy="20" r="4" fill="url(#iris-grad-pupil)" style={{ transformOrigin: "20px 20px", animation: "iris-logo-pupil 5s ease-in-out infinite" }} />
-        {/* Eye lid — creates a blink effect by scaling vertically over the eye */}
-        <g style={{ transformOrigin: "20px 20px", animation: "iris-logo-blink 3.5s ease-in-out infinite" }}>
-          {/* The lid is a matching-background-colored ellipse that covers the eye when scaled to 1 */}
-          <ellipse cx="20" cy="20" rx="13" ry="9" fill="#2563eb" style={{ transformOrigin: "20px 20px", transform: "scaleY(0)" }} />
-        </g>
-        {/* Highlight dot — visible between blinks */}
-        <circle cx="18.5" cy="18.5" r="1.2" fill="white" opacity="0.9" style={{ animation: "iris-logo-highlight 3.5s ease-in-out infinite" }} />
-        <circle cx="21.5" cy="21" r="0.6" fill="white" opacity="0.5" />
+      {/* Rounded square background */}
+      <rect width="40" height="40" rx="9" fill="url(#iris-grad-bg)" />
+      {/* Stylized "I" — geometric, minimal */}
+      <g style={{ transformOrigin: "20px 20px", animation: "iris-logo-float 4s ease-in-out infinite" }}>
+        {/* Top bar of I */}
+        <rect x="13" y="10" width="14" height="2.5" rx="1.25" fill="white" opacity="0.95" style={{ animation: "iris-logo-pulse-top 3s ease-in-out infinite" }} />
+        {/* Center column of I — with a gradient iris pattern */}
+        <rect x="18.75" y="10" width="2.5" height="20" fill="white" opacity="0.9" />
+        {/* Iris accent — circular gradient in the center of the I */}
+        <circle cx="20" cy="20" r="3" fill="white" opacity="0.3" style={{ animation: "iris-logo-pulse-iris 2s ease-in-out infinite" }} />
+        <circle cx="20" cy="20" r="1.5" fill="white" opacity="0.8" />
+        {/* Bottom bar of I */}
+        <rect x="13" y="27.5" width="14" height="2.5" rx="1.25" fill="white" opacity="0.95" style={{ animation: "iris-logo-pulse-bottom 3s ease-in-out infinite 0.5s" }} />
+        {/* Spark dots — radiating from center */}
+        <circle cx="10" cy="20" r="0.8" fill="white" opacity="0.4" style={{ animation: "iris-logo-spark 2s ease-in-out infinite" }} />
+        <circle cx="30" cy="20" r="0.8" fill="white" opacity="0.4" style={{ animation: "iris-logo-spark 2s ease-in-out infinite 0.5s" }} />
       </g>
       <style>{`
-        @keyframes iris-logo-rotate {
-          0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(4deg); }
-          75% { transform: rotate(-4deg); }
+        @keyframes iris-logo-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-1px); }
         }
-        @keyframes iris-logo-blink {
-          0%, 85%, 100% { transform: scaleY(0); }
-          90% { transform: scaleY(1); }
-          93% { transform: scaleY(0); }
+        @keyframes iris-logo-pulse-iris {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.15); }
         }
-        @keyframes iris-logo-highlight {
-          0%, 85%, 100% { opacity: 0.9; }
-          88% { opacity: 0.9; }
-          90% { opacity: 0; }
-          93% { opacity: 0; }
-          95% { opacity: 0.9; }
+        @keyframes iris-logo-pulse-top {
+          0%, 100% { opacity: 0.95; }
+          50% { opacity: 0.7; }
         }
-        @keyframes iris-logo-pupil {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(0.92); }
+        @keyframes iris-logo-pulse-bottom {
+          0%, 100% { opacity: 0.95; }
+          50% { opacity: 0.7; }
+        }
+        @keyframes iris-logo-spark {
+          0%, 100% { opacity: 0.2; transform: scale(0.8); }
+          50% { opacity: 0.5; transform: scale(1.2); }
         }
       `}</style>
     </svg>
@@ -84,27 +72,27 @@ export function IrisLogoMark({ size = 20, className }: { size?: number; classNam
       className={className}
     >
       <defs>
-        <linearGradient id="iris-mark-grad" x1="0" y1="0" x2="20" y2="20">
-          <stop stopColor="#2563eb" />
-          <stop offset="1" stopColor="#3b82f6" />
+        <linearGradient id="iris-mark-bg" x1="0" y1="0" x2="20" y2="20">
+          <stop stopColor="#007bff" />
+          <stop offset="1" stopColor="#0051d5" />
         </linearGradient>
       </defs>
-      <rect width="20" height="20" rx="5" fill="url(#iris-mark-grad)" />
-      <g style={{ transformOrigin: "10px 10px", animation: "iris-mark-rotate 6s ease-in-out infinite" }}>
-        <ellipse cx="10" cy="10" rx="6" ry="4" fill="#bfdbfe" opacity="0.9" />
-        <circle cx="10" cy="10" r="2" fill="#1e3a5f" />
-        <circle cx="9.2" cy="9.2" r="0.6" fill="white" style={{ animation: "iris-mark-blink 3.5s ease-in-out infinite" }} />
+      <rect width="20" height="20" rx="5" fill="url(#iris-mark-bg)" />
+      <g style={{ transformOrigin: "10px 10px", animation: "iris-mark-float 4s ease-in-out infinite" }}>
+        <rect x="6" y="5" width="8" height="1.5" rx="0.75" fill="white" opacity="0.95" />
+        <rect x="9.25" y="5" width="1.5" height="10" fill="white" opacity="0.9" />
+        <circle cx="10" cy="10" r="1.5" fill="white" opacity="0.3" style={{ animation: "iris-mark-pulse 2s ease-in-out infinite" }} />
+        <circle cx="10" cy="10" r="0.75" fill="white" opacity="0.8" />
+        <rect x="6" y="13.5" width="8" height="1.5" rx="0.75" fill="white" opacity="0.95" />
       </g>
       <style>{`
-        @keyframes iris-mark-rotate {
-          0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(4deg); }
-          75% { transform: rotate(-4deg); }
+        @keyframes iris-mark-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-0.5px); }
         }
-        @keyframes iris-mark-blink {
-          0%, 85%, 100% { opacity: 1; }
-          90% { opacity: 0; }
-          93% { opacity: 1; }
+        @keyframes iris-mark-pulse {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
         }
       `}</style>
     </svg>

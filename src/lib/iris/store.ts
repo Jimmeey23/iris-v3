@@ -11,6 +11,7 @@ export type ViewName =
   | "my_tickets"
   | "department_queue"
   | "escalations"
+  | "trainers"
   | "analytics"
   | "knowledge_base"
   | "templates"

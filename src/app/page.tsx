@@ -13,6 +13,7 @@ import { MomenceView } from "@/components/iris/views/momence";
 import { EmailTemplatesView } from "@/components/iris/views/email-templates";
 import { SettingsView } from "@/components/iris/views/settings";
 import { KnowledgeBaseView } from "@/components/iris/views/knowledge-base";
+import { TrainersView } from "@/components/iris/views/trainers";
 import { useAppStore } from "@/lib/iris/store";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -29,6 +30,7 @@ export default function Home() {
         {currentView === "my_tickets" && <AllTicketsView filterMode="my" />}
         {currentView === "department_queue" && <AllTicketsView filterMode="department" />}
         {currentView === "escalations" && <AllTicketsView filterMode="escalations" />}
+        {currentView === "trainers" && <TrainersView />}
         {currentView === "analytics" && <AnalyticsView />}
         {currentView === "templates" && <TemplatesView />}
         {currentView === "reports" && <ReportsView />}

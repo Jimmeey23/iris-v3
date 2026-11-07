@@ -27,6 +27,7 @@ import {
   Plus,
   AlertTriangle,
   Brain,
+  Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => t.assigneeId === "emp_001").length },
   { id: "department_queue", label: "Department", icon: Building2, group: "main" },
   { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
+  { id: "trainers", label: "Trainers", icon: Users, group: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence" },
   { id: "templates", label: "Templates", icon: LayoutTemplate, group: "intelligence" },
   { id: "reports", label: "Reports", icon: FileBarChart, group: "intelligence" },
@@ -99,8 +101,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="text-[14px] font-semibold tracking-tight text-sidebar-foreground leading-none">
                 IRIS
               </div>
-              <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
-                Physique 57
+              <div className="text-[8px] text-muted-foreground font-medium tracking-wide mt-0.5">
+                Intelligent Routing & Intuitive Systems
               </div>
             </div>
           )}
@@ -146,8 +148,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             className={cn(
                               "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors",
                               isActive
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                                ? "bg-[#f9f9f9] dark:bg-[#1c1c1e] text-primary"
+                                : "text-muted-foreground hover:bg-[#f9f9f9]/50 dark:hover:bg-[#1c1c1e]/50 hover:text-foreground",
                               sidebarCollapsed && "justify-center px-0"
                             )}
                           >
