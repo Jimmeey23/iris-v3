@@ -196,6 +196,13 @@ type EscalationRow = {
   dept_head_id: string | null;
 };
 
+/** What the ticket activity says, naming the tier the ticket actually went to. */
+function targetLabel(level: number, managerName: string | null): string {
+  if (level === 1) return managerName ? `Reassigned to the reporting manager (${managerName}).` : "No reporting manager resolved — needs an admin.";
+  if (level === 2) return "Reassigned to the department head.";
+  return "No automatic owner left — needs an admin.";
+}
+
 /**
  * Escalate breached, unresolved tickets up the line. Ported from v2's applyEscalations:
  *
@@ -283,7 +290,7 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
       await client.query(
         `insert into ticket_activities (ticket_id, activity_type, description, actor_name)
          values ($1, 'escalated', $2, 'IRIS')`,
-        [t.id, targetId ? `${reason} Reassigned to ${t.manager_name ?? "the next tier"}.` : `${reason} No reporting manager resolved — needs an admin.`],
+        [t.id, `${reason} ${targetLabel(nextLevel, t.manager_name)}`],
       );
       escalated++;
       await notifyTicketEventNow("escalated", { id: t.id, title: t.title, escalationLevel: nextLevel }, null, {
