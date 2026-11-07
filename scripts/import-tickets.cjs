@@ -92,10 +92,10 @@ const norm = (s) => (s || "").toLowerCase().replace(/[^a-z]/g, "");
       category: r.category || "Miscellaneous",
       subcategory: r.subcategory || null,
       priority: priority || "P2",
-      status: status || "open",
+      status: "closed", // legacy tickets are historical: always closed
       studio_code: studio,
       department_code: dept,
-      assignee_id: assignee,
+      assignee_id: assignee || (r.assigned_staff_email ? "emp_saachi" : null), // unknown staff -> Saachi Shetty
       reporter_id: reporter,
       affected_client: r.member_name || null,
       client_momence_id: r.momence_member_id || null,
@@ -103,12 +103,12 @@ const norm = (s) => (s || "").toLowerCase().replace(/[^a-z]/g, "");
       severity: r.severity || null,
       recommended_resolution: r.requested_resolution || null,
       tags: Array.isArray(tags) ? tags.map(String) : [],
-      sla_resolution_target: ts(r.sla_due_at),
-      resolved_at: ts(r.resolved_at) || ts(r.closed_at),
+      sla_resolution_target: null, // legacy tickets are SLA-exempt
+      resolved_at: ts(r.resolved_at) || ts(r.closed_at) || ts(r.updated_at) || createdAt,
       escalation_level: r.is_escalated === "true" ? 1 : 0,
       source: SOURCE[r.source] || "manual",
       collected_info: { incident_at: ts(r.incident_at), incident_at_raw: r.incident_at || null, class_format: r.class_format || null, trainer: r.trainer || null, membership: r.membership || null },
-      metadata: { imported_from: "tickets_rows.csv", legacy },
+      metadata: { imported_from: "tickets_rows.csv", legacy_import: true, sla_exempt: true, lock_assignment: true, legacy },
       created_at: createdAt,
       updated_at: ts(r.updated_at) || createdAt,
     };
