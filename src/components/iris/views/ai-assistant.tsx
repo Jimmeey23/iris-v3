@@ -246,9 +246,9 @@ export function AIAssistantView() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-hidden">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Chat Header */}
         <div className="h-12 border-b border-border flex items-center px-5 gap-3 shrink-0 bg-background">
           <div className="relative">
@@ -474,6 +474,7 @@ function ConversationIntelligencePanel({ state }: { state: ConversationState }) 
             {["AC malfunction", "Sound system issue", "Membership freeze", "Payment missing", "Credit discrepancy", "Booking cancellation"].map((t) => (
               <button
                 key={t}
+                onClick={() => handleSend(t)}
                 className="w-full text-left px-2 py-1.5 text-[11px] rounded-md hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-1.5 group"
               >
                 <TicketIcon className="w-3 h-3 text-muted-foreground group-hover:text-violet-500 transition-colors" />

@@ -39,17 +39,70 @@ import {
   Tag,
   Link2,
   PaperPlaneRight,
+  Lock,
 } from "lucide-react";
 
 export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
-  const { selectTicket, setCurrentView } = useAppStore();
+  const { selectTicket, setCurrentView, currentUser } = useAppStore();
   const [activeTab, setActiveTab] = React.useState("resolution");
   const [comment, setComment] = React.useState("");
   const [status, setStatus] = React.useState<TicketStatus>(ticket.status);
+  const [slaPaused, setSlaPaused] = React.useState(false);
+  const [showResolveDialog, setShowResolveDialog] = React.useState(false);
+  const [showExtensionDialog, setShowExtensionDialog] = React.useState(false);
+  const [resolutionNote, setResolutionNote] = React.useState("");
+  const [resolutionActions, setResolutionActions] = React.useState("");
+  const [extensionHours, setExtensionHours] = React.useState(4);
+  const [extensionReason, setExtensionReason] = React.useState("");
+  const [resolutionLog, setResolutionLog] = React.useState<Array<{ author: string; type: string; content: string; timestamp: string }>>(
+    ticket.comments.map(c => ({ author: c.author, type: "comment", content: c.content, timestamp: c.timestamp }))
+  );
+  const [newLogEntry, setNewLogEntry] = React.useState("");
+  const [logEntryType, setLogEntryType] = React.useState("note");
 
   const assignee = getAssignee(ticket);
   const reporter = getReporter(ticket);
   const studio = getStudio(ticket);
+
+  // Resolution permission — only owner or their reporting manager can resolve
+  const isOwner = currentUser.id === ticket.assigneeId;
+  const isManager = currentUser.role.toLowerCase().includes("manager") || currentUser.role.toLowerCase().includes("director");
+  const canResolve = isOwner || isManager;
+
+  const handleAddLogEntry = () => {
+    if (!newLogEntry.trim()) return;
+    setResolutionLog([...resolutionLog, {
+      author: currentUser.name,
+      type: logEntryType,
+      content: newLogEntry,
+      timestamp: new Date().toISOString(),
+    }]);
+    setNewLogEntry("");
+  };
+
+  const handleResolve = () => {
+    if (!resolutionNote.trim()) return;
+    setStatus("resolved");
+    setResolutionLog([...resolutionLog, {
+      author: currentUser.name,
+      type: "resolution",
+      content: `Ticket resolved. Summary: ${resolutionNote}${resolutionActions ? `\nActions taken: ${resolutionActions}` : ""}`,
+      timestamp: new Date().toISOString(),
+    }]);
+    setShowResolveDialog(false);
+  };
+
+  const handleExtension = () => {
+    setResolutionLog([...resolutionLog, {
+      author: currentUser.name,
+      type: "sla_extension",
+      content: `SLA extension requested: +${extensionHours} hours. Reason: ${extensionReason || "Not specified"}`,
+      timestamp: new Date().toISOString(),
+    }]);
+    setShowExtensionDialog(false);
+    setExtensionReason("");
+    setExtensionHours(4);
+  };
   const department = getDepartment(ticket);
 
   const handleBack = () => {
@@ -148,13 +201,29 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* Action Buttons — functional */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <ActionButton icon={PlayCircle} label="Start Work" color="violet" />
-                    <ActionButton icon={PauseCircle} label="Pause SLA" color="amber" />
-                    <ActionButton icon={Shield} label="Request Approval" color="sky" />
-                    <ActionButton icon={CheckCircle2} label="Mark Resolved" color="emerald" />
+                    <ActionButton icon={PlayCircle} label="Start Work" color="violet" onClick={() => setStatus("in_progress")} disabled={status !== "open" && status !== "awaiting_response"} />
+                    <ActionButton icon={PauseCircle} label="Pause SLA" color="amber" onClick={() => setSlaPaused(!slaPaused)} />
+                    <ActionButton icon={Clock} label="Request Extension" color="sky" onClick={() => setShowExtensionDialog(true)} />
+                    <ActionButton icon={CheckCircle2} label="Mark Resolved" color="emerald" onClick={() => setShowResolveDialog(true)} disabled={!canResolve} />
                   </div>
+
+                  {/* Resolve permission notice */}
+                  {!canResolve && (
+                    <div className="p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">Only the assigned owner or their reporting manager can resolve this ticket. You are viewing as <span className="font-semibold">{currentUser.role}</span>.</span>
+                    </div>
+                  )}
+
+                  {/* SLA paused indicator */}
+                  {slaPaused && (
+                    <div className="p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 flex items-center gap-2">
+                      <PauseCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">SLA clock paused. Click "Pause SLA" again to resume.</span>
+                    </div>
+                  )}
 
                   {/* Resolution Summary */}
                   {ticket.resolutionSummary ? (
@@ -197,7 +266,159 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       View History
                     </Button>
                   </div>
+
+                  {/* Resolution Log — notes, comments, follow-ups */}
+                  <div className="iris-card p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                      <div className="text-[13px] font-semibold">Resolution Log</div>
+                      <span className="text-[10px] text-muted-foreground">({resolutionLog.length} entries)</span>
+                    </div>
+
+                    {/* Log entries */}
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto mb-3">
+                      {resolutionLog.length === 0 ? (
+                        <div className="text-[11px] text-muted-foreground italic p-2">No entries yet. Add a note, comment, or follow-up below.</div>
+                      ) : (
+                        resolutionLog.map((entry, i) => (
+                          <div key={i} className="p-2.5 rounded-md border border-border bg-muted/20">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={cn(
+                                "text-[9px] font-semibold px-1.5 py-px rounded capitalize",
+                                entry.type === "resolution" ? "bg-emerald-500/10 text-emerald-600" :
+                                entry.type === "sla_extension" ? "bg-amber-500/10 text-amber-600" :
+                                entry.type === "follow_up" ? "bg-violet-500/10 text-violet-600" :
+                                "bg-muted text-muted-foreground"
+                              )}>
+                                {entry.type.replace(/_/g, " ")}
+                              </span>
+                              <span className="text-[10px] font-medium">{entry.author}</span>
+                              <span className="text-[9px] text-muted-foreground ml-auto">{formatRelativeTime(entry.timestamp)}</span>
+                            </div>
+                            <div className="text-[11px] text-foreground/90 leading-relaxed whitespace-pre-line">{entry.content}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Add new entry */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={logEntryType}
+                          onChange={(e) => setLogEntryType(e.target.value)}
+                          className="h-7 px-2 text-[11px] rounded-md border border-border bg-card"
+                        >
+                          <option value="note">Note</option>
+                          <option value="comment">Comment</option>
+                          <option value="follow_up">Follow-up</option>
+                          <option value="observation">Observation</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={newLogEntry}
+                          onChange={(e) => setNewLogEntry(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleAddLogEntry(); }}
+                          placeholder={`Add a ${logEntryType.replace(/_/g, " ")}...`}
+                          className="flex-1 h-7 px-2.5 text-[12px] rounded-md border border-border bg-card focus:outline-none focus:border-primary"
+                        />
+                        <Button size="sm" className="h-7 text-[11px] px-2" onClick={handleAddLogEntry} disabled={!newLogEntry.trim()}>
+                          <Send className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </TabsContent>
+
+                {/* Resolve Dialog */}
+                {showResolveDialog && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm" onClick={() => setShowResolveDialog(false)}>
+                    <div className="bg-card border border-border rounded-xl max-w-lg w-full p-5 iris-scale-in" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                        <div className="text-[15px] font-semibold">Resolve Ticket</div>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mb-4">A resolution summary is required. This will be logged and visible to all stakeholders.</div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block">Resolution Summary *</label>
+                          <textarea
+                            value={resolutionNote}
+                            onChange={(e) => setResolutionNote(e.target.value)}
+                            placeholder="Describe what was done to resolve this issue..."
+                            rows={3}
+                            className="w-full px-3 py-2 text-[12px] rounded-lg border border-border bg-card focus:outline-none focus:border-primary resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block">Actions Taken</label>
+                          <textarea
+                            value={resolutionActions}
+                            onChange={(e) => setResolutionActions(e.target.value)}
+                            placeholder="Step-by-step actions taken to resolve..."
+                            rows={2}
+                            className="w-full px-3 py-2 text-[12px] rounded-lg border border-border bg-card focus:outline-none focus:border-primary resize-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+                        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowResolveDialog(false)}>Cancel</Button>
+                        <div className="flex-1" />
+                        <Button size="sm" className="h-8 text-[12px]" onClick={handleResolve} disabled={!resolutionNote.trim()}>
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Confirm Resolution
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SLA Extension Dialog */}
+                {showExtensionDialog && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm" onClick={() => setShowExtensionDialog(false)}>
+                    <div className="bg-card border border-border rounded-xl max-w-md w-full p-5 iris-scale-in" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-5 h-5 text-sky-500" />
+                        <div className="text-[15px] font-semibold">Request SLA Extension</div>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mb-4">Push the SLA deadline back manually. This will be logged in the resolution log.</div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block">Extension Duration (hours)</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min={1}
+                              max={48}
+                              value={extensionHours}
+                              onChange={(e) => setExtensionHours(Number(e.target.value))}
+                              className="flex-1"
+                            />
+                            <span className="text-[14px] font-bold tabular-nums w-16 text-right">{extensionHours}h</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block">Reason</label>
+                          <textarea
+                            value={extensionReason}
+                            onChange={(e) => setExtensionReason(e.target.value)}
+                            placeholder="Why is the extension needed? (e.g. awaiting vendor, part ordered, etc.)"
+                            rows={2}
+                            className="w-full px-3 py-2 text-[12px] rounded-lg border border-border bg-card focus:outline-none focus:border-primary resize-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
+                        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowExtensionDialog(false)}>Cancel</Button>
+                        <div className="flex-1" />
+                        <Button size="sm" className="h-8 text-[12px]" onClick={handleExtension}>
+                          <Clock className="w-3 h-3 mr-1" />
+                          Extend by {extensionHours}h
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Details Tab */}
                 <TabsContent value="details" className="mt-3">
@@ -526,7 +747,7 @@ function DetailRow({ label, value, mono }: { label: string; value: string; mono?
   );
 }
 
-function ActionButton({ icon: Icon, label, color }: { icon: React.ComponentType<{ className?: string }>; label: string; color: "violet" | "amber" | "sky" | "emerald" }) {
+function ActionButton({ icon: Icon, label, color, onClick, disabled }: { icon: React.ComponentType<{ className?: string }>; label: string; color: "violet" | "amber" | "sky" | "emerald"; onClick?: () => void; disabled?: boolean }) {
   const colors = {
     violet: "border-violet-500/30 hover:bg-violet-500/5 hover:border-violet-500/50 text-violet-600 dark:text-violet-400",
     amber: "border-amber-500/30 hover:bg-amber-500/5 hover:border-amber-500/50 text-amber-600 dark:text-amber-400",
@@ -534,7 +755,11 @@ function ActionButton({ icon: Icon, label, color }: { icon: React.ComponentType<
     emerald: "border-emerald-500/30 hover:bg-emerald-500/5 hover:border-emerald-500/50 text-emerald-600 dark:text-emerald-400",
   };
   return (
-    <button className={cn("flex flex-col items-center gap-1 p-2.5 rounded-lg border bg-card transition-all", colors[color])}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn("flex flex-col items-center gap-1 p-2.5 rounded-lg border bg-card transition-all", colors[color], disabled && "opacity-40 cursor-not-allowed hover:bg-card hover:border-current")}
+    >
       <Icon className="w-4 h-4" />
       <span className="text-[11px] font-medium">{label}</span>
     </button>

@@ -50,7 +50,6 @@ import {
   Gauge,
   PauseCircle,
   RefreshCw,
-  Link2,
 } from "lucide-react";
 
 export function TicketPreviewModal({

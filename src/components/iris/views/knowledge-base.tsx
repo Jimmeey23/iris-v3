@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useAppStore } from "@/lib/iris/store";
+import { KNOWLEDGE_ARTICLES, KNOWLEDGE_CATEGORIES, KnowledgeArticle } from "@/lib/iris/knowledge-base-data";
 import { cn } from "@/lib/utils";
 import {
   BookOpen,
@@ -15,55 +17,60 @@ import {
   Calendar,
   Building2,
   Cpu,
+  Shield,
   ChevronRight,
   Star,
   Eye,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-const ARTICLES = [
-  { id: "KB-001", title: "How to handle membership freeze requests", category: "Membership", views: 234, helpful: 96, lastUpdated: "2 days ago", icon: CreditCard },
-  { id: "KB-002", title: "Resolving Momence payment sync issues", category: "Payment", views: 187, helpful: 92, lastUpdated: "1 week ago", icon: CreditCard },
-  { id: "KB-003", title: "AC malfunction troubleshooting checklist", category: "Facilities", views: 312, helpful: 98, lastUpdated: "3 days ago", icon: Wrench },
-  { id: "KB-004", title: "Setting up recurring class bookings", category: "Scheduling", views: 156, helpful: 89, lastUpdated: "5 days ago", icon: Calendar },
-  { id: "KB-005", title: "Front desk check-in error resolution", category: "Front Desk", views: 421, helpful: 94, lastUpdated: "1 day ago", icon: Users },
-  { id: "KB-006", title: "Sound system reboot procedures", category: "Facilities", views: 198, helpful: 91, lastUpdated: "1 week ago", icon: Wrench },
-  { id: "KB-007", title: "Refund authorization workflow", category: "Payment", views: 167, helpful: 95, lastUpdated: "4 days ago", icon: CreditCard },
-  { id: "KB-008", title: "Momence member search best practices", category: "IT", views: 289, helpful: 97, lastUpdated: "2 days ago", icon: Cpu },
-  { id: "KB-009", title: "Studio closure notification process", category: "Operations", views: 145, helpful: 88, lastUpdated: "1 week ago", icon: Building2 },
-  { id: "KB-010", title: "VIP client handling guidelines", category: "Client Experience", views: 178, helpful: 93, lastUpdated: "3 days ago", icon: Star },
-  { id: "KB-011", title: "Credit adjustment approval matrix", category: "Membership", views: 134, helpful: 90, lastUpdated: "5 days ago", icon: CreditCard },
-  { id: "KB-012", title: "Instructor schedule conflict resolution", category: "Training", views: 112, helpful: 87, lastUpdated: "1 week ago", icon: Users },
-];
-
-const CATEGORIES = Array.from(new Set(ARTICLES.map((a) => a.category)));
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  "Class Experience": Users,
+  "Trainer Feedback": Users,
+  "Repair and Maintenance": Wrench,
+  "Pricing and Memberships": CreditCard,
+  "Scheduling": Calendar,
+  "Safety and Security": Shield,
+  "Customer Service and Communication": Users,
+  "Theft and Lost Items": AlertTriangle,
+};
 
 export function KnowledgeBaseView() {
+  const { setCurrentView } = useAppStore();
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState("all");
+  const [selectedArticle, setSelectedArticle] = React.useState<KnowledgeArticle | null>(null);
 
-  const filtered = ARTICLES.filter((a) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!a.title.toLowerCase().includes(q)) return false;
-    }
-    if (category !== "all" && a.category !== category) return false;
-    return true;
-  });
+  const filtered = React.useMemo(() => {
+    return KNOWLEDGE_ARTICLES.filter((a) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!a.title.toLowerCase().includes(q) &&
+            !a.summary.toLowerCase().includes(q) &&
+            !a.steps.some(s => s.toLowerCase().includes(q))) return false;
+      }
+      if (category !== "all" && a.category !== category) return false;
+      return true;
+    });
+  }, [search, category]);
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-4">
+    <div className="p-8 max-w-[1400px] mx-auto space-y-6">
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground mb-1">
-            <BookOpen className="w-3 h-3 text-violet-500" />
-            {ARTICLES.length} Articles
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-1">
+            <BookOpen className="w-3 h-3" />
+            {KNOWLEDGE_ARTICLES.length} Articles · Curated
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Knowledge Base</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Operational guides, troubleshooting steps, and best practices for all teams.
+          <h1 className="text-[22px] font-semibold tracking-tight">Knowledge Base</h1>
+          <p className="text-[13px] text-muted-foreground mt-1">
+            Operational guides, troubleshooting steps, and protocols — curated from the P57 Brand Book and member issue data.
           </p>
         </div>
         <Button className="h-8 text-[12px]">
@@ -72,20 +79,18 @@ export function KnowledgeBaseView() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total Articles" value={ARTICLES.length} icon={BookOpen} />
-        <StatCard label="Categories" value={CATEGORIES.length} icon={HelpCircle} />
-        <StatCard label="Total Views" value="2,533" icon={Eye} />
-        <StatCard label="Avg Helpfulness" value="93%" icon={TrendingUp} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <StatCard label="Total Articles" value={KNOWLEDGE_ARTICLES.length} icon={BookOpen} />
+        <StatCard label="Categories" value={KNOWLEDGE_CATEGORIES.length} icon={HelpCircle} />
+        <StatCard label="Troubleshooting" value={KNOWLEDGE_ARTICLES.filter(a => a.category === "Repair and Maintenance").length} icon={Wrench} />
+        <StatCard label="Safety Protocols" value={KNOWLEDGE_ARTICLES.filter(a => a.category === "Safety and Security").length} icon={Shield} />
       </div>
 
-      {/* Search */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search knowledge base..."
+            placeholder="Search articles..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 pl-8 text-[12px]"
@@ -96,54 +101,151 @@ export function KnowledgeBaseView() {
             onClick={() => setCategory("all")}
             className={cn(
               "px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors",
-              category === "all" ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "bg-muted text-muted-foreground hover:text-foreground"
+              category === "all" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground"
             )}
           >
             All
           </button>
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={cn(
-                "px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors",
-                category === c ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {c}
-            </button>
-          ))}
+          {KNOWLEDGE_CATEGORIES.map((c) => {
+            const Icon = CATEGORY_ICONS[c] || BookOpen;
+            return (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={cn(
+                  "px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors flex items-center gap-1",
+                  category === c ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon className="w-2.5 h-2.5" />
+                {c}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Articles Grid */}
+      <div className="text-[11px] text-muted-foreground">
+        Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {KNOWLEDGE_ARTICLES.length} articles
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filtered.map((a, i) => (
-          <button
-            key={a.id}
-            className="text-left iris-card p-4 hover:scale-[1.01] transition-transform iris-fade-in-up group"
-            style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
-          >
-            <div className="flex items-start gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-                <a.icon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+        {filtered.map((a, i) => {
+          const Icon = CATEGORY_ICONS[a.category] || BookOpen;
+          return (
+            <button
+              key={a.id}
+              onClick={() => setSelectedArticle(a)}
+              className="text-left iris-card p-4 hover:border-primary/30 transition-colors iris-fade-in-up group"
+              style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
+            >
+              <div className="flex items-start gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-mono text-muted-foreground">{a.id}</div>
+                  <div className="text-[13px] font-semibold leading-tight group-hover:text-primary transition-colors line-clamp-2">
+                    {a.title}
+                  </div>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-mono text-muted-foreground">{a.id}</div>
-                <div className="text-[13px] font-semibold leading-tight group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-2">
-                  {a.title}
+              <div className="text-[11px] text-muted-foreground line-clamp-2 mb-2 leading-relaxed">
+                {a.summary}
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <Badge variant="outline" className="text-[10px] h-4 px-1">{a.category}</Badge>
+                <span className="flex items-center gap-0.5">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                  {a.steps.length} steps
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-20">
+          <BookOpen className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+          <div className="text-[13px] text-muted-foreground">No articles match your search</div>
+        </div>
+      )}
+
+      <Dialog open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedArticle(null)}>
+        {selectedArticle && (
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-mono text-muted-foreground">{selectedArticle.id}</span>
+                <Badge variant="outline" className="text-[10px] h-5 px-1.5">{selectedArticle.category}</Badge>
+              </div>
+              <DialogTitle className="text-[16px] leading-tight">{selectedArticle.title}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Summary</div>
+                <p className="text-[13px] text-foreground/90 leading-relaxed">{selectedArticle.summary}</p>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3 h-3 text-primary" />
+                  Troubleshooting Steps
+                </div>
+                <div className="space-y-2">
+                  {selectedArticle.steps.map((step, i) => (
+                    <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-md border border-border">
+                      <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 text-[11px] font-bold tabular-nums">
+                        {i + 1}
+                      </div>
+                      <div className="text-[12px] text-foreground/90 leading-relaxed flex-1">{step}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              {selectedArticle.prevention && (
+                <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    Prevention
+                  </div>
+                  <div className="text-[12px] text-foreground/90 leading-relaxed">{selectedArticle.prevention}</div>
+                </div>
+              )}
+
+              {selectedArticle.escalation && (
+                <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    Escalation Criteria
+                  </div>
+                  <div className="text-[12px] text-foreground/90 leading-relaxed">{selectedArticle.escalation}</div>
+                </div>
+              )}
+
+              {selectedArticle.relatedTemplates && selectedArticle.relatedTemplates.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Related Templates</div>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedArticle.relatedTemplates.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => { setSelectedArticle(null); setCurrentView("templates"); }}
+                        className="px-2 py-0.5 text-[10px] rounded bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <Badge variant="outline" className="text-[10px] h-5 px-1.5">{a.category}</Badge>
-              <span className="flex items-center gap-1"><Eye className="w-2.5 h-2.5" />{a.views}</span>
-              <span className="flex items-center gap-1"><Star className="w-2.5 h-2.5 text-amber-500" />{a.helpful}%</span>
-              <span className="ml-auto flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{a.lastUpdated}</span>
-            </div>
-          </button>
-        ))}
-      </div>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
@@ -151,12 +253,12 @@ export function KnowledgeBaseView() {
 function StatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ComponentType<{ className?: string }> }) {
   return (
     <div className="iris-card p-3 flex items-center gap-3">
-      <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center text-violet-600 dark:text-violet-400">
-        <Icon className="w-4 h-4" />
+      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+        <Icon className="w-3.5 h-3.5" />
       </div>
       <div>
         <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</div>
-        <div className="text-lg font-bold tabular-nums">{value}</div>
+        <div className="text-[16px] font-bold tabular-nums">{value}</div>
       </div>
     </div>
   );

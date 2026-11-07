@@ -259,8 +259,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="iris-fade-in">{children}</div>
+        <main className="flex-1 overflow-hidden">
+          <div className="iris-fade-in h-full overflow-y-auto">{children}</div>
         </main>
       </div>
     </div>
