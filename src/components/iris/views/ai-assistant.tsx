@@ -67,6 +67,26 @@ import { Button } from "@/components/ui/button";
 import { createTicketFromDetail, api, ticketsApi } from "@/lib/iris/live-data";
 import type { AgentTicketDraft } from "@/lib/iris/store";
 import { routeDeterministic } from "@/lib/iris/intent-router";
+import type { IntakeState, IntakeTaxonomy } from "@/lib/iris/store";
+import { IntakeCard, missingRequired } from "@/components/iris/intake-card";
+
+type ClassifyResponse = {
+  candidates: Array<{ category: string; subcategory: string | null; department: string | null; priority: "P0" | "P1" | "P2" | "P3" }>;
+  confident: boolean;
+  taxonomy: IntakeTaxonomy;
+  fields?: { studioCode?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1" };
+  question?: string | null;
+  source: "rules" | "ai";
+};
+
+/** Questions and investigation requests go to the full agent; reports go to the intake form. */
+function looksLikeQuestion(text: string) {
+  const t = text.trim().toLowerCase();
+  return (
+    /^(why|how (many|often|come)|has |have |did |does |is there|are there|was there|what (happened|is the status|caused)|who (handled|resolved)|can you (check|investigate|find|look into|compare|summari)|investigate|analy[sz]e|compare|summari[sz]e|any (similar|previous|past))/.test(t) ||
+    (/\?$/.test(t) && t.split(/\s+/).length > 3 && /\b(before|again|similar|history|pattern|trend|usually|recurring|last time)\b/.test(t))
+  );
+}
 import { PRIORITY_CONFIG, DEPT_MAP, STUDIO_MAP, EMPLOYEE_MAP } from "@/lib/iris/types";
 import { toast } from "sonner";
 import {
@@ -204,37 +224,17 @@ export function AIAssistantView() {
       return;
     }
 
-    // Open-ended or complex: ask the IRIS agent (Claude + live tools) on the server.
     try {
-      const { aiTranscript, setAiTranscript } = useAppStore.getState();
-      const out = await api<{
-        transcript: unknown[];
-        reply: string;
-        draft: AgentTicketDraft | null;
-        trace: Array<{ name: string; summary: string; ok: boolean }>;
-      }>("/api/ai/chat", { method: "POST", json: { history: aiTranscript, message: trimmed } });
-      setAiTranscript(out.transcript);
-      addAIMessage({
-        id: generateId("msg"),
-        role: "assistant",
-        content: out.reply || (out.draft ? "I've drafted a ticket — review it below." : "Done."),
-        timestamp: new Date().toISOString(),
-        variant: "default",
-        source: "ai",
-        tools: out.trace.length
-          ? out.trace.map((t) => ({ name: t.summary, status: "complete" as const, result: t.ok ? undefined : "failed" }))
-          : undefined,
-      });
-      if (out.draft) {
-        addAIMessage({
-          id: generateId("msg"),
-          role: "assistant",
-          content: "",
-          timestamp: new Date().toISOString(),
-          variant: "draft",
-          ticketDraft: out.draft,
-          source: "ai",
-        });
+      // A form is open and the user typed more details → fold them in (no AI).
+      const openIntake = [...useAppStore.getState().aiMessages].reverse().find((m) => m.intake && !m.intake.done);
+      if (openIntake?.intake && !looksLikeQuestion(trimmed) && (await addDetailsToIntake(openIntake.id, openIntake.intake, trimmed))) {
+        // folded into the open form
+      } else if (looksLikeQuestion(trimmed)) {
+        // Investigation / open question → full agent.
+        await runAgent(trimmed);
+      } else {
+        // New report → classify (rules + history; AI only if unsure) → structured form.
+        await startIntake(trimmed);
       }
     } catch (e) {
       addAIMessage({
@@ -246,6 +246,147 @@ export function AIAssistantView() {
       });
     }
 
+    setIsProcessing(false);
+    isProcessingRef.current = false;
+  };
+
+  /** Full Claude agent with tools (Momence, ticket history, workload). Costs tokens. */
+  const runAgent = async (message: string) => {
+    const { aiTranscript, setAiTranscript } = useAppStore.getState();
+    const out = await api<{
+      transcript: unknown[];
+      reply: string;
+      draft: AgentTicketDraft | null;
+      trace: Array<{ name: string; summary: string; ok: boolean }>;
+    }>("/api/ai/chat", { method: "POST", json: { history: aiTranscript, message } });
+    setAiTranscript(out.transcript);
+    addAIMessage({
+      id: generateId("msg"),
+      role: "assistant",
+      content: out.reply || (out.draft ? "I've drafted a ticket — review it below." : "Done."),
+      timestamp: new Date().toISOString(),
+      variant: "default",
+      source: "ai",
+      tools: out.trace.length
+        ? out.trace.map((t) => ({ name: t.summary, status: "complete" as const, result: t.ok ? undefined : "failed" }))
+        : undefined,
+    });
+    if (out.draft) {
+      addAIMessage({ id: generateId("msg"), role: "assistant", content: "", timestamp: new Date().toISOString(), variant: "draft", ticketDraft: out.draft, source: "ai" });
+    }
+  };
+
+  /** Classify a new report and open the structured intake form. */
+  const startIntake = async (text: string) => {
+    const r = await api<ClassifyResponse>("/api/intake/classify", { method: "POST", json: { text } });
+    const top = r.confident ? r.candidates[0] : undefined;
+    const f = r.fields ?? {};
+    const intake: IntakeState = {
+      text,
+      category: top?.category ?? null,
+      subcategory: top?.subcategory ?? null,
+      department: top?.department ?? null,
+      // History can over-rate a category (e.g. bikes); only explicit urgency signals justify P0.
+      priority: f.urgent ?? (top?.priority === "P0" ? "P1" : top?.priority) ?? "P2",
+      prioritySuggested: !f.urgent,
+      studioCode: f.studioCode ?? null,
+      when: f.when ?? null,
+      classFormat: f.classFormat ?? null,
+      title: f.title ?? null,
+      member: null,
+      session: null,
+      trainer: null,
+      clientNameHint: f.clientName ?? null,
+      trainerNameHint: f.trainerName ?? null,
+      suggestions: r.candidates.map((c) => ({ category: c.category, subcategory: c.subcategory })),
+      taxonomy: r.taxonomy,
+      detectedBy: r.source,
+      done: false,
+    };
+    const lead = top
+      ? `Got it — this looks like **${top.subcategory ?? top.category}**${f.studioCode ? ` at ${STUDIO_MAP[f.studioCode]?.name ?? f.studioCode}` : ""}. ` +
+        (missingRequired(intake).length
+          ? `I just need the ${missingRequired(intake).join(", ")} below.`
+          : "Check the details and review the ticket.")
+      : r.question
+        ? r.question
+        : "I couldn't tell what kind of issue this is. Pick the closest category below, or add a bit more detail.";
+    addAIMessage({
+      id: generateId("msg"),
+      role: "assistant",
+      content: lead,
+      timestamp: new Date().toISOString(),
+      variant: "intake",
+      intake,
+      source: r.source,
+      rule: r.source === "rules" ? "Classified from your message + similar tickets" : undefined,
+    });
+  };
+
+  /** Extra details typed while a form is open: fill empty fields (no AI). */
+  const addDetailsToIntake = async (messageId: string, state: IntakeState, text: string) => {
+    // A clearly different issue starts a new report instead of being merged.
+    const alone = await api<ClassifyResponse>("/api/intake/classify", { method: "POST", json: { text, allowAi: false } });
+    const own = alone.confident ? alone.candidates[0] : undefined;
+    if (own && state.category && own.category !== state.category && text.split(/\s+/).length >= 5) return false;
+    const r = await api<ClassifyResponse>("/api/intake/classify", { method: "POST", json: { text: `${state.text}\n${text}`, allowAi: false } });
+    const f = r.fields ?? {};
+    const top = r.confident ? r.candidates[0] : undefined;
+    const next: IntakeState = {
+      ...state,
+      text: `${state.text}\n${text}`,
+      studioCode: state.studioCode ?? f.studioCode ?? null,
+      when: state.when ?? f.when ?? null,
+      classFormat: state.classFormat ?? f.classFormat ?? null,
+      trainerNameHint: state.trainerNameHint ?? f.trainerName ?? null,
+      priority: f.urgent && state.prioritySuggested ? f.urgent : state.priority,
+      ...(state.category || !top ? {} : { category: top.category, subcategory: top.subcategory, department: top.department }),
+      suggestions: state.category ? state.suggestions : r.candidates.map((c) => ({ category: c.category, subcategory: c.subcategory })),
+    };
+    useAppStore.getState().updateAIMessage(messageId, { intake: next });
+    const changed = [
+      !state.category && next.category && `category → ${next.subcategory ?? next.category}`,
+      !state.studioCode && next.studioCode && `studio → ${STUDIO_MAP[next.studioCode]?.name ?? next.studioCode}`,
+      !state.when && next.when && `when → ${next.when}`,
+      next.priority !== state.priority && `priority → ${next.priority}`,
+    ].filter(Boolean);
+    addAIMessage({
+      id: generateId("msg"),
+      role: "assistant",
+      content: changed.length ? `Added to the report: ${changed.join(", ")}.` : "Added that to the description.",
+      timestamp: new Date().toISOString(),
+      variant: "default",
+      source: "rules",
+      rule: "Form update",
+    });
+    return true;
+  };
+
+  /** Form submitted → show the draft for confirmation (no AI). */
+  const submitIntake = (draft: AgentTicketDraft) => {
+    addAIMessage({ id: generateId("msg"), role: "assistant", content: "", timestamp: new Date().toISOString(), variant: "draft", ticketDraft: draft, source: "rules", rule: "Built from the form" });
+  };
+
+  /** User chose AI investigation for this report. */
+  const askAiAbout = async (state: IntakeState) => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+    setIsProcessing(true);
+    const details = [
+      state.text,
+      state.category && `Category: ${state.category}${state.subcategory ? ` › ${state.subcategory}` : ""}`,
+      state.studioCode && `Studio: ${state.studioCode}`,
+      state.member && `Member: ${state.member.name} (${state.member.id})`,
+      state.session && `Class: ${state.session.name} ${state.session.subtitle ?? ""} (${state.session.id})`,
+      state.trainer && `Trainer: ${state.trainer.name}`,
+      state.when && `When: ${state.when}`,
+      `Priority so far: ${state.priority}`,
+    ].filter(Boolean).join("\n");
+    try {
+      await runAgent(`Please investigate this report and draft the ticket:\n${details}`);
+    } catch (e) {
+      addAIMessage({ id: generateId("msg"), role: "assistant", content: e instanceof Error ? e.message : "Something went wrong.", timestamp: new Date().toISOString(), variant: "error" });
+    }
     setIsProcessing(false);
     isProcessingRef.current = false;
   };
@@ -420,6 +561,8 @@ export function AIAssistantView() {
                 onButtonClick={handleButtonClick}
                 onCopyMessage={handleMessageCopy}
                 isLast={idx === aiMessages.length - 1}
+                onIntakeSubmit={submitIntake}
+                onIntakeAskAi={askAiAbout}
               />
             ))}
             {isProcessing && <ThinkingIndicator />}
@@ -680,6 +823,8 @@ function MessageBubble({
   onButtonClick,
   onCopyMessage,
   isLast,
+  onIntakeSubmit,
+  onIntakeAskAi,
 }: {
   message: AIMessage;
   onButtonClick: (value: string, label: string) => void;
@@ -689,6 +834,8 @@ function MessageBubble({
     setState: (s: "idle" | "ok" | "err") => void,
   ) => void;
   isLast: boolean;
+  onIntakeSubmit?: (draft: AgentTicketDraft) => void;
+  onIntakeAskAi?: (state: IntakeState) => void;
 }) {
   const isUser = message.role === "user";
   const variant = message.variant || "default";
@@ -788,14 +935,21 @@ function MessageBubble({
               ? "bg-card border border-border rounded-tl-sm"
               : variant === "investigation"
               ? "bg-muted/50 border border-border rounded-tl-sm"
-              : variant === "ticket" || variant === "draft"
+              : variant === "ticket" || variant === "draft" || variant === "intake"
               ? "bg-card border border-border rounded-tl-sm p-0 overflow-hidden"
               : variant === "error"
               ? "bg-rose-500/5 border border-rose-500/30 text-rose-700 dark:text-rose-300 rounded-tl-sm"
               : "bg-card border border-border rounded-tl-sm"
           )}
         >
-          {variant === "draft" && message.ticketDraft ? (
+          {variant === "intake" && message.intake ? (
+            <div>
+              {message.content && (
+                <div className="px-4 pt-3 text-[13px] leading-relaxed whitespace-pre-line">{renderRichContent(message.content)}</div>
+              )}
+              <IntakeCard messageId={message.id} state={message.intake} onSubmit={onIntakeSubmit!} onAskAi={onIntakeAskAi!} />
+            </div>
+          ) : variant === "draft" && message.ticketDraft ? (
             <AgentDraftCard messageId={message.id} draft={message.ticketDraft} created={message.createdTicket} />
           ) : variant === "ticket" && message.ticketPreview ? (
             <TicketPreviewCard ticket={message.ticketPreview} metadata={message.metadata} />

@@ -121,6 +121,35 @@ export interface AgentTicketDraft {
   tags?: string[];
 }
 
+export type IntakeTaxonomy = Array<{
+  category: string;
+  department: string | null;
+  subcategories: Array<{ name: string; department: string | null; priority: "P0" | "P1" | "P2" | "P3"; n: number }>;
+}>;
+
+/** State of a structured intake (deterministic form filled from the user's message). */
+export interface IntakeState {
+  text: string;
+  category: string | null;
+  subcategory: string | null;
+  department: string | null;
+  priority: "P0" | "P1" | "P2" | "P3";
+  prioritySuggested: boolean;
+  studioCode: string | null;
+  when: string | null;
+  classFormat: string | null;
+  title: string | null;
+  member: { id: string; name: string } | null;
+  session: { id: string; name: string; subtitle?: string } | null;
+  trainer: { id: string; name: string } | null;
+  clientNameHint: string | null;
+  trainerNameHint: string | null;
+  suggestions: Array<{ category: string; subcategory: string | null }>;
+  taxonomy: IntakeTaxonomy;
+  detectedBy: "rules" | "ai";
+  done: boolean;
+}
+
 export interface AIMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -142,11 +171,13 @@ export interface AIMessage {
     confidenceScore?: number;
     capturedFields?: Array<{ field: string; value: string }>;
   };
-  variant?: "default" | "question" | "info" | "success" | "investigation" | "ticket" | "draft" | "error";
+  variant?: "default" | "question" | "info" | "success" | "investigation" | "ticket" | "draft" | "error" | "intake";
   /** Ticket proposed by the AI agent, awaiting the user's confirmation. */
   ticketDraft?: AgentTicketDraft;
   /** Set once the draft has been created. */
   createdTicket?: { id: string; ticketId: string };
+  /** Structured intake form shown in this message. */
+  intake?: IntakeState;
   /** Who produced this reply: Claude ("ai") or a deterministic rule ("rules"). */
   source?: "ai" | "rules";
   /** Name of the rule that answered (when source is "rules"). */
