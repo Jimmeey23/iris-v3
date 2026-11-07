@@ -9,6 +9,9 @@ export interface KnowledgeArticle {
   prevention?: string;
   relatedTemplates?: string[];
   escalation?: string;
+  /** Free-form markdown body shown under the steps. */
+  body?: string;
+  tags?: string[];
 }
 
 export const KNOWLEDGE_ARTICLES: KnowledgeArticle[] = [
@@ -547,6 +550,8 @@ export const KNOWLEDGE_ARTICLES: KnowledgeArticle[] = [
   },
 ];
 
-export const KNOWLEDGE_CATEGORIES = Array.from(
-  new Set(KNOWLEDGE_ARTICLES.map((a) => a.category))
-).sort();
+/** Live view of the categories in use (documents are editable, so this is a function). */
+export function knowledgeCategories(): string[] {
+  return Array.from(new Set(KNOWLEDGE_ARTICLES.map((a) => a.category))).sort();
+}
+export const KNOWLEDGE_CATEGORIES = knowledgeCategories();
