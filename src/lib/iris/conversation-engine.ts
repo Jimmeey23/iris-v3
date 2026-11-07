@@ -22,6 +22,7 @@ export interface CollectedInfo {
   impact?: string;
   affectedClient?: string;
   clientIdentifier?: string;
+  clientMomenceVerified?: boolean;
   membershipType?: string;
   momenceId?: string;
   paymentAmount?: string;
@@ -37,13 +38,16 @@ export interface CollectedInfo {
   location?: string;
   instructor?: string;
   sessionTime?: string;
+  sessionMomenceVerified?: boolean;
   additionalContext?: string;
   hasAttachments?: boolean;
   businessImpact?: string;
-  sentiment?: string; // positive | neutral | frustrated | urgent | angry
-  sentimentScore?: number; // 0-100, lower = more negative
-  requiresRecurrence?: boolean; // PowerCycle/mic issues need follow-up tickets
+  sentiment?: string;
+  sentimentScore?: number;
+  requiresRecurrence?: boolean;
   recurrenceReason?: string;
+  isInformationOnly?: boolean;
+  informationOnlyReason?: string;
 }
 
 export interface ConversationState {
@@ -617,6 +621,29 @@ function extractInfoFromText(text: string): Partial<CollectedInfo> {
       : "Studio microphone issues require follow-up checks at 5 and 10 days to verify continued functionality";
     if (isPowercycle && !info.equipment) info.equipment = "PowerCycle Bike";
     if (isMic && !info.equipment) info.equipment = "Microphone";
+  }
+
+  // === INFORMATION-ONLY TICKET DETECTION ===
+  // These categories are treated as information-only by default — no SLA, no resolution needed
+  const infoOnlyKeywords = [
+    "hosted class feedback", "hosted class", "instructor late", "trainer late", "trainer punctuality",
+    "freeze request", "membership freeze", "freeze membership", "pause membership",
+    "feedback", "information only", "for your information", "fyi",
+    "class experience feedback", "post-class feedback",
+  ];
+  const isInfoOnly = infoOnlyKeywords.some((k) => lower.includes(k));
+  if (isInfoOnly) {
+    info.isInformationOnly = true;
+    info.informationOnlyReason = "This issue type is treated as information-only by default — sent to the assigned owner without SLA or resolution requirement";
+  }
+
+  // === FREEZE REQUEST EMAIL AUTO-CONVERSION ===
+  // If the text mentions freeze + email/member context, flag for auto-ticket creation
+  const freezeEmailKeywords = ["freeze", "pause", "injury", "medical", "doctor"];
+  const emailContext = lower.includes("email") || lower.includes("info@") || lower.includes("member") || lower.includes("membership");
+  if (freezeEmailKeywords.some((k) => lower.includes(k)) && emailContext) {
+    info.isInformationOnly = true;
+    info.informationOnlyReason = "Freeze request — auto-converted from incoming email. Treated as information-only, sent to Memberships team without SLA.";
   }
 
   return info;

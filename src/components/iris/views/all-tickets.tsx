@@ -33,13 +33,25 @@ import {
   List,
   Plus,
   X,
+  CheckSquare,
+  Square,
+  ChevronDown,
+  Group,
+  RotateCcw,
+  Tag,
+  UserCheck,
+  Trash2,
+  Layers,
 } from "lucide-react";
 import { TicketWorkspace } from "./ticket-workspace";
 
 export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "my" | "department" | "escalations" }) {
   const { selectedTicketId, selectTicket, ticketFilters, setTicketFilter, resetTicketFilters, currentUser } = useAppStore();
   const [view, setView] = React.useState<"list" | "grid">("list");
-  const [sortBy, setSortBy] = React.useState<"created" | "priority" | "sla">("created");
+  const [sortBy, setSortBy] = React.useState<"created" | "priority" | "sla" | "updated" | "title">("created");
+  const [groupBy, setGroupBy] = React.useState<"none" | "priority" | "status" | "studio" | "department">("none");
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [showBulkActions, setShowBulkActions] = React.useState(false);
 
   const filteredTickets = React.useMemo(() => {
     let result = [...ALL_TICKETS];
@@ -87,10 +99,54 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
     } else if (sortBy === "sla") {
       const order: Record<string, number> = { breached: 0, at_risk: 1, on_track: 2, paused: 3 };
       result.sort((a, b) => order[a.slaStatus] - order[b.slaStatus]);
+    } else if (sortBy === "updated") {
+      result.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    } else if (sortBy === "title") {
+      result.sort((a, b) => a.title.localeCompare(b.title));
     }
 
     return result;
   }, [filterMode, ticketFilters, sortBy, currentUser.id]);
+
+  // Group tickets
+  const groupedTickets = React.useMemo(() => {
+    if (groupBy === "none") return null;
+    const groups: Record<string, Ticket[]> = {};
+    filteredTickets.forEach((t) => {
+      let key = "Other";
+      if (groupBy === "priority") key = t.priority;
+      else if (groupBy === "status") key = t.status;
+      else if (groupBy === "studio") key = t.studioCode || "Unassigned";
+      else if (groupBy === "department") key = t.departmentCode || "Unassigned";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
+    });
+    return groups;
+  }, [filteredTickets, groupBy]);
+
+  // Bulk operations
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+    setShowBulkActions(next.size > 0);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredTickets.length) {
+      setSelectedIds(new Set());
+      setShowBulkActions(false);
+    } else {
+      setSelectedIds(new Set(filteredTickets.map((t) => t.id)));
+      setShowBulkActions(true);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setShowBulkActions(false);
+  };
 
   const selectedTicket = selectedTicketId ? ALL_TICKETS.find((t) => t.id === selectedTicketId) : null;
 
@@ -136,8 +192,23 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="created">Most Recent</SelectItem>
+              <SelectItem value="updated">Last Updated</SelectItem>
               <SelectItem value="priority">Priority</SelectItem>
               <SelectItem value="sla">SLA Status</SelectItem>
+              <SelectItem value="title">Title A-Z</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
+            <SelectTrigger className="h-8 w-[120px] text-[12px]">
+              <Group className="w-3 h-3 mr-1.5" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Grouping</SelectItem>
+              <SelectItem value="priority">By Priority</SelectItem>
+              <SelectItem value="status">By Status</SelectItem>
+              <SelectItem value="studio">By Studio</SelectItem>
+              <SelectItem value="department">By Department</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -196,9 +267,55 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
         )}
       </div>
 
-      {/* Tickets List/Grid */}
+      {/* Bulk Actions Bar */}
+      {showBulkActions && (
+        <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5 iris-scale-in">
+          <span className="text-[12px] font-semibold text-primary">{selectedIds.size} selected</span>
+          <div className="flex-1" />
+          <Button variant="outline" size="sm" className="h-7 text-[11px]">
+            <UserCheck className="w-3 h-3 mr-1" />
+            Assign
+          </Button>
+          <Button variant="outline" size="sm" className="h-7 text-[11px]">
+            <Tag className="w-3 h-3 mr-1" />
+            Add Tag
+          </Button>
+          <Button variant="outline" size="sm" className="h-7 text-[11px]">
+            <Layers className="w-3 h-3 mr-1" />
+            Change Priority
+          </Button>
+          <Button variant="outline" size="sm" className="h-7 text-[11px]">
+            <RotateCcw className="w-3 h-3 mr-1" />
+            Change Status
+          </Button>
+          <Button variant="outline" size="sm" className="h-7 text-[11px] text-rose-600 hover:text-rose-700">
+            <Trash2 className="w-3 h-3 mr-1" />
+            Close
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={clearSelection}>
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
+
+      {/* Grouped or Flat ticket list */}
       {view === "list" ? (
-        <TicketList tickets={filteredTickets} onSelect={selectTicket} />
+        groupedTickets ? (
+          <div className="space-y-4">
+            {Object.entries(groupedTickets).map(([groupKey, tickets]) => (
+              <div key={groupKey}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{groupKey}</div>
+                  <Badge variant="secondary" className="text-[9px] h-4 px-1">{tickets.length}</Badge>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <TicketList tickets={tickets} onSelect={selectTicket} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <TicketList tickets={filteredTickets} onSelect={selectTicket} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} allSelected={selectedIds.size === filteredTickets.length && filteredTickets.length > 0} />
+        )
       ) : (
         <TicketGrid tickets={filteredTickets} onSelect={selectTicket} />
       )}
@@ -262,7 +379,14 @@ function FilterPopover({
   );
 }
 
-function TicketList({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: string) => void }) {
+function TicketList({ tickets, onSelect, selectedIds, onToggleSelect, onToggleSelectAll, allSelected }: {
+  tickets: Ticket[];
+  onSelect: (id: string) => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
+  allSelected?: boolean;
+}) {
   if (tickets.length === 0) {
     return (
       <div className="text-center py-20">
@@ -276,6 +400,13 @@ function TicketList({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: s
         <table className="w-full text-[12px]">
           <thead className="bg-muted/40 border-b border-border">
             <tr>
+              {onToggleSelectAll && (
+                <th className="px-3 py-2.5 w-8">
+                  <button onClick={onToggleSelectAll} className="flex items-center justify-center">
+                    {allSelected ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5 text-muted-foreground" />}
+                  </button>
+                </th>
+              )}
               <th className="text-left px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Ticket</th>
               <th className="text-left px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Priority</th>
               <th className="text-left px-3 py-2.5 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground">Status</th>
@@ -289,25 +420,35 @@ function TicketList({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: s
             {tickets.map((t) => {
               const assignee = getAssignee(t);
               const studio = getStudio(t);
+              const isSelected = selectedIds?.has(t.id);
               return (
                 <tr
                   key={t.id}
-                  onClick={() => onSelect(t.id)}
-                  className="hover:bg-violet-500/5 cursor-pointer transition-colors group"
+                  className={cn(
+                    "hover:bg-primary/5 cursor-pointer transition-colors group",
+                    isSelected && "bg-primary/5"
+                  )}
                 >
-                  <td className="px-3 py-3 max-w-xs">
+                  {onToggleSelect && (
+                    <td className="px-3 py-3 w-8" onClick={(e) => { e.stopPropagation(); onToggleSelect(t.id); }}>
+                      <button className="flex items-center justify-center">
+                        {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5 text-muted-foreground" />}
+                      </button>
+                    </td>
+                  )}
+                  <td className="px-3 py-3 max-w-xs" onClick={() => onSelect(t.id)}>
                     <div className="flex items-center gap-2">
                       <div className="text-[10px] font-mono text-muted-foreground shrink-0">{t.ticketId}</div>
                     </div>
-                    <div className="text-[13px] font-medium truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                    <div className="text-[13px] font-medium truncate group-hover:text-primary transition-colors">
                       {t.title}
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate">{t.category}</div>
                   </td>
-                  <td className="px-3 py-3"><PriorityBadge priority={t.priority} /></td>
-                  <td className="px-3 py-3"><StatusBadge status={t.status} /></td>
-                  <td className="px-3 py-3">{studio && <span className="text-[12px]">{studio.name}</span>}</td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3" onClick={() => onSelect(t.id)}><PriorityBadge priority={t.priority} /></td>
+                  <td className="px-3 py-3" onClick={() => onSelect(t.id)}><StatusBadge status={t.status} /></td>
+                  <td className="px-3 py-3" onClick={() => onSelect(t.id)}>{studio && <span className="text-[12px]">{studio.name}</span>}</td>
+                  <td className="px-3 py-3" onClick={() => onSelect(t.id)}>
                     {assignee ? (
                       <div className="flex items-center gap-1.5">
                         <Avatar className="w-5 h-5">

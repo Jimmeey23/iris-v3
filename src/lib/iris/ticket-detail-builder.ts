@@ -83,6 +83,10 @@ export interface TicketDetailData {
 
   // Resolution permissions
   resolutionPermissions: ResolutionPermissions;
+
+  // Information-only flag
+  isInformationOnly?: boolean;
+  informationOnlyReason?: string;
 }
 
 export interface ConnectedTicket {
@@ -407,6 +411,8 @@ export function buildTicketDetail(state: ConversationState): TicketDetailData {
     sentimentScore: info.sentimentScore,
     recurrence: buildRecurrenceDetail(info, state),
     resolutionPermissions: buildResolutionPermissions(state),
+    isInformationOnly: info.isInformationOnly,
+    informationOnlyReason: info.informationOnlyReason,
   };
 }
 
