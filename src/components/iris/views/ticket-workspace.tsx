@@ -4,9 +4,10 @@ import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
 import { ticketsApi } from "@/lib/iris/live-data";
 import { toast } from "sonner";
-import { Ticket, getAssignee, getReporter, getStudio, getDepartment } from "@/lib/iris/sample-tickets";
+import { Ticket, getAssignee, getReporter, getStudio, getDepartment, isOwner as isTicketOwner } from "@/lib/iris/sample-tickets";
 import { EMPLOYEES, DEPARTMENTS, EMPLOYEE_MAP, Priority, TicketStatus } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge, SLAProgressBar, StudioBadge, DepartmentBadge } from "../badges";
+import { MultiSelect } from "../multi-select";
 import { SmartBadges } from "../smart-badges";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
@@ -54,6 +55,11 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [busy, setBusy] = React.useState(false);
   const [summaryDraft, setSummaryDraft] = React.useState("");
   const readOnly = Boolean(ticket.legacy);
+  const assignmentLocked = readOnly || Boolean(ticket.assignmentLocked);
+  const [ownerIds, setOwnerIds] = React.useState<string[]>(ticket.assigneeIds?.length ? ticket.assigneeIds : ticket.assigneeId ? [ticket.assigneeId] : []);
+  const [primaryOwner, setPrimaryOwner] = React.useState<string | null>(ticket.assigneeId ?? null);
+  const [deptCodes, setDeptCodes] = React.useState<string[]>(ticket.departmentCodes?.length ? ticket.departmentCodes : ticket.departmentCode ? [ticket.departmentCode] : []);
+  const [primaryDept, setPrimaryDept] = React.useState<string | null>(ticket.departmentCode ?? null);
 
   /** Persist a change; on failure show why and keep the UI as it was. */
   const save = async (changes: Record<string, unknown>, success: string) => {
@@ -72,6 +78,27 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const saveOwners = async (next: string[]) => {
+    const prev = ownerIds;
+    setOwnerIds(next);
+    if (!(await save({ assigneeIds: next }, "Owners updated"))) setOwnerIds(prev);
+    else setPrimaryOwner(next.includes(primaryOwner ?? "") ? primaryOwner : next[0] ?? null);
+  };
+  const makePrimaryOwner = async (id: string) => {
+    if (id === primaryOwner) return;
+    if (await save({ assigneeId: id }, "Primary owner updated")) setPrimaryOwner(id);
+  };
+  const saveDepts = async (next: string[]) => {
+    const prev = deptCodes;
+    setDeptCodes(next);
+    if (!(await save({ departmentCodes: next }, "Departments updated"))) setDeptCodes(prev);
+    else setPrimaryDept(next.includes(primaryDept ?? "") ? primaryDept : next[0] ?? null);
+  };
+  const makePrimaryDept = async (code: string) => {
+    if (code === primaryDept) return;
+    if (await save({ departmentCode: code }, "Primary department updated")) setPrimaryDept(code);
   };
 
   const startWork = async () => {
@@ -102,7 +129,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const studio = getStudio(ticket);
 
   // Resolution permission — only owner or their reporting manager can resolve
-  const isOwner = currentUser.id === ticket.assigneeId;
+  const isOwner = isTicketOwner(ticket, currentUser.id) || ownerIds.includes(currentUser.id);
   const isManager = currentUser.tier === "admin" || currentUser.tier === "manager";
   const canResolve = isOwner || isManager;
 
@@ -672,22 +699,18 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     </Select>
                   </div>
                   <div>
-                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Assignee</div>
-                    {assignee ? (
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40">
-                        <Avatar className="w-6 h-6">
-                          <AvatarFallback className={cn("text-white text-[10px] font-semibold", getAvatarColor(assignee.name))}>
-                            {getInitials(assignee.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[12px] font-medium truncate">{assignee.name}</div>
-                          <div className="text-[10px] text-muted-foreground truncate">{assignee.role}</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-muted-foreground italic p-2">Unassigned</div>
-                    )}
+                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Owners{ownerIds.length > 1 && " (click a chip to make primary)"}</div>
+                    <MultiSelect
+                      size="md"
+                      value={ownerIds}
+                      onChange={saveOwners}
+                      primary={ownerIds.length > 1 ? primaryOwner : null}
+                      onPrimaryChange={ownerIds.length > 1 ? makePrimaryOwner : undefined}
+                      disabled={assignmentLocked || busy}
+                      placeholder="Unassigned"
+                      options={EMPLOYEES.map((e) => ({ value: e.id, label: e.name, hint: e.role }))}
+                    />
+                    {ticket.assignmentLocked && <div className="text-[10px] text-muted-foreground mt-1">Imported legacy ticket: owners are locked.</div>}
                   </div>
                   <div>
                     <div className="text-[10px] font-medium text-muted-foreground mb-1">Escalation Level</div>
@@ -710,15 +733,19 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                   </div>
                 </div>
                 <div className="p-3 space-y-2">
-                  {department && (
-                    <div>
-                      <div className="text-[10px] font-medium text-muted-foreground mb-1">Department</div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40">
-                        <Building2 className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-[12px] font-medium">{department.name}</span>
-                      </div>
-                    </div>
-                  )}
+                  <div>
+                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Departments</div>
+                    <MultiSelect
+                      size="md"
+                      value={deptCodes}
+                      onChange={saveDepts}
+                      primary={deptCodes.length > 1 ? primaryDept : null}
+                      onPrimaryChange={deptCodes.length > 1 ? makePrimaryDept : undefined}
+                      disabled={readOnly || busy}
+                      placeholder="None"
+                      options={DEPARTMENTS.map((d) => ({ value: d.code, label: d.name, hint: d.code }))}
+                    />
+                  </div>
                   {studio && (
                     <div>
                       <div className="text-[10px] font-medium text-muted-foreground mb-1">Studio</div>

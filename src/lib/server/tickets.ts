@@ -29,6 +29,8 @@ export function toClientTicket(r: Record<string, any>) {
     studioCode: r.studio_code ?? undefined,
     departmentCode: r.department_code ?? undefined,
     assigneeId: r.assignee_id ?? undefined,
+    departmentCodes: r.department_codes?.length ? r.department_codes : r.department_code ? [r.department_code] : [],
+    assigneeIds: r.assignee_ids?.length ? r.assignee_ids : r.assignee_id ? [r.assignee_id] : [],
     reporterId: r.reporter_id ?? "",
     affectedClient: r.affected_client ?? undefined,
     clientMomenceId: r.client_momence_id ?? undefined,

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
-import { ALL_TICKETS, getAssignee, getReporter, getStudio, getDepartment, Ticket } from "@/lib/iris/sample-tickets";
+import { ALL_TICKETS, isMine, getAssignee, getReporter, getStudio, getDepartment, Ticket } from "@/lib/iris/sample-tickets";
 import { STUDIOS, DEPARTMENTS, Priority, TicketStatus } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge, StudioBadge } from "../badges";
 import { formatRelativeTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
@@ -60,7 +60,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
 
     // Apply mode filter
     if (filterMode === "my") {
-      result = result.filter((t) => t.assigneeId === currentUser.id || t.reporterId === currentUser.id);
+      result = result.filter((t) => isMine(t, currentUser.id));
     } else if (filterMode === "escalations") {
       result = result.filter((t) => t.status === "escalated" || t.slaStatus === "breached" || t.slaStatus === "at_risk");
     }
@@ -86,7 +86,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
       result = result.filter((t) => t.studioCode && ticketFilters.studio.includes(t.studioCode));
     }
     if (ticketFilters.department.length > 0) {
-      result = result.filter((t) => t.departmentCode && ticketFilters.department.includes(t.departmentCode));
+      result = result.filter((t) => (t.departmentCodes?.length ? t.departmentCodes : t.departmentCode ? [t.departmentCode] : []).some((c) => ticketFilters.department.includes(c)));
     }
     if (ticketFilters.slaStatus.length > 0) {
       result = result.filter((t) => ticketFilters.slaStatus.includes(t.slaStatus));
@@ -437,6 +437,7 @@ function TicketList({ tickets, onSelect, selectedIds, onToggleSelect, onToggleSe
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-[12px] truncate">{assignee.name}</span>
+                        {(t.assigneeIds?.length ?? 0) > 1 && <span className="text-[10px] text-muted-foreground shrink-0" title="Additional owners">+{t.assigneeIds!.length - 1}</span>}
                       </div>
                     ) : (
                       <span className="text-[11px] text-muted-foreground italic">Unassigned</span>
@@ -489,7 +490,7 @@ function TicketGrid({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: s
             <div className="text-[13px] font-medium leading-snug line-clamp-2 mb-2">{t.title}</div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-2">
               {studio && <StudioBadge studioCode={studio.code} />}
-              {assignee && <span>· {assignee.name}</span>}
+              {assignee && <span>· {assignee.name}{(t.assigneeIds?.length ?? 0) > 1 ? ` +${t.assigneeIds!.length - 1}` : ""}</span>}
             </div>
             <SmartBadges ticket={t} variant="xs" />
             <div className="mt-2">

@@ -18,6 +18,9 @@ export interface Ticket {
   studioCode?: string;
   departmentCode?: string;
   assigneeId?: string;
+  /** Full owner / department sets (primary included). */
+  assigneeIds?: string[];
+  departmentCodes?: string[];
   reporterId: string;
   affectedClient?: string;
   clientMomenceId?: string;
@@ -54,6 +57,18 @@ export const ALL_TICKETS: Ticket[] = [];
 
 export function getAssignee(ticket: Ticket) {
   return ticket.assigneeId ? EMPLOYEE_MAP[ticket.assigneeId] ?? null : null;
+}
+/** All owners (primary first). */
+export function getAssignees(ticket: Ticket) {
+  const ids = ticket.assigneeIds?.length ? ticket.assigneeIds : ticket.assigneeId ? [ticket.assigneeId] : [];
+  return ids.map((id) => EMPLOYEE_MAP[id]).filter(Boolean);
+}
+/** True if the employee is the primary or a secondary owner. */
+export function isOwner(ticket: Ticket, employeeId: string) {
+  return ticket.assigneeId === employeeId || !!ticket.assigneeIds?.includes(employeeId);
+}
+export function isMine(ticket: Ticket, employeeId: string) {
+  return isOwner(ticket, employeeId) || ticket.reporterId === employeeId;
 }
 export function getReporter(ticket: Ticket) {
   return EMPLOYEE_MAP[ticket.reporterId];

@@ -5,6 +5,8 @@ import { fetchTicket } from "@/lib/server/tickets";
 
 const STATUSES = ["open", "in_progress", "awaiting_response", "resolved", "closed", "escalated"];
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
+const strList = (v: unknown, max = 10) =>
+  Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim().slice(0, 64)))].slice(0, max) : [];
 const SLA = ["on_track", "at_risk", "breached", "paused"];
 
 export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id]">) {
@@ -43,6 +45,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     set("sla_status", b.slaStatus);
   }
   if (b.assigneeId !== undefined) set("assignee_id", b.assigneeId || null);
+  if (Array.isArray(b.assigneeIds)) set("assignee_ids", strList(b.assigneeIds));
+  if (Array.isArray(b.departmentCodes)) set("department_codes", strList(b.departmentCodes));
+  if (b.departmentCode !== undefined) set("department_code", b.departmentCode || null);
   if (typeof b.resolutionSummary === "string") set("resolution_summary", b.resolutionSummary.slice(0, 5000));
   if (typeof b.resolution === "string") set("resolution", b.resolution.slice(0, 5000));
   if (typeof b.investigationNotes === "string") set("investigation_notes", b.investigationNotes.slice(0, 10000));
@@ -57,7 +62,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     const ticket = await withUser(auth.session.user_id, async (c) => {
       const cur = (await c.query("select metadata from tickets where id = $1", [id])).rows[0];
       if (!cur) return null;
-      if (cur.metadata?.lock_assignment && b.assigneeId !== undefined) {
+      if (cur.metadata?.lock_assignment && (b.assigneeId !== undefined || b.assigneeIds !== undefined)) {
         throw Object.assign(new Error("Imported legacy tickets can't be reassigned"), { code: "P0001" });
       }
       if (cur.metadata?.legacy_import && (b.status !== undefined || b.extendSlaHours !== undefined || b.slaStatus !== undefined)) {

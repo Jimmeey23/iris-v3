@@ -18,6 +18,8 @@ export async function GET() {
 
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
 const SOURCES = ["manual", "ai_assistant", "email", "webhook", "form_intake", "voice"];
+const strList = (v: unknown, max = 10) =>
+  Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim().slice(0, 64)))].slice(0, max) : [];
 const str = (v: unknown, max = 5000) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
 export async function POST(request: Request) {
@@ -38,8 +40,8 @@ export async function POST(request: Request) {
         `insert into tickets (title, description, category, subcategory, priority, studio_code, department_code,
            assignee_id, reporter_id, affected_client, client_momence_id, membership_id, booking_id,
            business_impact, operational_impact, severity, recommended_resolution, tags, source,
-           collected_info, created_by_user_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21)
+           collected_info, created_by_user_id, department_codes, assignee_ids)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22,$23)
          returning id, assignee_id`,
         [
           title, str(b.description) ?? "", category, str(b.subcategory, 120), priority,
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
           str(b.membershipId, 64), str(b.bookingId, 64), str(b.businessImpact), str(b.operationalImpact),
           str(b.severity, 40), str(b.recommendedResolution), tags, source,
           JSON.stringify(b.collectedInfo && typeof b.collectedInfo === "object" ? b.collectedInfo : {}),
-          session.user_id,
+          session.user_id, strList(b.departmentCodes), strList(b.assigneeIds),
         ],
       );
       const id = rows[0].id as string;
