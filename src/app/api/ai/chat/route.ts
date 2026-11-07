@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { withUser } from "@/lib/server/db";
 import { requireSession } from "@/lib/server/auth";
+import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import { runTurn } from "@/lib/server/agent";
 
 export const maxDuration = 120;
@@ -9,6 +10,16 @@ export const maxDuration = 120;
 export async function POST(request: Request) {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
+  // A conversation turn costs a model call: 30/min per user stops a script from
+  // spending the workspace's Anthropic budget without slowing a fast typist.
+  try {
+    await enforceRateLimit("ai-chat", userKey(auth.session.user_id));
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      return NextResponse.json({ error: e.message }, { status: 429, headers: { "Retry-After": String(e.resetsInSec) } });
+    }
+    return NextResponse.json({ error: "The AI service is busy. Try again in a moment." }, { status: 503 });
+  }
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "The AI assistant isn't configured (ANTHROPIC_API_KEY missing)." }, { status: 503 });
   }

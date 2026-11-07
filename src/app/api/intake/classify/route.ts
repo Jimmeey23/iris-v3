@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
+import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import { classify, extractFields, taxonomy, type Candidate } from "@/lib/server/intake";
 import { aiClassify } from "@/lib/server/ai-classify";
 
@@ -11,6 +12,16 @@ import { aiClassify } from "@/lib/server/ai-classify";
 export async function POST(request: Request) {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
+  // Classification may fall through to one AI call; the limit keeps a script from
+  // burning the budget. Rules-only replies still count — cheaper to keep one path.
+  try {
+    await enforceRateLimit("intake-classify", userKey(auth.session.user_id));
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      return NextResponse.json({ error: e.message }, { status: 429, headers: { "Retry-After": String(e.resetsInSec) } });
+    }
+    return NextResponse.json({ error: "Try again in a moment." }, { status: 503 });
+  }
   const b = await request.json().catch(() => ({}));
   const text = typeof b.text === "string" ? b.text.trim().slice(0, 4000) : "";
   if (!text) return NextResponse.json({ error: "Text is empty" }, { status: 400 });

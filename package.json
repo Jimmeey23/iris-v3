@@ -8,6 +8,7 @@
     "start": "NODE_ENV=production node .next/standalone/server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p .",
+    "test": "bun test scripts/unit",
     "db:import-tickets": "node scripts/import-tickets.cjs db/import/tickets_rows.csv --commit && node scripts/close-legacy-tickets.cjs"
   },
   "dependencies": {

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { notifyTicketEvent } from "@/lib/server/notify";
+import { enforceRateLimit, userKey } from "@/lib/server/rate-limit";
+import { normalizeIdempotencyKey, idempotentReplayHeader } from "@/lib/iris/ops-policy";
+import { sweepAfterResponse } from "@/lib/server/sweeps";
 import { TICKET_LIST_SELECT, attachThreads, fetchTicket, toClientTicket } from "@/lib/server/tickets";
 
 export async function GET() {
@@ -14,6 +17,9 @@ export async function GET() {
       (await c.query(`${TICKET_LIST_SELECT} order by t.created_at desc`)).rows,
     );
     await asSystem((c) => attachThreads(c, rows));
+    // Every open tab polls this route — the request-driven sweeps (SLA, escalation,
+    // outbox drain) ride on it after the response, claimed once per window.
+    sweepAfterResponse();
     return NextResponse.json({ tickets: rows.map(toClientTicket) });
   } catch (err) {
     return dbError(err);
@@ -30,6 +36,13 @@ export async function POST(request: Request) {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
+  // A script filling the queue (and fanning out a notification per row) is not a person.
+  try {
+    await enforceRateLimit("ticket-create", userKey(session.user_id));
+  } catch (e) {
+    const resetsIn = e instanceof Error && "resetsInSec" in e ? String((e as { resetsInSec: number }).resetsInSec) : "60";
+    return NextResponse.json({ error: (e as Error).message }, { status: 429, headers: { "Retry-After": resetsIn } });
+  }
   const b = await request.json().catch(() => ({}));
   const title = str(b.title, 300);
   const category = str(b.category, 120);
@@ -37,15 +50,34 @@ export async function POST(request: Request) {
   const priority = PRIORITIES.includes(b.priority) ? b.priority : "P2";
   const source = SOURCES.includes(b.source) ? b.source : "manual";
   const tags = Array.isArray(b.tags) ? b.tags.filter((t: unknown) => typeof t === "string").slice(0, 20) : [];
+  // One-shot guard: a double submit or a retried request with the same Idempotency-Key
+  // header (or body field) returns the first ticket instead of filing a second one.
+  const idempotencyKey = normalizeIdempotencyKey(
+    request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key") ?? b.idempotencyKey,
+  );
 
   try {
+    if (idempotencyKey) {
+      const existingId = await withUser(session.user_id, async (c) => {
+        const { rows } = await c.query(`select id from tickets where created_by_user_id = $1 and idempotency_key = $2`, [
+          session.user_id,
+          idempotencyKey,
+        ]);
+        return rows[0]?.id as string | undefined;
+      });
+      if (existingId) {
+        const ticket = await withUser(session.user_id, (c) => fetchTicket(c, existingId));
+        return NextResponse.json({ ticket }, { headers: idempotentReplayHeader(idempotencyKey) });
+      }
+    }
+
     const ticket = await withUser(session.user_id, async (c) => {
       const { rows } = await c.query(
         `insert into tickets (title, description, category, subcategory, priority, studio_code, department_code,
            assignee_id, reporter_id, affected_client, client_momence_id, membership_id, booking_id,
            business_impact, operational_impact, severity, recommended_resolution, tags, source,
-           collected_info, created_by_user_id, department_codes, assignee_ids)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22,$23)
+           collected_info, created_by_user_id, department_codes, assignee_ids, idempotency_key)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22,$23,$24)
          returning id, assignee_id`,
         [
           title, str(b.description) ?? "", category, str(b.subcategory, 120), priority,
@@ -54,7 +86,7 @@ export async function POST(request: Request) {
           str(b.membershipId, 64), str(b.bookingId, 64), str(b.businessImpact), str(b.operationalImpact),
           str(b.severity, 40), str(b.recommendedResolution), tags, source,
           JSON.stringify(b.collectedInfo && typeof b.collectedInfo === "object" ? b.collectedInfo : {}),
-          session.user_id, strList(b.departmentCodes), strList(b.assigneeIds),
+          session.user_id, strList(b.departmentCodes), strList(b.assigneeIds), idempotencyKey,
         ],
       );
       const id = rows[0].id as string;

@@ -37,6 +37,16 @@ export async function api<T = any>(url: string, init?: RequestInit & { json?: un
   return data as T;
 }
 
+/** 22-char url-safe id for the ticket-creation idempotency key. */
+function cryptoIdempotencyKey(): string {
+  const c = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID().replace(/-/g, "").slice(0, 22);
+  const bytes = new Uint8Array(16);
+  if (c?.getRandomValues) c.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 22);
+}
+
 function replaceArray<T>(target: T[], items: T[]) {
   target.length = 0;
   target.push(...items);
@@ -129,7 +139,18 @@ export async function reloadReference() {
 }
 
 export const ticketsApi = {
-  create: async (body: Record<string, unknown>) => upsertTicket((await api("/api/tickets", { method: "POST", json: body })).ticket),
+  create: async (body: Record<string, unknown>) => {
+    // One-shot guard: every creation POST carries an Idempotency-Key. A double submit
+    // or a flaky-network duplicate returns the first ticket instead of filing two.
+    // A view that retries the *same* logical submission should pass its own stable key
+    // via body.idempotencyKey so the replay is honoured.
+    const keyed = {
+      idempotencyKey:
+        typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : cryptoIdempotencyKey(),
+      ...body,
+    };
+    upsertTicket((await api("/api/tickets", { method: "POST", json: keyed, headers: { "Idempotency-Key": keyed.idempotencyKey } })).ticket);
+  },
   update: async (id: string, body: Record<string, unknown>) =>
     upsertTicket((await api(`/api/tickets/${encodeURIComponent(id)}`, { method: "PATCH", json: body })).ticket),
   comment: async (id: string, content: string, isInternal = true) => {

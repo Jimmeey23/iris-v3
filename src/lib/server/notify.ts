@@ -3,9 +3,16 @@ import { after } from "next/server";
 import type { PoolClient } from "pg";
 import { pool } from "./db";
 import { sendMail, mailConfigured } from "./mailer";
+import { enqueueEmail } from "./outbox";
+import { RULE_EVENT, statusEvent, type NotifyEvent } from "@/lib/iris/notify-events";
 import {
   BRAND, button, emailDocument, esc, fact, firstName, greeting, grid, label, priorityPill, section,
 } from "./email-layout";
+
+// The event taxonomy lives in lib/iris/notify-events (pure) so the sweeps and the unit
+// tests share it; re-exported here for the routes that already import it from this module.
+export { RULE_EVENT, statusEvent };
+export type { NotifyEvent };
 
 /**
  * Stage-based ticket notifications.
@@ -16,37 +23,14 @@ import {
  *
  * Per event: read iris.notification_rules (admin-editable) -> resolve recipients -> honour
  * app_settings channel switches and each user's preferences -> write in-app rows through
- * iris.create_notification and send email. iris.email_log makes every (event, ticket,
+ * iris.create_notification and queue email. iris.email_log makes every (event, ticket,
  * recipient, channel) idempotent and doubles as the audit trail.
+ *
+ * Email delivery is *queued*, not inline (ported from iris-ai-v2): a claimed row is
+ * inserted into iris.outbox and a drain worker sends it with exponential-backoff
+ * retries (lib/server/outbox). A Mailtrap outage therefore delays mail instead of
+ * losing it. `ops.email_via_outbox = false` falls back to the old inline send.
  */
-
-export type NotifyEvent =
-  | "ticket_created"
-  | "ticket_assigned"
-  | "status_in_progress"
-  | "status_awaiting_response"
-  | "status_resolved"
-  | "status_closed"
-  | "status_reopened"
-  | "comment_added"
-  | "escalated"
-  | "sla_at_risk"
-  | "sla_breached";
-
-/** Event -> notification_rules.event (the names shown in Settings > Notifications). */
-export const RULE_EVENT: Record<NotifyEvent, string> = {
-  ticket_created: "Ticket created",
-  ticket_assigned: "Ticket assigned",
-  status_in_progress: "Ticket in progress",
-  status_awaiting_response: "Awaiting response",
-  status_resolved: "Ticket resolved",
-  status_closed: "Ticket closed",
-  status_reopened: "Ticket reopened",
-  comment_added: "New comment",
-  escalated: "Ticket escalated",
-  sla_at_risk: "SLA approaching",
-  sla_breached: "SLA breached",
-};
 
 export type NotifyTicket = {
   id: string;
@@ -100,21 +84,6 @@ const IN_APP_TYPE: Record<NotifyEvent, "critical" | "sla" | "escalated" | "assig
 
 const appOrigin = () => (process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000").replace(/\/+$/, "");
 
-/** Map a PATCH status change onto an event, or null if the move isn't a notifying stage. */
-export function statusEvent(from: string | null | undefined, to: string): NotifyEvent | null {
-  if (from === to) return null;
-  const reopened = (from === "resolved" || from === "closed") && (to === "open" || to === "in_progress");
-  if (reopened) return "status_reopened";
-  switch (to) {
-    case "in_progress": return "status_in_progress";
-    case "awaiting_response": return "status_awaiting_response";
-    case "resolved": return "status_resolved";
-    case "closed": return "status_closed";
-    case "escalated": return "escalated";
-    default: return null;
-  }
-}
-
 // ---------------------------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------------------------
@@ -147,7 +116,7 @@ async function logFailure(event: string, ticketId: string, err: unknown) {
 // Delivery
 // ---------------------------------------------------------------------------------------------
 
-type DeliverSummary = { event: NotifyEvent; recipients: number; inApp: number; email: number; skipped: number };
+type DeliverSummary = { event: NotifyEvent; recipients: number; inApp: number; email: number; queued: number; skipped: number };
 
 async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyActor, extra: NotifyExtra): Promise<DeliverSummary | null> {
   const client = await pool.connect();
@@ -158,7 +127,7 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
     if (!rule) return null;
 
     const settings = Object.fromEntries(
-      (await client.query("select key, value from app_settings where key like 'notifications.%'")).rows.map((r) => [r.key, r.value]),
+      (await client.query("select key, value from app_settings where key like 'notifications.%' or key = 'ops.email_via_outbox'")).rows.map((r) => [r.key, r.value]),
     );
     const inAppOn = rule.in_app && settings["notifications.in_app_enabled"] !== false;
     const emailOn = rule.email && settings["notifications.email_enabled"] !== false;
@@ -170,15 +139,17 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
       .filter((r) => r.employeeId !== actor?.employee_id || event === "escalated" || event.startsWith("sla_"));
 
     const bucket = extra.dedupe ?? String(Math.floor(Date.now() / 60_000));
-    const summary: DeliverSummary = { event, recipients: recipients.length, inApp: 0, email: 0, skipped: 0 };
+    const summary: DeliverSummary = { event, recipients: recipients.length, inApp: 0, email: 0, queued: 0, skipped: 0 };
     const dry = extra.dryRun || process.env.NOTIFY_DRY_RUN === "1";
+    const viaOutbox = settings["ops.email_via_outbox"] !== false;
 
     for (const r of recipients) {
       const base = `${event}:${t.id}:${r.employeeId}:${bucket}`;
       const copy = buildCopy(event, t, r, actor, extra);
 
       if (inAppOn && r.userId && r.wantsInApp) {
-        if (await claim(client, `${base}:in_app`, "in_app", event, t.id, r.userId, r.email, copy.subject)) {
+        const logId = await claim(client, `${base}:in_app`, "in_app", event, t.id, r.userId, r.email, copy.subject);
+        if (logId) {
           try {
             await client.query("select create_notification($1, $2, $3, $4, $5, $6)", [
               r.userId, IN_APP_TYPE[event], copy.inAppTitle, copy.inAppBody, t.id, t.priority ?? "P3",
@@ -192,10 +163,24 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
       }
 
       if (emailOn && r.wantsEmail && r.email) {
-        if (await claim(client, `${base}:email`, "email", event, t.id, r.userId, r.email, copy.subject)) {
+        const logId = await claim(client, `${base}:email`, "email", event, t.id, r.userId, r.email, copy.subject);
+        if (logId) {
           if (dry || !mailConfigured()) {
             await finish(client, `${base}:email`, dry ? "dry_run" : "skipped", dry ? "dry_run" : null, undefined, dry ? undefined : "mail not configured");
             summary.skipped++;
+            continue;
+          }
+          if (viaOutbox) {
+            // Queue for the drain worker (exponential-backoff retries); the outbox
+            // settles the email_log row to sent/failed when it finishes with it.
+            try {
+              await enqueueEmail({ to: r.email, subject: copy.subject, html: copy.html, text: copy.text }, { emailLogId: logId });
+              await finish(client, `${base}:email`, "queued", null);
+              summary.queued++;
+            } catch (e) {
+              await finish(client, `${base}:email`, "failed", null, undefined, (e as Error).message);
+              await logFailure(event, t.id, e);
+            }
             continue;
           }
           try {
@@ -209,20 +194,24 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
         }
       }
     }
+    // Anything queued: give the drain a nudge right away so a quiet deployment still
+    // delivers in seconds. The sweeps and the cron call deliverPending too; it is
+    // claim-safe to run concurrently.
+    if (summary.queued > 0) void deliverPending({ limit: 5 }).catch(() => {});
     return summary;
   } finally {
     client.release();
   }
 }
 
-/** Insert the idempotency row; false means someone already handled this key. */
-async function claim(c: PoolClient, key: string, channel: string, event: string, ticketId: string, userId: string | null, recipient: string, subject: string) {
-  const { rowCount } = await c.query(
+/** Insert the idempotency row; returns its id, or null when someone already handled this key. */
+async function claim(c: PoolClient, key: string, channel: string, event: string, ticketId: string, userId: string | null, recipient: string, subject: string): Promise<string | null> {
+  const { rows, rowCount } = await c.query<{ id: string }>(
     `insert into email_log (dedupe_key, channel, event, ticket_id, user_id, recipient, subject)
-     values ($1,$2,$3,$4,$5,$6,$7) on conflict (dedupe_key) do nothing`,
+     values ($1,$2,$3,$4,$5,$6,$7) on conflict (dedupe_key) do nothing returning id`,
     [key, channel, event, ticketId, userId, recipient, subject],
   );
-  return (rowCount ?? 0) > 0;
+  return (rowCount ?? 0) > 0 ? rows[0].id : null;
 }
 
 async function finish(c: PoolClient, key: string, status: string, provider: string | null, providerId?: string, error?: string) {

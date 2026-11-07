@@ -2,11 +2,22 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { notifyTicketEvent } from "@/lib/server/notify";
 import { dbError, requireSession } from "@/lib/server/auth";
+import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets/[id]/comments">) {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
+  // Cheap to write, but each comment can fan out to email — the limit stops a script
+  // from turning the studio's inboxes into a mailbomb.
+  try {
+    await enforceRateLimit("ticket-write", userKey(session.user_id));
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      return NextResponse.json({ error: e.message }, { status: 429, headers: { "Retry-After": String(e.resetsInSec) } });
+    }
+    return NextResponse.json({ error: "Try again in a moment." }, { status: 503 });
+  }
   const { id } = await ctx.params;
   const b = await request.json().catch(() => ({}));
   const content = typeof b.content === "string" ? b.content.trim().slice(0, 10000) : "";
