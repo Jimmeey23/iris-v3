@@ -7,6 +7,7 @@
 
 import { inferDepartment } from "./iris-constants";
 import { formatFieldValue, isFieldFilled } from "./template-form";
+import { rosterText, sessionLabelOf } from "./roster-field";
 import { SEVERITY_BY_PRIORITY } from "./template-types";
 import type { TemplateField, TemplatePriority, TicketTemplate } from "./template-types";
 
@@ -104,7 +105,8 @@ export function fieldLines(fields: TemplateField[], values: FieldValues): Array<
   for (const f of fields) {
     const v = values[f.id];
     if (f.type !== "checkbox" && !isFieldFilled(f, v)) continue;
-    const text = formatFieldValue(f.type === "checkbox" ? v === true : v);
+    const text =
+      f.type === "roster" ? rosterText(v) : f.type === "session" ? sessionLabelOf(v) : formatFieldValue(f.type === "checkbox" ? v === true : v);
     // "What happened?" reads better as "What happened: …" in the ticket.
     if (text) out.push([f.label.trim().replace(/[?:]+$/, ""), text]);
   }

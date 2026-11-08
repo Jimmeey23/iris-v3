@@ -19,9 +19,10 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 /** Live search against Momence via the IRIS server (credentials never reach the browser). */
-async function searchMomence(type: "momence_member" | "momence_session" | "momence_trainer", q: string): Promise<MomenceEntity[]> {
+async function searchMomence(type: "momence_member" | "momence_session" | "momence_trainer", q: string, sessionTypes?: string[]): Promise<MomenceEntity[]> {
   const path = type === "momence_member" ? "members" : type === "momence_session" ? "sessions" : "trainers";
-  const res = await fetch(new URL(`/api/momence/${path}?q=${encodeURIComponent(q)}`, window.location.origin), { cache: "no-store" });
+  const extra = sessionTypes?.length ? `&types=${encodeURIComponent(sessionTypes.join(","))}` : "";
+  const res = await fetch(new URL(`/api/momence/${path}?q=${encodeURIComponent(q)}${extra}`, window.location.origin), { cache: "no-store" });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error || `Momence search failed (${res.status})`);
   if (type === "momence_member") {
@@ -88,11 +89,15 @@ export function MomenceSearchField({
   type,
   placeholder,
   onSelect,
+  sessionTypes,
 }: {
   type: "momence_member" | "momence_session" | "momence_trainer";
   placeholder?: string;
   onSelect: (entity: MomenceEntity) => void;
+  /** Momence session types to search, e.g. ["private"] for hosted classes. */
+  sessionTypes?: string[];
 }) {
+  const typesKey = sessionTypes?.join(",") ?? "";
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<MomenceEntity[]>([]);
   const [searching, setSearching] = React.useState(false);
@@ -107,25 +112,25 @@ export function MomenceSearchField({
 
   React.useEffect(() => {
     const q = query.trim();
-    // Sessions can be listed with no text (today's classes); members/trainers need 2+ chars.
-    if (type !== "momence_session" && q.length < 2) {
+    // Sessions and trainers list on focus with no text; members need 2+ chars.
+    if (type === "momence_member" && q.length < 2) {
       setResults([]);
       setError(null);
       return;
     }
-    if (type === "momence_session" && !q && !showResults) return;
+    if (type !== "momence_member" && !q && !showResults) return;
     // Stale responses are ignored rather than aborted: some browser
     // extensions wrap fetch and surface aborts as uncaught errors.
     let stale = false;
     setSearching(true);
     const t = setTimeout(() => {
-      searchMomence(type, q)
+      searchMomence(type, q, typesKey ? typesKey.split(",") : undefined)
         .then((r) => { if (!stale) { setResults(r); setError(null); setShowResults(true); } })
         .catch((e) => { if (!stale) { setError(e.message); setResults([]); setShowResults(true); } })
         .finally(() => { if (!stale) setSearching(false); });
     }, 350);
     return () => { stale = true; clearTimeout(t); };
-  }, [query, type, showResults]);
+  }, [query, type, showResults, typesKey]);
 
   const handleSelect = (entity: MomenceEntity) => {
     setSelected(entity);
@@ -221,7 +226,7 @@ export function MomenceSearchField({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => (query || type === "momence_session") && setShowResults(true)}
+          onFocus={() => (query || type !== "momence_member") && setShowResults(true)}
           placeholder={placeholder || (type === "momence_member" ? "Search members by name, email or phone" : type === "momence_session" ? "Search classes by name, trainer or studio" : "Search trainers")}
           className="w-full h-11 pl-10 pr-20 text-[13px] rounded-xl border border-violet-500/30 bg-card focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all placeholder:text-muted-foreground"
         />

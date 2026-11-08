@@ -18,12 +18,16 @@ const g = globalThis as unknown as {
     at: number;
     list: Array<{ id: string; name: string; region: Region; locations: string[]; classes: number }>;
   };
+  momenceSessionCache?: { at: number; list: SessionSummary[] };
+  momencePrivateCache?: { at: number; list: SessionSummary[] };
+  momenceSessionLoad?: Promise<SessionSummary[]>;
 };
 const tokens = (g.momenceTokens ??= {});
 
 export function clearMomenceTokenCache() {
   for (const r of REGIONS) delete tokens[r];
   delete g.momenceTrainers;
+  delete g.momenceSessionCache;
 }
 
 function creds(region: Region) {
@@ -304,13 +308,97 @@ function toSession(region: Region, s: any): SessionSummary {
   };
 }
 
+const CACHE_PAST_DAYS = 30;
+const CACHE_FUTURE_DAYS = 14;
+const SESSION_TTL = 10 * 60_000;
+
+/** All pages of /host/sessions for one region: first page, then the rest in parallel. */
+async function fetchSessionWindow(r: Region, from: Date, to: Date): Promise<SessionSummary[]> {
+  const params = { pageSize: 100, startAfter: from.toISOString(), startBefore: to.toISOString(), sortBy: "startsAt", sortOrder: "ASC" };
+  const first = await get(r, "/host/sessions", { ...params, page: 0 });
+  const total = Math.min(first.pagination?.totalCount ?? 0, 3000);
+  const pages = Math.ceil(total / 100);
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, pages - 1) }, (_, i) => get(r, "/host/sessions", { ...params, page: i + 1 }).catch(() => ({ payload: [] }))),
+  );
+  return [first, ...rest].flatMap((j) => (j.payload ?? []).map((x: any) => toSession(r, x)));
+}
+
+/**
+ * Sessions from 30 days ago to 14 days ahead, all regions, cached for 10 minutes and
+ * shared by class search and the trainer list. Concurrent callers share one load.
+ */
+export async function recentSessions(): Promise<SessionSummary[]> {
+  const c = g.momenceSessionCache;
+  if (c && Date.now() - c.at < SESSION_TTL) return c.list;
+  if (!g.momenceSessionLoad) {
+    const from = new Date(Date.now() - CACHE_PAST_DAYS * 86400_000);
+    const to = new Date(Date.now() + CACHE_FUTURE_DAYS * 86400_000);
+    g.momenceSessionLoad = (async () => {
+      const results = await Promise.allSettled(configuredRegions().map((r) => fetchSessionWindow(r, from, to)));
+      const list = results.flatMap((x) => (x.status === "fulfilled" ? x.value : []));
+      if (!list.length && results.length && results.every((x) => x.status === "rejected")) throw (results[0] as PromiseRejectedResult).reason;
+      g.momenceSessionCache = { at: Date.now(), list };
+      return list;
+    })().finally(() => { g.momenceSessionLoad = undefined; });
+  }
+  // Serve stale data while a refresh is in flight.
+  return c ? c.list : g.momenceSessionLoad;
+}
+
+/** Start loading the session cache in the background (e.g. when a chat starts). */
+export function warmMomenceSessions() {
+  if (configuredRegions().length) void recentSessions().catch(() => {});
+}
+
+/** Private / hosted classes (Momence types[]=private), 120 days back to 30 ahead, newest first. Cached 10 min. */
+async function privateSessions(): Promise<SessionSummary[]> {
+  const c = g.momencePrivateCache;
+  if (c && Date.now() - c.at < SESSION_TTL) return c.list;
+  const from = new Date(Date.now() - 120 * 86400_000);
+  const to = new Date(Date.now() + 30 * 86400_000);
+  const results = await Promise.allSettled(
+    configuredRegions().map(async (r) => {
+      const params = { pageSize: 100, startAfter: from.toISOString(), startBefore: to.toISOString(), sortBy: "startsAt", sortOrder: "DESC", "types[]": "private" };
+      const first = await get(r, "/host/sessions", { ...params, page: 0 });
+      const pages = Math.ceil(Math.min(first.pagination?.totalCount ?? 0, 1000) / 100);
+      const rest = await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, i) => get(r, "/host/sessions", { ...params, page: i + 1 }).catch(() => ({ payload: [] }))));
+      return [first, ...rest].flatMap((j) => (j.payload ?? []).map((x: any) => toSession(r, x)));
+    }),
+  );
+  const list = results.flatMap((x) => (x.status === "fulfilled" ? x.value : [])).sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+  if (!list.length && results.length && results.every((x) => x.status === "rejected")) throw (results[0] as PromiseRejectedResult).reason;
+  g.momencePrivateCache = { at: Date.now(), list };
+  return list;
+}
+
 export async function searchSessions(opts: {
   from?: string;
   to?: string;
   query?: string;
   limit?: number;
   region?: Region | "all";
+  /** Momence session types, e.g. ["private"] for hosted classes. */
+  types?: string[];
 }) {
+  if (opts.types?.includes("private")) {
+    const terms = (opts.query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+    return (await privateSessions())
+      .filter((s) => !opts.region || opts.region === "all" || s.region === opts.region)
+      .filter((s) => !terms.length || terms.every((t) => `${s.name} ${s.teacher ?? ""} ${s.location ?? ""}`.toLowerCase().includes(t)))
+      .slice(0, opts.limit ?? 50);
+  }
+  // No explicit window: search the cached -30/+14 day window, nearest to now first.
+  if (!opts.from && !opts.to) {
+    const q0 = (opts.query ?? "").toLowerCase().trim();
+    const terms0 = q0.split(/\s+/).filter(Boolean);
+    const now = Date.now();
+    return (await recentSessions())
+      .filter((s) => !opts.region || opts.region === "all" || s.region === opts.region)
+      .filter((s) => !terms0.length || terms0.every((t) => `${s.name} ${s.teacher ?? ""} ${s.location ?? ""}`.toLowerCase().includes(t)))
+      .sort((a, b) => Math.abs(Date.parse(a.startsAt) - now) - Math.abs(Date.parse(b.startsAt) - now))
+      .slice(0, opts.limit ?? 50);
+  }
   const from = opts.from ? new Date(opts.from) : new Date(Date.now() - 24 * 3600_000);
   const to = opts.to ? new Date(opts.to) : new Date(from.getTime() + 3 * 24 * 3600_000);
   if (isNaN(+from) || isNaN(+to)) throw new Error("Invalid date range");
@@ -355,11 +443,7 @@ export async function searchSessions(opts: {
 
 export async function listTrainers(query = "", regionFilter?: Region | "all") {
   if (!g.momenceTrainers || Date.now() - g.momenceTrainers.at > 6 * 3600_000) {
-    const sessions = await searchSessions({
-      from: new Date(Date.now() - 30 * 24 * 3600_000).toISOString(),
-      to: new Date(Date.now() + 7 * 24 * 3600_000).toISOString(),
-      limit: 100_000,
-    });
+    const sessions = await recentSessions();
     const map = new Map<
       string,
       { id: string; name: string; region: Region; locations: Set<string>; classes: number }

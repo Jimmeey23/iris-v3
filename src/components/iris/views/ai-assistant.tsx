@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   Loader2,
   ArrowRight,
+  Trash2,
   Ticket as TicketIcon,
   User,
   Building2,
@@ -63,6 +64,7 @@ import {
   History as HistoryIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { IrisAvatar } from "@/components/iris/iris-avatar";
 import { Button } from "@/components/ui/button";
 import { createTicketFromDetail, api, ticketsApi } from "@/lib/iris/live-data";
 import type { AgentTicketDraft } from "@/lib/iris/store";
@@ -95,6 +97,7 @@ function looksLikeQuestion(text: string) {
 import { PRIORITY_CONFIG, DEPT_MAP, STUDIO_MAP, EMPLOYEE_MAP } from "@/lib/iris/types";
 import { toast } from "sonner";
 import { buildWelcome, detectLiveContext } from "@/lib/iris/chat-welcome";
+import { detailsFromText, memberLines } from "@/lib/iris/intake-details";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -225,7 +228,7 @@ export function AIAssistantView() {
 
     // Deterministic first: predictable requests are answered instantly with no AI tokens.
     const pendingMsg = [...useAppStore.getState().aiMessages].reverse().find((m) => m.ticketDraft);
-    const pendingDraft = pendingMsg && !pendingMsg.createdTicket ? pendingMsg : undefined;
+    const pendingDraft = pendingMsg && !pendingMsg.createdTicket && !pendingMsg.discarded ? pendingMsg : undefined;
     const ruled = await routeDeterministic(trimmed, {
       user: currentUser,
       pendingDraft: pendingDraft?.ticketDraft ?? null,
@@ -362,11 +365,13 @@ export function AIAssistantView() {
       taxonomy: r.taxonomy,
       detectedBy: r.source,
       done: false,
+      details: detailsFromText(text),
+      memberSnapshot: null,
     };
     const lead = top
       ? `Got it - this looks like **${top.subcategory ?? top.category}**${f.studioCode ? ` at ${STUDIO_MAP[f.studioCode]?.name ?? f.studioCode}` : ""}. ` +
         (missingRequired(intake).length
-          ? `I just need the ${missingRequired(intake).join(", ")} below.`
+          ? `Before I draft the ticket I need a few details below: ${missingRequired(intake).join(", ")}.`
           : "Check the details and review the ticket.")
       : r.question
         ? r.question
@@ -395,6 +400,7 @@ export function AIAssistantView() {
     const next: IntakeState = {
       ...state,
       text: `${state.text}\n${text}`,
+      details: { ...detailsFromText(text), ...Object.fromEntries(Object.entries(state.details ?? {}).filter(([, v]) => v)) },
       studioCode: state.studioCode ?? f.studioCode ?? null,
       area: state.area ?? f.area ?? null,
       when: state.when ?? f.when ?? null,
@@ -514,9 +520,7 @@ export function AIAssistantView() {
         {/* Chat Header */}
         <div className="h-12 border-b border-border flex items-center px-5 gap-3 shrink-0 bg-background">
           <div className="relative">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
+            <IrisAvatar size={34} className="shadow-[0_4px_14px_-4px_var(--primary)]" />
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
           </div>
           <div className="flex-1">
@@ -605,9 +609,14 @@ export function AIAssistantView() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={handleReset}>
-            <RefreshCw className="w-3 h-3 mr-1" />
-            New
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-[11px] text-rose-600 hover:text-rose-700 hover:bg-rose-500/5"
+            onClick={() => { if (aiMessages.length <= 1 || window.confirm("Clear this chat? Drafts that weren't approved will be lost.")) handleReset(); }}
+          >
+            <Trash2 className="w-3 h-3 mr-1" />
+            Clear chat
           </Button>
         </div>
 
@@ -655,7 +664,7 @@ export function AIAssistantView() {
                 </div>
               );
             })()}
-            <ContextBar state={conversationState} draft={input} />
+            <ContextBar state={conversationState} draft={input} intake={[...aiMessages].reverse().find((m) => m.intake && !m.intake.done)?.intake} />
             <div className="flex items-end gap-1.5 p-1.5 bg-card border border-border rounded-xl focus-within:border-primary/40 transition-colors">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
                 <Paperclip className="w-3.5 h-3.5" />
@@ -723,33 +732,53 @@ export function AIAssistantView() {
 
 // === CONTEXT BAR - highlights identified fields during conversation ===
 
-const CONTEXT_SLOTS: Array<{ key: string; label: string; tone: string }> = [
-  { key: "studio", label: "Studio", tone: "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300" },
-  { key: "location", label: "Location", tone: "border-teal-500/50 bg-teal-500/10 text-teal-700 dark:text-teal-300" },
-  { key: "category", label: "Category", tone: "border-violet-500/50 bg-violet-500/10 text-violet-700 dark:text-violet-300" },
-  { key: "priority", label: "Priority", tone: "border-rose-500/50 bg-rose-500/10 text-rose-700 dark:text-rose-300" },
-  { key: "affectedClient", label: "Client", tone: "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
-  { key: "equipment", label: "Equipment", tone: "border-indigo-500/50 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
+const CONTEXT_SLOTS: Array<{ key: string; label: string; tone: string; core?: boolean }> = [
+  { key: "category", label: "Category", tone: "border-violet-500/50 bg-violet-500/10 text-violet-700 dark:text-violet-300", core: true },
+  { key: "subcategory", label: "Sub-category", tone: "border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300", core: true },
+  { key: "department", label: "Department", tone: "border-indigo-500/50 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300", core: true },
+  { key: "studio", label: "Studio", tone: "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300", core: true },
+  { key: "date", label: "Date", tone: "border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300", core: true },
+  { key: "affectedClient", label: "Member", tone: "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300", core: true },
+  { key: "membership", label: "Membership", tone: "border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300" },
+  { key: "trainer", label: "Trainer", tone: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+  { key: "class", label: "Class", tone: "border-lime-500/50 bg-lime-500/10 text-lime-700 dark:text-lime-300" },
+  { key: "priority", label: "Priority", tone: "border-rose-500/50 bg-rose-500/10 text-rose-700 dark:text-rose-300", core: true },
+  { key: "mood", label: "Mood", tone: "border-orange-500/50 bg-orange-500/10 text-orange-700 dark:text-orange-300" },
   { key: "recurrence", label: "Pattern", tone: "border-orange-500/50 bg-orange-500/10 text-orange-700 dark:text-orange-300" },
 ];
 
 /** Sits above the input. Slots light up in their own colour as fields are recognised, live while typing. */
-function ContextBar({ state, draft }: { state: ConversationState; draft: string }) {
+function ContextBar({ state, draft, intake }: { state: ConversationState; draft: string; intake?: IntakeState }) {
   const info = state.collectedInfo;
-  const known: Record<string, string | undefined> = {
-    studio: info.studio ? String(info.studio) : undefined,
-    location: info.location ? String(info.location) : undefined,
-    category: info.subcategory ? String(info.subcategory) : info.category ? String(info.category) : undefined,
-    priority: state.intent.suggestedPriority ? String(state.intent.suggestedPriority) : info.severity ? String(info.severity) : undefined,
-    affectedClient: info.affectedClient ? String(info.affectedClient) : undefined,
-    equipment: info.equipment ? String(info.equipment) : undefined,
-  };
+  const str = (v: unknown) => (v === null || v === undefined || v === "" ? undefined : String(v));
+  const known: Record<string, string | undefined> = intake
+    ? {
+        category: str(intake.category),
+        subcategory: str(intake.subcategory),
+        department: intake.department ? DEPT_MAP[intake.department]?.name ?? intake.department : undefined,
+        studio: intake.studioCode ? STUDIO_MAP[intake.studioCode]?.name.split(",")[0] : undefined,
+        date: str(intake.when),
+        affectedClient: intake.member?.name ?? str(intake.clientNameHint),
+        membership: intake.memberSnapshot?.memberships[0]?.name ?? (intake.memberSnapshot ? "None active" : undefined),
+        trainer: intake.trainer?.name ?? str(intake.trainerNameHint),
+        class: intake.session?.name ?? str(intake.classFormat),
+        priority: intake.priority,
+        mood: str(intake.details?.sentiment),
+      }
+    : {
+        category: str(info.category),
+        subcategory: str(info.subcategory),
+        studio: str(info.studio),
+        priority: str(state.intent.suggestedPriority) ?? str(info.severity),
+        affectedClient: str(info.affectedClient),
+        department: str(state.intent.suggestedDepartment),
+      };
   const live = React.useMemo(() => detectLiveContext(draft), [draft]);
   const liveMap = Object.fromEntries(live.map((f) => [f.key, f.value]));
   const slots = CONTEXT_SLOTS.map((s) => ({ ...s, value: liveMap[s.key] ?? known[s.key], isLive: Boolean(liveMap[s.key]) }));
   const found = slots.filter((s) => s.value).length;
-  const confidence = Math.max(state.intent.confidenceScore || 0, Math.round((found / 4) * 100) > 100 ? 100 : Math.round((found / 4) * 100));
-  const visible = slots.filter((s) => s.value || s.key !== "recurrence" && s.key !== "equipment");
+  const confidence = Math.min(100, Math.max(state.intent.confidenceScore || 0, Math.round((found / 7) * 100)));
+  const visible = slots.filter((s) => s.value || s.core);
 
   return (
     <div className="mb-2 flex items-center gap-1.5 flex-wrap" aria-live="polite">
@@ -765,7 +794,7 @@ function ContextBar({ state, draft }: { state: ConversationState; draft: string 
         >
           {s.value ? <CheckCircle2 className="w-2.5 h-2.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />}
           <span className={cn(s.value && "opacity-70")}>{s.label}</span>
-          {s.value && <span className="truncate max-w-[120px] font-semibold">{s.value}</span>}
+          {s.value && <span className="truncate max-w-[140px] font-semibold" title={s.value}>{s.value}</span>}
         </span>
       ))}
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
@@ -918,17 +947,15 @@ function MessageBubble({
 
   return (
     <div className={cn("group flex gap-2.5 iris-fade-in-up", isUser && "flex-row-reverse")}>
-      <Avatar className="w-7 h-7 shrink-0 mt-0.5">
-        {isUser ? (
+      {isUser ? (
+        <Avatar className="w-7 h-7 shrink-0 mt-0.5">
           <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-semibold">
-            AM
+            {getInitials(useAppStore.getState().currentUser.name || "You")}
           </AvatarFallback>
-        ) : (
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            <Sparkles className="w-3.5 h-3.5" />
-          </AvatarFallback>
-        )}
-      </Avatar>
+        </Avatar>
+      ) : (
+        <IrisAvatar size={30} className="mt-0.5" />
+      )}
 
       <div className={cn("flex-1 min-w-0", isUser && "flex flex-col items-end")}>
         {/* Header */}
@@ -1024,7 +1051,7 @@ function MessageBubble({
               <IntakeCard messageId={message.id} state={message.intake} onSubmit={onIntakeSubmit!} onAskAi={onIntakeAskAi!} />
             </div>
           ) : variant === "draft" && message.ticketDraft ? (
-            <AgentDraftCard messageId={message.id} draft={message.ticketDraft} created={message.createdTicket} />
+            <AgentDraftCard messageId={message.id} draft={message.ticketDraft} created={message.createdTicket} discarded={message.discarded} />
           ) : variant === "ticket" && message.ticketPreview ? (
             <TicketPreviewCard ticket={message.ticketPreview} metadata={message.metadata} />
           ) : (
@@ -1395,11 +1422,7 @@ function FieldBox({ label, value, highlight, icon }: { label: string; value: str
 function ThinkingIndicator() {
   return (
     <div className="flex gap-2.5 iris-fade-in">
-      <Avatar className="w-7 h-7 shrink-0">
-        <AvatarFallback className="bg-primary text-primary-foreground">
-          <Sparkles className="w-3.5 h-3.5" />
-        </AvatarFallback>
-      </Avatar>
+      <IrisAvatar size={30} thinking />
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-semibold">IRIS</span>
         <div className="bg-card border border-border rounded-xl rounded-tl-sm px-3.5 py-3">
@@ -1427,23 +1450,40 @@ const fmtTokens = (n: number) =>
 function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
   const [u, setU] = React.useState<UsageSummary | null>(null);
   const [error, setError] = React.useState(false);
+  const [updatedAt, setUpdatedAt] = React.useState<number | null>(null);
+  const [tick, setTick] = React.useState(0);
 
+  // Live: refresh after every AI turn (refreshKey), every 30s, and when the tab regains focus.
   React.useEffect(() => {
     let cancelled = false;
-    api<UsageSummary>("/api/ai/usage")
+    const ac = new AbortController();
+    const timeout = window.setTimeout(() => ac.abort(), 15_000);
+    api<UsageSummary>("/api/ai/usage", { signal: ac.signal })
       .then((d) => {
-        if (!cancelled) {
-          setU(d);
-          setError(false);
-        }
+        if (cancelled) return;
+        setU(d);
+        setError(false);
+        setUpdatedAt(Date.now());
       })
       .catch(() => {
         if (!cancelled) setError(true);
-      });
+      })
+      .finally(() => window.clearTimeout(timeout));
     return () => {
       cancelled = true;
+      ac.abort();
+      window.clearTimeout(timeout);
     };
-  }, [refreshKey]);
+  }, [refreshKey, tick]);
+  React.useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    const id = window.setInterval(bump, 30_000);
+    window.addEventListener("focus", bump);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", bump);
+    };
+  }, []);
 
   const dayPct = u?.limits.dailyTokens ? Math.min(100, (u.today.tokens / u.limits.dailyTokens) * 100) : null;
   const monthPct = u?.limits.monthlyBudgetUsd ? Math.min(100, (u.month.costUsd / u.limits.monthlyBudgetUsd) * 100) : null;
@@ -1456,8 +1496,11 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
         AI usage today
         {u && <span className="ml-auto font-mono normal-case tracking-normal text-[9px]">{u.model}</span>}
       </div>
-      {error ? (
-        <div className="text-[10px] text-muted-foreground">Usage unavailable.</div>
+      {error && !u ? (
+        <div className="text-[10px] text-muted-foreground flex items-center gap-2">
+          Couldn&apos;t load usage.
+          <button onClick={() => setTick((t) => t + 1)} className="text-primary hover:underline">Retry</button>
+        </div>
       ) : !u ? (
         <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
           <Loader2 className="w-3 h-3 animate-spin" />
@@ -1516,6 +1559,10 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
               <span>{u.priced ? fmtUsd(u.today.myCostUsd) : "-"}</span>
             </div>
             {!u.priced && <div>No price on file for this model, so cost isn&apos;t shown.</div>}
+            <div className="flex justify-between">
+              <span>{error ? "Offline, showing last numbers" : "Live"}</span>
+              <span>{updatedAt ? `updated ${new Date(updatedAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : ""}</span>
+            </div>
           </div>
         </div>
       )}
@@ -1532,7 +1579,9 @@ function sleep(ms: number) {
 /** Create a ticket from an agent draft and mark that draft message as done. */
 async function createAgentDraft(messageId: string, draft: AgentTicketDraft) {
   try {
-    const t = await ticketsApi.create({ ...draft, source: "ai_assistant", collectedInfo: { agentDraft: true } });
+    const { extras: _extras, ...body } = draft;
+    const prior = (body as { collectedInfo?: Record<string, unknown> }).collectedInfo ?? {};
+    const t = await ticketsApi.create({ ...body, source: "ai_assistant", collectedInfo: { ...prior, agentDraft: true } });
     useAppStore.getState().updateAIMessage(messageId, { createdTicket: { id: t.id, ticketId: t.ticketId } });
     toast.success(`Ticket ${t.ticketId} created`);
     return t;
@@ -1559,60 +1608,128 @@ function SourceBadge({ source, rule }: { source: "ai" | "rules"; rule?: string }
   );
 }
 
-/** Ticket proposed by the agent; nothing is saved until the user clicks Create. */
-function AgentDraftCard({ messageId, draft, created }: { messageId: string; draft: AgentTicketDraft; created?: { id: string; ticketId: string } }) {
-  const { setCurrentView, selectTicket } = useAppStore();
+/** Ticket proposed by IRIS; nothing is saved until the user approves it. */
+function AgentDraftCard({ messageId, draft, created, discarded }: { messageId: string; draft: AgentTicketDraft; created?: { id: string; ticketId: string }; discarded?: boolean }) {
+  const { setCurrentView, selectTicket, currentUser } = useAppStore();
   const [creating, setCreating] = React.useState(false);
   const p = PRIORITY_CONFIG[draft.priority];
+  const x = draft.extras;
   const assignee = draft.assigneeId ? EMPLOYEE_MAP[draft.assigneeId] : undefined;
+  const ownerName = x?.owner?.name ?? assignee?.name;
 
   const create = async () => {
     setCreating(true);
-    await createAgentDraft(messageId, draft);
+    // Persist the extra context so the owner sees it on the ticket, not just in this chat.
+    const { extras, ...rest } = draft;
+    await createAgentDraft(messageId, {
+      ...rest,
+      ...(extras ? { collectedInfo: { intake: { details: extras.details, when: extras.when, reporter: extras.reporter, kbArticle: extras.kbArticle, member: extras.member, related: extras.related.map((r) => r.ticketId) } } } : {}),
+    } as AgentTicketDraft);
     setCreating(false);
   };
+  const discard = () => useAppStore.getState().updateAIMessage(messageId, { discarded: true });
 
-  const rows: Array<[string, string | undefined]> = [
-    ["Department", draft.departmentCode ? DEPT_MAP[draft.departmentCode]?.name ?? draft.departmentCode : undefined],
+  // Fallbacks for AI-proposed drafts that come without the intake extras.
+  const reporter = x?.reporter ?? { name: currentUser.name, role: currentUser.role };
+  const fmtMins = (m: number) => (m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`);
+  const sla = x ? `${x.slaResponse} response · ${x.slaResolution} resolution` : p ? `${fmtMins(p.responseMins)} response · ${fmtMins(p.resolutionMins)} resolution` : undefined;
+  const closure = x?.expectedClosure ?? (p ? new Date(Date.now() + p.resolutionMins * 60_000).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : undefined);
+  const steps = x?.actionSteps ?? (draft.recommendedResolution ? draft.recommendedResolution.split(/\n+/).map((l) => l.replace(/^\s*(\d+[.)]|[-*•])\s*/, "")).filter(Boolean) : []);
+  const depts = (x?.departmentsInvolved ?? draft.departmentCodes ?? (draft.departmentCode ? [draft.departmentCode] : [])).map((c) => DEPT_MAP[c]?.name ?? c);
+  const d = x?.details ?? {};
+
+  const facts: Array<[string, React.ReactNode]> = [
+    ["Routes to", draft.departmentCode ? DEPT_MAP[draft.departmentCode]?.name ?? draft.departmentCode : "Auto"],
+    ["Owner", ownerName ? <span>{ownerName}{x?.owner?.reason && <span className="block text-[10px] font-normal text-muted-foreground">{x.owner.reason}</span>}</span> : "Auto-assign on create"],
+    ["Priority", p ? `${p.label}` : draft.priority],
+    ["SLA", sla],
+    ["Expected closure", closure],
+    ["Departments", depts.join(", ") || undefined],
     ["Studio", draft.studioCode ? STUDIO_MAP[draft.studioCode]?.name ?? draft.studioCode : undefined],
-    ["Assignee", assignee ? `${assignee.name} · ${assignee.role}` : "Auto-assign"],
     ["Category", [draft.category, draft.subcategory].filter(Boolean).join(" › ")],
-    ["Client", [draft.affectedClient, draft.clientMomenceId].filter(Boolean).join(" · ") || undefined],
-    ["Severity", draft.severity],
-    ["Impact", draft.businessImpact],
+    ["Reporter", `${reporter.name} · ${reporter.role}`],
+    ["When", x?.when ?? undefined],
   ];
+  const quick: Array<[string, string | undefined]> = [
+    ["Client mood", d.sentiment],
+    ["Client wants", d.clientAsk],
+    ["Impact", [d.impact, d.usable, d.injury].filter(Boolean).join(" · ") || undefined],
+    ["Done so far", d.actionsTaken],
+  ];
+  // Intake drafts show the structured parts as cards below; AI drafts keep their full text.
+  const summary = !x ? draft.description : draft.description.split(/\n(?=Client said|Client mood|Client wants|Impact|Item|Done so far|Context|Member profile|Related open tickets)\n?/)[0].trim();
 
   return (
-    <div>
+    <div className={cn(discarded && "opacity-60")}>
       <div className="px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white flex items-center gap-2">
         <TicketIcon className="w-4 h-4" />
-        <div className="text-[12px] font-semibold">Ticket draft - review before creating</div>
+        <div className="text-[12px] font-semibold">{discarded ? "Draft discarded" : created ? "Ticket created" : "Ticket draft - review before approving"}</div>
         {p && <span className="ml-auto text-[10px] font-semibold bg-white/15 px-1.5 py-0.5 rounded">{p.label}</span>}
       </div>
       <div className="p-4 space-y-3">
         <div>
           <div className="text-[14px] font-semibold leading-snug">{draft.title}</div>
-          <div className="text-[12px] text-muted-foreground mt-1 whitespace-pre-line">{draft.description}</div>
+          <div className="text-[12px] text-muted-foreground mt-1 whitespace-pre-line">{summary}</div>
         </div>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-          {rows.filter(([, v]) => v).map(([k, v]) => (
+
+        {d.verbatim && (
+          <blockquote className="border-l-2 border-primary/60 pl-3 text-[12px] italic text-foreground/90">“{d.verbatim}”</blockquote>
+        )}
+
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2 text-[11px] rounded-lg border border-border p-3 bg-muted/20">
+          {facts.filter(([, v]) => v).map(([k, v]) => (
             <div key={k} className="flex gap-2 min-w-0">
-              <dt className="text-muted-foreground shrink-0 w-20">{k}</dt>
-              <dd className="font-medium truncate" title={v}>{v}</dd>
+              <dt className="text-muted-foreground shrink-0 w-24">{k}</dt>
+              <dd className="font-medium min-w-0 break-words">{v}</dd>
             </div>
           ))}
         </dl>
-        {draft.recommendedResolution && (
-          <div className="text-[11px] rounded-md bg-amber-500/5 border border-amber-500/20 p-2.5 whitespace-pre-line">
-            <div className="font-semibold mb-0.5">Recommended next steps</div>
-            {draft.recommendedResolution}
+
+        {quick.some(([, v]) => v) && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-1.5 text-[11px]">
+            {quick.filter(([, v]) => v).map(([k, v]) => (
+              <div key={k} className="flex gap-2 min-w-0">
+                <dt className="text-muted-foreground shrink-0 w-24">{k}</dt>
+                <dd className="font-medium min-w-0 break-words">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        {x?.member && (
+          <div className="rounded-lg border border-sky-500/25 bg-sky-500/5 p-3">
+            <div className="text-[11px] font-semibold mb-1 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-sky-600" />Member profile</div>
+            <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+              {memberLines(x.member).map((l, i) => <li key={i} className={cn(i === 0 && "text-foreground font-medium")}>{l}</li>)}
+            </ul>
           </div>
         )}
+
+        {steps.length > 0 && (
+          <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3">
+            <div className="text-[11px] font-semibold mb-1.5">
+              Recommended action steps
+              {x?.kbArticle && <span className="font-normal text-muted-foreground"> · from {x.kbArticle.id} {x.kbArticle.title}</span>}
+            </div>
+            <ol className="list-decimal pl-4 space-y-0.5 text-[11px]">
+              {steps.map((st, i) => <li key={i}>{st}</li>)}
+            </ol>
+          </div>
+        )}
+
+        {x?.related && x.related.length > 0 && (
+          <div className="text-[11px]">
+            <span className="font-semibold">Related open tickets: </span>
+            <span className="text-muted-foreground">{x.related.map((r) => `${r.ticketId} (${r.status.replace(/_/g, " ")})`).join(", ")}</span>
+          </div>
+        )}
+
         {draft.tags && draft.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {draft.tags.map((t) => <span key={t} className="iris-chip text-[9px]">{t}</span>)}
           </div>
         )}
+
         <div className="flex items-center gap-2 pt-2 border-t border-border">
           {created ? (
             <>
@@ -1623,11 +1740,19 @@ function AgentDraftCard({ messageId, draft, created }: { messageId: string; draf
                 Open ticket<ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </>
+          ) : discarded ? (
+            <>
+              <span className="text-[11px] text-muted-foreground">Discarded. Nothing was saved.</span>
+              <Button size="sm" variant="ghost" className="ml-auto h-7 text-[11px]" onClick={() => useAppStore.getState().updateAIMessage(messageId, { discarded: false })}>Undo</Button>
+            </>
           ) : (
             <>
-              <span className="text-[11px] text-muted-foreground">Want changes? Tell IRIS below, or reply "create it".</span>
-              <Button size="sm" className="ml-auto h-8 text-[12px]" onClick={create} disabled={creating}>
-                {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Create ticket</>}
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">Want changes? Tell IRIS below.</span>
+              <Button size="sm" variant="outline" className="ml-auto h-8 text-[12px] text-rose-600 border-rose-500/30 hover:bg-rose-500/5" onClick={discard} disabled={creating}>
+                <X className="w-3.5 h-3.5 mr-1" />Discard draft
+              </Button>
+              <Button size="sm" className="h-8 text-[12px]" onClick={create} disabled={creating}>
+                {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Approve &amp; create</>}
               </Button>
             </>
           )}

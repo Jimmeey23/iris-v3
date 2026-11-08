@@ -353,7 +353,7 @@ export async function listLocations() {
 }
 
 // ── Sessions: detail + roster ────────────────────────────────────────────────
-export async function getSessionRoster(sessionId: string, includeNames = true) {
+export async function getSessionRoster(sessionId: string, includeNames = true, includeCancelled = false) {
   const { region, raw } = splitId(sessionId);
   const [detail, bookings] = await Promise.all([
     momenceGet(region, `/host/sessions/${raw}`),
@@ -370,11 +370,14 @@ export async function getSessionRoster(sessionId: string, includeNames = true) {
       checkedIn: live.filter((b) => b.checkedIn).length,
       cancelled: bookings.items.length - live.length,
     },
-    roster: live.map((b) => ({
+    roster: (includeCancelled ? bookings.items : live).map((b) => ({
       bookingId: rid(region, b.id),
       memberId: b.member?.id ? rid(region, b.member.id) : null,
       name: includeNames ? fullName(b.member) : null,
+      email: includeNames ? b.member?.email ?? null : null,
+      phone: includeNames ? b.member?.phoneNumber ?? null : null,
       checkedIn: Boolean(b.checkedIn),
+      cancelled: Boolean(b.cancelledAt),
       tickets: b.ticketsBought ?? 1,
       recurring: Boolean(b.isRecurring),
     })),

@@ -9,7 +9,7 @@ import type { PoolClient } from "pg";
 
 type Row = Record<string, any>;
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
-const FIELD_TYPES = ["text", "textarea", "number", "select", "multiselect", "checkbox", "date"];
+const FIELD_TYPES = ["text", "textarea", "number", "select", "multiselect", "checkbox", "date", "session", "roster"];
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : undefined);
 const strList = (v: unknown, max = 100, len = 200) =>

@@ -63,6 +63,26 @@ function messageBody(msg: AIMessage): string {
   if (msg.tools?.length) {
     content += "\n[Tools: " + msg.tools.map((t) => `${t.name} (${t.status})`).join(", ") + "]";
   }
+  if (msg.intake) {
+    const i = msg.intake;
+    const d = i.details ?? {};
+    const fields = [
+      i.category && `Category: ${i.category}${i.subcategory ? ` > ${i.subcategory}` : ""}`,
+      i.studioCode && `Studio: ${i.studioCode}${i.area ? ` (${i.area})` : ""}`,
+      i.when && `When: ${i.when}`,
+      i.member && `Member: ${i.member.name} (${i.member.id})`,
+      i.trainer && `Trainer: ${i.trainer.name}`,
+      i.session && `Class: ${i.session.name}${i.session.subtitle ? ` ${i.session.subtitle}` : ""}`,
+      `Priority: ${i.priority}`,
+      ...Object.entries(d).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`),
+    ].filter(Boolean);
+    content += `\n[Intake form${i.done ? ", submitted" : ""}: ${fields.join(" · ")}]`;
+  }
+  if (msg.ticketDraft) {
+    const t = msg.ticketDraft;
+    const state = msg.createdTicket ? `created as ${msg.createdTicket.ticketId}` : msg.discarded ? "discarded" : "awaiting approval";
+    content += `\n[Ticket draft, ${state}: ${t.title} · ${t.priority} · ${t.category}${t.subcategory ? ` > ${t.subcategory}` : ""}${t.departmentCode ? ` · ${t.departmentCode}` : ""}${t.extras?.owner ? ` · owner ${t.extras.owner.name}` : ""}]`;
+  }
   return content.trim();
 }
 

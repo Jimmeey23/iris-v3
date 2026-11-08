@@ -23,6 +23,8 @@ function createPool() {
     max: 5,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 15_000, // Neon may need a moment to wake up
+    // Never let one stuck query hang a request (and every request queued behind it) forever.
+    query_timeout: 25_000,
   });
 }
 

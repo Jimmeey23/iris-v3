@@ -1,4 +1,4 @@
-import { OPT_PLANS, OPT_STUDIOS_SHORT, area, check, date, defineTemplates, multi, num, pick, text } from "../template-types";
+import { OPT_PLANS, OPT_STUDIOS_SHORT, area, check, date, defineTemplates, multi, num, pick, roster, session, text } from "../template-types";
 
 const BF = "Brand Feedback";
 const AUDIENCES = ["All active members", "Lapsed members", "Leads / prospects", "Specific studio", "Corporate members"];
@@ -392,6 +392,31 @@ export const MARKETING_TEMPLATES = defineTemplates("Marketing", [
       pick("stockStatus", "Status", ["Low", "Out of stock", "New collection"], true),
       text("demandNotes", "Bestsellers / demand notes"),
       date("neededBy", "Needed by"),
+    ],
+  },
+  {
+    code: "TPL-268",
+    title: "Hosted Class Feedback",
+    sub: "Partnerships, Events & Boutique",
+    dept: "MKT", prio: "P3", role: "Marketing Manager", hrs: 72,
+    desc: "Record how a hosted / private class went and track every booked guest: attendance, interest and follow-ups.",
+    map: [BF, "Hosted Class Feedback"], outcome: "Action the request", by: "I noticed this myself",
+    act: [
+      "Check the guest table: everyone marked Interested or Undecided gets a call or WhatsApp within 48 hours.",
+      "Offer the hosted-class conversion deal to interested guests and log the outcome per guest.",
+      "Share the host's feedback with the trainer and the Studio Manager.",
+      "Close once every follow-up is done and the conversions are recorded in Momence.",
+    ],
+    f: [
+      session("hostedClass", "Hosted class", true, ["private"], "Search Momence private / hosted classes"),
+      roster("guests", "Booked guests", "hostedClass", true, "Set status, interest and follow-ups for each guest"),
+      text("hostName", "Host / organiser", true),
+      pick("hostRating", "Host's overall rating", ["Excellent", "Good", "Average", "Poor"], true),
+      pick("trainerRating", "Trainer delivery", ["Excellent", "Good", "Average", "Poor"]),
+      area("hostFeedback", "What the host said", true, "Their words, as close as you can"),
+      multi("issues", "Anything that went wrong", ["Started late", "Room / AC", "Music / sound", "Too hard for beginners", "Check-in delays", "Parking / access", "Nothing"]),
+      check("rebookInterest", "Host wants to book another session"),
+      area("nextSteps", "Next steps / learnings"),
     ],
   },
   {

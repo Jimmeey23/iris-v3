@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
+  RefreshCw,
   Lock,
   Search,
   Command,
@@ -131,6 +132,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       window.history.replaceState({}, "", url.pathname + url.search + url.hash);
     }
   }, [dataVersion, selectTicket]);
+
+  const myOpenCount = React.useMemo(() => {
+    void dataVersion;
+    return ALL_TICKETS.filter((t) => isOwner(t, currentUser.id) && t.status !== "resolved" && t.status !== "closed").length;
+  }, [dataVersion, currentUser.id]);
+  const breachedCount = React.useMemo(() => {
+    void dataVersion;
+    return ALL_TICKETS.filter((t) => t.slaStatus === "breached" && t.status !== "resolved" && t.status !== "closed").length;
+  }, [dataVersion]);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      const { loadAll } = await import("@/lib/iris/live-data");
+      await loadAll();
+      useAppStore.getState().bumpData();
+    } catch {
+      /* keep what we have */
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // ⌘K Command Palette state
   const [cmdOpen, setCmdOpen] = React.useState(false);
@@ -365,7 +388,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         {process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true" && <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/25 px-5 py-2 text-[11px] text-amber-700 dark:text-amber-300">Preview mode · Authentication is bypassed locally. Live data and changes are unavailable.</div>}
         {/* Top Bar */}
-        <header className="iris-app-header h-16 border-b border-border bg-background flex items-center px-5 gap-3 shrink-0 z-20">
+        <header className="iris-app-header h-16 border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 flex items-center px-5 gap-3 shrink-0 z-20">
           <div className="flex items-center gap-2 flex-1 max-w-sm">
             {/* Click-to-open the ⌘K command palette. The visual is a fake input
                 so it looks like a search field, but clicking it opens the palette. */}
@@ -382,12 +405,63 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
+          {/* Live queue counters */}
+          <div className="hidden lg:flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentView("my_tickets")}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-card/70 text-[11px] font-medium hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              title="Open tickets you own"
+            >
+              <UserCircle className="w-3.5 h-3.5 text-primary" />
+              My queue
+              <span className="tabular-nums text-[10px] font-bold px-1.5 rounded bg-primary/10 text-primary">{myOpenCount}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentView("escalations")}
+              className={cn(
+                "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-medium transition-colors",
+                breachedCount ? "border-rose-500/30 bg-rose-500/5 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10" : "border-border bg-card/70 text-muted-foreground hover:bg-muted/60",
+              )}
+              title="Open tickets past their SLA"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Past SLA
+              <span className="tabular-nums text-[10px] font-bold">{breachedCount}</span>
+            </button>
+          </div>
+
           {/* Right cluster: status + actions, pinned to extreme right */}
-          <div className="ml-auto flex items-center gap-1">
-          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 mr-1 rounded-md text-[10px] font-medium text-muted-foreground">
+          <div className="ml-auto flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-1.5 h-8 px-2.5 rounded-full border border-emerald-500/25 bg-emerald-500/5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
             <span className="iris-live-dot" />
             Operational
           </div>
+
+          <button
+            type="button"
+            onClick={() => setCurrentView("ai_assistant")}
+            className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium shadow-[0_6px_16px_-8px_var(--primary)] hover:brightness-110 transition"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            New issue
+          </button>
+
+          <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-border/80 bg-muted/40">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Refresh data"
+                onClick={() => void refreshData()}
+                className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Refresh tickets and reference data</TooltipContent>
+          </Tooltip>
 
           {/* Member 360 Lookup button */}
           <Tooltip>
@@ -396,7 +470,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 type="button"
                 aria-label="Member 360 Lookup"
                 onClick={() => { setMemberLookupQuery(""); setMemberLookupOpen(true); }}
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors"
               >
                 <UserSearch className="w-3.5 h-3.5" />
               </button>
@@ -409,7 +483,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-7 w-7 rounded-lg hover:bg-background"
                 onClick={() => {
                   const next = theme === "dark" ? "light" : "dark";
                   setTheme(next);
@@ -429,7 +503,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 aria-label="Notifications"
-                className="relative inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                className="relative inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors cursor-pointer"
               >
                 <Bell className="w-3.5 h-3.5" />
                 {inAppAlertsActive && unreadCount > 0 && (
@@ -520,6 +594,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </button>
                 </div>
               )}
+            </PopoverContent>
+          </Popover>
+          </div>
+
+          {/* Account menu */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" aria-label="Account" className="flex items-center gap-2 h-9 pl-1 pr-2 rounded-full hover:bg-muted/60 transition-colors">
+                <Avatar className="w-7 h-7">
+                  <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-semibold">
+                    {getInitials(currentUser.name || currentUser.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden xl:block text-left leading-tight">
+                  <span className="block text-[11px] font-semibold max-w-[120px] truncate">{currentUser.name}</span>
+                  <span className="block text-[9px] text-muted-foreground capitalize">{currentUser.tier}</span>
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" sideOffset={8} className="w-56 p-1">
+              <div className="px-2.5 py-2 border-b border-border mb-1">
+                <div className="text-[12px] font-semibold truncate">{currentUser.name}</div>
+                <div className="text-[10px] text-muted-foreground truncate">{currentUser.email}</div>
+                <div className="text-[10px] text-muted-foreground">{currentUser.role}</div>
+              </div>
+              {[
+                { icon: UserCircle, label: "My tickets", view: "my_tickets" as const },
+                { icon: Building2, label: "My department queue", view: "department_queue" as const },
+                { icon: Settings, label: "Settings", view: "settings" as const },
+              ].map((it) => (
+                <button key={it.label} type="button" onClick={() => setCurrentView(it.view)} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] hover:bg-muted/60">
+                  <it.icon className="w-3.5 h-3.5 text-muted-foreground" />{it.label}
+                </button>
+              ))}
+              <button type="button" onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] hover:bg-muted/60">
+                <Command className="w-3.5 h-3.5 text-muted-foreground" />Command palette<kbd className="ml-auto text-[9px] text-muted-foreground">⌘K</kbd>
+              </button>
+              <div className="h-px bg-border my-1" />
+              <button type="button" onClick={signOut} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-rose-600 hover:bg-rose-500/5">
+                <LogOut className="w-3.5 h-3.5" />Sign out
+              </button>
             </PopoverContent>
           </Popover>
           </div>

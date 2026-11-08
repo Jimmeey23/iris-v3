@@ -53,7 +53,16 @@ export async function getSession(): Promise<SessionUser | null> {
  * Users who must change their password can only reach the routes that allow it.
  */
 export async function requireSession(opts: { allowPasswordChange?: boolean; admin?: boolean; manager?: boolean } = {}) {
-  const session = await getSession();
+  let session: SessionUser | null;
+  try {
+    session = await getSession();
+  } catch (err) {
+    // Database unreachable (timeouts, network blips): answer cleanly instead of crashing the route.
+    console.error("[auth] session lookup failed:", err instanceof Error ? err.message || err.name : err);
+    return {
+      error: NextResponse.json({ error: "IRIS can't reach its database right now. Try again in a moment." }, { status: 503, headers: { "Retry-After": "30" } }),
+    } as const;
+  }
   if (!session) {
     return { error: NextResponse.json({ error: "Not signed in" }, { status: 401 }) } as const;
   }

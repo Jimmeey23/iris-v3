@@ -12,6 +12,8 @@ export {
   getMemberDetails,
   searchSessions,
   listTrainers,
+  recentSessions,
+  warmMomenceSessions,
   momenceCall,
   momenceGet,
   toSession,

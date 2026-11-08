@@ -7,6 +7,7 @@
 // studio/area restrictions and the exact field set.
 
 import { CATEGORY_MAP, IRIS_STUDIOS, SYSTEMS } from "./iris-constants";
+import { parseRoster } from "./roster-field";
 import type { TicketTemplate, TemplateField, TemplateForm } from "./templates";
 import type { Priority } from "./types";
 
@@ -323,6 +324,7 @@ export function initialFieldValues(fields: TemplateField[]): Record<string, stri
 
 export function isFieldFilled(f: TemplateField, v: string | boolean | string[] | undefined): boolean {
   if (f.type === "checkbox") return true; // a checkbox always has an answer
+  if (f.type === "roster") return parseRoster(v).length > 0;
   if (Array.isArray(v)) return v.length > 0;
   return typeof v === "string" && v.trim().length > 0;
 }

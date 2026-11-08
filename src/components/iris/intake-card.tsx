@@ -8,6 +8,10 @@ import { MomenceSearchField } from "@/components/iris/momence-search-field";
 import { useAppStore, type AgentTicketDraft, type IntakeState } from "@/lib/iris/store";
 import { STUDIOS, STUDIO_MAP, DEPT_MAP, PRIORITY_CONFIG } from "@/lib/iris/types";
 import { roomsFor } from "@/lib/iris/aliases";
+import { api } from "@/lib/iris/live-data";
+import {
+  buildRichDraft, detailFieldsFor, missingDetails, memberLines, toMemberSnapshot, WHEN_CHIPS,
+} from "@/lib/iris/intake-details";
 
 /** Which extra details each category needs before a ticket can be drafted. */
 type Need = "required" | "optional";
@@ -50,38 +54,12 @@ export function missingRequired(s: IntakeState) {
   if (n.member === "required" && !s.member) out.push("member");
   if (n.trainer === "required" && !s.trainer) out.push("trainer");
   if (n.session === "required" && !s.session) out.push("class");
-  return out;
+  return [...out, ...missingDetails(s)];
 }
 
 /** Build the ticket draft from the form - deterministic, no AI. */
 export function draftFromIntake(s: IntakeState): AgentTicketDraft {
-  const studio = s.studioCode ? STUDIO_MAP[s.studioCode] : undefined;
-  const who = s.member?.name ?? s.clientNameHint ?? undefined;
-  const title =
-    s.title ??
-    [s.subcategory ?? s.category, s.trainer ? s.trainer.name : who, studio ? studio.name.split(",")[0] : null].filter(Boolean).join(" - ");
-  const facts = [
-    s.member && `Member: ${s.member.name} (${s.member.id})`,
-    s.session && `Class: ${s.session.name}${s.session.subtitle ? ` · ${s.session.subtitle}` : ""} (${s.session.id})`,
-    s.trainer && `Trainer: ${s.trainer.name}`,
-    s.classFormat && !s.session && `Format: ${s.classFormat}`,
-    s.when && `When: ${s.when}`,
-    studio && `Studio: ${studio.name}`,
-    s.area && `Area: ${s.area}`,
-  ].filter(Boolean);
-  return {
-    title: title.slice(0, 200),
-    description: [s.text.trim(), facts.length ? `\nDetails:\n${facts.map((f) => `• ${f}`).join("\n")}` : ""].join(""),
-    category: s.category ?? "Miscellaneous",
-    subcategory: s.subcategory ?? undefined,
-    priority: s.priority,
-    studioCode: s.studioCode ?? undefined,
-    departmentCode: s.department ?? undefined,
-    affectedClient: who,
-    clientMomenceId: s.member?.id,
-    bookingId: s.session?.id,
-    tags: [s.category, s.subcategory, s.classFormat, s.area].filter(Boolean) as string[],
-  };
+  return buildRichDraft(s, useAppStore.getState().currentUser).draft;
 }
 
 const select =
@@ -124,7 +102,24 @@ export function IntakeCard({
   onAskAi: (state: IntakeState) => void;
 }) {
   const update = useAppStore((s) => s.updateAIMessage);
-  const set = (patch: Partial<IntakeState>) => update(messageId, { intake: { ...state, ...patch } });
+  // Always merge into the latest saved state, so async updates (member profile) don't clobber edits.
+  const latest = () => useAppStore.getState().aiMessages.find((m) => m.id === messageId)?.intake ?? state;
+  const set = (patch: Partial<IntakeState>) => update(messageId, { intake: { ...latest(), ...patch } });
+  const setDetail = (key: string, value: string) => set({ details: { ...(latest().details ?? {}), [key]: value } });
+  const [loadingMember, setLoadingMember] = React.useState(false);
+  const pickMember = async (id: string, name: string) => {
+    set({ member: { id, name }, memberSnapshot: null });
+    setLoadingMember(true);
+    try {
+      const d = await api<Parameters<typeof toMemberSnapshot>[2]>(`/api/momence/members/${encodeURIComponent(id)}`);
+      if (latest().member?.id === id) set({ memberSnapshot: toMemberSnapshot(id, name, d) });
+    } catch {
+      /* profile is a nice-to-have; the ticket still links the member id */
+    } finally {
+      setLoadingMember(false);
+    }
+  };
+  const detailFields = detailFieldsFor(state.category);
   const cat = state.taxonomy.find((c) => c.category === state.category);
   const needs = needsFor(state.category, state.subcategory);
   const missing = missingRequired(state);
@@ -232,14 +227,22 @@ export function IntakeCard({
         {needs.member && (
           <Row label="Member" need={needs.member} done={!!state.member}>
             {state.member ? (
-              <Picked icon={User} text={state.member.name} sub={state.member.id} onClear={() => set({ member: null })} />
+              <div className="space-y-1.5">
+                <Picked icon={User} text={state.member.name} sub={state.member.id} onClear={() => set({ member: null, memberSnapshot: null })} />
+                {loadingMember && !state.memberSnapshot && <div className="text-[10px] text-muted-foreground">Loading profile, memberships and visits…</div>}
+                {state.memberSnapshot && (
+                  <ul className="rounded-md border border-border bg-muted/30 p-2 space-y-0.5 text-[10.5px] text-muted-foreground">
+                    {memberLines(state.memberSnapshot).slice(1).map((l, i) => <li key={i} className="truncate" title={l}>{l}</li>)}
+                  </ul>
+                )}
+              </div>
             ) : (
               <>
                 {state.clientNameHint && <div className="text-[10px] text-muted-foreground mb-1">You mentioned “{state.clientNameHint}” - pick the right person:</div>}
                 <MomenceSearchField
                   type="momence_member"
                   placeholder={state.clientNameHint ? `Search “${state.clientNameHint}” in Momence` : undefined}
-                  onSelect={(e) => e.id && set({ member: { id: e.id, name: e.name } })}
+                  onSelect={(e) => e.id && void pickMember(e.id, e.name)}
                 />
               </>
             )}
@@ -280,6 +283,68 @@ export function IntakeCard({
           </Row>
         )}
 
+        {state.category && (
+          <Row label="When" need="required" done={!!state.when}>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {WHEN_CHIPS.map((w) => (
+                <button
+                  key={w}
+                  onClick={() => set({ when: state.when === w ? null : w })}
+                  className={cn("px-2.5 py-1 rounded-full border text-[11px]", state.when === w ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50")}
+                >
+                  {w}
+                </button>
+              ))}
+              <input
+                type="date"
+                aria-label="Date it happened"
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => e.target.value && set({ when: new Date(e.target.value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) })}
+                className="h-7 px-2 text-[11px] rounded-md border border-input bg-background"
+              />
+              {state.when && !WHEN_CHIPS.includes(state.when as (typeof WHEN_CHIPS)[number]) && (
+                <span className="text-[11px] font-medium text-primary">{state.when}</span>
+              )}
+            </div>
+          </Row>
+        )}
+
+        {state.category && detailFields.map((f) => {
+          const v = state.details?.[f.key] ?? "";
+          return (
+            <Row key={f.key} label={f.label} need={f.need} done={!!v.trim()}>
+              {f.kind === "chips" ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {f.options!.map((o) => (
+                    <button
+                      key={o}
+                      onClick={() => setDetail(f.key, v === o ? "" : o)}
+                      className={cn("px-2.5 py-1 rounded-full border text-[11px]", v === o ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50")}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              ) : f.kind === "textarea" ? (
+                <textarea
+                  value={v}
+                  onChange={(e) => setDetail(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  rows={2}
+                  className="w-full px-2 py-1.5 text-[12px] rounded-md border border-input bg-background resize-y focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              ) : (
+                <input
+                  value={v}
+                  onChange={(e) => setDetail(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  className={select}
+                />
+              )}
+            </Row>
+          );
+        })}
+
         <Row label="Priority">
           <div className="flex flex-wrap items-center gap-1.5">
             {(["P0", "P1", "P2", "P3"] as const).map((p) => (
@@ -299,10 +364,9 @@ export function IntakeCard({
           </div>
         </Row>
 
-        {(state.department || state.when) && (
+        {state.department && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground pl-[100px]">
-            {state.department && <span>Routes to <b className="text-foreground font-medium">{DEPT_MAP[state.department]?.name ?? state.department}</b></span>}
-            {state.when && <span>When: <b className="text-foreground font-medium">{state.when}</b></span>}
+            <span>Routes to <b className="text-foreground font-medium">{DEPT_MAP[state.department]?.name ?? state.department}</b></span>
           </div>
         )}
       </div>

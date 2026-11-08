@@ -16,7 +16,7 @@ import {
   TRAINERS,
 } from "./constants";
 
-export type TemplateFieldType = "text" | "textarea" | "number" | "select" | "multiselect" | "checkbox" | "date";
+export type TemplateFieldType = "text" | "textarea" | "number" | "select" | "multiselect" | "checkbox" | "date" | "session" | "roster";
 export type TemplatePriority = "P0" | "P1" | "P2" | "P3";
 
 /** One input rendered by the preset ticket form. */
@@ -29,6 +29,10 @@ export interface TemplateField {
   /** Initial value: string for text/select/date/number, boolean for checkbox, string[] for multiselect. */
   default?: string | boolean | string[];
   helper?: string;
+  /** type "session": Momence session types to search (e.g. ["private"] for hosted classes). */
+  sessionTypes?: string[];
+  /** type "roster": id of the "session" field whose booked members this table lists. */
+  sessionField?: string;
 }
 
 /** What a template pre-fills when it is used to raise a ticket. */
@@ -172,6 +176,19 @@ export function multi(id: string, label: string, options: string[], required = f
   if (helper) f.helper = helper;
   return f;
 }
+/** Momence class picker. `types` narrows the search, e.g. ["private"] for hosted classes. */
+export function session(id: string, label: string, required = false, types?: string[], helper?: string): TemplateField {
+  const f = base(id, label, "session", required, { helper });
+  if (types?.length) f.sessionTypes = [...types];
+  return f;
+}
+/** Per-member follow-up table for everyone booked into the class picked in `sessionField`. */
+export function roster(id: string, label: string, sessionField: string, required = false, helper?: string): TemplateField {
+  const f = base(id, label, "roster", required, { helper });
+  f.sessionField = sessionField;
+  return f;
+}
+
 /** Yes / no checkbox. */
 export function check(id: string, label: string, def = false, helper?: string): TemplateField {
   const f: TemplateField = { id, label, type: "checkbox", default: def };

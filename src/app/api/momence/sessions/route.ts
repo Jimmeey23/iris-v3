@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
         to: p.get("to") ?? undefined,
         limit,
         region,
+        types: [...p.getAll("types[]"), ...p.getAll("types"), ...(p.get("types")?.split(",") ?? [])].filter(Boolean),
       }),
     });
   } catch (e) {

@@ -1,6 +1,8 @@
 import { ALL_TICKETS, isOwner } from "./sample-tickets";
 import { STUDIO_MAP } from "./types";
-import { matchArea, matchStudio } from "./aliases";
+import { matchArea, matchFormat, matchStudio, matchTrainer, matchWhen } from "./aliases";
+import { EMPLOYEES, DEPT_MAP } from "./types";
+import { detailsFromText } from "./intake-details";
 import type { AIButton, CurrentUser } from "./store";
 
 const FALLBACK_ISSUES = [
@@ -30,24 +32,38 @@ function homeStudio(user: CurrentUser): string | null {
   return [...busy.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-/** Most frequently reported issues at a studio in the last 90 days, as one-tap prompts. */
+/** Ticket types that are routine workflows, not problems anyone "reports". */
+const PROCESS_TYPES = /lead capture|tracking|enquir|inquir|\bsop\b|survey|request for|onboarding|reporting|data entry|follow-up post/i;
+
+/** A natural one-line prompt for a ticket type: a real title if they read naturally, else "Category: sub". */
+function promptFor(category: string, sub: string | null, titles: string[]): string {
+  const natural = titles
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 12 && t.length <= 70 && !t.includes(" - ") && t.toLowerCase() !== (sub ?? "").toLowerCase());
+  const counts = new Map<string, number>();
+  for (const t of natural) counts.set(t, (counts.get(t) ?? 0) + 1);
+  const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (best) return best;
+  return sub ? `${category}: ${sub.charAt(0).toLowerCase()}${sub.slice(1)}` : category;
+}
+
+/** Most reported problems at a studio in the last 90 days, as one-tap prompts. */
 function commonIssues(studio: string | null, n = 4): string[] {
   const since = Date.now() - 90 * 86400_000;
-  const groups = new Map<string, { count: number; title: string }>();
+  const groups = new Map<string, { score: number; category: string; sub: string | null; titles: string[] }>();
   for (const t of ALL_TICKETS) {
     if (studio && t.studioCode !== studio) continue;
     if (new Date(t.createdAt).getTime() < since || t.title.startsWith("[Recurrence check")) continue;
-    const key = (t.subcategory || t.category || "").trim();
-    if (!key) continue;
-    const g = groups.get(key) ?? { count: 0, title: t.title };
-    g.count++;
+    const sub = t.subcategory?.trim() || null;
+    if (!t.category || PROCESS_TYPES.test(`${t.category} ${sub ?? ""}`)) continue;
+    const key = `${t.category}|${sub ?? ""}`;
+    const g = groups.get(key) ?? { score: 0, category: t.category, sub, titles: [] };
+    // Real problems count more than low-priority enquiries.
+    g.score += t.priority === "P3" ? 0.5 : 1;
+    g.titles.push(t.title);
     groups.set(key, g);
   }
-  const studioName = studio ? STUDIO_MAP[studio]?.name?.split(",")[0] : null;
-  const top = [...groups.entries()]
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, n)
-    .map(([key]) => (studioName ? `${key} at ${studioName}` : key));
+  const top = [...groups.values()].sort((a, b) => b.score - a.score).slice(0, n).map((g) => promptFor(g.category, g.sub, g.titles));
   return top.length >= 2 ? top : FALLBACK_ISSUES.slice(0, n);
 }
 
@@ -56,30 +72,37 @@ export function buildWelcome(user: CurrentUser): { content: string; buttons: AIB
   const h = new Date().getHours();
   const hello = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   const studio = homeStudio(user);
-  const studioName = studio ? STUDIO_MAP[studio]?.name ?? studio : null;
+  // One short name everywhere ("Kwality House", not "Kwality House, Kemps Corner").
+  const studioName = studio ? (STUDIO_MAP[studio]?.name ?? studio).split(",")[0] : null;
 
   const open = ALL_TICKETS.filter((t) => isOpen(t) && (!studio || t.studioCode === studio));
   const breached = open.filter((t) => t.slaStatus === "breached").length;
   const urgent = open.filter((t) => t.priority === "P0" || t.priority === "P1").length;
   const mine = ALL_TICKETS.filter((t) => isOpen(t) && isOwner(t, user.id)).length;
 
-  const facts: string[] = [];
-  if (studioName) facts.push(`${studioName} has ${open.length} open ticket${open.length === 1 ? "" : "s"}${urgent ? `, ${urgent} urgent` : ""}${breached ? ` and ${breached} past SLA` : ""}.`);
-  if (mine) facts.push(`You own ${mine} open ticket${mine === 1 ? "" : "s"}.`);
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const emoji = h < 12 ? "☀️" : h < 17 ? "👋" : "🌙";
 
-  const opener = pick([
-    `${hello}, ${first}.`,
-    `${hello}, ${first}. IRIS here.`,
-    `Hi ${first}, ${hello.toLowerCase()}.`,
-  ]);
+  // Compact status line: "📍 **Kwality House** · 2 open · 1 urgent · 2 past SLA"
+  const status: string[] = [];
+  if (studioName) {
+    status.push(
+      open.length
+        ? `📍 **${studioName}** · ${open.length} open${urgent ? ` · ${urgent} urgent` : ""}${breached ? ` · ${breached} past SLA` : ""}`
+        : `📍 **${studioName}** · all clear, no open tickets 🎉`,
+    );
+  }
+  if (mine) status.push(`🎫 You own ${plural(mine, "open ticket")}`);
+
   const ask = pick([
-    "What's going on? Describe it in your own words and I'll classify, route and set the SLA.",
-    "What do you need to report? Plain words are fine, I'll handle the rest.",
-    "Tell me what happened and I'll take care of routing and SLA.",
+    "What's up? Tell me in your own words and I'll sort out the routing and SLA ✨",
+    "Something to report? Plain words are perfect, I'll take it from there 🙌",
+    "Tell me what happened and I'll handle the rest 💪",
   ]);
-  const lead = studioName ? `Most reported at ${studioName.split(",")[0]} lately:` : "Common issues lately:";
+  const lead = studioName ? `Most reported at ${studioName} lately 👇` : "Common issues lately 👇";
 
-  const content = [opener, facts.join(" "), ask, lead].filter(Boolean).join("\n\n");
+  // Single line breaks inside a block; one blank line only before the suggestions.
+  const content = [`${emoji} ${hello}, ${first}!`, ...status, ask].join("\n") + `\n\n${lead}`;
   const buttons = commonIssues(studio).map((label) => ({ label, value: label, captures: label }));
   return { content, buttons };
 }
@@ -100,6 +123,21 @@ const CATEGORY_KEYWORDS: Array<[string, RegExp]> = [
 
 export type LiveField = { key: string; label: string; value: string };
 
+const CATEGORY_DEPT: Record<string, string> = {
+  Facilities: "FAC", Equipment: "OPS", "Billing & Payments": "PAY", "Membership & Credits": "MEM",
+  "Bookings & Classes": "SCH", Trainer: "TRN", Technology: "ITS", "Health & Safety": "OPS", "Client Experience": "SCS",
+};
+/** Known sub-categories from ticket history, longest first (cached per data load). */
+let subcatCache: { n: number; list: Array<{ name: string; dept: string | null }> } | null = null;
+function SUBCATS() {
+  if (subcatCache && subcatCache.n === ALL_TICKETS.length) return subcatCache.list;
+  const m = new Map<string, string | null>();
+  for (const t of ALL_TICKETS) if (t.subcategory && !m.has(t.subcategory)) m.set(t.subcategory, t.departmentCode ?? null);
+  const list = [...m.entries()].map(([name, dept]) => ({ name, dept })).sort((a, b) => b.name.length - a.name.length);
+  subcatCache = { n: ALL_TICKETS.length, list };
+  return list;
+}
+
 export function detectLiveContext(text: string): LiveField[] {
   const raw = text.trim();
   if (raw.length < 3) return [];
@@ -116,5 +154,26 @@ export function detectLiveContext(text: string): LiveField[] {
   const client = /\b(?:client|member|customer)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/.exec(raw)?.[1];
   if (client) out.push({ key: "affectedClient", label: "Client", value: client });
   if (/\b(again|recurring|keeps|every time|still|repeatedly)\b/i.test(raw)) out.push({ key: "recurrence", label: "Pattern", value: "Recurring" });
+
+  const trainer = matchTrainer(raw, EMPLOYEES.filter((e) => e.departmentCode === "TRN").map((e) => e.name));
+  if (trainer) out.push({ key: "trainer", label: "Trainer", value: trainer });
+  const format = matchFormat(raw);
+  if (format) out.push({ key: "class", label: "Class", value: format });
+  const when = matchWhen(raw);
+  if (when) out.push({ key: "date", label: "Date", value: when.replace(/^\w/, (c) => c.toUpperCase()) });
+  const membership = /\b(\d+\s*-?\s*class(es)?\s*pack|annual|monthly|quarterly|unlimited|newcomer|intro offer|membership|package|credits?)\b/i.exec(raw)?.[0];
+  if (membership) out.push({ key: "membership", label: "Membership", value: membership.toLowerCase() });
+  // Sub-category: the longest known sub-category name the text mentions.
+  const lower = raw.toLowerCase();
+  const sub = SUBCATS().find((x) => x.name.length > 4 && lower.includes(x.name.toLowerCase()));
+  if (sub) {
+    out.push({ key: "subcategory", label: "Sub-category", value: sub.name });
+    if (sub.dept && DEPT_MAP[sub.dept]) out.push({ key: "department", label: "Department", value: DEPT_MAP[sub.dept].name });
+  } else if (cat) {
+    const dept = CATEGORY_DEPT[cat[0]];
+    if (dept && DEPT_MAP[dept]) out.push({ key: "department", label: "Department", value: DEPT_MAP[dept].name });
+  }
+  const mood = detailsFromText(raw).sentiment;
+  if (mood) out.push({ key: "mood", label: "Mood", value: mood });
   return out;
 }

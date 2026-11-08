@@ -44,6 +44,9 @@ import { kbCategoryLabel } from "@/lib/iris/knowledge-base/taxonomy";
 import { REQUESTED_OUTCOMES, type TemplateField, type TicketTemplate } from "@/lib/iris/template-types";
 import { initialFieldValues, isFieldFilled, resolveTemplateForm } from "@/lib/iris/template-form";
 import { templateCategoryLabel } from "@/lib/iris/template-taxonomy";
+import { MomenceSearchField } from "@/components/iris/momence-search-field";
+import { RosterTable } from "@/components/iris/roster-table";
+import { encodeSession, sessionIdOf, sessionLabelOf } from "@/lib/iris/roster-field";
 import {
   NOT_STUDIO_SPECIFIC,
   assembleTicketDescription,
@@ -255,6 +258,8 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
 
   const pc = PRIORITY_CONFIG[priority];
   const wideField = (f: TemplateField) =>
+    f.type === "session" ||
+    f.type === "roster" ||
     f.type === "textarea" ||
     f.type === "multiselect" ||
     (f.type === "select" && (f.options?.length ?? 0) <= 6 && (f.options ?? []).join("").length > 48);
@@ -411,6 +416,7 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
                   <TemplateFieldControl
                     field={f}
                     value={values[f.id]}
+                    values={values}
                     invalid={showErrors && Boolean(f.required) && !isFieldFilled(f, values[f.id])}
                     onChange={(v) => setValue(f.id, v)}
                   />
@@ -714,11 +720,13 @@ function Pills({
 function TemplateFieldControl({
   field: f,
   value,
+  values,
   invalid,
   onChange,
 }: {
   field: TemplateField;
   value: FieldValue | undefined;
+  values?: Record<string, FieldValue | undefined>;
   invalid: boolean;
   onChange: (v: FieldValue) => void;
 }) {
@@ -745,6 +753,25 @@ function TemplateFieldControl({
 
   let control: React.ReactNode;
   switch (f.type) {
+    case "session":
+      control = text ? (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 text-[12px]">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span className="font-medium truncate">{sessionLabelOf(text)}</span>
+          <button type="button" onClick={() => onChange("")} className="ml-auto text-[11px] text-muted-foreground hover:text-foreground">Change</button>
+        </div>
+      ) : (
+        <MomenceSearchField
+          type="momence_session"
+          sessionTypes={f.sessionTypes}
+          placeholder={f.sessionTypes?.includes("private") ? "Search hosted / private classes…" : undefined}
+          onSelect={(e) => e.id && onChange(encodeSession({ id: e.id, name: e.name, subtitle: e.subtitle }))}
+        />
+      );
+      break;
+    case "roster":
+      control = <RosterTable sessionId={sessionIdOf(f.sessionField ? values?.[f.sessionField] : undefined)} value={value} onChange={onChange} />;
+      break;
     case "textarea":
       control = <Textarea value={text} onChange={(e) => onChange(e.target.value)} className="min-h-[72px] text-[13px]" />;
       break;

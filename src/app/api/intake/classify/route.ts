@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { warmMomenceSessions } from "@/lib/server/momence";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
@@ -10,6 +11,8 @@ import { evaluateRoutingRules, type RoutingRuleRow } from "@/lib/iris/routing-en
 export async function POST(request: Request) {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
+  // A report is starting: load Momence classes/trainers now so the pickers open instantly.
+  warmMomenceSessions();
   try {
     await enforceRateLimit("intake-classify", userKey(auth.session.user_id));
   } catch (e) {

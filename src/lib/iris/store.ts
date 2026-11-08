@@ -154,6 +154,10 @@ export interface AgentTicketDraft {
   businessImpact?: string;
   recommendedResolution?: string;
   tags?: string[];
+  /** Secondary departments that also need to act. */
+  departmentCodes?: string[];
+  /** Presentation-only details for the review card (owner, SLA, steps, member profile...). */
+  extras?: import("./intake-details").DraftExtras;
 }
 
 export type IntakeTaxonomy = Array<{
@@ -185,6 +189,10 @@ export interface IntakeState {
   taxonomy: IntakeTaxonomy;
   detectedBy: "rules" | "ai";
   done: boolean;
+  /** Answers to the per-type questions (client's words, mood, impact...). */
+  details?: Partial<Record<import("./intake-details").DetailKey, string>>;
+  /** Momence profile, memberships and visits of the picked member. */
+  memberSnapshot?: import("./intake-details").MemberSnapshot | null;
 }
 
 export interface AIMessage {
@@ -211,6 +219,8 @@ export interface AIMessage {
   variant?: "default" | "question" | "info" | "success" | "investigation" | "ticket" | "draft" | "error" | "intake";
   /** Ticket proposed by the AI agent, awaiting the user's confirmation. */
   ticketDraft?: AgentTicketDraft;
+  /** Set when the user discarded the draft. */
+  discarded?: boolean;
   /** Set once the draft has been created. */
   createdTicket?: { id: string; ticketId: string };
   /** Structured intake form shown in this message. */
