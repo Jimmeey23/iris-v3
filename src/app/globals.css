@@ -1394,3 +1394,19 @@ html[data-reduce-motion="true"] *::after {
 @keyframes iris-petal { 0%, 100% { transform: scale(1); } 50% { transform: scale(.86); } }
 @keyframes iris-core { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.45); opacity: .85; } }
 @media (prefers-reduced-motion: reduce) { .iris-logo-aperture, .iris-logo-aperture path, .iris-logo-core { animation: none !important; } }
+
+/* Trainer report: executive analysis + export menu */
+.tr-exec { display: grid; gap: 14px; }
+.tr-exec-lead { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.tr-exec-lead strong { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--foreground); }
+.tr-exec-lead p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--foreground); }
+.tr-exec-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 640px) { .tr-exec-cols { grid-template-columns: 1fr; } }
+.tr-exec-cols ul { margin: 6px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.6; }
+.tr-export { position: relative; }
+.tr-export .tr-drill-btn { display: inline-flex; align-items: center; gap: 6px; height: 26px; font-size: 11px; }
+.tr-export-scrim { position: fixed; inset: 0; z-index: 30; background: transparent; border: 0; cursor: default; }
+.tr-export-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 31; min-width: 200px; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--popover, var(--card)); box-shadow: 0 10px 30px -12px rgba(0,0,0,.35); }
+.tr-export-menu button { display: grid; width: 100%; text-align: left; gap: 1px; padding: 7px 9px; border: 0; border-radius: 7px; background: transparent; font-size: 12px; font-weight: 500; color: var(--foreground); cursor: pointer; }
+.tr-export-menu button:hover { background: var(--muted); }
+.tr-export-menu small { font-size: 10px; color: var(--muted-foreground); font-weight: 400; }

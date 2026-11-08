@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { parseAppPath } from "@/lib/iris/routes";
 import { Loader2, Lock, Eye, AlertTriangle, RefreshCw } from "lucide-react";
 import { IrisLogo } from "./iris-logo";
 import { IrisLoadingScreen } from "./intro-animation";
@@ -73,7 +74,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 45000)),
       ]);
       // Apply user's persisted landing view & sidebar state unless deep-linking to a ticket
-      const hasTicketLink = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("ticket");
+      // A link to a specific page or ticket wins over the landing-view preference.
+      const hasTicketLink =
+        typeof window !== "undefined" &&
+        (new URLSearchParams(window.location.search).has("ticket") || parseAppPath(window.location.pathname).view !== null);
       const prefs = useSettingsStore.getState();
       if (!hasTicketLink && prefs.defaultLandingView) {
         useAppStore.getState().setCurrentView(prefs.defaultLandingView as ViewName);

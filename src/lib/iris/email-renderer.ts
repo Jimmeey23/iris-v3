@@ -566,7 +566,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
     : spec.subject;
   const finalSubject = testBadge ? `[TEST] ${rawSubject}` : rawSubject;
 
-  const url = `${cleanOrigin(input.appUrl)}/?ticket=${encodeURIComponent(t.id)}`;
+  const url = `${cleanOrigin(input.appUrl)}/tickets/${encodeURIComponent(t.ticketId || t.id)}`;
 
   const badgesRow = [
     priorityPill(t.priority ?? "P2"),

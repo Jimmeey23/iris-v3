@@ -55,6 +55,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   turbopack: { root: process.cwd() },
   serverExternalPackages: ["pg"],
+  // Every view has its own URL (src/lib/iris/routes.ts). They all serve the one static
+  // app page, so deep links cost no serverless invocation; the client picks the view.
+  async rewrites() {
+    const views = "dashboard|ai|tickets|my-tickets|department|escalations|trainers|equipment|radar|analytics|knowledge-base|templates|reports|momence|email-templates|settings";
+    return [{ source: `/:view(${views})/:rest*`, destination: "/" }];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

@@ -10,7 +10,11 @@ import {
   type FeedbackRow,
 } from "@/lib/iris/trainer-directory";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink, Download, RefreshCw, Loader2 } from "lucide-react";
+import { api } from "@/lib/iris/live-data";
+import {
+  analysisFacts, analysisSignature, localAnalysis, type TrainerAnalysis,
+} from "@/lib/iris/trainer-analysis";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -556,12 +560,133 @@ function DrillPanel({
   );
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Export (all client-side: no server cost)                            */
+/* ------------------------------------------------------------------ */
+
+const escHtml = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+function reportHtml(trainer: Trainer, a: TrainerAnalysis) {
+  const scored = [...trainer.assessments].filter((x) => x.score > 0).sort((x, y) => +new Date(y.submittedAt) - +new Date(x.submittedAt));
+  const row = (k: string, v: string) => `<tr><th>${escHtml(k)}</th><td>${escHtml(v)}</td></tr>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(trainer.displayName || trainer.name)} - Trainer report</title>
+<style>
+body{font:13px/1.55 -apple-system,Inter,Segoe UI,sans-serif;color:#111;max-width:820px;margin:32px auto;padding:0 24px}
+h1{font-size:24px;font-weight:600;margin:4px 0 2px}h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#666;margin:26px 0 8px;border-bottom:1px solid #ddd;padding-bottom:6px}
+.eyebrow{font-size:10px;letter-spacing:.2em;color:#666;text-transform:uppercase}.muted{color:#666}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:6px 8px 6px 0;border-bottom:1px solid #eee;vertical-align:top}th{width:180px;font-weight:600;color:#444}
+.callout{border:1px solid #ddd;border-radius:8px;padding:12px 14px}.num{font-variant-numeric:tabular-nums;font-family:ui-monospace,monospace}
+@media print{body{margin:0}}
+</style></head><body>
+<div class="eyebrow">Trainer performance report · Physique 57 India</div>
+<h1>${escHtml(trainer.displayName || trainer.name)}</h1>
+<div class="muted">${escHtml(trainer.band || "Awaiting assessment")} · ${escHtml(trainer.city)} · generated ${escHtml(indiaDate(new Date().toISOString()))}</div>
+<h2>Summary</h2><table>
+${row("Profile average", trainer.avgScore === null ? "-" : trainer.avgScore + "%")}
+${row("Assessments", String(trainer.assessmentCount))}
+${row("Compliments / concerns", `${trainer.complimentCount} / ${trainer.issueCount}`)}
+${row("Trajectory", a.trajectory)}
+</table>
+<h2>Executive analysis</h2><div class="callout"><strong>${escHtml(a.headline)}</strong><br/><br/>${escHtml(a.narrative)}</div>
+${a.strengths.length ? `<h2>Strengths</h2><ul>${a.strengths.map((x) => `<li>${escHtml(x)}</li>`).join("")}</ul>` : ""}
+${a.priorities.length ? `<h2>Coaching priorities</h2><ul>${a.priorities.map((x) => `<li>${escHtml(x)}</li>`).join("")}</ul>` : ""}
+${a.coachingPlan.length ? `<h2>Development plan</h2><table>${a.coachingPlan.map((x) => row(x.horizon, x.action)).join("")}</table>` : ""}
+<h2>Assessments</h2><table><tr><th>Date</th><th>Score</th><th>Evaluator</th><th>Studio</th></tr>
+${scored.map((x) => `<tr><td class="num">${escHtml(indiaDate(x.submittedAt, true))}</td><td class="num">${x.score}%</td><td>${escHtml(x.evaluator)}</td><td>${escHtml(x.studio?.split(",")[0] ?? "-")}</td></tr>`).join("")}
+</table>
+<h2>Member feedback</h2><table><tr><th>Date</th><th>Feedback</th><th>Type</th></tr>
+${trainer.feedback.map((f) => `<tr><td class="num">${escHtml(indiaDate(f.createdAt, true))}</td><td>${escHtml(f.title)} <span class="muted">(${escHtml(f.ticketNumber)})</span></td><td>${f.kind === "compliment" ? "Compliment" : "Concern"}</td></tr>`).join("")}
+</table>
+<p class="muted" style="margin-top:28px;font-size:11px">Analysis engine: ${escHtml(a.engine)}. Internal use only.</p>
+</body></html>`;
+}
+
+function downloadFile(name: string, body: string, type: string) {
+  const url = URL.createObjectURL(new Blob([body], { type }));
+  const el = document.createElement("a");
+  el.href = url;
+  el.download = name;
+  el.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function ExportMenu({ trainer, analysis }: { trainer: Trainer; analysis: TrainerAnalysis }) {
+  const [open, setOpen] = React.useState(false);
+  const slug = (trainer.displayName || trainer.name).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const stamp = new Date().toISOString().slice(0, 10);
+  const run = (kind: "pdf" | "html" | "json") => {
+    setOpen(false);
+    if (kind === "html") downloadFile(`${slug}-report-${stamp}.html`, reportHtml(trainer, analysis), "text/html");
+    if (kind === "json") downloadFile(`${slug}-report-${stamp}.json`, JSON.stringify({ trainer, analysis }, null, 2), "application/json");
+    if (kind === "pdf") {
+      const win = window.open("", "_blank", "width=900,height=1100");
+      if (!win) return;
+      win.document.write(reportHtml(trainer, analysis));
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 400);
+    }
+  };
+  return (
+    <div className="tr-export">
+      <button type="button" className="tr-drill-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <Download size={12} /> Export
+      </button>
+      {open && (
+        <>
+          <button type="button" className="tr-export-scrim" aria-label="Close" onClick={() => setOpen(false)} />
+          <div className="tr-export-menu" role="menu">
+            <button type="button" role="menuitem" onClick={() => run("pdf")}>PDF / print<small>Opens the print dialog</small></button>
+            <button type="button" role="menuitem" onClick={() => run("html")}>HTML<small>Self-contained report file</small></button>
+            <button type="button" role="menuitem" onClick={() => run("json")}>JSON<small>Raw data for analysis</small></button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const RISK_LABEL: Record<TrainerAnalysis["risk"], string> = {
+  high: "Coaching priority",
+  watch: "Development watch",
+  stable: "Stable",
+  rising: "Improving",
+};
+
 /* ------------------------------------------------------------------ */
 /* Report                                                              */
 /* ------------------------------------------------------------------ */
 
 export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onOpenTicket?: (id: string, ticketNumber?: string) => void }) {
   const [drill, setDrill] = React.useState<Drill | null>(null);
+
+  // Executive analysis: local version instantly; AI wording from the server cache (one
+  // model call per new assessment set, never per view). Falls back to local silently.
+  const facts = React.useMemo(() => analysisFacts(trainer), [trainer]);
+  const signature = React.useMemo(() => analysisSignature(trainer), [trainer]);
+  const local = React.useMemo(() => localAnalysis(facts), [facts]);
+  const [aiState, setAiState] = React.useState<{ for: string; analysis: TrainerAnalysis | null; loading: boolean; note?: string }>({ for: "", analysis: null, loading: false });
+  const fetchAi = React.useCallback(async (refresh: boolean) => {
+    const id = trainer.name + "|" + signature;
+    setAiState({ for: id, analysis: null, loading: true });
+    try {
+      const r = await api<{ analysis: TrainerAnalysis | null; reason?: string }>("/api/trainers/analysis", {
+        method: "POST",
+        json: { facts, base: local, signature, refresh },
+      });
+      setAiState({ for: id, analysis: r.analysis, loading: false, note: r.reason });
+    } catch (e) {
+      setAiState({ for: id, analysis: null, loading: false, note: (e as Error).message });
+    }
+  }, [trainer.name, signature, facts, local]);
+  React.useEffect(() => {
+    void Promise.resolve().then(() => fetchAi(false));
+  }, [fetchAi]);
+  const aiCurrent = aiState.for === trainer.name + "|" + signature;
+  const analysis = (aiCurrent && aiState.analysis) || local;
+  const aiLoading = aiCurrent && aiState.loading;
   const anchorId = `tr-rubric-${React.useId().replace(/:/g, "")}`;
   const [selection, setSelection] = React.useState<{ for: string; id: string }>();
   const selectedId = selection?.for === trainer.name ? selection.id : null;
@@ -707,7 +832,10 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
           />
         </div>
         <div className="tr-masthead-body">
-          <span className="eyebrow">TRAINER PERFORMANCE REPORT</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span className="eyebrow">TRAINER PERFORMANCE REPORT</span>
+            <ExportMenu trainer={trainer} analysis={analysis} />
+          </div>
           <h2>{trainer.displayName || trainer.name}</h2>
           <dl className="tr-meta">
             <div><dt>Band</dt><dd>{trainer.band || "Awaiting assessment"}</dd></div>
@@ -768,8 +896,47 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
         />
       </div>
 
+      {/* 01 - executive analysis */}
+      <Section
+        index="01"
+        title="Executive analysis"
+        subtitle={aiLoading ? "Refining with AI..." : `${analysis.engine} · saved per assessment set, not regenerated on every view`}
+        action={
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span className={analysis.risk === "high" ? "tr-chip tr-chip-alert" : "tr-chip"}>{RISK_LABEL[analysis.risk]}</span>
+            <button type="button" className="tr-chip tr-click" onClick={() => void fetchAi(true)} disabled={aiLoading} title="Ask the AI to rewrite this analysis">
+              {aiLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}&nbsp;Regenerate
+            </button>
+          </div>
+        }
+      >
+        <div className="tr-exec">
+          <div className="tr-exec-lead">
+            <strong>{analysis.headline}</strong>
+            <p>{analysis.narrative}</p>
+            <span className="tr-num" style={{ color: "var(--muted-foreground)" }}>{analysis.trajectory}</span>
+          </div>
+          <div className="tr-exec-cols">
+            <div>
+              <span className="tr-kpi-label">Strengths</span>
+              {analysis.strengths.length ? <ul>{analysis.strengths.map((x) => <li key={x}>{x}</li>)}</ul> : <p className="tr-drill-empty">Not enough rubric data yet.</p>}
+            </div>
+            <div>
+              <span className="tr-kpi-label">Coaching priorities</span>
+              {analysis.priorities.length ? <ul>{analysis.priorities.map((x) => <li key={x}>{x}</li>)}</ul> : <p className="tr-drill-empty">None identified.</p>}
+            </div>
+          </div>
+          {analysis.coachingPlan.length > 0 && (
+            <table className="tr-drill-table tr-exec-plan">
+              <thead><tr><th style={{ width: 120 }}>Horizon</th><th>Action</th></tr></thead>
+              <tbody>{analysis.coachingPlan.map((x) => <tr key={x.horizon}><td className="tr-num">{x.horizon}</td><td>{x.action}</td></tr>)}</tbody>
+            </table>
+          )}
+        </div>
+      </Section>
+
       {alerts.length > 0 && (
-        <Section index="01" title="What needs attention" subtitle="Derived from the assessments and feedback on file">
+        <Section index="02" title="What needs attention" subtitle="Derived from the assessments and feedback on file">
           <div className="tr-alerts">
             {alerts.map((a) => (
               <button type="button" key={a.title} className="tr-alert tr-click" data-tone={a.tone} onClick={a.open} disabled={!a.open}>
@@ -785,7 +952,7 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
 
       {/* 02 - trajectory */}
       <Section
-        index="02"
+        index="03"
         title="Score trajectory"
         subtitle="Weighted result per assessment · select a point to load it below"
         action={<IrisBadge>{scored.length} scored reviews</IrisBadge>}
@@ -800,7 +967,7 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
       {/* 03 - rubric for the selected review */}
       <div id={anchorId} style={{ scrollMarginTop: 12 }} />
       <Section
-        index="03"
+        index="04"
         title="Rubric attainment"
         subtitle={selected ? `${indiaDate(selected.submittedAt)} · ${selected.sourceLabel} · weakest criteria first` : "No assessment selected"}
         action={selected ? <IrisBadge tone={scoreTone(selected.score)}>{selected.score}% overall</IrisBadge> : undefined}
@@ -844,7 +1011,7 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
 
       {/* 04 - coaching notes from the selected review */}
       {selected && (selected.strengths || selected.improvements || selected.coachingPlan || selected.summary) && (
-        <Section index="04" title="Coaching notes" subtitle={`As recorded on ${selected.ticketNumber}`}>
+        <Section index="05" title="Coaching notes" subtitle={`As recorded on ${selected.ticketNumber}`}>
           <div className="tr-notes">
             {selected.strengths && (
               <div className="tr-note">
@@ -877,7 +1044,7 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
       {/* 05 - lifetime rubric */}
       {lifetimeRubric.length > 0 && (
         <Section
-          index="05"
+          index="06"
           title="Recurring strengths and levers"
           subtitle="Averaged across every review on file · weakest first"
           action={<IrisBadge>{lifetimeRubric.length} criteria · click any to drill in</IrisBadge>}
@@ -890,7 +1057,7 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
 
       {/* 06 - the reviews themselves */}
       <Section
-        index="06"
+        index="07"
         title="Reviews on file"
         subtitle="The most recent review in full; earlier ones collapsed - open any of them, or select a score to load it into the rubric and radar above"
         action={<IrisBadge>{trainer.assessments.length} on file</IrisBadge>}
@@ -938,7 +1105,7 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
       {/* 07 - evaluators + studios */}
       {(evaluators.length > 0 || studios.length > 0) && (
         <Section
-          index="07"
+          index="08"
           title="Evaluator and studio breakdown"
           subtitle="Who is assessing this trainer, and where"
         >
@@ -981,7 +1148,7 @@ export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onO
 
       {/* 08 - member feedback */}
       <Section
-        index="08"
+        index="09"
         title="Member feedback and compliments"
         subtitle="Everything logged against this trainer outside a formal assessment"
         action={

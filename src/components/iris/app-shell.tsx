@@ -65,6 +65,7 @@ import { ALL_TICKETS, isOwner } from "@/lib/iris/sample-tickets";
 import { RelativeTime } from "./relative-time";
 import { CommandPalette } from "./command-palette";
 import { SlaBreachBanner } from "./sla-breach-banner";
+import { RouteSync } from "./route-sync";
 import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
 import { Member360Lookup } from "./member-360";
 
@@ -121,19 +122,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
-  // Support deep-links from notification emails (`/?ticket=P57-00142` or `/?ticket=<id>`)
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    const ticketParam = url.searchParams.get("ticket");
-    if (!ticketParam) return;
-    const matched = ALL_TICKETS.find((t) => t.id === ticketParam || t.ticketId === ticketParam);
-    if (matched) {
-      selectTicket(matched.id);
-      url.searchParams.delete("ticket");
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    }
-  }, [dataVersion, selectTicket]);
+  // Deep links (/tickets/<ref>, legacy /?ticket=) and Back/Forward are handled by <RouteSync />.
 
   const myOpenCount = React.useMemo(() => {
     void dataVersion;
@@ -216,9 +205,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const handleNotificationClick = (n: BellNotification) => {
     if (!n.isRead) void markRead({ ids: [n.id] });
     if (n.ticketId) {
-      // selectTicket exists on store; use it directly
-      useAppStore.getState().selectTicket(n.ticketId);
-      setCurrentView("all_tickets");
+      // Switches to All Tickets and opens it (setCurrentView alone would clear the selection).
+      useAppStore.getState().openTicket(n.ticketId);
     }
   };
 
@@ -642,6 +630,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
+        <RouteSync />
         <SlaBreachBanner />
 
         {/* Content */}
