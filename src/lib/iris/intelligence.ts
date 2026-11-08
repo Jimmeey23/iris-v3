@@ -19,6 +19,8 @@ import { ALL_TICKETS, type Ticket, getAssignee } from "./sample-tickets";
 import { EMPLOYEES, STUDIOS, DEPARTMENTS, type Employee } from "./types";
 import { KNOWLEDGE_ARTICLES, type KnowledgeArticle } from "./knowledge-base-data";
 import { TICKET_TEMPLATES } from "./templates";
+import { templateTaxonomy } from "./template-form";
+import { templateCategoryLabel } from "./template-taxonomy";
 import { MEMBERS, findMember, type Member } from "./member-directory";
 
 const now = Date.now();
@@ -804,8 +806,13 @@ export function suggestResolution(ticket: Ticket): ResolutionSuggestion {
       const ticketKeywords = ticketText.split(/\s+/).filter((k) => k.length > 4);
       const matched = ticketKeywords.filter((k) => tplText.includes(k));
       score = Math.min(100, matched.length * 12);
-      if (tpl.category.toLowerCase() === ticket.category.toLowerCase()) score += 20;
-      if (ticket.subcategory && tpl.subcategory?.toLowerCase() === ticket.subcategory.toLowerCase()) score += 30;
+      // Tickets are filed in the CATEGORY_MAP taxonomy; templates carry a library
+      // taxonomy plus the ticket pair they pre-fill — match on either.
+      const tax = templateTaxonomy(tpl);
+      const ticketCat = ticket.category.toLowerCase();
+      const ticketSub = ticket.subcategory?.toLowerCase();
+      if (tpl.category.toLowerCase() === ticketCat || tax.category.toLowerCase() === ticketCat) score += 20;
+      if (ticketSub && (tpl.subcategory?.toLowerCase() === ticketSub || tax.subcategory.toLowerCase() === ticketSub)) score += 30;
       return { code: tpl.code, title: tpl.title, recommendedActions: tpl.recommendedActions, matchScore: score, _tpl: tpl };
     })
     .sort((a, b) => b.matchScore - a.matchScore)[0];
@@ -979,7 +986,7 @@ export interface CommandItem {
   /** Keywords for matching */
   keywords: string[];
   /** Where to navigate when selected */
-  navigate?: { view: string; ticketId?: string };
+  navigate?: { view: string; ticketId?: string; templateCode?: string; articleId?: string };
   /** Icon name */
   icon: string;
 }
@@ -1017,8 +1024,8 @@ export const COMMAND_INDEX: CommandItem[] = (() => {
       type: "knowledge",
       title: a.title,
       subtitle: `${a.id} · ${a.category}`,
-      keywords: [a.id, a.title, a.summary, a.category, ...a.steps].filter(Boolean),
-      navigate: { view: "knowledge_base" },
+      keywords: [a.id, a.title, a.summary, a.category, ...a.steps, ...(a.tags ?? [])].filter(Boolean),
+      navigate: { view: "knowledge_base", articleId: a.id },
       icon: "book",
     });
   }
@@ -1029,9 +1036,9 @@ export const COMMAND_INDEX: CommandItem[] = (() => {
       id: `tpl-${tpl.code}`,
       type: "template",
       title: tpl.title,
-      subtitle: `${tpl.code} · ${tpl.category}`,
-      keywords: [tpl.code, tpl.title, tpl.description, tpl.category, tpl.subcategory || ""].filter(Boolean),
-      navigate: { view: "templates" },
+      subtitle: `${tpl.code} · ${templateCategoryLabel(tpl.category)}${tpl.subcategory ? ` › ${tpl.subcategory}` : ""}`,
+      keywords: [tpl.code, tpl.title, tpl.description, tpl.category, tpl.subcategory || "", tpl.form?.subcategory || ""].filter(Boolean),
+      navigate: { view: "templates", templateCode: tpl.code },
       icon: "wand",
     });
   }

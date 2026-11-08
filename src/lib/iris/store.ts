@@ -67,6 +67,24 @@ interface AppState {
   // Bumped whenever live data changes so views re-read ALL_TICKETS etc.
   dataVersion: number;
   bumpData: () => void;
+
+  // Templates page drill-down: Category → Sub-category → Template (preset ticket builder)
+  templateNav: TemplateNav;
+  setTemplateNav: (nav: TemplateNav) => void;
+  /** Jump straight to a template's ticket builder (e.g. from search or a KB article). */
+  openTemplate: (code: string) => void;
+
+  // Knowledge base article to show when the Knowledge Base view is open
+  kbArticleId: string | null;
+  setKbArticleId: (id: string | null) => void;
+  /** Navigate to the Knowledge Base with an article open. */
+  openKnowledgeArticle: (id: string) => void;
+}
+
+export interface TemplateNav {
+  category: string | null;
+  subcategory: string | null;
+  templateCode: string | null;
 }
 
 export interface CurrentUser {
@@ -261,6 +279,15 @@ export const useAppStore = create<AppState>()(
 
       dataVersion: 0,
       bumpData: () => set((s) => ({ dataVersion: s.dataVersion + 1 })),
+
+      templateNav: { category: null, subcategory: null, templateCode: null },
+      setTemplateNav: (nav) => set({ templateNav: nav }),
+      openTemplate: (code) =>
+        set({ currentView: "templates", selectedTicketId: null, templateNav: { category: null, subcategory: null, templateCode: code } }),
+
+      kbArticleId: null,
+      setKbArticleId: (id) => set({ kbArticleId: id }),
+      openKnowledgeArticle: (id) => set({ currentView: "knowledge_base", selectedTicketId: null, kbArticleId: id }),
     }),
     {
       name: "iris-app-state-v2",

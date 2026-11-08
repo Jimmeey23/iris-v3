@@ -1,5 +1,6 @@
 import type { TicketTemplate } from "./templates";
 import type { Priority } from "./types";
+import { TEMPLATE_CATEGORY_ORDER, subcategoryRank } from "./template-taxonomy";
 
 export const GENERAL_SUBCATEGORY = "General";
 
@@ -24,18 +25,21 @@ export interface TemplateCategoryGroup {
   avgResolutionHours: number;
 }
 
-/** Canonical operational ordering for built-in categories; unknown categories sort alphabetically after. */
-const CANONICAL_CATEGORY_ORDER = [
-  "Membership",
-  "Payment",
-  "Scheduling",
-  "Client Experience",
-  "Facilities",
-  "IT",
-  "Operations",
-  "HR",
-  "Marketing",
-];
+/** Canonical ordering for built-in categories (template-taxonomy.ts); unknown categories sort alphabetically after. */
+const CANONICAL_CATEGORY_ORDER = TEMPLATE_CATEGORY_ORDER;
+
+/**
+ * Sub-category order within a category: the taxonomy's display order first,
+ * then any other named sub-categories alphabetically, with "General" last.
+ */
+export function compareTemplateSubcategories(category: string, a: string, b: string): number {
+  if (a === GENERAL_SUBCATEGORY && b !== GENERAL_SUBCATEGORY) return 1;
+  if (b === GENERAL_SUBCATEGORY && a !== GENERAL_SUBCATEGORY) return -1;
+  const ra = subcategoryRank(category, a);
+  const rb = subcategoryRank(category, b);
+  if (ra !== rb) return ra - rb;
+  return a.localeCompare(b);
+}
 
 function emptyPriorityCounts(): Record<Priority, number> {
   return { P0: 0, P1: 0, P2: 0, P3: 0 };
@@ -64,18 +68,14 @@ export function sortTemplateCategories(categories: Iterable<string>): string[] {
   });
 }
 
-/** Extract distinct sorted subcategories available within an optional category filter. */
+/** Distinct sub-categories (in display order) available within an optional category filter. */
 export function templateSubcategories(templates: TicketTemplate[], categoryFilter = "all"): string[] {
   const set = new Set<string>();
   for (const t of templates) {
     if (categoryFilter !== "all" && normalizeTemplateCategory(t.category) !== categoryFilter) continue;
     set.add(normalizeTemplateSubcategory(t.subcategory));
   }
-  return Array.from(set).sort((a, b) => {
-    if (a === GENERAL_SUBCATEGORY && b !== GENERAL_SUBCATEGORY) return 1;
-    if (b === GENERAL_SUBCATEGORY && a !== GENERAL_SUBCATEGORY) return -1;
-    return a.localeCompare(b);
-  });
+  return Array.from(set).sort((a, b) => compareTemplateSubcategories(categoryFilter, a, b));
 }
 
 /**
@@ -107,11 +107,7 @@ export function groupTemplatesByCategoryAndSubcategory(
 
   return orderedCategories.map((category) => {
     const subMap = byCategory.get(category)!;
-    const orderedSubNames = Array.from(subMap.keys()).sort((a, b) => {
-      if (a === GENERAL_SUBCATEGORY && b !== GENERAL_SUBCATEGORY) return 1;
-      if (b === GENERAL_SUBCATEGORY && a !== GENERAL_SUBCATEGORY) return -1;
-      return a.localeCompare(b);
-    });
+    const orderedSubNames = Array.from(subMap.keys()).sort((a, b) => compareTemplateSubcategories(category, a, b));
 
     const catPriorities = emptyPriorityCounts();
     const catDepts = new Set<string>();

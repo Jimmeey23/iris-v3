@@ -1,7 +1,7 @@
-// Maps a library template onto the dynamic form builder.
+// Maps a library template onto the ticket form.
 //
-// A template stores its own taxonomy ("Membership" / "Freeze Issue") while the
-// builder works in the CATEGORY_MAP taxonomy ("Pricing and Memberships" /
+// A template stores its own library taxonomy ("Membership" / "Freezes & Pauses") while
+// tickets use the CATEGORY_MAP taxonomy ("Pricing and Memberships" /
 // "Membership Pause and Freeze Policy"). resolveTemplateForm() bridges the two
 // and returns everything the builder needs to prefill: category, subcategory,
 // studio/area restrictions and the exact field set.
@@ -12,8 +12,8 @@ import type { Priority } from "./types";
 
 type Pair = [category: string, subcategory: string];
 
-/** Fallback per template category. */
-const CATEGORY_FALLBACK: Record<string, Pair> = {
+/** Fallback per template category (used only when a template carries no valid form pair). */
+export const CATEGORY_FALLBACK: Record<string, Pair> = {
   Membership: ["Pricing and Memberships", "Membership Upgrade/Downgrade"],
   Payment: ["Pricing and Memberships", "Refund and Cancellation Policy Issue"],
   Facilities: ["Repair and Maintenance", "General Studio Repairs & Maintenance"],
@@ -23,10 +23,88 @@ const CATEGORY_FALLBACK: Record<string, Pair> = {
   HR: ["Internal Operations & Admin", "Performance Review / Payroll / Leave (HR-Admin)"],
   Marketing: ["Brand Feedback", "Marketing Collateral Production & Review"],
   Operations: ["Internal Operations & Admin", "Internal Operations Memo / Escalation"],
+
+  "Class & Trainer Experience": ["Class Experience", "Class Format Satisfaction"],
+  "Equipment & Studio Assets": ["Repair and Maintenance", "General Studio Repairs & Maintenance"],
+  "Safety & Security": ["Safety and Security", "Personal Safety Concerns"],
 };
 
-/** `${template category}|${template subcategory}` -> builder category/subcategory. */
-const SUBCATEGORY_MAP: Record<string, Pair> = {
+/**
+ * `${template category}|${template subcategory}` -> ticket category/subcategory.
+ * Covers the current library taxonomy (template-taxonomy.ts) and the legacy
+ * v1 sub-category names that older stored rows may still carry.
+ */
+export const SUBCATEGORY_MAP: Record<string, Pair> = {
+  // Library taxonomy (template-taxonomy.ts)
+  "Membership|Freezes & Pauses": ["Pricing and Memberships", "Membership Pause and Freeze Policy"],
+  "Membership|Plan Changes & Upgrades": ["Pricing and Memberships", "Membership Upgrade/Downgrade"],
+  "Membership|Credits & Expiry": ["Pricing and Memberships", "Class Pack Expiry Confusion"],
+  "Membership|Renewals & Cancellations": ["Pricing and Memberships", "Auto-Renewal Concerns"],
+  "Membership|Transfers & Studio Access": ["Pricing and Memberships", "Studio Location & Pricing Preference"],
+  "Membership|Perks, Referrals & Corporate": ["Pricing and Memberships", "Discounts and Offers Confusion"],
+  "Payment|Failed & Missing Payments": ["Tech Issues", "Payment Processing Delays"],
+  "Payment|Refunds": ["Pricing and Memberships", "Refund and Cancellation Policy Issue"],
+  "Payment|Billing Errors & Disputes": ["Tech Issues", "Incorrect Charges on Account"],
+  "Payment|Invoices & GST": ["Tech Issues", "Digital Receipts and Invoices"],
+  "Payment|Gateways, POS & Payment Links": ["Operating Systems", "Stripe and Razorpay"],
+  "Payment|Cash, Wallet & Instalments": ["Internal Operations & Admin", "Internal Operations Memo / Escalation"],
+  "Scheduling|Bookings & Check-In": ["Scheduling", "Booking Confirmation Issues"],
+  "Scheduling|Waitlists & Capacity": ["Scheduling", "Waitlist Concerns"],
+  "Scheduling|Cancellations & Schedule Changes": ["Scheduling", "Last-minute Cancellations"],
+  "Scheduling|Instructor Cover & Substitutions": ["Scheduling", "Trainer Substitutions"],
+  "Scheduling|Attendance & Reminders": ["Operating Systems", "Attendance Record Discrepancies"],
+  "Scheduling|Events, Workshops & Private Bookings": ["Scheduling", "Workshop / Event Capacity & Planning"],
+  "Class & Trainer Experience|Punctuality & Class Timing": ["Trainer Feedback", "Trainer Punctuality Issues"],
+  "Class & Trainer Experience|Coaching Quality & Cueing": ["Class Experience", "Challenges in Following Instructor"],
+  "Class & Trainer Experience|Intensity, Format & Programming": ["Trainer Feedback", "Class Intensity Too High/Low"],
+  "Class & Trainer Experience|Music, Mic & Atmosphere": ["Trainer Feedback", "Instructor Music Balance & Schedule Fit"],
+  "Class & Trainer Experience|Trainer Conduct & Professionalism": ["Trainer Feedback", "Trainer Behaviour"],
+  "Class & Trainer Experience|Recognition & Development": ["Trainer Feedback", "Trainer Encouragement"],
+  "Client Experience|Complaints & Service Recovery": ["Customer Service and Communication", "Handling of Complaints"],
+  "Client Experience|Policy Disputes & Waivers": ["Customer Service and Communication", "Clarity in Policies"],
+  "Client Experience|Special Needs & Accommodations": ["Scheduling", "Special Request Accommodations"],
+  "Client Experience|Feedback & Suggestions": ["Customer Service and Communication", "Feedback Follow-up Process"],
+  "Client Experience|VIP, Milestones & Retention": ["Brand Feedback", "Member Recognition Efforts"],
+  "Client Experience|Member Conduct & Etiquette": ["Customer Service and Communication", "Handling of Complaints"],
+  "Facilities|HVAC & Air Quality": ["Repair and Maintenance", "AC & Ventilation Repairs"],
+  "Facilities|Audio & Sound Systems": ["Repair and Maintenance", "Audio, Mic & Headphone Malfunction"],
+  "Facilities|Plumbing, Showers & Washrooms": ["Repair and Maintenance", "Washroom & Plumbing Repairs"],
+  "Facilities|Electrical & Lighting": ["Repair and Maintenance", "Electrical & Power Issues"],
+  "Facilities|Housekeeping & Hygiene": ["Repair and Maintenance", "Housekeeping & Cleaning Issues"],
+  "Facilities|Amenities, Lockers & Fixtures": ["Repair and Maintenance", "General Studio Repairs & Maintenance"],
+  "Equipment & Studio Assets|PowerCycle Bikes (Stages SC3)": ["Repair and Maintenance", "PowerCycle Bike Malfunction & Repairs"],
+  "Equipment & Studio Assets|Barre, Mirrors & Flooring": ["Repair and Maintenance", "General Studio Repairs & Maintenance"],
+  "Equipment & Studio Assets|Strength Lab Equipment": ["Repair and Maintenance", "Strength Studio Equipment Repairs"],
+  "Equipment & Studio Assets|Props & Small Equipment": ["Repair and Maintenance", "Resistance Bands & Small Equipment Repairs"],
+  "Equipment & Studio Assets|Asset Requests & Servicing": ["Studio Amenities and Facilities", "Availability of Gym Accessories"],
+  "IT|Momence Platform": ["Operating Systems", "Software Bugs"],
+  "IT|Network & Wi-Fi": ["Tech Issues", "Studio Wi-Fi Not Working"],
+  "IT|Front Desk Hardware & POS": ["Operating Systems", "Technical Assistance"],
+  "IT|Member App & Website": ["Tech Issues", "App Performance Bugs"],
+  "IT|Staff Accounts & Software": ["Tech Issues", "Password and Login Issues"],
+  "IT|Integrations, Data & Security": ["Studio Amenities and Facilities", "Integration Issues"],
+  "Safety & Security|Injuries & Medical Emergencies": ["Safety and Security", "Handling of Medical Emergencies"],
+  "Safety & Security|Fire & Emergency Preparedness": ["Repair and Maintenance", "Fire Safety Compliance"],
+  "Safety & Security|CCTV & Access Control": ["Safety and Security", "CCTV Malfunction"],
+  "Safety & Security|Theft & Lost Items": ["Theft and Lost Items", "Studio Lost and Found Management"],
+  "Safety & Security|Harassment & Personal Safety": ["Safety and Security", "Harassment Reports"],
+  "Operations|Vendors & AMC": ["Repair and Maintenance", "Vendor / AMC Management"],
+  "Operations|Inventory & Supplies": ["Repair and Maintenance", "Toiletries and Supplies Low"],
+  "Operations|Audits, Compliance & Insurance": ["Internal Operations & Admin", "Quality Assurance Audit / Checklist Sign-off"],
+  "Operations|Studio Closures & Continuity": ["Internal Operations & Admin", "Internal Operations Memo / Escalation"],
+  "Operations|Process, SOPs & Reporting": ["Internal Operations & Admin", "SOP & Policy Governance (issue, version, publish)"],
+  "HR|Leave & Attendance": ["Internal Operations & Admin", "Performance Review / Payroll / Leave (HR-Admin)"],
+  "HR|Shifts & Rostering": ["Internal Operations & Admin", "HRIS & Shift Tooling Access (Zoho Shift)"],
+  "HR|Payroll & Reimbursements": ["Internal Operations & Admin", "Performance Review / Payroll / Leave (HR-Admin)"],
+  "HR|Onboarding & Exits": ["Internal Operations & Admin", "Performance Review / Payroll / Leave (HR-Admin)"],
+  "HR|Performance, Training & Recognition": ["Internal Operations & Admin", "Performance Review / Payroll / Leave (HR-Admin)"],
+  "HR|Employee Relations & Uniforms": ["Internal Operations & Admin", "Performance Review / Payroll / Leave (HR-Admin)"],
+  "Marketing|Campaigns & Promotions": ["Brand Feedback", "Marketing Collateral Production & Review"],
+  "Marketing|Content & Social Media": ["Brand Feedback", "Social Media Engagement"],
+  "Marketing|Member Communications": ["Customer Service and Communication", "Proactive Client Engagement"],
+  "Marketing|Brand, Collateral & Signage": ["Brand Feedback", "Brand Identity Consistency"],
+  "Marketing|Partnerships, Events & Boutique": ["Brand Feedback", "Partnership / Collab Approval"],
+  // Legacy v1 sub-category names
   "Membership|Freeze Issue": ["Pricing and Memberships", "Membership Pause and Freeze Policy"],
   "Membership|Freeze Request": ["Pricing and Memberships", "Membership Pause and Freeze Policy"],
   "Membership|Policy Exception": ["Pricing and Memberships", "Membership Pause and Freeze Policy"],
@@ -45,7 +123,7 @@ const SUBCATEGORY_MAP: Record<string, Pair> = {
   "Membership|Referral": ["Pricing and Memberships", "Referral Discount Issues"],
   "Membership|Corporate": ["Pricing and Memberships", "Corporate Wellness Program Pricing"],
   "Membership|Documentation": ["Pricing and Memberships", "Transparency in TandC/"],
-  "Membership|Guest Pass": ["Pricing and Memberships", "Additional Membership Perks"],
+  "Membership|Guest Pass": ["Studio Amenities and Facilities", "Additional Membership Perks"],
   "Membership|Reactivation": ["Pricing and Memberships", "Membership Flexibility"],
   "Payment|Missing Transaction": ["Tech Issues", "Payment Processing Delays"],
   "Payment|Refund Delay": ["Pricing and Memberships", "Refund and Cancellation Policy Issue"],

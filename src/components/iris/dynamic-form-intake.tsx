@@ -14,6 +14,7 @@ import {
   PRIORITY_TO_FORM,
 } from "@/lib/iris/template-form";
 import { toast } from "sonner";
+import { REQUESTED_OUTCOMES } from "@/lib/iris/template-types";
 import {
   IRIS_STUDIOS,
   IRIS_DEPARTMENTS,
@@ -567,7 +568,7 @@ export function DynamicFormIntake({ onClose, template }: { onClose: () => void; 
               </FormField>
               <FormField label="Requested Outcome" hint="What resolution would you like?">
                 <OptionButtons
-                  options={["Fix the issue", "Refund / credit", "Information only", "Process change", "Escalate to management"]}
+                  options={REQUESTED_OUTCOMES}
                   value={form.requestedOutcome}
                   onChange={(v) => updateForm("requestedOutcome", v)}
                 />
@@ -752,7 +753,7 @@ function FormField({ label, required, hint, children }: { label: string; require
   );
 }
 
-function OptionButtons({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+function OptionButtons({ options, value, onChange }: { options: readonly string[]; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {options.map((opt) => (
