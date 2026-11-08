@@ -29,7 +29,7 @@ export function DailyBriefing() {
     [currentUser],
   );
 
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(true);
 
   return (
     <div className="iris-card iris-ai-border p-4">

@@ -10,11 +10,15 @@ import { RelativeTime } from "../relative-time";
 import { PremiumMetricCard } from "../premium-metric-card";
 import { DailyBriefing } from "../daily-briefing";
 import { AnomalyFeed } from "../anomaly-feed";
+import { MetricDrilldown, METRICS, dailySeries, weekTrend, type MetricId } from "../metric-drilldown";
+import { IssueHotspots } from "../issue-hotspots";
+
+const DONE = new Set(["resolved", "closed"]);
 import { cn } from "@/lib/utils";
 import {
   Ticket as TicketIcon, AlertTriangle, Clock, CheckCircle2, TrendingUp,
   Activity, Building2, Sparkles, ArrowRight, Brain, Timer, Target, Flame, ChevronRight,
-  Zap, Shield, Cpu, Radio, Gauge, Layers, Users, Star,
+  Layers, Gauge, Users, Star, Zap, Shield, Cpu, Radio,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -24,261 +28,231 @@ import {
 const CHART_COLORS = ["#007bff", "#00d4aa", "#ff9500", "#af52de", "#10b981", "#6366f1", "#f43f5e", "#84cc16"];
 
 export function OverviewView() {
-  const { setCurrentView, selectTicket, currentUser } = useAppStore();
-  const [activeFeature, setActiveFeature] = React.useState(0);
+  const { setCurrentView, selectTicket, currentUser, dataVersion } = useAppStore();
+  const [drill, setDrill] = React.useState<MetricId | null>(null);
 
-  const stats = React.useMemo(() => {
-    const open = ALL_TICKETS.filter((t) => t.status === "open" || t.status === "in_progress" || t.status === "awaiting_response").length;
-    const unassigned = ALL_TICKETS.filter((t) => !t.assigneeId).length;
-    const overdue = ALL_TICKETS.filter((t) => t.slaStatus === "breached").length;
-    const critical = ALL_TICKETS.filter((t) => t.priority === "P0").length;
-    const resolved = ALL_TICKETS.filter((t) => t.status === "resolved" || t.status === "closed").length;
-    const escalated = ALL_TICKETS.filter((t) => t.status === "escalated").length;
-    const myTickets = ALL_TICKETS.filter((t) => isOwner(t, currentUser.id)).length;
-    return { open, unassigned, overdue, critical, resolved, escalated, myTickets, total: ALL_TICKETS.length };
-  }, [currentUser.id]);
+  // Every number on this page comes from the live ticket list (ALL_TICKETS is hydrated in place).
+  const live = React.useMemo(() => {
+    void dataVersion;
+    const list = [...ALL_TICKETS];
+    const metric = (id: MetricId) => {
+      const def = METRICS[id];
+      const matching = list.filter((t) => def.match(t, currentUser.id));
+      const series = dailySeries(matching, def, 14);
+      return { value: matching.length, spark: series.slice(7), ...weekTrend(series) };
+    };
+    const day = 86400_000;
+    const since30 = Date.now() - 30 * day;
+    const resolved30 = list.filter((t) => t.resolvedAt && new Date(t.resolvedAt).getTime() >= since30 && t.slaResolutionTarget);
+    const within = resolved30.filter((t) => new Date(t.resolvedAt!).getTime() <= new Date(t.slaResolutionTarget!).getTime()).length;
+    const sla = resolved30.length ? Math.round((within / resolved30.length) * 1000) / 10 : null;
+    const responded = list.filter((t) => t.firstResponseAt && new Date(t.createdAt).getTime() >= since30);
+    const avgFirstResponseH = responded.length
+      ? responded.reduce((n, t) => n + (new Date(t.firstResponseAt!).getTime() - new Date(t.createdAt).getTime()), 0) / responded.length / 3_600_000
+      : null;
+    const resolvedRecent = list.filter((t) => t.resolvedAt && new Date(t.resolvedAt).getTime() >= since30);
+    const avgResolveH = resolvedRecent.length
+      ? resolvedRecent.reduce((n, t) => n + (new Date(t.resolvedAt!).getTime() - new Date(t.createdAt).getTime()), 0) / resolvedRecent.length / 3_600_000
+      : null;
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const trend = Array.from({ length: 14 }, (_, i) => {
+      const from = start.getTime() - (13 - i) * day;
+      const inDay = (d?: string | Date) => d && new Date(d).getTime() >= from && new Date(d).getTime() < from + day;
+      return {
+        day: new Date(from).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+        created: list.filter((t) => inDay(t.createdAt)).length,
+        resolved: list.filter((t) => inDay(t.resolvedAt)).length,
+      };
+    });
+    return {
+      total: metric("total"), open: metric("open"), critical: metric("critical"), escalated: metric("escalated"),
+      overdue: metric("overdue"), resolved: metric("resolved"), mine: metric("mine"),
+      sla, slaSample: resolved30.length, avgFirstResponseH, avgResolveH, trend,
+      resolved7: trend.slice(7).reduce((n, d) => n + d.resolved, 0),
+      created7: trend.slice(7).reduce((n, d) => n + d.created, 0),
+      unassignedOpen: list.filter((t) => !DONE.has(t.status) && !t.assigneeId).length,
+    };
+  }, [currentUser.id, dataVersion]);
 
-  const trendData = React.useMemo(() => {
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    return days.map((d, i) => ({ day: d, created: 12 + i * 2, resolved: 10 + i * 2 - 1 }));
-  }, []);
+  const stats = {
+    open: live.open.value, critical: live.critical.value, resolved: live.resolved.value, escalated: live.escalated.value,
+    overdue: live.overdue.value, myTickets: live.mine.value, total: live.total.value,
+  };
+  const trendData = live.trend;
 
   const priorityData = React.useMemo(() => {
+    void dataVersion;
     const counts: Record<string, number> = { P0: 0, P1: 0, P2: 0, P3: 0 };
-    ALL_TICKETS.forEach((t) => (counts[t.priority] = (counts[t.priority] || 0) + 1));
+    ALL_TICKETS.filter((t) => !DONE.has(t.status)).forEach((t) => (counts[t.priority] = (counts[t.priority] || 0) + 1));
     return [
       { name: "P0", value: counts.P0, color: "#f43f5e" },
       { name: "P1", value: counts.P1, color: "#ff9500" },
       { name: "P2", value: counts.P2, color: "#06b6d4" },
       { name: "P3", value: counts.P3, color: "#10b981" },
     ];
-  }, []);
+  }, [dataVersion]);
 
   const studioData = React.useMemo(() => {
+    void dataVersion;
     return STUDIOS.map((s) => ({
       name: s.name.split(" ")[0], studio: s.name,
       tickets: ALL_TICKETS.filter((t) => t.studioCode === s.code).length,
-      resolved: ALL_TICKETS.filter((t) => t.studioCode === s.code && (t.status === "resolved" || t.status === "closed")).length,
+      resolved: ALL_TICKETS.filter((t) => t.studioCode === s.code && DONE.has(t.status)).length,
     }));
-  }, []);
+  }, [dataVersion]);
 
   const deptData = React.useMemo(() => {
-    return DEPARTMENTS.map((d) => ({ name: d.code, dept: d.name, workload: ALL_TICKETS.filter((t) => t.departmentCode === d.code).length }))
+    void dataVersion;
+    return DEPARTMENTS.map((d) => ({ name: d.code, dept: d.name, workload: ALL_TICKETS.filter((t) => t.departmentCode === d.code && !DONE.has(t.status)).length }))
       .sort((a, b) => b.workload - a.workload).slice(0, 6);
-  }, []);
+  }, [dataVersion]);
 
-  const slaCompliance = 87.5;
+  const slaCompliance = live.sla ?? 0;
 
-  const recentTickets = React.useMemo(() => [...ALL_TICKETS].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6), []);
-  const criticalTickets = React.useMemo(() => ALL_TICKETS.filter((t) => t.priority === "P0" || t.slaStatus === "breached").slice(0, 4), []);
+  const recentTickets = React.useMemo(() => { void dataVersion; return [...ALL_TICKETS].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6); }, [dataVersion]);
+  const criticalTickets = React.useMemo(() => { void dataVersion; return ALL_TICKETS.filter((t) => !DONE.has(t.status) && (t.priority === "P0" || t.slaStatus === "breached")).slice(0, 6); }, [dataVersion]);
 
-  // Auto-rotate features
-  React.useEffect(() => {
-    const timer = setInterval(() => setActiveFeature(p => (p + 1) % 4), 4000);
-    return () => clearInterval(timer);
-  }, []);
+  const firstName = currentUser.name.split(" ")[0];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const narrative = [
+    `${live.open.value} open ticket${live.open.value === 1 ? "" : "s"}`,
+    live.overdue.value ? `${live.overdue.value} past SLA` : "none past SLA",
+    live.unassignedOpen ? `${live.unassignedOpen} waiting for an owner` : null,
+  ].filter(Boolean).join(" · ");
+  const hours = (h: number | null) => (h === null ? "—" : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`);
 
-  const features = [
-    { icon: Sparkles, label: "AI Assistant", desc: "Multi-agent conversation", view: "ai_assistant" as const, color: "#007bff" },
-    { icon: BarChart3, label: "Analytics", desc: "Deep operational insights", view: "analytics" as const, color: "#00d4aa" },
-    { icon: Layers, label: "Templates", desc: "110+ pre-configured", view: "templates" as const, color: "#ff9500" },
-    { icon: Zap, label: "Automation", desc: "Smart routing & SLA", view: "escalations" as const, color: "#af52de" },
+  const nav = [
+    { icon: Sparkles, label: "Ask IRIS", view: "ai_assistant" as const },
+    { icon: TicketIcon, label: "Open tickets", view: "all_tickets" as const },
+    { icon: BarChart3, label: "Analytics", view: "analytics" as const },
+    { icon: Layers, label: "Templates", view: "templates" as const },
+  ];
+
+  const cards: { id: MetricId; icon: React.ComponentType<{ className?: string }>; caption: string; tooltip: string }[] = [
+    { id: "total", icon: TicketIcon, caption: "raised · 7-day trend", tooltip: "All tickets across all studios" },
+    { id: "open", icon: Activity, caption: "active queue", tooltip: "Tickets not yet resolved" },
+    { id: "critical", icon: Flame, caption: "open P0", tooltip: "Open P0 tickets" },
+    { id: "escalated", icon: AlertTriangle, caption: "open, escalated", tooltip: "Open tickets escalated past their first owner" },
+    { id: "overdue", icon: Clock, caption: "open, SLA breached", tooltip: "Open tickets past their SLA target" },
+    { id: "resolved", icon: CheckCircle2, caption: "resolved · 7-day trend", tooltip: "Tickets resolved or closed" },
+    { id: "mine", icon: Target, caption: "open, yours", tooltip: "Open tickets you own" },
   ];
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">
-      {/* === HERO SECTION === */}
-      <div className="relative overflow-hidden rounded-2xl border border-border iris-fade-in-up" style={{ minHeight: 200 }}>
-        {/* NEW: 2-color linear gradient tint (light mode) - reads --iris-hero-from / --iris-hero-to */}
+      {/* === HERO === */}
+      <section className="relative overflow-hidden rounded-3xl border border-border iris-fade-in-up">
         <div className="absolute inset-0 iris-hero-tint" />
-        {/* Floating orbs - colored using the same accent vars */}
-        <div className="absolute -top-20 -right-10 w-80 h-80 rounded-full opacity-25" style={{ background: "radial-gradient(circle, var(--iris-hero-from), transparent 65%)", animation: "hero-orb-a 8s ease-in-out infinite" }} />
-        <div className="absolute -bottom-20 left-20 w-60 h-60 rounded-full opacity-15" style={{ background: "radial-gradient(circle, var(--iris-hero-to), transparent 65%)", animation: "hero-orb-b 10s ease-in-out infinite" }} />
-        {/* Grid pattern */}
-        <div className="absolute inset-0 iris-grid-bg opacity-40" />
-        {/* Floating icons */}
-        <TicketIcon className="absolute top-8 right-32 w-5 h-5 text-primary/15" style={{ animation: "hero-float 6s ease-in-out infinite" }} />
-        <Activity className="absolute top-16 right-48 w-4 h-4 text-primary/10" style={{ animation: "hero-float 7s ease-in-out infinite 1s" }} />
-        <Shield className="absolute bottom-12 right-24 w-4 h-4 text-primary/10" style={{ animation: "hero-float 5s ease-in-out infinite 0.5s" }} />
-        <Cpu className="absolute top-24 left-1/2 w-4 h-4 text-primary/10" style={{ animation: "hero-float 8s ease-in-out infinite 2s" }} />
+        <div className="absolute -top-32 -right-24 w-[460px] h-[460px] rounded-full opacity-25" style={{ background: "radial-gradient(circle, var(--iris-hero-from), transparent 62%)", animation: "hero-orb-a 14s ease-in-out infinite" }} />
+        <div className="absolute -bottom-40 left-10 w-[380px] h-[380px] rounded-full opacity-[.14]" style={{ background: "radial-gradient(circle, var(--iris-hero-to), transparent 62%)", animation: "hero-orb-b 16s ease-in-out infinite" }} />
+        <div className="absolute inset-0 iris-grid-bg opacity-30 [mask-image:radial-gradient(ellipse_at_top_left,black,transparent_70%)]" />
 
-        <div className="relative p-6 flex items-start justify-between flex-wrap gap-4">
-          {/* Left: Welcome + stats */}
-          <div className="flex-1 min-w-[280px]">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground mb-2">
+        <div className="relative grid gap-8 p-7 sm:p-9 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-center min-h-[340px]">
+          {/* Left */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
               <span className="iris-live-dot" />
-              Operations Overview - Live
+              <span>Live</span>
+              <span className="text-border">/</span>
+              <span>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
             </div>
-            <h1 className="text-[26px] font-bold tracking-tight leading-tight">
-              Welcome back, <span className="iris-text-gradient">{currentUser.name.split(" ")[0]}</span>
+            <h1 className="mt-4 text-[34px] sm:text-[40px] font-semibold tracking-[-0.02em] leading-[1.08]">
+              {greeting}, <span className="text-primary">{firstName}</span>.
             </h1>
-            <p className="text-[12px] text-muted-foreground mt-1 max-w-sm">
-              Here's what's happening across all Physique 57 India studios today.
+            <p className="mt-3 text-[14px] text-muted-foreground max-w-xl leading-relaxed">
+              Across every Physique 57 India studio right now: <span className="text-foreground font-medium">{narrative}</span>.
             </p>
-            {/* Inline stats */}
-            <div className="flex items-center gap-2 mt-3">
-              <button onClick={() => setCurrentView("ai_assistant")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-medium transition-transform hover:scale-[1.03] active:scale-[0.97]">
-                <Sparkles className="w-3 h-3" /> Ask IRIS
-              </button>
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-card/80 backdrop-blur text-[10px] font-medium">
-                <Timer className="w-3 h-3 text-muted-foreground" />
-                <span className="text-muted-foreground">SLA</span>
-                <span className="font-bold tabular-nums text-primary">{slaCompliance}%</span>
-              </div>
-              <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-card/80 backdrop-blur">
-                <span className="text-[12px] font-bold tabular-nums">{stats.open}</span>
-                <span className="text-[8px] text-muted-foreground uppercase">Open</span>
-                <div className="w-px h-5 bg-border" />
-                <span className="text-[12px] font-bold tabular-nums text-amber-500">{stats.critical}</span>
-                <span className="text-[8px] text-muted-foreground uppercase">Critical</span>
-                <div className="w-px h-5 bg-border" />
-                <span className="text-[12px] font-bold tabular-nums text-emerald-500">{stats.resolved}</span>
-                <span className="text-[8px] text-muted-foreground uppercase">Resolved</span>
-              </div>
+
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              {nav.map((n, i) => (
+                <button key={n.label} onClick={() => setCurrentView(n.view)}
+                  className={cn("inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12px] font-medium transition-all",
+                    i === 0 ? "bg-primary text-primary-foreground shadow-[0_6px_20px_-8px_var(--primary)] hover:brightness-110" : "border border-border bg-card/70 backdrop-blur hover:bg-card")}>
+                  <n.icon className="w-3.5 h-3.5" />{n.label}
+                </button>
+              ))}
             </div>
+
+            <dl className="mt-8 grid grid-cols-3 gap-3 max-w-xl">
+              {[
+                { k: "Raised · 7 days", v: live.created7, sub: live.total.trend ? `${live.total.trend} vs prior week` : "" },
+                { k: "Resolved · 7 days", v: live.resolved7, sub: live.resolved.trend ? `${live.resolved.trend} vs prior week` : "" },
+                { k: "First response", v: hours(live.avgFirstResponseH), sub: "average · 30 days" },
+              ].map((s) => (
+                <div key={s.k} className="rounded-2xl border border-border/70 bg-card/60 backdrop-blur px-4 py-3">
+                  <dt className="text-[10px] uppercase tracking-[.14em] text-muted-foreground">{s.k}</dt>
+                  <dd className="mt-1 text-[22px] font-semibold tabular-nums leading-none">{s.v}</dd>
+                  {s.sub && <dd className="mt-1 text-[10px] text-muted-foreground">{s.sub}</dd>}
+                </div>
+              ))}
+            </dl>
           </div>
 
-          {/* Right: Interactive feature control display */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {features.map((f, i) => (
-              <button
-                key={i}
-                onClick={() => { setActiveFeature(i); setCurrentView(f.view); }}
-                className={cn(
-                  "relative flex flex-col items-center justify-center w-16 h-16 rounded-xl border transition-all duration-300",
-                  activeFeature === i ? "border-transparent scale-110" : "border-border bg-card/60 hover:bg-card"
-                )}
-                style={activeFeature === i ? { background: `${f.color}15`, borderColor: `${f.color}40`, boxShadow: `0 4px 16px -4px ${f.color}40` } : undefined}
-              >
-                <f.icon className="w-4 h-4 mb-1 transition-colors" style={{ color: activeFeature === i ? f.color : undefined }} />
-                <span className="text-[8px] font-medium text-center leading-none">{f.label}</span>
-                {activeFeature === i && (
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style={{ background: f.color }} />
-                )}
-              </button>
-            ))}
-            {/* Circular SLA indicator */}
-            <div className="relative ml-2 shrink-0" style={{ width: 72, height: 72 }}>
-              <svg width="72" height="72" viewBox="0 0 72 72">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--border)" strokeWidth="2.5" />
-                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--primary)" strokeWidth="2.5"
-                  strokeDasharray={`${(slaCompliance / 100) * 188} 188`} strokeLinecap="round"
-                  transform="rotate(-90 36 36)"
-                  style={{ animation: "hero-ring 1.5s cubic-bezier(0.16,1,0.3,1)", filter: "drop-shadow(0 0 4px rgba(0,123,255,0.4))" }}
-                />
-                <circle cx="36" cy="36" r="24" fill="none" stroke="var(--primary)" strokeWidth="0.5" opacity="0.2" strokeDasharray="2 4"
-                  style={{ animation: "hero-rotate 20s linear infinite", transformOrigin: "36px 36px" }} />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[16px] font-bold tabular-nums">{stats.total}</span>
-                <span className="text-[7px] text-muted-foreground uppercase tracking-wider">Tickets</span>
+          {/* Right: SLA panel */}
+          <div className="rounded-3xl border border-border/70 bg-card/55 backdrop-blur-md p-6 shadow-[0_20px_60px_-30px_rgba(0,0,0,.35)]">
+            <div className="flex items-center gap-6">
+              <div className="relative shrink-0" style={{ width: 148, height: 148 }}>
+                <svg width="148" height="148" viewBox="0 0 148 148" aria-hidden>
+                  <circle cx="74" cy="74" r="62" fill="none" stroke="var(--border)" strokeWidth="8" />
+                  <circle cx="74" cy="74" r="62" fill="none" stroke="var(--primary)" strokeWidth="8" strokeLinecap="round"
+                    strokeDasharray={`${(slaCompliance / 100) * 389.6} 389.6`} transform="rotate(-90 74 74)"
+                    style={{ animation: "hero-ring 1.6s cubic-bezier(0.16,1,0.3,1)" }} />
+                  <circle cx="74" cy="74" r="50" fill="none" stroke="var(--primary)" strokeWidth="0.6" opacity="0.25" strokeDasharray="2 5"
+                    style={{ animation: "hero-rotate 40s linear infinite", transformOrigin: "74px 74px" }} />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-[28px] font-semibold tabular-nums tracking-tight">{live.sla === null ? "—" : `${live.sla}%`}</span>
+                  <span className="text-[9px] uppercase tracking-[.16em] text-muted-foreground">within SLA</span>
+                </div>
+              </div>
+              <div className="min-w-0 space-y-3">
+                <div>
+                  <div className="text-[13px] font-semibold">Service level</div>
+                  <div className="text-[11px] text-muted-foreground">{live.slaSample ? `Based on ${live.slaSample} resolved ticket${live.slaSample === 1 ? "" : "s"} with an SLA target · 30 days` : "No resolved tickets with an SLA target in 30 days"}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+                  <div><div className="text-muted-foreground">Avg resolution</div><div className="font-semibold tabular-nums text-[13px]">{hours(live.avgResolveH)}</div></div>
+                  <div><div className="text-muted-foreground">Past SLA now</div><div className={cn("font-semibold tabular-nums text-[13px]", live.overdue.value && "text-rose-600 dark:text-rose-400")}>{live.overdue.value}</div></div>
+                  <div><div className="text-muted-foreground">Critical open</div><div className={cn("font-semibold tabular-nums text-[13px]", live.critical.value && "text-amber-600 dark:text-amber-400")}>{live.critical.value}</div></div>
+                  <div><div className="text-muted-foreground">Unassigned</div><div className="font-semibold tabular-nums text-[13px]">{live.unassignedOpen}</div></div>
+                </div>
               </div>
             </div>
+            <button onClick={() => setDrill("overdue")} className="mt-5 w-full inline-flex items-center justify-between rounded-xl border border-border/70 px-3.5 py-2.5 text-[12px] hover:bg-muted/50 transition-colors">
+              <span className="text-muted-foreground">See what&apos;s at risk</span>
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
           </div>
-        </div>
-
-        {/* Active feature description bar */}
-        <div className="relative px-6 pb-3 flex items-center gap-2">
-          <Radio className="w-3 h-3" style={{ color: features[activeFeature].color, animation: "hero-pulse 2s ease-in-out infinite" }} />
-          <span className="text-[10px] text-muted-foreground">{features[activeFeature].label}: {features[activeFeature].desc}</span>
-          <span className="text-muted-foreground/40">-</span>
-          <span className="text-[10px] text-muted-foreground">Click any icon to navigate</span>
         </div>
 
         <style>{`
-          @keyframes hero-ring { from { stroke-dashoffset: 188; } to { stroke-dashoffset: 0; } }
+          @keyframes hero-ring { from { stroke-dashoffset: 389.6; } to { stroke-dashoffset: 0; } }
           @keyframes hero-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-          @keyframes hero-orb-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-15px,15px) scale(1.1); } }
-          @keyframes hero-orb-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(15px,-15px) scale(0.9); } }
-          @keyframes hero-float { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-8px) rotate(5deg); } }
-          @keyframes hero-pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+          @keyframes hero-orb-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-20px,20px) scale(1.06); } }
+          @keyframes hero-orb-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20px,-14px) scale(0.94); } }
         `}</style>
-      </div>
+      </section>
 
-      {/* === MARQUEE STRIP 1 - Live operations ===
-          Placed directly under the hero with a tiny negative top margin so it
-          sits flush against the hero's bottom border (no visible gap). */}
-      <div className="-mt-px">
-        <MarqueeStrip items={[
-          { label: "Total tickets", value: String(stats.total) },
-          { label: "Open", value: String(stats.open) },
-          { label: "Critical", value: String(stats.critical) },
-          { label: "Resolved", value: String(stats.resolved) },
-          { label: "Escalated", value: String(stats.escalated) },
-          { label: "SLA compliance", value: `${slaCompliance}%`, emphasize: true },
-          { label: "Team", value: `${EMPLOYEES.length} members` },
-          { label: "Studios", value: String(STUDIOS.length) },
-        ]} icon={Activity} variant="hero" />
-      </div>
-
-      {/* === METRIC CARDS — polished glassmorphic cards with smooth sparkline curves === */}
+      {/* === METRIC CARDS — click for drill-down === */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-        <PremiumMetricCard
-          label="Total"
-          value={stats.total}
-          icon={TicketIcon}
-          trend="+8%"
-          trendUp
-          tooltip="All tickets across all studios"
-          sparkData={trendData.map(d => d.created)}
-          caption="vs last week"
-        />
-        <PremiumMetricCard
-          label="Open"
-          value={stats.open}
-          icon={Activity}
-          tooltip="Tickets not yet resolved"
-          sparkData={trendData.map(d => d.created - d.resolved)}
-          caption="active queue"
-        />
-        <PremiumMetricCard
-          label="Critical"
-          value={stats.critical}
-          icon={Flame}
-          tooltip="P0 priority tickets requiring immediate attention"
-          sparkData={[3, 4, 5, 6, 4, 3, 5]}
-          caption="P0 priority"
-        />
-        <PremiumMetricCard
-          label="Escalated"
-          value={stats.escalated}
-          icon={AlertTriangle}
-          tooltip="Tickets escalated to management"
-          sparkData={[1, 2, 1, 3, 2, 1, 2]}
-          caption="needs attention"
-        />
-        <PremiumMetricCard
-          label="Overdue"
-          value={stats.overdue}
-          icon={Clock}
-          tooltip="Tickets with breached SLA deadlines"
-          sparkData={[0, 1, 2, 1, 0, 1, 2]}
-          caption="SLA breached"
-        />
-        <PremiumMetricCard
-          label="Resolved"
-          value={stats.resolved}
-          icon={CheckCircle2}
-          trend="+12%"
-          trendUp
-          tooltip="Tickets resolved or closed"
-          sparkData={trendData.map(d => d.resolved)}
-          caption="this week"
-        />
-        <PremiumMetricCard
-          label="My Queue"
-          value={stats.myTickets}
-          icon={Target}
-          tooltip="Tickets assigned to you"
-          sparkData={[2, 3, 2, 4, 3, 2, 3]}
-          caption="assigned to you"
-        />
+        {cards.map((c) => {
+          const m = live[c.id];
+          return (
+            <PremiumMetricCard key={c.id} label={METRICS[c.id].label} value={m.value} icon={c.icon} trend={m.trend} trendUp={m.up}
+              tooltip={`${c.tooltip}. Click for details.`} sparkData={m.spark} caption={c.caption} onClick={() => setDrill(c.id)} />
+          );
+        })}
       </div>
+      <MetricDrilldown metric={drill} onClose={() => setDrill(null)} />
 
-      {/* === SMART WIDGETS: Daily Briefing + Anomaly Detection === */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* === Daily Briefing + Anomaly Detection (with hotspots to balance the column) === */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
         <DailyBriefing />
-        <AnomalyFeed />
+        <div className="space-y-3">
+          <AnomalyFeed />
+          <IssueHotspots />
+        </div>
       </div>
 
       {/* === Charts Row — polished with smooth bezier curves + accent-color strokes === */}

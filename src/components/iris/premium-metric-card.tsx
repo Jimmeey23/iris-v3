@@ -41,6 +41,8 @@ export interface PremiumMetricCardProps {
   /** Optional caption shown under the value (e.g. "vs last week") */
   caption?: string;
   className?: string;
+  /** Makes the card a button (e.g. to open a drill-down). */
+  onClick?: () => void;
 }
 
 export function PremiumMetricCard({
@@ -53,6 +55,7 @@ export function PremiumMetricCard({
   tooltip,
   caption,
   className,
+  onClick,
 }: PremiumMetricCardProps) {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const chartRef = React.useRef<SVGSVGElement>(null);
@@ -157,7 +160,13 @@ export function PremiumMetricCard({
 
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      aria-label={onClick ? `${label}: ${value}. Open details` : undefined}
       className={cn(
+        onClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         "relative rounded-[20px] bg-gradient-to-b from-muted/60 to-muted/40 p-1.5 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)_inset] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)_inset] transition-transform duration-200 hover:-translate-y-0.5",
         className,
       )}
