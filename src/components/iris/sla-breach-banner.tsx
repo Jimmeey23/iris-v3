@@ -64,7 +64,7 @@ function writeDismissed(s: Set<string>) {
  * The list has a fixed max height and scrolls, so it never covers the page.
  */
 export function SlaBreachBanner() {
-  const selectTicket = useAppStore((s) => s.selectTicket);
+  const selectTicket = useAppStore((s) => s.openTicket);
   const [breaches, setBreaches] = React.useState<Breach[]>([]);
   const [approvals, setApprovals] = React.useState<Approval[]>([]);
   // Banner renders nothing until the first fetch lands, so reading storage here can't cause a hydration mismatch.

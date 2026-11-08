@@ -82,6 +82,8 @@ export type Trainer = {
   latestAssessment: Assessment | null;
   assessments: Assessment[];
   recentFeedback: FeedbackRow[];
+  /** Every feedback ticket on file (recentFeedback is the newest 8), for drill-downs. */
+  feedback: FeedbackRow[];
 };
 
 export const TRAINERS: readonly string[] = ROSTER;
@@ -338,6 +340,16 @@ export function buildTrainerProfiles(
     const scored = assessedBy.get(name) ?? [];
     const avgScore = scored.length ? Math.round(scored.reduce((n, a) => n + a.score, 0) / scored.length) : null;
     const trainerBand = avgScore === null ? null : performanceBand(avgScore);
+    const feedbackRows: FeedbackRow[] = feedbackTickets.map((t) => ({
+      id: t.id,
+      ticketNumber: t.ticketId,
+      title: t.title,
+      subcategory: t.subcategory ?? t.category,
+      sentiment: isCompliment(t) ? "positive" : null,
+      status: t.status,
+      createdAt: t.createdAt,
+      kind: isCompliment(t) ? "compliment" : "issue",
+    }));
     return {
       name,
       displayName: displayNameFor(name, overrides),
@@ -357,16 +369,8 @@ export function buildTrainerProfiles(
       studioSummary,
       latestAssessment: scored[0] ?? null,
       assessments: scored,
-      recentFeedback: feedbackTickets.slice(0, 8).map((t) => ({
-        id: t.id,
-        ticketNumber: t.ticketId,
-        title: t.title,
-        subcategory: t.subcategory ?? t.category,
-        sentiment: isCompliment(t) ? "positive" : null,
-        status: t.status,
-        createdAt: t.createdAt,
-        kind: isCompliment(t) ? "compliment" : "issue",
-      })),
+      recentFeedback: feedbackRows.slice(0, 8),
+      feedback: feedbackRows,
     };
   });
   profiles.sort((a, b) => b.totalTickets - a.totalTickets || a.name.localeCompare(b.name));

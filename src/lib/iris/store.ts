@@ -28,6 +28,8 @@ interface AppState {
   selectedTicketId: string | null;
   setCurrentView: (view: ViewName) => void;
   selectTicket: (ticketId: string | null) => void;
+  /** Open a ticket from any screen: lands on All Tickets with it selected. */
+  openTicket: (ticketId: string) => void;
 
   // UI State
   sidebarCollapsed: boolean;
@@ -249,6 +251,14 @@ export const useAppStore = create<AppState>()(
           templateNav: { category: null, subcategory: null, templateCode: null },
         }),
       selectTicket: (ticketId) => set({ selectedTicketId: ticketId }),
+      openTicket: (ticketId) =>
+        set({
+          currentView: "all_tickets",
+          selectedTicketId: ticketId,
+          kbArticleId: null,
+          kbNav: { category: null, subcategory: null },
+          templateNav: { category: null, subcategory: null, templateCode: null },
+        }),
 
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

@@ -7,21 +7,22 @@ import {
   type Trainer,
   type Assessment,
   type RubricRow,
+  type FeedbackRow,
 } from "@/lib/iris/trainer-directory";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ChevronRight, ExternalLink } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-const scoreColor = (v: number) =>
-  v >= 80 ? "#34c759" : v >= 65 ? "#ff9500" : "#ff3b30";
-const scoreTone = (v: number) =>
-  v >= 80 ? "green" : v >= 65 ? "amber" : "red";
-const toneVar = (tone: string) =>
-  tone === "green" ? "#34c759"
-  : tone === "amber" ? "#ff9500"
-  : tone === "red" ? "#ff3b30"
-  : "var(--primary)";
+/* One restrained palette: ink and grey for structure, the app accent for data,
+ * and a single alert colour reserved for results under the 65% threshold. */
+const ALERT = "var(--tr-alert)";
+const THRESHOLD = 65;
+const scoreColor = (v: number) => (v > 0 && v < THRESHOLD ? ALERT : "var(--primary)");
+const scoreTone = (v: number) => (v > 0 && v < THRESHOLD ? "red" : "");
+const toneVar = (tone: string) => (tone === "red" ? ALERT : "var(--foreground)");
 
 /** indiaDate from reference repo - formats in Asia/Kolkata timezone. */
 function indiaDate(v: unknown, short = false): string {
@@ -64,27 +65,6 @@ function Section({
   );
 }
 
-function ScoreDial({ value, size = 104 }: { value: number; size?: number }) {
-  const r = 34, c = 2 * Math.PI * r;
-  return (
-    <div className="tr-dial" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 80 80" style={{ transform: "rotate(-90deg)", width: "100%", height: "100%" }}>
-        <circle cx="40" cy="40" r={r} fill="none" stroke="var(--muted)" strokeWidth="7" />
-        <circle
-          cx="40" cy="40" r={r} fill="none" stroke={scoreColor(value)} strokeWidth="7" strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c - Math.min(100, Math.max(0, value)) / 100 * c}
-          style={{ transition: "stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)" }}
-        />
-      </svg>
-      <div className="tr-dial-label">
-        <strong>{value || "-"}</strong>
-        <span>score</span>
-      </div>
-    </div>
-  );
-}
-
 /** Score per assessment over time. Clicking a point loads that review into the rubric above. */
 function TrendChart({
   points, selectedId, onSelect,
@@ -111,10 +91,11 @@ function TrendChart({
       {[100, 80, 65, 50].map((g) => (
         <g key={g}>
           <line x1={pad} x2={w - pad} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeDasharray="3 5" />
-          <text x={2} y={y(g) + 3} style={{ fontSize: 10, fill: "var(--muted-foreground)" }}>{g}</text>
+          <text x={2} y={y(g) + 3} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>{g}</text>
         </g>
       ))}
-      <line x1={pad} x2={w - pad} y1={y(65)} y2={y(65)} stroke="#ff3b30" strokeOpacity=".45" strokeDasharray="4 3" />
+      <line x1={pad} x2={w - pad} y1={y(THRESHOLD)} y2={y(THRESHOLD)} stroke="var(--tr-alert)" strokeOpacity=".5" strokeDasharray="2 3" />
+      <text x={w - pad} y={y(THRESHOLD) - 4} textAnchor="end" style={{ fontSize: 9, fill: "var(--muted-foreground)", letterSpacing: ".08em" }}>THRESHOLD {THRESHOLD}</text>
       <path
         d={`${path} L${(pad + (points.length - 1) * step).toFixed(1)},${h - pad} L${pad},${h - pad} Z`}
         fill="var(--primary)" opacity=".08"
@@ -149,26 +130,30 @@ function TrendChart({
   );
 }
 
-function RubricBar({ category, score, weightage, pct }: RubricRow) {
+function RubricBar({ category, score, weightage, pct, onOpen }: RubricRow & { onOpen?: () => void }) {
   return (
-    <div>
+    <div className={onOpen ? "tr-click tr-rubric-row" : undefined} role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined}
+      onClick={onOpen} onKeyDown={onOpen ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onOpen()) : undefined}
+      title={onOpen ? `See ${category} across every review` : undefined}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
         <span style={{ fontSize: 12, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {category}
         </span>
-        <span style={{ fontSize: 10, color: "var(--muted-foreground)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
-          {score}/{weightage} · {pct}%
+        <span className="tr-num" style={{ flexShrink: 0 }}>
+          <span style={{ color: "var(--muted-foreground)" }}>{score}/{weightage}</span>
+          <b style={{ color: pct < THRESHOLD ? ALERT : "var(--foreground)", marginLeft: 8 }}>{pct}%</b>
         </span>
       </div>
       <div className="tr-bar">
         <div style={{ width: `${Math.max(2, Math.min(100, pct))}%`, background: scoreColor(pct) }} />
+        <i className="tr-bar-tick" style={{ left: `${THRESHOLD}%` }} aria-hidden />
       </div>
     </div>
   );
 }
 
 /** Criterion attainment against the trainer's own average. */
-function RadarChart({ rows, benchmark, size = 280 }: { rows: RubricRow[]; benchmark: number; size?: number }) {
+function RadarChart({ rows, benchmark, size = 280, onPick }: { rows: RubricRow[]; benchmark: number; size?: number; onPick?: (category: string) => void }) {
   if (rows.length < 3) return null;
   const cx = size / 2, cy = size / 2, r = size * 0.29, n = rows.length, gutter = 52;
   const angle = (i: number) => i / n * Math.PI * 2 - Math.PI / 2;
@@ -190,7 +175,8 @@ function RadarChart({ rows, benchmark, size = 280 }: { rows: RubricRow[]; benchm
       {rows.map((row, i) => {
         const [x, y] = pt(i, row.pct / 100);
         return (
-          <circle key={row.category} cx={x} cy={y} r="3.5" fill={scoreColor(row.pct)} stroke="var(--card)" strokeWidth="1.5" />
+          <circle key={row.category} cx={x} cy={y} r="4" fill={scoreColor(row.pct)} stroke="var(--card)" strokeWidth="1.5"
+            onClick={() => onPick?.(row.category)} style={{ cursor: onPick ? "pointer" : undefined }}><title>{`${row.category}: ${row.pct}%`}</title></circle>
         );
       })}
       {rows.map((row, i) => {
@@ -201,7 +187,9 @@ function RadarChart({ rows, benchmark, size = 280 }: { rows: RubricRow[]; benchm
             x={x} y={y}
             textAnchor="middle"
             dominantBaseline="middle"
-            style={{ fontSize: 10, fontWeight: 600, fill: "var(--muted-foreground)" }}
+            style={{ fontSize: 10, fontWeight: 600, fill: "var(--muted-foreground)", cursor: onPick ? "pointer" : undefined }}
+            onClick={() => onPick?.(row.category)}
+            className={onPick ? "tr-radar-label" : undefined}
           >
             {short(row.category)}
           </text>
@@ -212,26 +200,27 @@ function RadarChart({ rows, benchmark, size = 280 }: { rows: RubricRow[]; benchm
 }
 
 function KpiTile({
-  label, value, sub, tone, pct,
+  label, value, sub, tone, pct, onOpen,
 }: {
   label: string;
   value: string;
   sub: string;
   tone?: string;
   pct?: number;
+  onOpen?: () => void;
 }) {
   const color = tone || "var(--primary)";
   return (
-    <div className="tr-kpi">
+    <button type="button" className="tr-kpi tr-click" onClick={onOpen} disabled={!onOpen}>
       <span className="tr-kpi-label">{label}</span>
-      <strong style={{ color }}>{value}</strong>
+      <strong>{value}</strong>
       <span className="tr-kpi-sub">{sub}</span>
       {pct !== undefined && (
         <span className="tr-kpi-rail">
           <i style={{ width: `${Math.max(2, Math.min(100, pct))}%`, background: color }} />
         </span>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -242,16 +231,9 @@ function IrisBadge({
   tone?: string;
   children: React.ReactNode;
 }) {
-  const cls = tone === "green" ? "tone-green"
-    : tone === "amber" ? "tone-amber"
-    : tone === "red" ? "tone-red"
-    : tone === "blue" ? "tone-none"
-    : "tone-none";
+  const cls = tone === "red" ? "tr-chip tr-chip-alert" : tone === "blue" ? "tr-chip tr-chip-accent" : "tr-chip";
   return (
-    <span
-      className={`iris-tr-badge ${cls}`}
-      style={tone === "blue" ? { background: "color-mix(in srgb, var(--primary) 14%, transparent)", color: "var(--primary)" } : undefined}
-    >
+    <span className={cls}>
       {children}
     </span>
   );
@@ -259,8 +241,9 @@ function IrisBadge({
 
 /** One review, in full: score, who gave it, coaching notes, every rubric row and answer. */
 function ReviewCard({
-  review, open, onToggle, onSelect, active, latest,
+  review, open, onToggle, onSelect, active, latest, onCriterion,
 }: {
+  onCriterion?: (category: string) => void;
   review: Assessment;
   open: boolean;
   onToggle: () => void;
@@ -275,7 +258,7 @@ function ReviewCard({
         <button
           type="button"
           className="tr-review-score"
-          style={{ color: active ? "var(--primary)" : scoreColor(review.score) }}
+          style={{ color: review.score > 0 && review.score < THRESHOLD ? ALERT : "var(--foreground)" }}
           onClick={onSelect}
           title="Load this review into the rubric and radar above"
         >
@@ -309,7 +292,7 @@ function ReviewCard({
       {open && (
         <div className="tr-review-body">
           <dl className="tr-review-facts">
-            <div><dt>Score</dt><dd style={{ color: scoreColor(review.score) }}>{review.score ? review.score + "%" : "Not scored"}</dd></div>
+            <div><dt>Score</dt><dd style={{ color: review.score > 0 && review.score < THRESHOLD ? ALERT : undefined }}>{review.score ? review.score + "%" : "Not scored"}</dd></div>
             <div><dt>Evaluated by</dt><dd>{evaluator}</dd></div>
             <div><dt>Submitted</dt><dd>{indiaDate(review.submittedAt)}</dd></div>
             <div><dt>Source</dt><dd>{review.sourceLabel}</dd></div>
@@ -322,20 +305,20 @@ function ReviewCard({
           {(review.strengths || review.improvements || review.coachingPlan || review.summary) && (
             <div className="tr-notes">
               {review.strengths && (
-                <div className="tr-note" style={{ boxShadow: "inset 3px 0 0 #34c759" }}>
-                  <strong style={{ color: "#34c759" }}>Key strengths</strong>
+                <div className="tr-note">
+                  <strong>Key strengths</strong>
                   <p>{review.strengths}</p>
                 </div>
               )}
               {review.improvements && (
-                <div className="tr-note" style={{ boxShadow: "inset 3px 0 0 #ff9500" }}>
-                  <strong style={{ color: "#ff9500" }}>Development areas</strong>
+                <div className="tr-note">
+                  <strong>Development areas</strong>
                   <p>{review.improvements}</p>
                 </div>
               )}
               {review.coachingPlan && (
-                <div className="tr-note" style={{ boxShadow: "inset 3px 0 0 var(--primary)" }}>
-                  <strong style={{ color: "var(--primary)" }}>Coaching action plan</strong>
+                <div className="tr-note">
+                  <strong>Coaching action plan</strong>
                   <p>{review.coachingPlan}</p>
                 </div>
               )}
@@ -353,7 +336,7 @@ function ReviewCard({
               <span className="tr-kpi-label">Scored criteria · weakest first</span>
               <div className="tr-rubric-cols">
                 {[...review.rubric].sort((a, b) => a.pct - b.pct).map((row) => (
-                  <RubricBar key={row.category} {...row} />
+                  <RubricBar key={row.category} {...row} onOpen={onCriterion ? () => onCriterion(row.category) : undefined} />
                 ))}
               </div>
             </div>
@@ -376,11 +359,210 @@ function ReviewCard({
   );
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Drill-down                                                          */
+/* ------------------------------------------------------------------ */
+
+type Drill =
+  | { kind: "reviews"; title: string; subtitle?: string; reviews: Assessment[] }
+  | { kind: "criterion"; category: string }
+  | { kind: "feedback"; title: string; subtitle?: string; items: FeedbackRow[] }
+  | { kind: "compare" };
+
+function DrillStat({ label, value, alert }: { label: string; value: React.ReactNode; alert?: boolean }) {
+  return (
+    <div className="tr-drill-stat">
+      <span>{label}</span>
+      <strong style={{ color: alert ? ALERT : undefined }}>{value}</strong>
+    </div>
+  );
+}
+
+function DrillPanel({
+  drill, trainer, onClose, onLoadReview, onOpenTicket,
+}: {
+  drill: Drill | null;
+  trainer: Trainer;
+  onClose: () => void;
+  onLoadReview: (id: string) => void;
+  onOpenTicket?: (id: string, ticketNumber?: string) => void;
+}) {
+  const scored = React.useMemo(
+    () => [...trainer.assessments].filter((a) => a.score > 0).sort((a, b) => +new Date(a.submittedAt) - +new Date(b.submittedAt)),
+    [trainer.assessments],
+  );
+
+  let title = "";
+  let subtitle = "";
+  let body: React.ReactNode = null;
+
+  if (drill?.kind === "reviews") {
+    title = drill.title;
+    subtitle = drill.subtitle ?? `${drill.reviews.length} review${drill.reviews.length === 1 ? "" : "s"}`;
+    const rs = [...drill.reviews].sort((a, b) => +new Date(b.submittedAt) - +new Date(a.submittedAt));
+    const vals = rs.filter((r) => r.score > 0).map((r) => r.score);
+    body = (
+      <>
+        {vals.length > 0 && (
+          <div className="tr-drill-stats">
+            <DrillStat label="Reviews" value={rs.length} />
+            <DrillStat label="Average" value={`${Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)}%`} />
+            <DrillStat label="High" value={`${Math.max(...vals)}%`} />
+            <DrillStat label="Low" value={`${Math.min(...vals)}%`} alert={Math.min(...vals) < THRESHOLD} />
+          </div>
+        )}
+        <table className="tr-drill-table">
+          <thead><tr><th>Date</th><th>Score</th><th>Evaluator</th><th>Studio</th><th /></tr></thead>
+          <tbody>
+            {rs.map((r) => (
+              <tr key={r.id} className="tr-click" onClick={() => onLoadReview(r.id)} title="Load this review into the report">
+                <td className="tr-num">{indiaDate(r.submittedAt, true)}</td>
+                <td className="tr-num" style={{ color: r.score > 0 && r.score < THRESHOLD ? ALERT : undefined, fontWeight: 600 }}>{r.score ? `${r.score}%` : "-"}</td>
+                <td>{r.evaluator && r.evaluator !== "-" ? r.evaluator : "Unattributed"}<small>{r.sourceLabel}</small></td>
+                <td>{r.studio?.split(",")[0] || "-"}<small>{r.sessionName || r.ticketNumber}</small></td>
+                <td><ChevronRight size={13} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!rs.length && <p className="tr-drill-empty">No reviews match.</p>}
+      </>
+    );
+  } else if (drill?.kind === "criterion") {
+    title = drill.category;
+    const rows = scored
+      .map((a) => ({ a, r: a.rubric.find((x) => x.category === drill.category) }))
+      .filter((x): x is { a: Assessment; r: RubricRow } => !!x.r);
+    const pcts = rows.map((x) => x.r.pct);
+    subtitle = `Scored in ${rows.length} of ${scored.length} reviews`;
+    const first = pcts[0];
+    const last = pcts[pcts.length - 1];
+    body = (
+      <>
+        {pcts.length > 0 && (
+          <div className="tr-drill-stats">
+            <DrillStat label="Average" value={`${Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length)}%`} />
+            <DrillStat label="Latest" value={`${last}%`} alert={last < THRESHOLD} />
+            <DrillStat label="Best" value={`${Math.max(...pcts)}%`} />
+            <DrillStat label="Change" value={pcts.length > 1 ? `${last - first >= 0 ? "+" : ""}${last - first} pts` : "-"} alert={last - first < 0} />
+          </div>
+        )}
+        {pcts.length > 1 && (
+          <TrendChart points={rows.map(({ a, r }) => ({ id: a.id, at: a.submittedAt, score: r.pct }))} onSelect={onLoadReview} />
+        )}
+        <table className="tr-drill-table">
+          <thead><tr><th>Date</th><th>Points</th><th>Attainment</th><th>Evaluator</th></tr></thead>
+          <tbody>
+            {[...rows].reverse().map(({ a, r }) => (
+              <tr key={a.id} className="tr-click" onClick={() => onLoadReview(a.id)} title="Load this review into the report">
+                <td className="tr-num">{indiaDate(a.submittedAt, true)}</td>
+                <td className="tr-num">{r.score}/{r.weightage}</td>
+                <td>
+                  <span className="tr-drill-bar"><i style={{ width: `${Math.max(2, Math.min(100, r.pct))}%`, background: scoreColor(r.pct) }} /></span>
+                  <b className="tr-num" style={{ color: r.pct < THRESHOLD ? ALERT : undefined }}>{r.pct}%</b>
+                </td>
+                <td>{a.evaluator && a.evaluator !== "-" ? a.evaluator : "Unattributed"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    );
+  } else if (drill?.kind === "feedback") {
+    title = drill.title;
+    subtitle = drill.subtitle ?? `${drill.items.length} ticket${drill.items.length === 1 ? "" : "s"}`;
+    const comp = drill.items.filter((f) => f.kind === "compliment").length;
+    body = (
+      <>
+        <div className="tr-drill-stats">
+          <DrillStat label="Tickets" value={drill.items.length} />
+          <DrillStat label="Compliments" value={comp} />
+          <DrillStat label="Concerns" value={drill.items.length - comp} alert={drill.items.length - comp > 0} />
+          <DrillStat label="Open" value={drill.items.filter((f) => !["resolved", "closed"].includes(f.status)).length} />
+        </div>
+        <table className="tr-drill-table">
+          <thead><tr><th>Date</th><th>Feedback</th><th>Type</th><th>Status</th><th /></tr></thead>
+          <tbody>
+            {drill.items.map((f) => (
+              <tr key={f.id} className={onOpenTicket ? "tr-click" : undefined} onClick={() => onOpenTicket?.(f.id, f.ticketNumber)} title="Open the ticket">
+                <td className="tr-num">{indiaDate(f.createdAt, true)}</td>
+                <td>{f.title}<small>{f.ticketNumber} · {f.subcategory}</small></td>
+                <td><span className={f.kind === "compliment" ? "tr-chip" : "tr-chip tr-chip-alert"}>{f.kind === "compliment" ? "Compliment" : "Concern"}</span></td>
+                <td className="tr-num">{f.status.replace(/_/g, " ")}</td>
+                <td>{onOpenTicket && <ExternalLink size={12} />}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!drill.items.length && <p className="tr-drill-empty">Nothing logged.</p>}
+      </>
+    );
+  } else if (drill?.kind === "compare") {
+    const cur = scored[scored.length - 1];
+    const prev = scored[scored.length - 2];
+    title = "Change since the previous review";
+    subtitle = cur && prev ? `${indiaDate(prev.submittedAt, true)} → ${indiaDate(cur.submittedAt, true)}` : "Needs two scored reviews";
+    const diffs = cur && prev
+      ? cur.rubric.map((r) => {
+          const p = prev.rubric.find((x) => x.category === r.category);
+          return { category: r.category, now: r.pct, before: p?.pct ?? null, delta: p ? r.pct - p.pct : null };
+        }).sort((a, b) => (a.delta ?? 0) - (b.delta ?? 0))
+      : [];
+    body = cur && prev ? (
+      <>
+        <div className="tr-drill-stats">
+          <DrillStat label="Previous" value={`${prev.score}%`} />
+          <DrillStat label="Latest" value={`${cur.score}%`} alert={cur.score < THRESHOLD} />
+          <DrillStat label="Change" value={`${cur.score - prev.score >= 0 ? "+" : ""}${cur.score - prev.score} pts`} alert={cur.score - prev.score < 0} />
+          <DrillStat label="Criteria down" value={diffs.filter((d) => (d.delta ?? 0) < 0).length} />
+        </div>
+        <table className="tr-drill-table">
+          <thead><tr><th>Criterion</th><th>Before</th><th>Now</th><th>Change</th></tr></thead>
+          <tbody>
+            {diffs.map((d) => (
+              <tr key={d.category}>
+                <td>{d.category}</td>
+                <td className="tr-num">{d.before === null ? "-" : `${d.before}%`}</td>
+                <td className="tr-num">{d.now}%</td>
+                <td className="tr-num" style={{ color: (d.delta ?? 0) < 0 ? ALERT : undefined, fontWeight: 600 }}>
+                  {d.delta === null ? "new" : `${d.delta >= 0 ? "+" : ""}${d.delta}`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <button type="button" className="tr-drill-btn" onClick={() => onLoadReview(prev.id)}>Load previous</button>
+          <button type="button" className="tr-drill-btn" onClick={() => onLoadReview(cur.id)}>Load latest</button>
+        </div>
+      </>
+    ) : <p className="tr-drill-empty">Two scored reviews are needed for a comparison.</p>;
+  }
+
+  return (
+    <Sheet open={!!drill} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-[560px] overflow-y-auto iris-scrollbar p-0">
+        <div className="tr-report tr-drill">
+          <SheetHeader className="tr-drill-head">
+            <span className="tr-drill-eyebrow">{trainer.displayName || trainer.name} · drill-down</span>
+            <SheetTitle className="tr-drill-title">{title}</SheetTitle>
+            <SheetDescription className="tr-drill-sub">{subtitle}</SheetDescription>
+          </SheetHeader>
+          <div className="tr-drill-body">{body}</div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Report                                                              */
 /* ------------------------------------------------------------------ */
 
-export function TrainerReport({ trainer }: { trainer: Trainer }) {
+export function TrainerReport({ trainer, onOpenTicket }: { trainer: Trainer; onOpenTicket?: (id: string, ticketNumber?: string) => void }) {
+  const [drill, setDrill] = React.useState<Drill | null>(null);
+  const anchorId = `tr-rubric-${React.useId().replace(/:/g, "")}`;
   const [selection, setSelection] = React.useState<{ for: string; id: string }>();
   const selectedId = selection?.for === trainer.name ? selection.id : null;
   const setSelectedId = (id: string) => setSelection({ for: trainer.name, id });
@@ -404,6 +586,16 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
     else next.add(id);
     setOpenIds(next);
   };
+
+  const loadReview = (id: string) => {
+    setSelectedId(id);
+    setOpenIds(new Set([...openIds, id]));
+    setDrill(null);
+    requestAnimationFrame(() => document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+  const reviewsDrill = (title: string, reviews: Assessment[], subtitle?: string) => setDrill({ kind: "reviews", title, reviews, subtitle });
+  const feedbackDrill = (title: string, items: FeedbackRow[], subtitle?: string) => setDrill({ kind: "feedback", title, items, subtitle });
+  const criterionDrill = (category: string) => setDrill({ kind: "criterion", category });
 
   const sorted = React.useMemo(
     () => [...trainer.assessments].sort((a, b) => +new Date(a.submittedAt) - +new Date(b.submittedAt)),
@@ -478,27 +670,27 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
 
   const now = Date.now();
   const daysSince = latest ? Math.floor((now - +new Date(latest.submittedAt)) / 86400000) : null;
-  const alerts: { tone: string; title: string; body: string }[] = [];
+  const alerts: { tone: string; title: string; body: string; open?: () => void }[] = [];
   if (latest && latest.score > 0 && latest.score < 65) {
-    alerts.push({ tone: "red", title: "Coaching priority", body: `The latest weighted score is ${latest.score}%, below the 65% threshold.` });
+    alerts.push({ tone: "red", title: "Coaching priority", body: `The latest weighted score is ${latest.score}%, below the 65% threshold.`, open: () => loadReview(latest.id) });
   }
   if (delta <= -8) {
-    alerts.push({ tone: "amber", title: `Down ${Math.abs(delta)} points`, body: "A regression since the previous assessment - review the weakest criteria." });
+    alerts.push({ tone: "amber", title: `Down ${Math.abs(delta)} points`, body: "A regression since the previous assessment - review the weakest criteria.", open: () => setDrill({ kind: "compare" }) });
   }
   if (delta >= 8) {
-    alerts.push({ tone: "green", title: `Up ${delta} points`, body: "A clear improvement since the last review." });
+    alerts.push({ tone: "green", title: `Up ${delta} points`, body: "A clear improvement since the last review.", open: () => setDrill({ kind: "compare" }) });
   }
   if (trainer.issueCount >= 3) {
-    alerts.push({ tone: "red", title: `${trainer.issueCount} flagged concerns`, body: "Member feedback on this trainer is trending negative." });
+    alerts.push({ tone: "red", title: `${trainer.issueCount} flagged concerns`, body: "Member feedback on this trainer is trending negative.", open: () => feedbackDrill("Flagged concerns", trainer.feedback.filter((f) => f.kind !== "compliment")) });
   }
   if (daysSince !== null && daysSince > 90) {
-    alerts.push({ tone: "amber", title: "Review overdue", body: `Last assessed ${daysSince} days ago.` });
+    alerts.push({ tone: "amber", title: "Review overdue", body: `Last assessed ${daysSince} days ago.`, open: () => reviewsDrill("Assessment history", trainer.assessments) });
   }
   if (!trainer.assessments.length) {
-    alerts.push({ tone: "amber", title: "Never assessed", body: "No evaluation is on file for this trainer yet." });
+    alerts.push({ tone: "amber", title: "Never assessed", body: "No evaluation is on file for this trainer yet.", open: () => feedbackDrill("Everything on file", trainer.feedback) });
   }
   if (trainer.complimentCount >= 3 && trainer.issueCount === 0) {
-    alerts.push({ tone: "green", title: "Consistently praised", body: `${trainer.complimentCount} compliments, no concerns logged.` });
+    alerts.push({ tone: "green", title: "Consistently praised", body: `${trainer.complimentCount} compliments, no concerns logged.`, open: () => feedbackDrill("Compliments", trainer.feedback.filter((f) => f.kind === "compliment")) });
   }
 
   const initials = trainer.name.split(" ").map((w) => w[0]).slice(0, 2).join("");
@@ -517,19 +709,29 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         <div className="tr-masthead-body">
           <span className="eyebrow">TRAINER PERFORMANCE REPORT</span>
           <h2>{trainer.displayName || trainer.name}</h2>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-            <IrisBadge tone={trainer.bandTone}>{trainer.band || "Awaiting a formal assessment"}</IrisBadge>
-            {delta !== 0 && (
-              <IrisBadge tone={delta > 0 ? "green" : "red"}>
-                {delta > 0 ? "+" : ""}{delta} vs previous
-              </IrisBadge>
-            )}
-            <IrisBadge>{trainer.assessmentCount} assessments</IrisBadge>
-            <IrisBadge>{trainer.totalTickets} linked tickets</IrisBadge>
-            {latest && <IrisBadge>Last reviewed {indiaDate(latest.submittedAt)}</IrisBadge>}
-          </div>
+          <dl className="tr-meta">
+            <div><dt>Band</dt><dd>{trainer.band || "Awaiting assessment"}</dd></div>
+            <div><dt>City</dt><dd>{trainer.city || "-"}</dd></div>
+            <div role="button" tabIndex={0} className="tr-click" onClick={() => reviewsDrill("Assessment history", trainer.assessments)}><dt>Assessments</dt><dd>{trainer.assessmentCount}</dd></div>
+            <div role="button" tabIndex={0} className="tr-click" onClick={() => feedbackDrill("Linked feedback tickets", trainer.feedback)}><dt>Linked tickets</dt><dd>{trainer.totalTickets}</dd></div>
+            <div role="button" tabIndex={0} className="tr-click" onClick={() => latest && loadReview(latest.id)}><dt>Last reviewed</dt><dd>{latest ? indiaDate(latest.submittedAt, true) : "-"}</dd></div>
+          </dl>
         </div>
-        <ScoreDial value={avg} />
+        <div className="tr-scoreblock tr-click" role="button" tabIndex={0} title="Compare with the previous review"
+          onClick={() => setDrill({ kind: "compare" })} onKeyDown={(e) => e.key === "Enter" && setDrill({ kind: "compare" })} aria-label={`Profile average ${trainer.avgScore ?? "not scored"}`}>
+          <span className="tr-scoreblock-label">Profile average</span>
+          <div className="tr-scoreblock-value">
+            <strong style={{ color: avg > 0 && avg < THRESHOLD ? ALERT : undefined }}>{trainer.avgScore ?? "-"}</strong>
+            {trainer.avgScore !== null && <span>/100</span>}
+          </div>
+          <span className="tr-scoreblock-meter" aria-hidden>
+            <i style={{ width: `${Math.max(0, Math.min(100, avg))}%`, background: scoreColor(avg) }} />
+            <b style={{ left: `${THRESHOLD}%` }} />
+          </span>
+          <span className="tr-scoreblock-sub">
+            {delta !== 0 ? `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta)} pts vs previous` : scored.length ? "No change vs previous" : "Not yet scored"}
+          </span>
+        </div>
       </section>
 
       <div className="tr-kpis">
@@ -539,26 +741,30 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
           sub={trainer.band || "No assessments yet"}
           tone={scoreColor(avg)}
           pct={avg}
+          onOpen={() => reviewsDrill("Every scored review", scored)}
         />
         <KpiTile
           label="Best on record"
           value={best ? best + "%" : "-"}
           sub="Highest weighted result"
-          tone="#34c759"
+          tone="var(--primary)"
           pct={best}
+          onOpen={best ? () => reviewsDrill("Best on record", scored.filter((a) => a.score === best)) : undefined}
         />
         <KpiTile
           label="Lowest on record"
           value={worst ? worst + "%" : "-"}
           sub="Weakest weighted result"
-          tone="#ff3b30"
+          tone={scoreColor(worst)}
           pct={worst}
+          onOpen={worst ? () => reviewsDrill("Lowest on record", scored.filter((a) => a.score === worst)) : undefined}
         />
         <KpiTile
           label="Member signal"
           value={`${trainer.complimentCount} / ${trainer.issueCount}`}
           sub="Compliments vs flagged concerns"
           tone="var(--primary)"
+          onOpen={() => feedbackDrill("Member feedback", trainer.feedback)}
         />
       </div>
 
@@ -566,10 +772,12 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         <Section index="01" title="What needs attention" subtitle="Derived from the assessments and feedback on file">
           <div className="tr-alerts">
             {alerts.map((a) => (
-              <div key={a.title} className="tr-alert" style={{ boxShadow: `inset 3px 0 0 ${toneVar(a.tone)}` }}>
+              <button type="button" key={a.title} className="tr-alert tr-click" data-tone={a.tone} onClick={a.open} disabled={!a.open}>
+                <i className="tr-alert-mark" aria-hidden />
                 <strong style={{ color: toneVar(a.tone) }}>{a.title}</strong>
-                <p>{a.body}</p>
-              </div>
+                <span className="tr-alert-p">{a.body}</span>
+                <ChevronRight size={13} className="tr-alert-go" />
+              </button>
             ))}
           </div>
         </Section>
@@ -590,6 +798,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
       </Section>
 
       {/* 03 - rubric for the selected review */}
+      <div id={anchorId} style={{ scrollMarginTop: 12 }} />
       <Section
         index="03"
         title="Rubric attainment"
@@ -603,7 +812,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         ) : (
           <div className="tr-rubric-grid">
             <div className="tr-radar-wrap">
-              <RadarChart rows={selectedRubric} benchmark={avg} />
+              <RadarChart rows={selectedRubric} benchmark={avg} onPick={criterionDrill} />
               <div style={{ display: "flex", gap: 12, fontSize: 10, justifyContent: "center", alignItems: "center" }}>
                 <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
                   <i className="tr-key" style={{ background: "var(--primary)" }} />
@@ -625,7 +834,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
                 <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No criteria match this filter.</p>
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
-                  {filteredRubric.map((r) => <RubricBar key={r.category} {...r} />)}
+                  {filteredRubric.map((r) => <RubricBar key={r.category} {...r} onOpen={() => criterionDrill(r.category)} />)}
                 </div>
               )}
             </div>
@@ -638,20 +847,20 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         <Section index="04" title="Coaching notes" subtitle={`As recorded on ${selected.ticketNumber}`}>
           <div className="tr-notes">
             {selected.strengths && (
-              <div className="tr-note" style={{ boxShadow: "inset 3px 0 0 #34c759" }}>
-                <strong style={{ color: "#34c759" }}>Key strengths</strong>
+              <div className="tr-note">
+                <strong>Key strengths</strong>
                 <p>{selected.strengths}</p>
               </div>
             )}
             {selected.improvements && (
-              <div className="tr-note" style={{ boxShadow: "inset 3px 0 0 #ff9500" }}>
-                <strong style={{ color: "#ff9500" }}>Development areas</strong>
+              <div className="tr-note">
+                <strong>Development areas</strong>
                 <p>{selected.improvements}</p>
               </div>
             )}
             {selected.coachingPlan && (
-              <div className="tr-note" style={{ boxShadow: "inset 3px 0 0 var(--primary)" }}>
-                <strong style={{ color: "var(--primary)" }}>Coaching action plan</strong>
+              <div className="tr-note">
+                <strong>Coaching action plan</strong>
                 <p>{selected.coachingPlan}</p>
               </div>
             )}
@@ -671,10 +880,10 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
           index="05"
           title="Recurring strengths and levers"
           subtitle="Averaged across every review on file · weakest first"
-          action={<IrisBadge>{lifetimeRubric.length} criteria</IrisBadge>}
+          action={<IrisBadge>{lifetimeRubric.length} criteria · click any to drill in</IrisBadge>}
         >
           <div className="tr-rubric-cols">
-            {lifetimeRubric.map((r) => <RubricBar key={r.category} {...r} />)}
+            {lifetimeRubric.map((r) => <RubricBar key={r.category} {...r} onOpen={() => criterionDrill(r.category)} />)}
           </div>
         </Section>
       )}
@@ -698,6 +907,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
                 open={openIds.has(a.id)}
                 onToggle={() => toggleOpen(a.id)}
                 onSelect={() => setSelectedId(a.id)}
+                onCriterion={criterionDrill}
                 active={a.id === selected?.id}
               />
             ))}
@@ -739,10 +949,11 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
                 <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No evaluations recorded yet.</p>
               ) : (
                 evaluators.map((r) => (
-                  <div key={r.evaluator} className="tr-split-row">
+                  <div key={r.evaluator} className="tr-split-row tr-click" role="button" tabIndex={0}
+                    onClick={() => reviewsDrill(`Reviews by ${r.evaluator}`, trainer.assessments.filter((a) => (a.evaluator?.trim() || "Unattributed") === r.evaluator))}>
                     <span>{r.evaluator}</span>
                     <span style={{ color: "var(--muted-foreground)" }}>
-                      {r.count} · <b style={{ color: scoreColor(r.avg) }}>{r.avg}%</b>
+                      {r.count} · <b style={{ color: r.avg < THRESHOLD ? ALERT : "var(--foreground)" }}>{r.avg}%</b>
                     </span>
                   </div>
                 ))
@@ -754,10 +965,11 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
                 <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No evaluations recorded yet.</p>
               ) : (
                 studios.map((r) => (
-                  <div key={r.studio} className="tr-split-row">
+                  <div key={r.studio} className="tr-split-row tr-click" role="button" tabIndex={0}
+                    onClick={() => reviewsDrill(`Reviews at ${r.studio}`, trainer.assessments.filter((a) => (a.studio?.split(",")[0].trim() || "Unspecified") === r.studio))}>
                     <span>{r.studio}</span>
                     <span style={{ color: "var(--muted-foreground)" }}>
-                      {r.count} · <b style={{ color: scoreColor(r.avg) }}>{r.avg}%</b>
+                      {r.count} · <b style={{ color: r.avg < THRESHOLD ? ALERT : "var(--foreground)" }}>{r.avg}%</b>
                     </span>
                   </div>
                 ))
@@ -772,33 +984,32 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         index="08"
         title="Member feedback and compliments"
         subtitle="Everything logged against this trainer outside a formal assessment"
-        action={<IrisBadge>{trainer.feedbackCount} entries</IrisBadge>}
+        action={
+          <button type="button" className="tr-chip tr-chip-accent tr-click" onClick={() => feedbackDrill("Member feedback", trainer.feedback)}>
+            View all {trainer.feedbackCount}
+          </button>
+        }
       >
         {!trainer.recentFeedback.length ? (
           <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No feedback logged yet.</p>
         ) : (
           trainer.recentFeedback.map((f) => (
-            <div
-              key={f.id}
-              style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-                padding: "8px 12px", borderRadius: 10, background: "var(--muted)",
-                marginBottom: 6,
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <small style={{ color: "var(--muted-foreground)", fontSize: 10 }}>
-                  {f.ticketNumber} · {f.subcategory} · {indiaDate(f.createdAt, true)}
-                </small>
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--foreground)" }}>{f.title}</p>
+            <div key={f.id} className={onOpenTicket ? "tr-feed-row tr-click" : "tr-feed-row"} role={onOpenTicket ? "button" : undefined}
+              tabIndex={onOpenTicket ? 0 : undefined} onClick={() => onOpenTicket?.(f.id, f.ticketNumber)} title="Open the ticket">
+              <span className="tr-num tr-feed-date">{indiaDate(f.createdAt, true)}</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p>{f.title}</p>
+                <small>{f.ticketNumber} · {f.subcategory}</small>
               </div>
-              <IrisBadge tone={f.kind === "compliment" ? "green" : f.sentiment === "negative" ? "red" : ""}>
+              <IrisBadge tone={f.sentiment === "negative" && f.kind !== "compliment" ? "red" : ""}>
                 {f.kind === "compliment" ? "Compliment" : f.sentiment || "neutral"}
               </IrisBadge>
             </div>
           ))
         )}
       </Section>
+
+      <DrillPanel drill={drill} trainer={trainer} onClose={() => setDrill(null)} onLoadReview={loadReview} onOpenTicket={onOpenTicket} />
     </div>
   );
 }

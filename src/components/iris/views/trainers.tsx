@@ -38,6 +38,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 export function TrainersView() {
   const dataVersion = useAppStore((s) => s.dataVersion);
   const bumpData = useAppStore((s) => s.bumpData);
+  const openTicket = useAppStore((s) => s.openTicket);
   const isAdmin = useAppStore((s) => s.currentUser.tier === "admin");
 
   // This view only mounts after <AuthGate> has loaded on the client, so reading localStorage
@@ -278,7 +279,10 @@ export function TrainersView() {
           <DialogTitle className="sr-only">{active?.displayName || active?.name} - performance report</DialogTitle>
           {active && (
             <div className="trainers-view p-4">
-              <TrainerReport trainer={active} />
+              <TrainerReport
+                trainer={active}
+                onOpenTicket={(id) => { setActiveName(undefined); openTicket(id); }}
+              />
             </div>
           )}
         </DialogContent>
