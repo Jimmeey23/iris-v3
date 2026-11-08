@@ -20,6 +20,7 @@ import {
   stepsAsText,
 } from "@/lib/iris/knowledge-base/reader";
 import { TEMPLATE_MAP } from "@/lib/iris/templates";
+import { GENERAL_SUBCATEGORY, normalizeTemplateSubcategory } from "@/lib/iris/template-groups";
 import { PRIORITY_CONFIG, type Priority } from "@/lib/iris/types";
 import { knowledgeApi } from "@/lib/iris/library-api";
 import { cn } from "@/lib/utils";
@@ -245,6 +246,7 @@ export function KnowledgeBaseView() {
   // List state lives here so it survives opening an article and coming back.
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState("all");
+  const [subcategory, setSubcategory] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<{ article: KnowledgeArticle; isNew: boolean } | null>(null);
   const [busy, setBusy] = React.useState(false);
 
@@ -339,7 +341,9 @@ export function KnowledgeBaseView() {
           search={search}
           onSearch={setSearch}
           category={category}
-          onCategory={setCategory}
+          onCategory={(c) => { setCategory(c); setSubcategory(null); }}
+          subcategory={subcategory}
+          onSubcategory={setSubcategory}
           canEdit={canEdit}
           onNew={handleNewArticle}
           onOpen={setKbArticleId}
@@ -375,6 +379,8 @@ function ArticleList({
   onSearch,
   category,
   onCategory,
+  subcategory,
+  onSubcategory,
   canEdit,
   onNew,
   onOpen,
@@ -385,6 +391,8 @@ function ArticleList({
   onSearch: (q: string) => void;
   category: string;
   onCategory: (c: string) => void;
+  subcategory: string | null;
+  onSubcategory: (s: string | null) => void;
   canEdit: boolean;
   onNew: () => void;
   onOpen: (id: string) => void;
@@ -397,7 +405,6 @@ function ArticleList({
     return m;
   }, [results]);
   const visible = category === "all" ? results : results.filter((r) => r.article.category === category);
-  const grouped = category === "all" && !query;
 
   const stats = React.useMemo(() => {
     const linked = new Set(articles.flatMap((a) => a.relatedTemplates ?? []));
@@ -461,7 +468,7 @@ function ArticleList({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by category">
+        <div className={cn("flex items-center gap-1 flex-wrap", !query && "hidden")} role="group" aria-label="Filter by category">
           <CategoryChip active={category === "all"} onClick={() => onCategory("all")} label="All" count={results.length} />
           {categories.map((c) => (
             <CategoryChip
@@ -489,27 +496,16 @@ function ArticleList({
         )}
       </div>
 
-      {grouped ? (
-        <div className="space-y-8">
-          {categories.map((c) => {
-            const items = visible.filter((r) => r.article.category === c);
-            if (items.length === 0) return null;
-            return (
-              <section key={c} className="space-y-2.5" aria-label={c}>
-                <h2 className="flex items-center gap-2 text-[13px] font-semibold">
-                  <IconOf icon={categoryIcon(c)} className="w-3.5 h-3.5 text-muted-foreground" />
-                  {c}
-                  <span className="text-[11px] font-normal text-muted-foreground">{items.length}</span>
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {items.map((r) => (
-                    <ArticleCard key={r.article.id} article={r.article} onOpen={onOpen} showCategory={false} />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+      {!query ? (
+        <KbDrilldown
+          articles={articles}
+          categories={categories}
+          category={category}
+          subcategory={subcategory}
+          onCategory={onCategory}
+          onSubcategory={onSubcategory}
+          onOpen={onOpen}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {visible.map((r) => (
@@ -518,7 +514,7 @@ function ArticleList({
         </div>
       )}
 
-      {visible.length === 0 && (
+      {query && visible.length === 0 && (
         <div className="text-center py-20">
           <BookOpen className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
           <div className="text-[13px] text-muted-foreground">No guides match your search</div>
@@ -534,6 +530,113 @@ function ArticleList({
               Clear filters
             </Button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Sub-category of a guide: from the ticket form it links to, else "General". */
+export function articleSubcategory(a: KnowledgeArticle): string {
+  for (const code of a.relatedTemplates ?? []) {
+    const t = TEMPLATE_MAP[code];
+    if (t?.subcategory) return normalizeTemplateSubcategory(t.subcategory);
+  }
+  return GENERAL_SUBCATEGORY;
+}
+
+function KbDrilldown({
+  articles, categories, category, subcategory, onCategory, onSubcategory, onOpen,
+}: {
+  articles: KnowledgeArticle[];
+  categories: string[];
+  category: string;
+  subcategory: string | null;
+  onCategory: (c: string) => void;
+  onSubcategory: (s: string | null) => void;
+  onOpen: (id: string) => void;
+}) {
+  const inCat = category === "all" ? [] : articles.filter((a) => a.category === category);
+  const subs = React.useMemo(() => {
+    const m = new Map<string, KnowledgeArticle[]>();
+    for (const a of inCat) {
+      const k = articleSubcategory(a);
+      m.set(k, [...(m.get(k) ?? []), a]);
+    }
+    return [...m.entries()].sort(([a], [b]) => (a === GENERAL_SUBCATEGORY ? 1 : b === GENERAL_SUBCATEGORY ? -1 : a.localeCompare(b)));
+  }, [inCat]);
+  // A category with a single sub-category goes straight to its guides.
+  const effectiveSub = subcategory ?? (subs.length === 1 ? subs[0][0] : null);
+  const step = category === "all" ? 1 : effectiveSub ? 3 : 2;
+  const urgent = (list: KnowledgeArticle[]) => list.filter((a) => { const p = articlePriority(a); return p === "P0" || p === "P1"; }).length;
+
+  return (
+    <div className="space-y-4">
+      <nav aria-label="Knowledge base path" className="flex items-center gap-1.5 text-[12px] flex-wrap">
+        <button onClick={() => onCategory("all")} className={cn("px-2 py-1 rounded-md", step === 1 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
+          1 · Category
+        </button>
+        <ChevronRight className="w-3 h-3 text-muted-foreground" />
+        <button disabled={step === 1} onClick={() => onSubcategory(null)} className={cn("px-2 py-1 rounded-md disabled:opacity-40", step === 2 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
+          2 · {category !== "all" ? category : "Sub-category"}
+        </button>
+        <ChevronRight className="w-3 h-3 text-muted-foreground" />
+        <span className={cn("px-2 py-1 rounded-md", step === 3 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground opacity-40")}>
+          3 · {effectiveSub ?? "Guides"}
+        </span>
+      </nav>
+
+      {step === 1 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {categories.map((c) => {
+            const list = articles.filter((a) => a.category === c);
+            const subCount = new Set(list.map(articleSubcategory)).size;
+            const u = urgent(list);
+            return (
+              <button key={c} onClick={() => onCategory(c)} className="text-left iris-card-elevated p-4 hover:border-primary/40 hover:shadow-md transition-all group">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <IconOf icon={categoryIcon(c)} className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px] font-semibold leading-tight group-hover:text-primary transition-colors">{c}</div>
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      {list.length} guide{list.length === 1 ? "" : "s"} · {subCount} sub-categor{subCount === 1 ? "y" : "ies"}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                {u > 0 && <div className="mt-3 text-[10px] font-medium text-rose-600 dark:text-rose-400">{u} urgent (P0/P1) guide{u === 1 ? "" : "s"}</div>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {subs.map(([sub, list]) => (
+            <button key={sub} onClick={() => onSubcategory(sub)} className="text-left iris-card-elevated p-4 hover:border-primary/40 hover:shadow-md transition-all group">
+              <div className="flex items-center gap-2">
+                <div className="text-[13px] font-semibold group-hover:text-primary transition-colors flex-1">{sub}</div>
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] tabular-nums">{list.length}</Badge>
+              </div>
+              <ul className="mt-2 space-y-1">
+                {list.slice(0, 3).map((a) => (
+                  <li key={a.id} className="text-[11px] text-muted-foreground truncate">· {a.title}</li>
+                ))}
+                {list.length > 3 && <li className="text-[11px] text-muted-foreground">+{list.length - 3} more</li>}
+              </ul>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {(subs.find(([k]) => k === effectiveSub)?.[1] ?? []).map((a) => (
+            <ArticleCard key={a.id} article={a} onOpen={onOpen} showCategory={false} />
+          ))}
         </div>
       )}
     </div>
