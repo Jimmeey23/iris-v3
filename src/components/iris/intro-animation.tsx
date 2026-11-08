@@ -16,13 +16,13 @@ export function IrisLoadingScreen({ label = "Preparing your workspace" }: { labe
           <div className="iris-loading-logo"><IrisLogo size={88} /></div>
           <span className="iris-loading-satellite" />
         </div>
-        <div className="iris-loading-kicker">A LITTLE MORE CLARITY</div>
+        <div className="iris-loading-kicker">IRIS · ISSUE RESOLUTION &amp; INTELLIGENT SYSTEMS</div>
         <h1>Everything in its place.</h1>
         <p>Your workspace for thoughtful, connected resolution.</p>
         <div className="iris-loading-progress"><span /></div>
         <div className="iris-loading-status"><span className="iris-loading-dot" />{label}</div>
       </div>
-      <div className="iris-loading-bottom"><span>ISSUE RESOLUTION &amp; INTELLIGENCE</span><span>MADE FOR BETTER OPERATIONS</span></div>
+      <div className="iris-loading-bottom"><span>A PRODUCT OF PHYSIQUE 57, INDIA</span><span>MADE FOR BETTER OPERATIONS</span></div>
     </div>
   );
 }

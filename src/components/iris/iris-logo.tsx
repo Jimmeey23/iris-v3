@@ -20,7 +20,7 @@ export function IrisLogo({ size = 32, className }: { size?: number; className?: 
         <path d="M32 53C25.4 46.8 23.7 39.8 32 32C40.3 39.8 38.6 46.8 32 53Z" fill="white" fillOpacity=".9"/>
         <path d="M11 32C17.2 25.4 24.2 23.7 32 32C24.2 40.3 17.2 38.6 11 32Z" fill="white" fillOpacity=".58"/>
       </g>
-      <circle cx="32" cy="32" r="3.2" fill="white"/>
+      <circle className="iris-logo-core" cx="32" cy="32" r="3.2" fill="white" style={{ transformOrigin: "32px 32px" }}/>
     </svg>
   );
 }
