@@ -11,6 +11,8 @@ export interface KnowledgeArticle {
   id: string;
   title: string;
   category: string;
+  /** Second level of the Knowledge Base drill-down (see knowledge-base/taxonomy.ts). */
+  subcategory?: string;
   summary: string;
   steps: string[];
   prevention?: string;
@@ -36,6 +38,8 @@ export interface ArticleSpec {
   id: string;
   title: string;
   category: string;
+  /** Must be one of the category's sub-categories in knowledge-base/taxonomy.ts (unit-tested). */
+  subcategory: string;
   summary: string;
   glance: {
     /** e.g. "P1 — class can't run safely" */
@@ -101,6 +105,7 @@ export function article(spec: ArticleSpec): KnowledgeArticle {
     id: spec.id,
     title: spec.title,
     category: spec.category,
+    subcategory: spec.subcategory,
     summary: spec.summary,
     steps: spec.steps,
     body: composeArticleBody(spec),

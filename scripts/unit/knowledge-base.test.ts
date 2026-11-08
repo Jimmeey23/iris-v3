@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { BUILTIN_KNOWLEDGE_ARTICLES, KNOWLEDGE_ARTICLES, knowledgeCategories } from "../../src/lib/iris/knowledge-base-data";
+import {
+  BUILTIN_KNOWLEDGE_ARTICLES,
+  KNOWLEDGE_ARTICLES,
+  knowledgeCategories,
+  type KnowledgeArticle,
+} from "../../src/lib/iris/knowledge-base-data";
 import {
   KB_SECTIONS,
   article,
@@ -22,6 +27,22 @@ import {
   splitCodes,
   stepsAsText,
 } from "../../src/lib/iris/knowledge-base/reader";
+import {
+  KB_CATEGORY_ORDER,
+  KB_TAXONOMY,
+  kbCategoryLabel,
+  kbCategoryMeta,
+  kbSubcategoryDescription,
+  kbSubcategoryNames,
+  kbSubcategoryRank,
+} from "../../src/lib/iris/knowledge-base/taxonomy";
+import {
+  KB_GENERAL_SUBCATEGORY,
+  KB_UNCATEGORIZED,
+  articleSubcategory,
+  groupKnowledgeArticles,
+  withResolvedTaxonomy,
+} from "../../src/lib/iris/knowledge-base/groups";
 import { BUILTIN_TEMPLATES, TEMPLATE_MAP } from "../../src/lib/iris/templates";
 import { CATEGORY_MAP } from "../../src/lib/iris/constants";
 
@@ -30,9 +51,9 @@ import { CATEGORY_MAP } from "../../src/lib/iris/constants";
 const LIMITS = { title: 200, category: 120, summary: 2000, body: 60000, steps: 60, step: 1500, tags: 30, tag: 40, text: 3000, related: 30 };
 
 describe("Built-in knowledge base", () => {
-  it("ships 50 articles with unique, sequential ids", () => {
+  it("ships 160 articles with unique, sequential ids", () => {
     const ids = KNOWLEDGE_ARTICLES.map((a) => a.id);
-    expect(ids.length).toBe(50);
+    expect(ids.length).toBe(160);
     expect(new Set(ids).size).toBe(ids.length);
     ids.forEach((id, i) => expect(id).toBe(`KB-${String(i + 1).padStart(3, "0")}`));
   });
@@ -132,6 +153,7 @@ describe("Article composer and reader", () => {
     id: "KB-999",
     title: "Test article",
     category: "Scheduling",
+    subcategory: "Schedule Changes & Cover",
     summary: "A test article.",
     glance: { priority: "P2", owner: "Front Desk", respond: "1 hour", resolve: "Same day" },
     firstFive: ["Check the thing."],
@@ -197,8 +219,21 @@ describe("Knowledge Base reader helpers", () => {
   it("ranks search results by where the terms match", () => {
     expect(searchArticles(KNOWLEDGE_ARTICLES, "AC red light")[0].article.id).toBe("KB-006");
     expect(searchArticles(KNOWLEDGE_ARTICLES, "chest pain")[0].article.id).toBe("KB-038");
-    expect(searchArticles(KNOWLEDGE_ARTICLES, "kb-010").map((r) => r.article.id)).toEqual(["KB-010"]);
-    expect(searchArticles(KNOWLEDGE_ARTICLES, "TPL-034").map((r) => r.article.id)).toEqual(["KB-005", "KB-013"]);
+    // an id finds that guide first, then the guides that point to it
+    const byCode = searchArticles(KNOWLEDGE_ARTICLES, "kb-010");
+    expect(byCode[0].article.id).toBe("KB-010");
+    expect(byCode.length).toBeGreaterThan(1);
+    for (const r of byCode.slice(1)) {
+      expect(r.score, r.article.id).toBeLessThan(byCode[0].score);
+      expect(JSON.stringify(r.article), r.article.id).toContain("KB-010");
+    }
+    // a form code finds every guide that links that form, in KB order
+    const linkingTpl034 = KNOWLEDGE_ARTICLES.filter((a) => (a.relatedTemplates ?? []).includes("TPL-034")).map((a) => a.id);
+    expect(linkingTpl034).toContain("KB-005");
+    expect(linkingTpl034).toContain("KB-013");
+    expect(searchArticles(KNOWLEDGE_ARTICLES, "TPL-034").map((r) => r.article.id)).toEqual(linkingTpl034);
+    // sub-category names are searchable
+    expect(searchArticles(KNOWLEDGE_ARTICLES, "valet").slice(0, 3).every((r) => r.article.subcategory === "Valet & Parking")).toBe(true);
     // every term must match somewhere
     expect(searchArticles(KNOWLEDGE_ARTICLES, "pedal xyzzy")).toEqual([]);
     // short terms match whole words only ("ac" must not hit "feedback")
@@ -219,12 +254,20 @@ describe("Knowledge Base reader helpers", () => {
     for (const a of KNOWLEDGE_ARTICLES) expect(articlePriority(a), a.id).not.toBeNull();
   });
 
-  it("suggests related guides, preferring explicit mentions and shared templates", () => {
-    const related = relatedArticles(byId("KB-034"), KNOWLEDGE_ARTICLES).map((a) => a.id);
-    expect(related[0]).toBe("KB-009"); // KB-034 points to KB-009 for fire risk
+  it("suggests related guides, preferring explicit mentions, shared templates and the same sub-category", () => {
+    const power = byId("KB-034");
+    const related = relatedArticles(power, KNOWLEDGE_ARTICLES).map((a) => a.id);
+    expect(related).toContain("KB-009"); // KB-034 points to KB-009 for fire risk
+    expect(byId(related[0]).subcategory).toBe(power.subcategory); // a neighbour sharing its ticket forms
     expect(related).not.toContain("KB-034");
     expect(related.length).toBeLessThanOrEqual(4);
     expect(relatedArticles(byId("KB-007"), KNOWLEDGE_ARTICLES)).toContainEqual(byId("KB-025"));
+
+    // the sub-category only counts inside the same category
+    const guide = (id: string, category: string, subcategory: string): KnowledgeArticle => ({ id, title: id, category, subcategory, summary: "s", steps: ["a"], body: "" });
+    const me = guide("KB-901", "Scheduling", "Waitlists");
+    const pool = [guide("KB-903", "Scheduling", "Other"), guide("KB-904", "Brand Feedback", "Waitlists"), guide("KB-902", "Scheduling", "Waitlists"), me];
+    expect(relatedArticles(me, pool).map((a) => a.id)).toEqual(["KB-902", "KB-903"]);
   });
 
   it("links known template and article codes in text and markdown", () => {
@@ -271,5 +314,122 @@ describe("Knowledge Base reader helpers", () => {
 
   it("formats steps as a numbered checklist", () => {
     expect(stepsAsText({ id: "KB-1", title: "T", steps: ["a", "b"] })).toBe("KB-1 — T\n\n1. a\n2. b");
+  });
+});
+
+describe("Knowledge Base taxonomy (Category → Sub-category → Guide)", () => {
+  it("defines each category once, keyed by a ticket category, with described sub-categories", () => {
+    const keys = KB_TAXONOMY.map((c) => c.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(KB_CATEGORY_ORDER).toEqual(keys);
+    for (const c of KB_TAXONOMY) {
+      expect(Object.keys(CATEGORY_MAP), c.key).toContain(c.key);
+      expect(c.label.trim().length, c.key).toBeGreaterThan(0);
+      expect(c.tagline.trim().length, c.key).toBeGreaterThan(0);
+      expect(c.subcategories.length, c.key).toBeGreaterThanOrEqual(2);
+      const names = c.subcategories.map((s) => s.name);
+      expect(new Set(names).size, c.key).toBe(names.length);
+      expect(names, c.key).not.toContain(KB_GENERAL_SUBCATEGORY);
+      for (const s of c.subcategories) {
+        expect(s.name.length, s.name).toBeLessThanOrEqual(LIMITS.category);
+        expect(s.description.trim().length, s.name).toBeGreaterThan(10);
+      }
+    }
+  });
+
+  it("files every shipped guide under a known category and one of its sub-categories", () => {
+    for (const a of KNOWLEDGE_ARTICLES) {
+      expect(kbCategoryMeta(a.category), `${a.id} ${a.category}`).toBeDefined();
+      expect(kbSubcategoryNames(a.category), `${a.id} ${a.subcategory}`).toContain(a.subcategory ?? "");
+    }
+  });
+
+  it("gives every sub-category at least two guides, so no step-3 list is a dead end", () => {
+    for (const c of KB_TAXONOMY) {
+      for (const s of c.subcategories) {
+        const n = KNOWLEDGE_ARTICLES.filter((a) => a.category === c.key && a.subcategory === s.name).length;
+        expect(n, `${c.key} › ${s.name}`).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it("maps labels, order and descriptions, falling back for custom categories", () => {
+    expect(kbCategoryLabel("Pricing and Memberships")).toBe("Pricing & Memberships");
+    expect(kbCategoryLabel("Custom Thing")).toBe("Custom Thing");
+    expect(kbSubcategoryNames("Custom Thing")).toEqual([]);
+    const first = KB_TAXONOMY[0];
+    expect(kbSubcategoryRank(first.key, first.subcategories[1].name)).toBe(1);
+    expect(kbSubcategoryRank(first.key, "Nope")).toBe(Number.MAX_SAFE_INTEGER);
+    expect(kbSubcategoryDescription(first.key, first.subcategories[0].name)).toBe(first.subcategories[0].description);
+    expect(kbSubcategoryDescription("Custom Thing", "Nope")).toBeUndefined();
+  });
+});
+
+describe("Knowledge Base drill-down groups", () => {
+  const groups = groupKnowledgeArticles(KNOWLEDGE_ARTICLES);
+  const byId = (id: string) => KNOWLEDGE_ARTICLES.find((a) => a.id === id)!;
+  const guide = (id: string, category: string, subcategory?: string): KnowledgeArticle => ({ id, title: id, category, subcategory, summary: "s", steps: ["a"], body: "" });
+
+  it("groups every guide exactly once, in taxonomy order, with matching counts", () => {
+    expect(groups.map((g) => g.category)).toEqual(KB_CATEGORY_ORDER);
+    expect(groups.reduce((n, g) => n + g.count, 0)).toBe(KNOWLEDGE_ARTICLES.length);
+    const seen = groups.flatMap((g) => g.subcategories.flatMap((s) => s.articles.map((a) => a.id)));
+    expect([...seen].sort()).toEqual(KNOWLEDGE_ARTICLES.map((a) => a.id));
+    for (const g of groups) {
+      expect(g.subcategories.map((s) => s.subcategory), g.category).toEqual(kbSubcategoryNames(g.category));
+      expect(g.subcategoryCount).toBe(g.subcategories.length);
+      for (const s of g.subcategories) {
+        expect(s.key).toBe(`${g.category}::${s.subcategory}`);
+        expect(s.count).toBe(s.articles.length);
+        expect(s.steps).toBe(s.articles.reduce((n, a) => n + a.steps.length, 0));
+        expect(Object.values(s.priorityCounts).reduce((n, v) => n + v, 0), s.key).toBe(s.count);
+      }
+    }
+  });
+
+  it("lists the most urgent guides first, then in KB order", () => {
+    const rank = (a: KnowledgeArticle) => {
+      const p = articlePriority(a);
+      return p ? ["P0", "P1", "P2", "P3"].indexOf(p) : 4;
+    };
+    const num = (a: KnowledgeArticle) => Number(a.id.slice(3));
+    for (const g of groups) {
+      for (const s of g.subcategories) {
+        for (let i = 1; i < s.articles.length; i++) {
+          const prev = s.articles[i - 1];
+          const next = s.articles[i];
+          expect(rank(prev) - rank(next) || num(prev) - num(next), `${s.key}: ${prev.id} before ${next.id}`).toBeLessThan(0);
+        }
+      }
+    }
+  });
+
+  it("files guides without a sub-category under the shipped one, otherwise General", () => {
+    const shipped = byId("KB-010");
+    // e.g. synced to Neon before it stored sub-categories
+    expect(articleSubcategory({ ...shipped, subcategory: undefined })).toBe(shipped.subcategory!);
+    expect(articleSubcategory({ ...shipped, subcategory: "  " })).toBe(shipped.subcategory!);
+    // moved to another category by a manager: the shipped sub-category no longer applies
+    expect(articleSubcategory({ ...shipped, subcategory: undefined, category: "Scheduling" })).toBe(KB_GENERAL_SUBCATEGORY);
+    expect(articleSubcategory({ id: "KB-900", category: "Scheduling" })).toBe(KB_GENERAL_SUBCATEGORY);
+    expect(articleSubcategory({ ...shipped, subcategory: " Custom " })).toBe("Custom");
+
+    expect(withResolvedTaxonomy(shipped)).toBe(shipped);
+    expect(withResolvedTaxonomy<KnowledgeArticle>({ ...shipped, subcategory: undefined }).subcategory).toBe(shipped.subcategory);
+    expect(withResolvedTaxonomy({ ...shipped, category: " " }).category).toBe(KB_UNCATEGORIZED);
+  });
+
+  it("puts custom categories after the taxonomy and General last within a category", () => {
+    const mixed = groupKnowledgeArticles([
+      guide("KB-903", "Zeta Custom"),
+      guide("KB-902", "Alpha Custom", "Beta"),
+      guide("KB-901", "Scheduling"),
+      guide("KB-904", "Scheduling", "Aardvark"),
+      ...KNOWLEDGE_ARTICLES.filter((a) => a.category === "Scheduling"),
+    ]);
+    expect(mixed.map((g) => g.category)).toEqual(["Scheduling", "Alpha Custom", "Zeta Custom"]);
+    expect(mixed[0].subcategories.map((s) => s.subcategory)).toEqual([...kbSubcategoryNames("Scheduling"), "Aardvark", KB_GENERAL_SUBCATEGORY]);
+    expect(mixed[2].subcategories.map((s) => s.subcategory)).toEqual([KB_GENERAL_SUBCATEGORY]);
+    expect(groupKnowledgeArticles([])).toEqual([]);
   });
 });

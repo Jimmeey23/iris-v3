@@ -6,6 +6,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-005",
     title: "Studio Microphone Not Functioning",
     category: "Repair and Maintenance",
+    subcategory: "Audio & Microphones",
     summary:
       "Getting a headset or wireless mic working before or during class: batteries, mute and channel, receiver and cables, the backup mic, and the recurrence follow-up if it fails again.",
     glance: {
@@ -69,6 +70,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-006",
     title: "Studio AC Red Light Blinking & Not Functioning",
     category: "Repair and Maintenance",
+    subcategory: "AC & Ventilation",
     summary:
       "An AC indoor unit showing a red / blinking light has gone into fault. Record the fault code, try one safe reset, keep members comfortable, and get the HVAC vendor out with the right information.",
     glance: {
@@ -133,6 +135,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-010",
     title: "PowerCycle Bike Malfunction — SC3 Troubleshooting",
     category: "Repair and Maintenance",
+    subcategory: "PowerCycle Bikes",
     summary:
       "Fixing or safely retiring a faulty Stages SC3 bike: console and SPM2 power meter, pedals (the left pedal is reverse-threaded), FitLoc and saddle clamp, resistance and brake, belt and flywheel noise, and stability.",
     glance: {
@@ -197,6 +200,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-013",
     title: "Sound System Failure — Studio Audio Troubleshooting",
     category: "Repair and Maintenance",
+    subcategory: "Audio & Microphones",
     summary:
       "Restoring studio audio quickly by working along the signal chain — source device, cable or Bluetooth, mixer, amplifier, speakers — and keeping the class going while you do.",
     glance: {
@@ -258,6 +262,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-019",
     title: "Studio Equipment Damage — Member Caused",
     category: "Repair and Maintenance",
+    subcategory: "Barre, Floor & Strength Equipment",
     summary:
       "When a member damages equipment: make it safe, find out what happened respectfully, decide between accident and negligence fairly, and route the repair and any cost recovery correctly.",
     glance: {
@@ -320,6 +325,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-033",
     title: "Water Leak, Seepage or Plumbing Failure",
     category: "Repair and Maintenance",
+    subcategory: "Plumbing & Water",
     summary:
       "Containing a leak, overflowing toilet, burst pipe or ceiling seepage fast: isolate the water, protect people, floors and electrics, and get the plumber or building management involved with good evidence.",
     glance: {
@@ -381,6 +387,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-034",
     title: "Power Outage & Electrical Faults — Safe Response",
     category: "Repair and Maintenance",
+    subcategory: "Electrical & Lighting",
     summary:
       "What to do when power fails, a breaker keeps tripping, or there's a burning smell or sparking: safety first, check backup power, keep classes and members safe, and get a qualified electrician.",
     glance: {
@@ -443,6 +450,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-035",
     title: "Changing Room Hygiene, Towels & Showers — Service Recovery",
     category: "Studio Amenities and Facilities",
+    subcategory: "Changing Rooms & Showers",
     summary:
       "When members report a dirty changing room, no towels, no hot water or empty toiletries: fix it within the hour, recover the member, and trace why the checklist or supply chain failed.",
     glance: {
@@ -502,6 +510,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-045",
     title: "Barre, Mirror or Floor Hazard on the Studio Floor",
     category: "Repair and Maintenance",
+    subcategory: "Barre, Floor & Strength Equipment",
     summary:
       "A loose barre, cracked mirror or damaged / slippery floor patch is a fall and injury risk. Make the spot unusable immediately, protect the class, and get a repair booked with a safe interim plan.",
     glance: {
@@ -562,6 +571,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     id: "KB-049",
     title: "Vendor No-Show, Poor Service or AMC Escalation",
     category: "Internal Operations & Admin",
+    subcategory: "Vendors, Stock & Purchasing",
     summary:
       "Getting a vendor (HVAC, AV, housekeeping, laundry, pest control, equipment) to deliver what the contract or AMC promises: evidence, a structured escalation ladder, and decisions on penalties or replacement.",
     glance: {

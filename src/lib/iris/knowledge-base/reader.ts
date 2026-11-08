@@ -27,7 +27,7 @@ export function searchTerms(query: string): string[] {
 /**
  * Relevance of one article for the given terms (0 = not a match). Every term must
  * match somewhere; where it matches decides its weight: id > title > tags / linked
- * template codes > summary > steps > everything else.
+ * template codes > sub-category > summary > category > steps > everything else.
  */
 export function scoreArticle(a: KnowledgeArticle, terms: string[]): number {
   if (terms.length === 0) return 1;
@@ -35,9 +35,11 @@ export function scoreArticle(a: KnowledgeArticle, terms: string[]): number {
   const titleWords = title.split(/[^a-z0-9]+/);
   const tags = (a.tags ?? []).map((t) => t.toLowerCase());
   const codes = (a.relatedTemplates ?? []).map((c) => c.toLowerCase());
+  const subcategory = (a.subcategory ?? "").toLowerCase();
   const summary = a.summary.toLowerCase();
+  const category = a.category.toLowerCase();
   const steps = a.steps.join("\n").toLowerCase();
-  const rest = [a.body ?? "", a.prevention ?? "", a.escalation ?? "", a.category].join("\n").toLowerCase();
+  const rest = [a.body ?? "", a.prevention ?? "", a.escalation ?? ""].join("\n").toLowerCase();
 
   let total = 0;
   for (const term of terms) {
@@ -49,7 +51,9 @@ export function scoreArticle(a: KnowledgeArticle, terms: string[]): number {
     else if (has(title)) s = 9;
     else if (tags.some((t) => t === term)) s = 8;
     else if (tags.some((t) => has(t)) || codes.includes(term)) s = 6;
+    else if (has(subcategory)) s = 5;
     else if (has(summary)) s = 4;
+    else if (has(category)) s = 3;
     else if (has(steps)) s = 2;
     else if (has(rest)) s = 1;
     if (s === 0) return 0;
@@ -93,11 +97,12 @@ export function articlePriority(a: Pick<KnowledgeArticle, "body">): Priority | n
   return [...found].sort()[0] as Priority;
 }
 
-/** Other articles that share linked templates, tags or the category — best first. */
+/** Other articles that the article mentions, or that share linked templates, tags, the category or sub-category — best first. */
 export function relatedArticles(a: KnowledgeArticle, all: KnowledgeArticle[], limit = 4): KnowledgeArticle[] {
   const templates = new Set(a.relatedTemplates ?? []);
   const tags = new Set(a.tags ?? []);
   const mentioned = new Set((`${a.body ?? ""}\n${a.steps.join("\n")}\n${a.escalation ?? ""}\n${a.prevention ?? ""}`).match(/\bKB-\d{3}\b/g) ?? []);
+  const subcategory = (a.subcategory ?? "").trim();
   return all
     .filter((o) => o.id !== a.id)
     .map((o, index) => {
@@ -105,7 +110,11 @@ export function relatedArticles(a: KnowledgeArticle, all: KnowledgeArticle[], li
       if (mentioned.has(o.id)) score += 6;
       for (const c of o.relatedTemplates ?? []) if (templates.has(c)) score += 3;
       for (const t of o.tags ?? []) if (tags.has(t)) score += 1;
-      if (o.category === a.category) score += 2;
+      if (o.category === a.category) {
+        score += 2;
+        // Guides in the same sub-category cover neighbouring situations.
+        if (subcategory && (o.subcategory ?? "").trim() === subcategory) score += 2;
+      }
       return { o, score, index };
     })
     .filter((r) => r.score >= 2)

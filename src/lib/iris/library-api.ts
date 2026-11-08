@@ -58,14 +58,21 @@ export const templatesApi = {
   },
 };
 
+/** Until db/migrations-knowledge-subcategories.sql runs the server can't store a
+ *  sub-category; keep the chosen one for this session so the guide stays put. */
+const keepSubcategory = (doc: KnowledgeArticle, body: Partial<KnowledgeArticle>): KnowledgeArticle =>
+  !doc.subcategory && body.subcategory ? { ...doc, subcategory: body.subcategory } : doc;
+
 export const knowledgeApi = {
   create: async (body: Partial<KnowledgeArticle>) => {
-    const { doc } = await api<{ doc: KnowledgeArticle }>("/api/knowledge", { method: "POST", json: body });
+    const res = await api<{ doc: KnowledgeArticle }>("/api/knowledge", { method: "POST", json: body });
+    const doc = keepSubcategory(res.doc, body);
     hydrateDocs([doc, ...KNOWLEDGE_ARTICLES]);
     return doc;
   },
   update: async (id: string, body: Partial<KnowledgeArticle>) => {
-    const { doc } = await api<{ doc: KnowledgeArticle }>(`/api/knowledge/${encodeURIComponent(id)}`, { method: "PATCH", json: body });
+    const res = await api<{ doc: KnowledgeArticle }>(`/api/knowledge/${encodeURIComponent(id)}`, { method: "PATCH", json: body });
+    const doc = keepSubcategory(res.doc, body);
     hydrateDocs(KNOWLEDGE_ARTICLES.map((a) => (a.id === id ? doc : a)));
     return doc;
   },

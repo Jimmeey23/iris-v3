@@ -30,6 +30,7 @@ create table if not exists iris.knowledge_docs (
   id                 text primary key,
   title              text not null,
   category           text not null,
+  subcategory        text,                               -- Knowledge Base drill-down level 2
   summary            text not null default '',
   steps              jsonb not null default '[]',
   body               text not null default '',          -- markdown

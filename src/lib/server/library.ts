@@ -125,6 +125,9 @@ export function docFromRow(r: Row) {
     id: r.id,
     title: r.title,
     category: r.category,
+    // Absent until db/migrations-knowledge-subcategories.sql runs; the client then falls
+    // back to the shipped guide's sub-category (knowledge-base/groups.ts).
+    subcategory: r.subcategory ?? undefined,
     summary: r.summary,
     steps: r.steps ?? [],
     body: r.body ?? "",
@@ -149,6 +152,7 @@ export function docColumns(b: Row, create: boolean): { cols: Record<string, unkn
     if (!category) return { cols, error: "Category is required" };
     cols.category = category;
   }
+  if (b.subcategory !== undefined) cols.subcategory = str(b.subcategory, 120) || null;
   if (b.summary !== undefined) cols.summary = str(b.summary, 2000) ?? "";
   if (b.body !== undefined) cols.body = typeof b.body === "string" ? b.body.slice(0, 60_000) : "";
   if (b.steps !== undefined) {
@@ -161,6 +165,31 @@ export function docColumns(b: Row, create: boolean): { cols: Record<string, unkn
   if (b.escalation !== undefined) cols.escalation = str(b.escalation, 3000) || null;
   if (b.relatedTemplates !== undefined) cols.related_templates = strList(b.relatedTemplates, 30, 40) ?? [];
   return { cols };
+}
+
+// Migrations are applied by hand (README), so a deploy can briefly run against a
+// database without knowledge_docs.subcategory. Remember the answer: once the column
+// exists it stays; a "missing" answer is re-checked every minute.
+let subcategoryColumn: { ok: boolean; at: number } | null = null;
+
+export async function knowledgeSubcategorySupported(c: PoolClient): Promise<boolean> {
+  if (subcategoryColumn?.ok) return true;
+  if (subcategoryColumn && Date.now() - subcategoryColumn.at < 60_000) return false;
+  const r = await c.query<{ ok: boolean }>(
+    `select exists (
+       select 1 from pg_attribute
+        where attrelid = to_regclass('knowledge_docs') and attname = 'subcategory' and not attisdropped
+     ) as ok`,
+  );
+  subcategoryColumn = { ok: r.rows[0]?.ok === true, at: Date.now() };
+  return subcategoryColumn.ok;
+}
+
+/** Document columns the connected database can store (drops `subcategory` until its migration runs). */
+export async function storableDocColumns(c: PoolClient, cols: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!("subcategory" in cols) || (await knowledgeSubcategorySupported(c))) return cols;
+  const { subcategory: _unsupported, ...rest } = cols;
+  return rest;
 }
 
 export const validId = (s: unknown, prefix?: string): s is string =>
