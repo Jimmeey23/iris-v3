@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { authorisedCron } from "@/lib/server/cron-auth";
 import { pool } from "@/lib/server/db";
 import { runSlaSweep } from "@/lib/server/sweeps";
+import { sendWeeklyDigests } from "@/lib/server/weekly-digest";
 
 /**
  * SLA sweep. Call every ~5-15 minutes (Vercel Cron, GitHub Actions, curl):
@@ -30,7 +31,9 @@ async function sweep(req: NextRequest) {
     const raised = dry
       ? 0
       : Number((await pool.query("select iris.materialize_recurrence_checks() as n")).rows[0]?.n ?? 0);
-    return NextResponse.json({ dry, breached: result.breached.length, atRisk: result.atRisk.length, recurrenceChecksRaised: raised });
+    // Backstop for the Monday digest; a no-op on any other day or once sent.
+    const digest = dry ? null : await sendWeeklyDigests();
+    return NextResponse.json({ dry, breached: result.breached.length, atRisk: result.atRisk.length, recurrenceChecksRaised: raised, digest });
   } catch (err) {
     console.error("[cron/sla]", err);
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });

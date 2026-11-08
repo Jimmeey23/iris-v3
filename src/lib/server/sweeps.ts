@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { pool } from "./db";
 import { notifyTicketEventNow } from "./notify";
 import { deliverPending } from "./outbox";
+import { sendWeeklyDigests } from "./weekly-digest";
 import {
   SWEEP_LOCAL_GATE_MS,
   SWEEP_WINDOWS,
@@ -119,6 +120,12 @@ export async function runDueWork(): Promise<{ ran: SweepJob[] }> {
     })
   )
     ran.push("recurrence");
+  if (
+    await run("digest", async () => {
+      await sendWeeklyDigests();
+    })
+  )
+    ran.push("digest");
   if (
     await run("outbox", async () => {
       // A small batch: this is riding on a user's request. The cron route clears a

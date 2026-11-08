@@ -49,6 +49,8 @@ export const SWEEP_WINDOWS = {
   sla: 300,
   /** Bike/mic recurrence checks fall due by the day; every 15 minutes is plenty. */
   recurrence: 900,
+  /** Weekly digest: checked every 15 minutes; it only sends on Monday from 09:00 IST, once per person. */
+  digest: 900,
 } as const;
 
 export type SweepJob = keyof typeof SWEEP_WINDOWS;

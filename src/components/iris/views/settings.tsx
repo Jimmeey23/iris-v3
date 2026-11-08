@@ -1319,6 +1319,46 @@ function OrganizationSettings() {
           </Field>
         </div>
       </SettingsCard>
+
+      <SettingsCard
+        title="Weekly Manager Digest"
+        description="Every Monday from 9:00 am IST, each manager and admin gets an email with the last 7 days for what they can see: new and resolved tickets, open and past-SLA work, first-response time, the most reported issues, the oldest open tickets, repair re-checks, the lowest trainer scores and Settings health."
+      >
+        <ReadOnlyNote show={!isAdmin} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+          <label className="flex items-center justify-between p-3 rounded-xl border border-border/70">
+            <div>
+              <div className="text-[12px] font-semibold">Send the Monday digest</div>
+              <div className="text-[11px] text-muted-foreground">Once per person per week, through the email outbox.</div>
+            </div>
+            <Switch
+              checked={setting("email.weekly_digest") !== false}
+              disabled={!isAdmin}
+              onCheckedChange={(v) => saveSetting("email.weekly_digest", v)}
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => window.open("/api/digest", "_blank", "noopener")}>
+              Preview my digest
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-[12px]"
+              onClick={async () => {
+                try {
+                  const r = await api<{ to: string }>("/api/digest", { method: "POST" });
+                  toast.success(`Digest queued to ${r.to}`);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Couldn't send");
+                }
+              }}
+            >
+              Email it to me now
+            </Button>
+          </div>
+        </div>
+      </SettingsCard>
     </>
   );
 }
