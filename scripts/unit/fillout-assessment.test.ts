@@ -61,4 +61,16 @@ describe("parseFilloutAssessment", () => {
     expect(band(55).tone).toBe("red");
     expect(band(90).band).toBe("Exceptional");
   });
+
+  it("accepts Zite flat records with the form id from the webhook URL", () => {
+    const record = Object.fromEntries([
+      ["id", "rec_9"], ["Trainer", "Anisha Shah"], ["Studio", "Supreme HQ"], ["Class format", "Barre"],
+      ...RUBRICS.Barre.map(([label]) => [label, 5]),
+    ]);
+    const a = parseFilloutAssessment({ record }, { sourceId: "pdtcpzhxas" });
+    expect(a.sourceRef).toBe("fillout:pdtcpzhxas:rec_9");
+    expect(a.trainer).toBe("Anisha Shah");
+    expect(a.score).toBe(100);
+    expect(() => parseFilloutAssessment({ record })).toThrow(/source/);
+  });
 });

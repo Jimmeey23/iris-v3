@@ -79,10 +79,17 @@ export function answerPairs(input: unknown, depth = 0): Answer[] {
   const label = clean(r.name || r.label || r.title || r.question);
   const value = clean(r.value ?? r.answer ?? r.text);
   const found = label && value && !/^(id|type)$/i.test(label) ? [{ label, value }] : [];
+  // Zite (and Fillout "record" payloads) send flat "Question label": value pairs.
+  const flat = depth > 0 || label
+    ? []
+    : Object.entries(r)
+        .filter(([k, v]) => (typeof v === "string" || typeof v === "number" || typeof v === "boolean") && !/^(id|_id|type|formid|form_id|submissionid|submission_id|recordid|record_id|createdat|created_at|updatedat|updated_at|submissiontime|lastupdatedat)$/i.test(k.replace(/\s/g, "")))
+        .map(([k, v]) => ({ label: k, value: String(v).trim() }))
+        .filter((a) => a.value !== "");
   const nested = Object.entries(r)
     .filter(([k, v]) => !["value", "answer", "text"].includes(k) && v && typeof v === "object")
     .flatMap(([, v]) => answerPairs(v, depth + 1));
-  return [...found, ...nested];
+  return [...found, ...flat, ...nested];
 }
 
 export function band(score: number): { band: string; tone: string } {
@@ -117,12 +124,17 @@ export type ParseOptions = {
   studios?: string[];
 };
 
-export function parseFilloutAssessment(raw: unknown, opts: ParseOptions = {}): ParsedAssessment {
+export function parseFilloutAssessment(raw: unknown, opts: ParseOptions & { sourceId?: string } = {}): ParsedAssessment {
   const envelope = obj(raw);
-  const submission = obj(envelope.submission ?? obj(envelope.data).submission ?? envelope.data ?? raw);
-  const submissionId = clean(envelope.submissionId ?? submission.submissionId ?? submission.id);
-  const formId = clean(envelope.formId ?? submission.formId ?? obj(envelope.form).id);
-  if (!submissionId || !formId) throw new FilloutError("The payload has no formId and submissionId.");
+  const submission = obj(envelope.submission ?? envelope.record ?? obj(envelope.data).submission ?? envelope.data ?? raw);
+  const submissionId = clean(
+    envelope.submissionId ?? submission.submissionId ?? envelope.recordId ?? submission.recordId ?? submission.id ?? envelope.id,
+  );
+  // Zite flows don't name a form: the webhook URL carries ?source=<app id> instead.
+  const formId = clean(envelope.formId ?? submission.formId ?? obj(envelope.form).id ?? envelope.appId ?? opts.sourceId);
+  if (!submissionId || !formId) {
+    throw new FilloutError("The payload has no submission/record id, or no form id (add ?source=<form or app id> to the webhook URL).");
+  }
 
   const answers = answerPairs(submission);
   const find = (re: RegExp) => answers.find((a) => re.test(a.label))?.value ?? "";

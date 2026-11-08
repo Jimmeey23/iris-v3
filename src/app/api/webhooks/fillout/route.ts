@@ -33,7 +33,14 @@ export async function POST(req: Request) {
   if (!expected) return NextResponse.json({ error: "Fillout webhook is not configured." }, { status: 503 });
   if (!enabled) return NextResponse.json({ error: "Fillout is switched off in Integrations." }, { status: 503 });
 
-  const supplied = req.headers.get("x-fillout-webhook-secret") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  const url = new URL(req.url);
+  // Header preferred; ?token= for tools (Zite flows) that can't set custom headers.
+  const supplied =
+    req.headers.get("x-fillout-webhook-secret") ??
+    req.headers.get("x-webhook-secret") ??
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+    url.searchParams.get("token") ??
+    "";
   if (!supplied || !secretMatches(supplied, expected)) {
     return NextResponse.json({ error: "Invalid webhook secret." }, { status: 401 });
   }
@@ -52,7 +59,7 @@ export async function POST(req: Request) {
       await c.query(
         `insert into iris.webhook_events (provider, event_type, payload, headers, status)
          values ('fillout', 'submission', $1::jsonb, $2::jsonb, 'processing') returning id`,
-        [JSON.stringify(payload), JSON.stringify({ "user-agent": req.headers.get("user-agent") })],
+        [JSON.stringify(payload), JSON.stringify({ "user-agent": req.headers.get("user-agent"), source: url.searchParams.get("source") })],
       )
     ).rows[0].id as string;
     const finish = (status: string, error: string | null) =>
@@ -68,7 +75,12 @@ export async function POST(req: Request) {
           throw new FilloutError("The Fillout field map in Integrations isn't valid JSON.");
         }
       }
-      const a = parseFilloutAssessment(payload, { fieldMap, scoreScale: values.score_scale, studios });
+      const a = parseFilloutAssessment(payload, {
+        fieldMap,
+        scoreScale: values.score_scale,
+        studios,
+        sourceId: url.searchParams.get("source")?.slice(0, 80) || undefined,
+      });
 
       const dupe = (await c.query("select id from iris.trainer_assessments where source_ref = $1", [a.sourceRef])).rows[0];
       if (dupe) {
