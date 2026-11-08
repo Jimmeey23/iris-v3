@@ -33,8 +33,10 @@ export async function aiClassify(
   taxonomy: Array<{ category: string; subcategories: Array<{ name: string }> }>,
   studios: Array<{ code: string; name: string }>,
   userId: string,
+  modelOverride?: string,
 ): Promise<AiClassification> {
   client ??= new Anthropic();
+  const chosenModel = modelOverride || MODEL;
   const system = `You classify issue reports from staff at Physique 57 India (barre fitness studios in Mumbai and Bengaluru) into the ticket taxonomy below. Pick the closest category and subcategory exactly as written. Use P0 for safety/injury/theft or a studio unable to run classes, P1 for significant client-facing disruption, P2 for an individual client's issue, P3 for minor or informational items. If the message is too vague to classify, set understood=false and ask one short, specific question.
 
 Studios: ${studios.map((s) => `${s.code}=${s.name}`).join("; ")}
@@ -43,7 +45,7 @@ Taxonomy:
 ${taxonomy.map((c) => `${c.category}: ${c.subcategories.slice(0, 25).map((s) => s.name).join(" | ")}`).join("\n")}`;
 
   const response = await client.messages.parse({
-    model: MODEL,
+    model: chosenModel,
     max_tokens: 2000,
     system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: text.slice(0, 4000) }],
@@ -55,7 +57,7 @@ ${taxonomy.map((c) => `${c.category}: ${c.subcategories.slice(0, 25).map((s) => 
     c.query(
       `insert into iris.ai_usage (user_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
        values ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, response.model ?? MODEL, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, costUsd(response.model ?? MODEL, u) ?? 0],
+      [userId, response.model ?? chosenModel, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, costUsd(response.model ?? chosenModel, u) ?? 0],
     ),
   ).catch(() => {});
 

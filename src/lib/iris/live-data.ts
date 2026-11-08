@@ -10,6 +10,7 @@ import {
   type Employee, type Department, type Studio, type Priority,
 } from "./types";
 import { useAppStore } from "./store";
+import { useSettingsStore } from "./settings-store";
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -58,20 +59,40 @@ function replaceMap<T>(target: Record<string, T>, entries: [string, T][]) {
 
 type Row = Record<string, any>;
 
-export function hydrateReference(data: { employees: Row[]; departments: Row[]; studios: Row[]; sla: Row[] }) {
-  const departments: Department[] = data.departments.map((d) => ({
-    id: d.id, code: d.code, name: d.name, description: d.description ?? undefined, headId: d.head_employee_id ?? undefined,
-  }));
-  replaceArray(DEPARTMENTS, departments);
-  replaceMap(DEPT_MAP, departments.map((d) => [d.code, d]));
+export function hydrateReference(data: {
+  employees: Row[];
+  departments: Row[];
+  studios: Row[];
+  sla: Row[];
+  roles?: Row[];
+  publicSettings?: Record<string, unknown>;
+  preferences?: Record<string, unknown> | null;
+}) {
+  const mapDept = (d: Row): Department => ({
+    id: d.id,
+    code: d.code,
+    name: d.name,
+    description: d.description ?? undefined,
+    headId: d.head_employee_id ?? undefined,
+  });
+  const allDepartments = data.departments.map(mapDept);
+  const activeDepartments = data.departments.filter((d) => d.is_active !== false).map(mapDept);
+  replaceArray(DEPARTMENTS, activeDepartments);
+  replaceMap(DEPT_MAP, allDepartments.map((d) => [d.code, d]));
 
-  const studios: Studio[] = data.studios.map((s) => ({
-    id: s.id, code: s.code, name: s.name, city: s.city, address: s.address ?? undefined,
-  }));
-  replaceArray(STUDIOS, studios);
-  replaceMap(STUDIO_MAP, studios.map((s) => [s.code, s]));
+  const mapStudio = (s: Row): Studio => ({
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    city: s.city,
+    address: s.address ?? undefined,
+  });
+  const allStudios = data.studios.map(mapStudio);
+  const activeStudios = data.studios.filter((s) => s.is_active !== false).map(mapStudio);
+  replaceArray(STUDIOS, activeStudios);
+  replaceMap(STUDIO_MAP, allStudios.map((s) => [s.code, s]));
 
-  const employees: Employee[] = data.employees.map((e) => ({
+  const mapEmp = (e: Row): Employee => ({
     id: e.id,
     employeeCode: e.employee_code,
     name: e.name,
@@ -90,9 +111,11 @@ export function hydrateReference(data: { employees: Row[]; departments: Row[]; s
     workload: e.workload,
     maxWorkload: e.max_workload,
     escalationOrder: e.escalation_order,
-  }));
-  replaceArray(EMPLOYEES, employees);
-  replaceMap(EMPLOYEE_MAP, employees.map((e) => [e.id, e]));
+  });
+  const allEmployees = data.employees.map(mapEmp);
+  const activeEmployees = data.employees.filter((e) => e.is_active !== false).map(mapEmp);
+  replaceArray(EMPLOYEES, activeEmployees);
+  replaceMap(EMPLOYEE_MAP, allEmployees.map((e) => [e.id, e]));
 
   for (const s of data.sla) {
     const cfg = PRIORITY_CONFIG[s.priority as Priority];
@@ -101,6 +124,37 @@ export function hydrateReference(data: { employees: Row[]; departments: Row[]; s
       cfg.resolutionMins = s.resolution_target_mins;
     }
   }
+
+  const appState = useAppStore.getState();
+  if (data.publicSettings && typeof data.publicSettings === "object") {
+    appState.setWorkspaceSettings(data.publicSettings);
+  }
+
+  // Keep currentUser synced with live employee record & role permissions
+  if (appState.currentUser?.userId) {
+    const cur = appState.currentUser;
+    const empRow = data.employees.find((e) => e.id === cur.id);
+    const effectiveRoleName = empRow?.role ?? cur.role;
+    const roleRow =
+      data.roles?.find((r) => r.name === effectiveRoleName) ??
+      data.roles?.find((r) => r.access_tier === cur.tier);
+    const permissions = Array.isArray(roleRow?.permissions) ? (roleRow.permissions as string[]) : cur.permissions;
+    appState.setCurrentUser({
+      ...cur,
+      name: empRow?.name ?? cur.name,
+      email: empRow?.email ?? cur.email,
+      role: empRow?.role ?? cur.role,
+      departmentCode: empRow?.department_code ?? cur.departmentCode,
+      studioCodes: empRow?.studio_codes ?? cur.studioCodes,
+      permissions,
+    });
+  }
+
+  if (data.preferences !== undefined) {
+    useSettingsStore.getState().hydrateFromServer(data.preferences);
+  }
+
+  useAppStore.getState().bumpData();
 }
 
 function reviveTicket(t: any): Ticket {

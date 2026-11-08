@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
-import { MODEL } from "@/lib/server/agent";
+import { loadEffectiveAiConfig } from "@/lib/server/ai-config";
 import { isPriced } from "@/lib/server/ai-pricing";
 
 /** Real AI spend (org-wide and yours) for today and this month, in IST, plus the limits from Settings. */
@@ -34,9 +34,10 @@ export async function GET() {
       );
       return { ...rows[0], settings };
     });
+    const aiCfg = await loadEffectiveAiConfig();
     return NextResponse.json({
-      model: MODEL,
-      priced: isPriced(MODEL),
+      model: aiCfg.primaryModel,
+      priced: isPriced(aiCfg.primaryModel),
       today: {
         tokens: Number(data.today_tokens),
         inputTokens: Number(data.today_input),

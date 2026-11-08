@@ -59,6 +59,11 @@ interface AppState {
   currentUser: CurrentUser;
   setCurrentUser: (user: CurrentUser) => void;
 
+  // Live workspace settings hydrated from /api/reference and updated immediately from Settings
+  workspaceName: string;
+  workspaceSettings: Record<string, unknown>;
+  setWorkspaceSettings: (patch: Record<string, unknown>) => void;
+
   // Bumped whenever live data changes so views re-read ALL_TICKETS etc.
   dataVersion: number;
   bumpData: () => void;
@@ -73,6 +78,8 @@ export interface CurrentUser {
   role: string;
   tier: "admin" | "manager" | "executive";
   departmentCode?: string | null;
+  studioCodes?: string[];
+  permissions?: string[];
   avatar?: string;
 }
 
@@ -239,6 +246,18 @@ export const useAppStore = create<AppState>()(
 
       currentUser: { id: "", userId: "", email: "", name: "", role: "", tier: "executive" },
       setCurrentUser: (user) => set({ currentUser: user }),
+
+      workspaceName: "Physique 57 India",
+      workspaceSettings: {},
+      setWorkspaceSettings: (patch) =>
+        set((s) => {
+          const next = { ...s.workspaceSettings, ...patch };
+          const orgName =
+            typeof next["org.name"] === "string" && next["org.name"].trim()
+              ? next["org.name"].trim()
+              : s.workspaceName;
+          return { workspaceSettings: next, workspaceName: orgName };
+        }),
 
       dataVersion: 0,
       bumpData: () => set((s) => ({ dataVersion: s.dataVersion + 1 })),

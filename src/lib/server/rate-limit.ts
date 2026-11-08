@@ -27,12 +27,37 @@ export class RateLimitError extends Error {
   }
 }
 
+let cachedTicketCreateLimit: { max: number | null; expiresAt: number } = { max: null, expiresAt: 0 };
+
+async function effectiveBucketMax(bucket: RateLimitBucket): Promise<number> {
+  const base = RATE_LIMITS[bucket].max;
+  if (bucket !== "ticket-create") return base;
+  const nowMs = Date.now();
+  if (nowMs < cachedTicketCreateLimit.expiresAt && cachedTicketCreateLimit.max !== null) {
+    return cachedTicketCreateLimit.max;
+  }
+  try {
+    const row = (await pool.query("select value from iris.app_settings where key = 'ops.ticket_create_limit'")).rows[0];
+    const parsed = Number(row?.value);
+    const max = Number.isFinite(parsed) && parsed >= 1 && parsed <= 10_000 ? Math.round(parsed) : base;
+    cachedTicketCreateLimit = { max, expiresAt: nowMs + 10_000 };
+    return max;
+  } catch {
+    return base;
+  }
+}
+
+export function invalidateRateLimitConfigCache() {
+  cachedTicketCreateLimit = { max: null, expiresAt: 0 };
+}
+
 /**
  * Counts one request against `bucket` for `identity` and throws RateLimitError once
  * the window is full. Runs as the database owner: buckets cover anonymous callers too.
  */
 export async function enforceRateLimit(bucket: RateLimitBucket, identity: string): Promise<{ remaining: number }> {
   const limit = RATE_LIMITS[bucket];
+  const maxAllowed = await effectiveBucketMax(bucket);
   const key = rateLimitKey(bucket, identity);
   const now = new Date();
 
@@ -54,7 +79,7 @@ export async function enforceRateLimit(bucket: RateLimitBucket, identity: string
   if (Math.random() < 0.001) await sweepRateLimits().catch(() => {});
 
   const used = Number(rows[0]?.count ?? 1);
-  if (used > limit.max) {
+  if (used > maxAllowed) {
     const start = rows[0]?.window_start ? new Date(rows[0].window_start) : now;
     const resetsInSec = Math.max(1, Math.ceil((start.getTime() + limit.windowSeconds * 1000 - now.getTime()) / 1000));
     throw new RateLimitError(
@@ -62,7 +87,7 @@ export async function enforceRateLimit(bucket: RateLimitBucket, identity: string
       resetsInSec,
     );
   }
-  return { remaining: Math.max(0, limit.max - used) };
+  return { remaining: Math.max(0, maxAllowed - used) };
 }
 
 /** Identity for a signed-in caller. */

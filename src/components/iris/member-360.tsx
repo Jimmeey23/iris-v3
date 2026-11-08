@@ -56,7 +56,7 @@ export function Member360Lookup({
     // Live Momence lookup (a pasted id opens directly)
     if (/^(mum|blr):\d+$/.test(q.trim())) {
       setMomenceId(q.trim());
-    } else if (q.trim().length >= 2) {
+    } else if (q.trim().length >= 2 || /^\d+$/.test(q.trim())) {
       setHitsLoading(true);
       fetch(`/api/momence/members?q=${encodeURIComponent(q.trim())}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : { members: [] }))

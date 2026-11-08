@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useAppStore, ViewName } from "@/lib/iris/store";
+import { useSettingsStore } from "@/lib/iris/settings-store";
 import { cn } from "@/lib/utils";
 import { IrisLogo } from "./iris-logo";
 import { AccentRandomizer } from "./accent-randomizer";
@@ -91,11 +92,37 @@ const NAV_GROUPS: { id: NavItem["group"]; label?: string }[] = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { currentView, setCurrentView, sidebarCollapsed, toggleSidebar, currentUser } = useAppStore();
+  const {
+    currentView,
+    setCurrentView,
+    sidebarCollapsed,
+    toggleSidebar,
+    currentUser,
+    workspaceName,
+    workspaceSettings,
+    dataVersion,
+    selectTicket,
+  } = useAppStore();
+  const inAppPref = useSettingsStore((s) => s.notificationChannels.inApp);
+  const inAppAlertsActive = workspaceSettings["notifications.in_app_enabled"] !== false && inAppPref !== false;
   const { signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
+
+  // Support deep-links from notification emails (`/?ticket=P57-00142` or `/?ticket=<id>`)
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const ticketParam = url.searchParams.get("ticket");
+    if (!ticketParam) return;
+    const matched = ALL_TICKETS.find((t) => t.id === ticketParam || t.ticketId === ticketParam);
+    if (matched) {
+      selectTicket(matched.id);
+      url.searchParams.delete("ticket");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    }
+  }, [dataVersion, selectTicket]);
 
   // ⌘K Command Palette state
   const [cmdOpen, setCmdOpen] = React.useState(false);
@@ -139,10 +166,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, []);
   React.useEffect(() => {
+    if (!inAppAlertsActive) return;
     void loadNotifications();
     const timer = window.setInterval(loadNotifications, 60_000);
     return () => window.clearInterval(timer);
-  }, [loadNotifications]);
+  }, [loadNotifications, inAppAlertsActive]);
   const markRead = React.useCallback(async (body: { ids?: string[]; all?: boolean }) => {
     setNotifications((list) => list.map((n) => (body.all || body.ids?.includes(n.id) ? { ...n, isRead: true } : n)));
     setUnreadCount((c) => (body.all ? 0 : Math.max(0, c - (body.ids?.length ?? 0))));
@@ -186,8 +214,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="text-[14px] font-semibold tracking-tight text-sidebar-foreground leading-none">
                 IRIS
               </div>
-              <div className="text-[8px] text-muted-foreground font-medium tracking-wide mt-0.5">
-                Intelligent Routing & Intuitive Systems
+              <div className="text-[8.5px] text-muted-foreground font-medium tracking-wide mt-0.5 truncate">
+                {workspaceName || "Physique 57 India"}
               </div>
             </div>
           )}
@@ -305,7 +333,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={toggleSidebar}
+                  onClick={() => {
+                    const next = !sidebarCollapsed;
+                    toggleSidebar();
+                    useSettingsStore.getState().update("sidebarCollapsed", next);
+                    void useSettingsStore.getState().saveToServer({ sidebarCollapsed: next }).catch(() => {});
+                  }}
                   className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors shrink-0"
                 >
                   {sidebarCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
@@ -360,7 +393,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => {
+                  const next = theme === "dark" ? "light" : "dark";
+                  setTheme(next);
+                  void useSettingsStore.getState().saveToServer({ theme: next }).catch(() => {});
+                }}
+              >
                 {mounted && theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
               </Button>
             </TooltipTrigger>
@@ -375,7 +417,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="relative inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
               >
                 <Bell className="w-3.5 h-3.5" />
-                {unreadCount > 0 && (
+                {inAppAlertsActive && unreadCount > 0 && (
                   <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center tabular-nums">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>

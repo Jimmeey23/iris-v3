@@ -26,8 +26,20 @@ function createPool() {
   });
 }
 
-export const pool = globalForPool.irisPool ?? createPool();
-if (process.env.NODE_ENV !== "production") globalForPool.irisPool = pool;
+function getPool(): Pool {
+  if (!globalForPool.irisPool) {
+    globalForPool.irisPool = createPool();
+  }
+  return globalForPool.irisPool;
+}
+
+export const pool: Pool = new Proxy({} as Pool, {
+  get(_target, prop) {
+    const instance = getPool();
+    const val = Reflect.get(instance, prop, instance);
+    return typeof val === "function" ? val.bind(instance) : val;
+  },
+});
 
 /**
  * `prelude` runs in the same round trip as BEGIN (multi-statement simple

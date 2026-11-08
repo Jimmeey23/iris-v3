@@ -19,14 +19,16 @@ describe("Notification status events", () => {
   it("ignores no-ops and non-notifying moves", () => {
     expect(statusEvent("open", "open")).toBe(null);
     expect(statusEvent(null, "open")).toBe(null);
-    expect(statusEvent("open", "resolved")).toBe("status_resolved"); // direct resolve still notifies
-    expect(statusEvent("in_progress", "open")).toBe(null); // a pull-back is not a reopen
+    expect(statusEvent("open", "resolved")).toBe("status_resolved");
+    expect(statusEvent("in_progress", "open")).toBe(null);
   });
 
   it("every event has a notification_rules name (Settings > Notifications stays complete)", () => {
     const events = [
       "ticket_created",
       "ticket_assigned",
+      "owner_added",
+      "department_added",
       "status_in_progress",
       "status_awaiting_response",
       "status_resolved",

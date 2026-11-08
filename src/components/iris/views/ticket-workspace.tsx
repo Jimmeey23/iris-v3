@@ -224,13 +224,43 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                 AI Created
               </Badge>
             )}
+            {ticket.routedByRule && (
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-indigo-500/5 border-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                Rule: {ticket.routedByRule}
+              </Badge>
+            )}
+            {ticket.acknowledgedAt && (
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                Acknowledged
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto iris-scrollbar">
-        <div className="px-6 py-4 max-w-[1600px] mx-auto">
+        <div className="px-6 py-4 max-w-[1600px] mx-auto space-y-3">
+          {ticket.requiresAcknowledgment && !ticket.acknowledgedAt && !["resolved", "closed"].includes(ticket.status) && (
+            <div className="iris-card p-3 border-l-4 border-l-amber-500 bg-amber-500/5 flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-[12px]">
+                <span className="font-semibold text-amber-700 dark:text-amber-400">Ownership Acknowledgment Required:</span>{" "}
+                <span className="text-muted-foreground">
+                  Confirm receipt of this ticket to record your first-response timestamp and begin SLA tracking.
+                </span>
+              </div>
+              <Button
+                size="sm"
+                className="h-7 text-[11px]"
+                disabled={busy}
+                onClick={() => void save({ acknowledge: true, status: ticket.status === "open" ? "in_progress" : ticket.status }, "Ownership acknowledged")}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                Acknowledge Ownership
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
             {/* Main Content */}
             <div className="space-y-4">

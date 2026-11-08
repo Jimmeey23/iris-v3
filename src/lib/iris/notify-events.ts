@@ -6,6 +6,8 @@
 export type NotifyEvent =
   | "ticket_created"
   | "ticket_assigned"
+  | "owner_added"
+  | "department_added"
   | "status_in_progress"
   | "status_awaiting_response"
   | "status_resolved"
@@ -20,6 +22,8 @@ export type NotifyEvent =
 export const RULE_EVENT: Record<NotifyEvent, string> = {
   ticket_created: "Ticket created",
   ticket_assigned: "Ticket assigned",
+  owner_added: "Owner added",
+  department_added: "Department added",
   status_in_progress: "Ticket in progress",
   status_awaiting_response: "Awaiting response",
   status_resolved: "Ticket resolved",
@@ -37,11 +41,17 @@ export function statusEvent(from: string | null | undefined, to: string): Notify
   const reopened = (from === "resolved" || from === "closed") && (to === "open" || to === "in_progress");
   if (reopened) return "status_reopened";
   switch (to) {
-    case "in_progress": return "status_in_progress";
-    case "awaiting_response": return "status_awaiting_response";
-    case "resolved": return "status_resolved";
-    case "closed": return "status_closed";
-    case "escalated": return "escalated";
-    default: return null;
+    case "in_progress":
+      return "status_in_progress";
+    case "awaiting_response":
+      return "status_awaiting_response";
+    case "resolved":
+      return "status_resolved";
+    case "closed":
+      return "status_closed";
+    case "escalated":
+      return "escalated";
+    default:
+      return null;
   }
 }

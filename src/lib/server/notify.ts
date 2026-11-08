@@ -6,46 +6,20 @@ import { sendMail, mailConfigured } from "./mailer";
 import { enqueueEmail, deliverPending } from "./outbox";
 import { RULE_EVENT, statusEvent, type NotifyEvent } from "@/lib/iris/notify-events";
 import {
-  BRAND, button, emailDocument, esc, fact, firstName, greeting, grid, label, priorityPill, section,
-} from "./email-layout";
+  renderNotificationEmail,
+  type EmailTemplateOverridesMap,
+  type EmailTicketContext,
+  type RecipientRole,
+} from "@/lib/iris/email-renderer";
 
-// The event taxonomy lives in lib/iris/notify-events (pure) so the sweeps and the unit
-// tests share it; re-exported here for the routes that already import it from this module.
 export { RULE_EVENT, statusEvent };
 export type { NotifyEvent };
 
-/**
- * Stage-based ticket notifications.
- *
- * notifyTicketEvent() is fire-and-forget: it never throws and never delays the request
- * (work is scheduled with next/server `after`). Delivery runs as the database owner (no RLS),
- * because recipients are other people than the signed-in user.
- *
- * Per event: read iris.notification_rules (admin-editable) -> resolve recipients -> honour
- * app_settings channel switches and each user's preferences -> write in-app rows through
- * iris.create_notification and queue email. iris.email_log makes every (event, ticket,
- * recipient, channel) idempotent and doubles as the audit trail.
- *
- * Email delivery is *queued*, not inline (ported from iris-ai-v2): a claimed row is
- * inserted into iris.outbox and a drain worker sends it with exponential-backoff
- * retries (lib/server/outbox). A Mailtrap outage therefore delays mail instead of
- * losing it. `ops.email_via_outbox = false` falls back to the old inline send.
- */
-
-export type NotifyTicket = {
-  id: string;
-  ticketId?: string | null;
-  title: string;
-  priority?: string | null;
-  status?: string | null;
-  category?: string | null;
-  studioCode?: string | null;
-  departmentCode?: string | null;
+export type NotifyTicket = EmailTicketContext & {
   assigneeId?: string | null;
+  assigneeIds?: string[];
   reporterId?: string | null;
-  affectedClient?: string | null;
-  slaResolutionTarget?: string | null;
-  escalationLevel?: number | null;
+  departmentCodes?: string[];
 };
 
 export type NotifyActor = { user_id?: string | null; employee_id?: string | null; email?: string | null } | null;
@@ -53,6 +27,9 @@ export type NotifyActor = { user_id?: string | null; employee_id?: string | null
 export type NotifyExtra = {
   previousAssigneeId?: string | null;
   previousStatus?: string | null;
+  addedOwnerIds?: string[];
+  addedDepartmentCodes?: string[];
+  escalationReason?: string | null;
   comment?: { author?: string | null; content: string; isInternal?: boolean } | null;
   /** Extra employee ids to notify (watchers). */
   watcherEmployeeIds?: string[];
@@ -62,15 +39,21 @@ export type NotifyExtra = {
   dryRun?: boolean;
 };
 
-type Role = "owner" | "reporter" | "manager" | "watcher" | "previous_owner";
 type Recipient = {
-  employeeId: string; name: string; email: string; role: Role;
-  userId: string | null; wantsEmail: boolean; wantsInApp: boolean;
+  employeeId: string;
+  name: string;
+  email: string;
+  role: RecipientRole;
+  userId: string | null;
+  wantsEmail: boolean;
+  wantsInApp: boolean;
 };
 
 const IN_APP_TYPE: Record<NotifyEvent, "critical" | "sla" | "escalated" | "assignment" | "comment" | "info"> = {
   ticket_created: "info",
   ticket_assigned: "assignment",
+  owner_added: "assignment",
+  department_added: "assignment",
   status_in_progress: "info",
   status_awaiting_response: "info",
   status_resolved: "info",
@@ -84,22 +67,30 @@ const IN_APP_TYPE: Record<NotifyEvent, "critical" | "sla" | "escalated" | "assig
 
 const appOrigin = () => (process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000").replace(/\/+$/, "");
 
-// ---------------------------------------------------------------------------------------------
-// Public entry point
-// ---------------------------------------------------------------------------------------------
-
-export function notifyTicketEvent(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyActor = null, extra: NotifyExtra = {}): void {
+export function notifyTicketEvent(
+  event: NotifyEvent,
+  ticket: NotifyTicket,
+  actor: NotifyActor = null,
+  extra: NotifyExtra = {},
+): void {
   const run = () => deliver(event, ticket, actor, extra).catch((err) => logFailure(event, ticket.id, err));
   try {
     after(run);
   } catch {
-    void run(); // outside a request scope (scripts, tests)
+    void run();
   }
 }
 
-/** Awaitable variant for the cron sweep and tests. Still never throws. */
-export async function notifyTicketEventNow(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyActor = null, extra: NotifyExtra = {}) {
-  return deliver(event, ticket, actor, extra).catch((err) => { logFailure(event, ticket.id, err); return null; });
+export async function notifyTicketEventNow(
+  event: NotifyEvent,
+  ticket: NotifyTicket,
+  actor: NotifyActor = null,
+  extra: NotifyExtra = {},
+) {
+  return deliver(event, ticket, actor, extra).catch((err) => {
+    logFailure(event, ticket.id, err);
+    return null;
+  });
 }
 
 async function logFailure(event: string, ticketId: string, err: unknown) {
@@ -107,52 +98,114 @@ async function logFailure(event: string, ticketId: string, err: unknown) {
   console.error(`[notify] ${event} ${ticketId}: ${message}`);
   try {
     await pool.query("select iris.log_app_event('error', 'notify', $1, $2::jsonb)", [
-      `Notification failed: ${event}`, JSON.stringify({ ticketId, error: message }),
+      `Notification failed: ${event}`,
+      JSON.stringify({ ticketId, error: message }),
     ]);
-  } catch { /* logging must never throw */ }
+  } catch {
+    /* logging must never throw */
+  }
 }
 
-// ---------------------------------------------------------------------------------------------
-// Delivery
-// ---------------------------------------------------------------------------------------------
+type DeliverSummary = {
+  event: NotifyEvent;
+  recipients: number;
+  inApp: number;
+  email: number;
+  queued: number;
+  skipped: number;
+};
 
-type DeliverSummary = { event: NotifyEvent; recipients: number; inApp: number; email: number; queued: number; skipped: number };
-
-async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyActor, extra: NotifyExtra): Promise<DeliverSummary | null> {
+async function deliver(
+  event: NotifyEvent,
+  ticket: NotifyTicket,
+  actor: NotifyActor,
+  extra: NotifyExtra,
+): Promise<DeliverSummary | null> {
   const client = await pool.connect();
   try {
     await client.query("set search_path = iris, public");
     const ruleName = RULE_EVENT[event];
-    const rule = (await client.query("select in_app, email from notification_rules where event = $1", [ruleName])).rows[0];
+    const ruleRow = (
+      await client.query<{ in_app: boolean; email: boolean }>(
+        "select in_app, email from notification_rules where event = $1",
+        [ruleName],
+      )
+    ).rows[0];
+    // For newly added events that haven't been saved in notification_rules yet, default to enabled.
+    const rule = ruleRow ?? (event === "owner_added" || event === "department_added" ? { in_app: true, email: true } : null);
     if (!rule) return null;
 
     const settings = Object.fromEntries(
-      (await client.query("select key, value from app_settings where key like 'notifications.%' or key = 'ops.email_via_outbox'")).rows.map((r) => [r.key, r.value]),
+      (
+        await client.query(
+          "select key, value from app_settings where key like 'notifications.%' or key like 'email.%' or key = 'ops.email_via_outbox'",
+        )
+      ).rows.map((r) => [r.key, r.value]),
     );
+
+    // Respect Integrations toggle if an email/mailtrap integration row is explicitly disabled
+    const mailIntegration = (
+      await client
+        .query<{ is_enabled: boolean }>("select is_enabled from integrations where id in ('mailtrap', 'email') limit 1")
+        .catch(() => ({ rows: [] as { is_enabled: boolean }[] }))
+    ).rows[0];
+    const mailIntegrationEnabled = mailIntegration ? mailIntegration.is_enabled !== false : true;
+
     const inAppOn = rule.in_app && settings["notifications.in_app_enabled"] !== false;
-    const emailOn = rule.email && settings["notifications.email_enabled"] !== false;
+    const emailOn = rule.email && settings["notifications.email_enabled"] !== false && mailIntegrationEnabled;
     if (!inAppOn && !emailOn) return null;
 
-    // Prefer fresh DB values for the fields recipients depend on.
-    const t = await loadTicket(client, ticket);
-    const recipients = (await resolveRecipients(client, event, t, actor, extra))
-      .filter((r) => r.employeeId !== actor?.employee_id || event === "escalated" || event.startsWith("sla_"));
+    const t = await loadTicket(client, ticket, extra.escalationReason);
+    const actorName = await resolveActorName(client, actor);
+    const previousOwnerName = extra.previousAssigneeId
+      ? ((await client.query("select name from employees where id = $1", [extra.previousAssigneeId])).rows[0]?.name as string | undefined) ?? null
+      : null;
+    const addedDepartmentNames = extra.addedDepartmentCodes?.length
+      ? (await client.query("select name from departments where code = any($1)", [extra.addedDepartmentCodes])).rows.map(
+          (r) => r.name as string,
+        )
+      : undefined;
+
+    const recipients = (await resolveRecipients(client, event, t, actor, extra)).filter(
+      (r) => r.employeeId !== actor?.employee_id || event === "escalated" || event.startsWith("sla_"),
+    );
+
+    const overrides = (settings["email.template_overrides"] ?? {}) as EmailTemplateOverridesMap;
+    const senderName = typeof settings["notifications.sender_name"] === "string" ? settings["notifications.sender_name"] : undefined;
+    const replyTo = typeof settings["notifications.reply_to"] === "string" ? settings["notifications.reply_to"] : undefined;
 
     const bucket = extra.dedupe ?? String(Math.floor(Date.now() / 60_000));
     const summary: DeliverSummary = { event, recipients: recipients.length, inApp: 0, email: 0, queued: 0, skipped: 0 };
     const dry = extra.dryRun || process.env.NOTIFY_DRY_RUN === "1";
     const viaOutbox = settings["ops.email_via_outbox"] !== false;
+    const origin = appOrigin();
 
     for (const r of recipients) {
       const base = `${event}:${t.id}:${r.employeeId}:${bucket}`;
-      const copy = buildCopy(event, t, r, actor, extra);
+      const copy = renderNotificationEmail({
+        event,
+        ticket: t,
+        recipient: { name: r.name, email: r.email, role: r.role },
+        actorName,
+        previousStatus: extra.previousStatus,
+        previousOwnerName,
+        addedDepartmentNames,
+        comment: extra.comment,
+        appUrl: origin,
+        override: overrides[event],
+      });
 
       if (inAppOn && r.userId && r.wantsInApp) {
         const logId = await claim(client, `${base}:in_app`, "in_app", event, t.id, r.userId, r.email, copy.subject);
         if (logId) {
           try {
             await client.query("select create_notification($1, $2, $3, $4, $5, $6)", [
-              r.userId, IN_APP_TYPE[event], copy.inAppTitle, copy.inAppBody, t.id, t.priority ?? "P3",
+              r.userId,
+              IN_APP_TYPE[event],
+              copy.inAppTitle,
+              copy.inAppBody,
+              t.id,
+              t.priority ?? "P3",
             ]);
             await finish(client, `${base}:in_app`, "sent", "in_app");
             summary.inApp++;
@@ -166,15 +219,28 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
         const logId = await claim(client, `${base}:email`, "email", event, t.id, r.userId, r.email, copy.subject);
         if (logId) {
           if (dry || !mailConfigured()) {
-            await finish(client, `${base}:email`, dry ? "dry_run" : "skipped", dry ? "dry_run" : null, undefined, dry ? undefined : "mail not configured");
+            await finish(
+              client,
+              `${base}:email`,
+              dry ? "dry_run" : "skipped",
+              dry ? "dry_run" : null,
+              undefined,
+              dry ? undefined : "mail not configured",
+            );
             summary.skipped++;
             continue;
           }
+          const msgPayload = {
+            to: r.email,
+            subject: copy.subject,
+            html: copy.html,
+            text: copy.text,
+            fromName: senderName,
+            replyTo,
+          };
           if (viaOutbox) {
-            // Queue for the drain worker (exponential-backoff retries); the outbox
-            // settles the email_log row to sent/failed when it finishes with it.
             try {
-              await enqueueEmail({ to: r.email, subject: copy.subject, html: copy.html, text: copy.text }, { emailLogId: logId });
+              await enqueueEmail(msgPayload, { emailLogId: logId });
               await finish(client, `${base}:email`, "queued", null);
               summary.queued++;
             } catch (e) {
@@ -184,7 +250,7 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
             continue;
           }
           try {
-            const res = await sendMail({ to: r.email, subject: copy.subject, html: copy.html, text: copy.text });
+            const res = await sendMail(msgPayload);
             await finish(client, `${base}:email`, "sent", res.provider, res.id);
             summary.email++;
           } catch (e) {
@@ -194,9 +260,7 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
         }
       }
     }
-    // Anything queued: give the drain a nudge right away so a quiet deployment still
-    // delivers in seconds. The sweeps and the cron call deliverPending too; it is
-    // claim-safe to run concurrently.
+
     if (summary.queued > 0) void deliverPending({ limit: 5 }).catch(() => {});
     return summary;
   } finally {
@@ -204,8 +268,25 @@ async function deliver(event: NotifyEvent, ticket: NotifyTicket, actor: NotifyAc
   }
 }
 
-/** Insert the idempotency row; returns its id, or null when someone already handled this key. */
-async function claim(c: PoolClient, key: string, channel: string, event: string, ticketId: string, userId: string | null, recipient: string, subject: string): Promise<string | null> {
+async function resolveActorName(c: PoolClient, actor: NotifyActor): Promise<string | null> {
+  if (!actor) return null;
+  if (actor.employee_id) {
+    const row = (await c.query("select name from employees where id = $1", [actor.employee_id])).rows[0];
+    if (row?.name) return row.name as string;
+  }
+  return actor.email ? actor.email.split("@")[0] : null;
+}
+
+async function claim(
+  c: PoolClient,
+  key: string,
+  channel: string,
+  event: string,
+  ticketId: string,
+  userId: string | null,
+  recipient: string,
+  subject: string,
+): Promise<string | null> {
   const { rows, rowCount } = await c.query<{ id: string }>(
     `insert into email_log (dedupe_key, channel, event, ticket_id, user_id, recipient, subject)
      values ($1,$2,$3,$4,$5,$6,$7) on conflict (dedupe_key) do nothing returning id`,
@@ -214,87 +295,178 @@ async function claim(c: PoolClient, key: string, channel: string, event: string,
   return (rowCount ?? 0) > 0 ? rows[0].id : null;
 }
 
-async function finish(c: PoolClient, key: string, status: string, provider: string | null, providerId?: string, error?: string) {
+async function finish(
+  c: PoolClient,
+  key: string,
+  status: string,
+  provider: string | null,
+  providerId?: string,
+  error?: string,
+) {
   await c.query(
     "update email_log set status = $2, provider = $3, provider_id = $4, error = $5, sent_at = case when $2 = 'sent' then now() else null end where dedupe_key = $1",
     [key, status, provider, providerId ?? null, error ?? null],
   );
 }
 
-async function loadTicket(c: PoolClient, given: NotifyTicket): Promise<NotifyTicket> {
+async function loadTicket(c: PoolClient, given: NotifyTicket, escalationReason?: string | null): Promise<NotifyTicket> {
   const { rows } = await c.query(
-    `select id, ticket_id, title, priority, status, category, studio_code, department_code, assignee_id,
-            reporter_id, affected_client, sla_resolution_target, escalation_level from tickets where id = $1`,
+    `select t.id, t.ticket_id, t.title, t.description, t.priority, t.status, t.sla_status,
+            t.category, t.subcategory, t.studio_code, s.name as studio_name, s.city as studio_city,
+            t.department_code, t.department_codes, d.name as department_name,
+            t.assignee_id, t.assignee_ids, a.name as assignee_name,
+            t.reporter_id, r.name as reporter_name,
+            t.affected_client, t.sla_response_target, t.sla_resolution_target,
+            t.resolution_summary, t.escalation_level
+       from tickets t
+       left join studios s on s.code = t.studio_code
+       left join departments d on d.code = t.department_code
+       left join employees a on a.id = t.assignee_id
+       left join employees r on r.id = t.reporter_id
+      where t.id = $1`,
     [given.id],
   );
   const r = rows[0];
   if (!r) return given;
+
+  const ownerIds: string[] = Array.isArray(r.assignee_ids) && r.assignee_ids.length
+    ? r.assignee_ids
+    : r.assignee_id
+      ? [r.assignee_id]
+      : [];
+  let ownerNames: string[] = [];
+  if (ownerIds.length > 0) {
+    const empRows = (await c.query("select id, name from employees where id = any($1)", [ownerIds])).rows;
+    const byId = new Map(empRows.map((e) => [e.id as string, e.name as string]));
+    ownerNames = ownerIds.map((id) => byId.get(id)).filter((x): x is string => Boolean(x));
+  }
+
+  let resolvedEscReason = escalationReason ?? given.escalationReason ?? null;
+  if (!resolvedEscReason && Number(r.escalation_level) > 0) {
+    const escRow = (
+      await c
+        .query("select reason from escalation_log where ticket_id = $1 order by escalated_at desc limit 1", [r.id])
+        .catch(() => ({ rows: [] as { reason?: string }[] }))
+    ).rows[0];
+    resolvedEscReason = escRow?.reason ?? null;
+  }
+
   return {
-    id: r.id, ticketId: r.ticket_id, title: r.title, priority: r.priority, status: r.status, category: r.category,
-    studioCode: r.studio_code, departmentCode: r.department_code, assigneeId: r.assignee_id, reporterId: r.reporter_id,
-    affectedClient: r.affected_client, slaResolutionTarget: r.sla_resolution_target ? new Date(r.sla_resolution_target).toISOString() : null,
+    id: r.id,
+    ticketId: r.ticket_id,
+    title: r.title,
+    description: r.description,
+    priority: r.priority,
+    status: r.status,
+    slaStatus: r.sla_status,
+    category: r.category,
+    subcategory: r.subcategory,
+    studioCode: r.studio_code,
+    studioName: r.studio_name,
+    studioCity: r.studio_city,
+    departmentCode: r.department_code,
+    departmentCodes: r.department_codes ?? [],
+    departmentName: r.department_name,
+    assigneeId: r.assignee_id,
+    assigneeIds: ownerIds,
+    assigneeName: r.assignee_name,
+    ownerNames,
+    reporterId: r.reporter_id,
+    reporterName: r.reporter_name,
+    affectedClient: r.affected_client,
+    slaResponseTarget: r.sla_response_target ? new Date(r.sla_response_target).toISOString() : null,
+    slaResolutionTarget: r.sla_resolution_target ? new Date(r.sla_resolution_target).toISOString() : null,
+    resolutionSummary: r.resolution_summary,
     escalationLevel: r.escalation_level,
+    escalationReason: resolvedEscReason,
   };
 }
 
-// ---------------------------------------------------------------------------------------------
-// Recipients
-// ---------------------------------------------------------------------------------------------
+async function resolveRecipients(
+  c: PoolClient,
+  event: NotifyEvent,
+  t: NotifyTicket,
+  _actor: NotifyActor,
+  extra: NotifyExtra,
+): Promise<Recipient[]> {
+  const roles = new Map<string, RecipientRole>();
+  const add = (id: string | null | undefined, role: RecipientRole) => {
+    if (id && !roles.has(id)) roles.set(id, role);
+  };
+  const addOwners = (role: RecipientRole = "owner") => {
+    add(t.assigneeId, role);
+    for (const oid of t.assigneeIds ?? []) add(oid, role);
+  };
 
-async function resolveRecipients(c: PoolClient, event: NotifyEvent, t: NotifyTicket, actor: NotifyActor, extra: NotifyExtra): Promise<Recipient[]> {
-  const roles = new Map<string, Role>();
-  const add = (id: string | null | undefined, role: Role) => { if (id && !roles.has(id)) roles.set(id, role); };
-
-  // Assignee's reporting manager (tier manager) and the department head.
   const managerOf = async (employeeId: string | null | undefined) => {
     if (!employeeId) return null;
     const { rows } = await c.query(
-      "select m.id from employees e join employees m on m.name = e.reporting_manager and m.is_active and not m.exclude_from_escalation where e.id = $1 limit 1", [employeeId]);
+      "select m.id from employees e join employees m on m.name = e.reporting_manager and m.is_active and not m.exclude_from_escalation where e.id = $1 limit 1",
+      [employeeId],
+    );
     return (rows[0]?.id as string) ?? null;
   };
-  const deptHead = async () => {
-    if (!t.departmentCode) return null;
-    return ((await c.query("select h.id as head_employee_id from departments d join employees h on h.id = d.head_employee_id and h.is_active and not h.exclude_from_escalation where d.code = $1", [t.departmentCode])).rows[0]?.head_employee_id as string) ?? null;
+  const deptHead = async (code?: string | null) => {
+    const dc = code ?? t.departmentCode;
+    if (!dc) return null;
+    return (
+      ((
+        await c.query(
+          "select h.id as head_employee_id from departments d join employees h on h.id = d.head_employee_id and h.is_active and not h.exclude_from_escalation where d.code = $1",
+          [dc],
+        )
+      ).rows[0]?.head_employee_id as string) ?? null
+    );
   };
 
   switch (event) {
     case "ticket_created":
-      add(t.assigneeId, "owner");
+      addOwners("owner");
       add(await deptHead(), "manager");
       add(t.reporterId, "reporter");
       break;
     case "ticket_assigned":
-      add(t.assigneeId, "owner");
+      addOwners("owner");
       add(extra.previousAssigneeId, "previous_owner");
       add(t.reporterId, "reporter");
       break;
-    case "comment_added":
+    case "owner_added":
+      for (const id of extra.addedOwnerIds ?? []) add(id, "owner");
+      add(t.assigneeId, "watcher");
+      break;
+    case "department_added":
+      for (const dc of extra.addedDepartmentCodes ?? []) {
+        add(await deptHead(dc), "manager");
+      }
       add(t.assigneeId, "owner");
+      break;
+    case "comment_added":
+      addOwners("owner");
       add(t.reporterId, "reporter");
       break;
     case "status_reopened":
-      add(t.assigneeId, "owner");
+      addOwners("owner");
       add(t.reporterId, "reporter");
       add(await deptHead(), "manager");
       break;
     case "escalated":
-      add(t.assigneeId, "owner");
+      addOwners("owner");
       add(await managerOf(t.assigneeId), "manager");
       add(await deptHead(), "manager");
       add(t.reporterId, "reporter");
       break;
     case "sla_at_risk":
-      add(t.assigneeId, "owner");
+      addOwners("owner");
       add(await managerOf(t.assigneeId), "manager");
       break;
     case "sla_breached":
-      add(t.assigneeId, "owner");
+      addOwners("owner");
       add(await managerOf(t.assigneeId), "manager");
       add(await deptHead(), "manager");
       break;
-    default: // in_progress, awaiting_response, resolved, closed
+    default:
       add(t.reporterId, "reporter");
-      add(t.assigneeId, "owner");
+      addOwners("owner");
   }
   for (const w of extra.watcherEmployeeIds ?? []) add(w, "watcher");
   if (!roles.size) return [];
@@ -310,118 +482,12 @@ async function resolveRecipients(c: PoolClient, event: NotifyEvent, t: NotifyTic
     [ids],
   );
   return rows.map((r) => ({
-    employeeId: r.id, name: r.name, email: r.email, role: roles.get(r.id)!,
+    employeeId: r.id,
+    name: r.name,
+    email: r.email,
+    role: roles.get(r.id)!,
     userId: r.user_id && r.user_active !== false ? r.user_id : null,
-    wantsEmail: r.email_pref, wantsInApp: r.push_pref,
+    wantsEmail: r.email_pref,
+    wantsInApp: r.push_pref,
   }));
 }
-
-// ---------------------------------------------------------------------------------------------
-// Copy + HTML
-// ---------------------------------------------------------------------------------------------
-
-type Copy = { subject: string; html: string; text: string; inAppTitle: string; inAppBody: string };
-
-function buildCopy(event: NotifyEvent, t: NotifyTicket, r: Recipient, actor: NotifyActor, extra: NotifyExtra): Copy {
-  const ref = t.ticketId || t.id;
-  const label_ = `${ref}: ${t.title}`;
-  const by = actor?.email ? actor.email.split("@")[0] : null;
-  const mine = r.role === "owner";
-  const status = (t.status ?? "").replace(/_/g, " ");
-
-  type Spec = { subject: string; context: string; accent: string; heading: string; lede: string; steps: string[]; cta: string; why: string; inApp: string };
-  const specs: Record<NotifyEvent, Spec> = {
-    ticket_created: {
-      subject: `New ticket ${label_}`, context: "New ticket", accent: BRAND.blue,
-      heading: mine ? "A new ticket is on your plate" : "A new ticket has been logged",
-      lede: `${t.title}${t.affectedClient ? ` (client: ${t.affectedClient})` : ""} was logged${by ? ` by ${by}` : ""}.`,
-      steps: mine ? ["Acknowledge it and send the first response.", "Set the status to In progress when you start."] : [],
-      cta: "Open the ticket", why: "a new ticket was created in your area", inApp: "New ticket",
-    },
-    ticket_assigned: {
-      subject: r.role === "previous_owner" ? `Reassigned: ${label_}` : `Assigned to you: ${label_}`,
-      context: "Assignment", accent: BRAND.gold,
-      heading: r.role === "previous_owner" ? "This ticket was reassigned" : mine ? "A ticket was assigned to you" : "A ticket was assigned",
-      lede: r.role === "previous_owner" ? `${t.title} is no longer assigned to you.` : `${t.title} is now owned by ${mine ? "you" : "a teammate"}.`,
-      steps: mine ? ["Review the details and the history.", "Reply to the member and set the status."] : [],
-      cta: "Open the ticket", why: "you are involved in this ticket", inApp: r.role === "previous_owner" ? "Ticket reassigned" : "Ticket assigned to you",
-    },
-    status_in_progress: {
-      subject: `In progress: ${label_}`, context: "Status", accent: BRAND.blue,
-      heading: "Work has started", lede: `${t.title} is now in progress.`, steps: [], cta: "View the ticket",
-      why: "you follow this ticket", inApp: "Ticket in progress",
-    },
-    status_awaiting_response: {
-      subject: `Awaiting response: ${label_}`, context: "Status", accent: BRAND.gold,
-      heading: "Waiting on a reply", lede: `${t.title} is waiting for a response before it can move on.`,
-      steps: mine ? ["Follow up if the reply is overdue."] : [], cta: "View the ticket",
-      why: "you follow this ticket", inApp: "Awaiting response",
-    },
-    status_resolved: {
-      subject: `Resolved: ${label_}`, context: "Resolved", accent: BRAND.green,
-      heading: "This ticket has been resolved", lede: `${t.title} was marked resolved${by ? ` by ${by}` : ""}.`,
-      steps: r.role === "reporter" ? ["If it is not actually fixed, reopen it from the ticket."] : [], cta: "View the ticket",
-      why: "you follow this ticket", inApp: "Ticket resolved",
-    },
-    status_closed: {
-      subject: `Closed: ${label_}`, context: "Closed", accent: BRAND.green,
-      heading: "This ticket is closed", lede: `${t.title} has been closed.`, steps: [], cta: "View the ticket",
-      why: "you follow this ticket", inApp: "Ticket closed",
-    },
-    status_reopened: {
-      subject: `Reopened: ${label_}`, context: "Reopened", accent: BRAND.red,
-      heading: "This ticket was reopened", lede: `${t.title} is back to ${status || "open"}${extra.previousStatus ? ` (was ${extra.previousStatus.replace(/_/g, " ")})` : ""}.`,
-      steps: mine ? ["Find out what was missed and reply to the member."] : [], cta: "Open the ticket",
-      why: "you follow this ticket", inApp: "Ticket reopened",
-    },
-    comment_added: {
-      subject: `New comment on ${label_}`, context: "Comment", accent: BRAND.blue,
-      heading: `${extra.comment?.author ? firstName(extra.comment.author) ?? extra.comment.author : "Someone"} commented`,
-      lede: extra.comment ? `${extra.comment.isInternal ? "Internal note: " : ""}${extra.comment.content.slice(0, 400)}${extra.comment.content.length > 400 ? "..." : ""}` : "A new comment was added.",
-      steps: [], cta: "Read and reply",
-      why: "you follow this ticket", inApp: `New comment on ${ref}`,
-    },
-    escalated: {
-      subject: `[Escalated] ${label_}`, context: "Escalation", accent: BRAND.red,
-      heading: mine ? "Your ticket was escalated" : "A ticket was escalated",
-      lede: `${t.title} has been escalated${t.escalationLevel ? ` to level ${t.escalationLevel}` : ""} and needs attention today.`,
-      steps: ["Decide who owns it now.", "Make sure the member has heard from us.", "Log the plan on the ticket."], cta: "Take over the ticket",
-      why: "this ticket was escalated", inApp: "Ticket escalated",
-    },
-    sla_at_risk: {
-      subject: `SLA at risk: ${label_}`, context: "SLA", accent: BRAND.gold,
-      heading: "This ticket is close to its SLA target", lede: `${t.title} is running out of time to meet its resolution target${t.slaResolutionTarget ? ` (${fmt(t.slaResolutionTarget)})` : ""}.`,
-      steps: mine ? ["Resolve it, or extend the target with a reason."] : ["Check in with the owner."], cta: "Check the ticket",
-      why: "its SLA is at risk", inApp: "SLA at risk",
-    },
-    sla_breached: {
-      subject: `SLA breached: ${label_}`, context: "SLA", accent: BRAND.red,
-      heading: "This ticket has breached its SLA", lede: `${t.title} passed its resolution target${t.slaResolutionTarget ? ` (${fmt(t.slaResolutionTarget)})` : ""}.`,
-      steps: ["Resolve it or escalate it now.", "Update the member."], cta: "Open the ticket",
-      why: "its SLA was breached", inApp: "SLA breached",
-    },
-  };
-  const s = specs[event];
-  const url = `${appOrigin()}/?ticket=${encodeURIComponent(t.id)}`;
-
-  const steps = s.steps.length
-    ? section(`${label("What to do next")}<ol style="margin:0;padding-left:18px;font-family:${FONT_};font-size:14.5px;line-height:1.6;color:${BRAND.body};">${s.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>`)
-    : "";
-  const body = [
-    section(`${label(`${s.context}${ref ? ` · ${ref}` : ""}`, s.accent)}<h1 class="e-h1" style="margin:0 0 10px;font-family:${FONT_};font-size:26px;line-height:1.2;color:${BRAND.ink};">${esc(s.heading)}</h1><p style="margin:0;font-family:${FONT_};font-size:15px;line-height:1.6;color:${BRAND.body};">${esc(greeting(r.name))} ${esc(s.lede)}</p>`, "0 36px 20px"),
-    section(`${priorityPill(t.priority ?? undefined)}`, "0 36px 14px"),
-    section(grid([fact("Ticket", label_), fact("Status", status || null), fact("Category", t.category), fact("Studio", t.studioCode), fact("Priority", t.priority)], 2), "0 36px 20px"),
-    steps,
-    section(button(url, s.cta, s.accent === BRAND.red ? BRAND.red : BRAND.ink), "0 36px 32px"),
-  ].join("");
-
-  const html = emailDocument({
-    title: s.subject, preheader: s.lede.slice(0, 120), context: s.context, accent: s.accent, body,
-    footer: `You are receiving this because ${esc(s.why)}. Replies to this address are not monitored.`,
-  });
-  const text = [`${greeting(r.name)}`, "", s.lede, "", ...s.steps.map((x, i) => `${i + 1}. ${x}`), "", `${s.cta}: ${url}`].join("\n");
-  return { subject: s.subject, html, text, inAppTitle: s.inApp, inAppBody: `${label_}${event === "comment_added" && extra.comment ? ` — ${extra.comment.content.slice(0, 100)}` : ""}` };
-}
-
-const FONT_ = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-const fmt = (iso: string) => new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });

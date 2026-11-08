@@ -3,6 +3,7 @@ import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { fetchTicket } from "@/lib/server/tickets";
 import { notifyTicketEvent, statusEvent } from "@/lib/server/notify";
+import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
 
 const STATUSES = ["open", "in_progress", "awaiting_response", "resolved", "closed", "escalated"];
 const PRIORITIES = ["P0", "P1", "P2", "P3"];
@@ -23,9 +24,20 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
   }
 }
 
+interface BeforeSnapshot {
+  status: string;
+  priority: string;
+  assignee_id: string | null;
+  assignee_ids: string[] | null;
+  department_codes: string[] | null;
+  escalation_level: number;
+  sla_status: string;
+  created_at: string;
+}
+
 /** Diff the pre-update row against the saved ticket and notify each stage that changed. */
 function notifyPatchChanges(
-  before: { status: string; assignee_id: string | null; escalation_level: number; sla_status: string },
+  before: BeforeSnapshot,
   ticket: NonNullable<Awaited<ReturnType<typeof fetchTicket>>>,
   session: Parameters<typeof notifyTicketEvent>[2],
 ) {
@@ -33,6 +45,19 @@ function notifyPatchChanges(
   if (newAssignee !== before.assignee_id && newAssignee) {
     notifyTicketEvent("ticket_assigned", ticket, session, { previousAssigneeId: before.assignee_id });
   }
+
+  const prevOwners = new Set(before.assignee_ids ?? (before.assignee_id ? [before.assignee_id] : []));
+  const addedOwners = (ticket.assigneeIds ?? []).filter((oid) => !prevOwners.has(oid) && oid !== newAssignee);
+  if (addedOwners.length > 0) {
+    notifyTicketEvent("owner_added", ticket, session, { addedOwnerIds: addedOwners });
+  }
+
+  const prevDepts = new Set(before.department_codes ?? []);
+  const addedDepts = (ticket.departmentCodes ?? []).filter((dc) => !prevDepts.has(dc) && dc !== ticket.departmentCode);
+  if (addedDepts.length > 0) {
+    notifyTicketEvent("department_added", ticket, session, { addedDepartmentCodes: addedDepts });
+  }
+
   const ev = statusEvent(before.status, ticket.status);
   if (ev && !(ev === "escalated" && ticket.escalationLevel > before.escalation_level)) {
     notifyTicketEvent(ev, ticket, session, { previousStatus: before.status });
@@ -78,10 +103,20 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     vals.push(Math.min(168, b.extendSlaHours));
     sets.push(`sla_resolution_target = coalesce(sla_resolution_target, now()) + make_interval(hours => $${vals.length}::int)`);
   }
+  if (b.acknowledge === true) {
+    vals.push(
+      JSON.stringify({
+        _requires_acknowledgment: false,
+        _acknowledged_at: new Date().toISOString(),
+        _acknowledged_by: auth.session.email,
+      }),
+    );
+    sets.push(`collected_info = coalesce(collected_info, '{}'::jsonb) || $${vals.length}::jsonb`);
+    sets.push("first_response_at = coalesce(first_response_at, now())");
+  }
   // Reopening clears the resolution timestamp so SLA and reports treat it as live again.
   if (b.status !== undefined && !["resolved", "closed"].includes(b.status)) sets.push("resolved_at = null");
 
-  // Admins can edit the ticket's content directly; everyone else only works it.
   const isAdmin = auth.session.role === "admin";
   if (isAdmin) {
     const text = (k: string, col: string, max: number, required = false) => {
@@ -109,9 +144,14 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
   if (!sets.length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   try {
-    let before: { status: string; assignee_id: string | null; escalation_level: number; sla_status: string } | null = null;
+    let before: BeforeSnapshot | null = null;
     const ticket = await withUser(auth.session.user_id, async (c) => {
-      const cur = (await c.query("select metadata, status, assignee_id, escalation_level, sla_status from tickets where id = $1", [id])).rows[0];
+      const cur = (
+        await c.query(
+          "select metadata, status, priority, assignee_id, assignee_ids, department_codes, escalation_level, sla_status, created_at from tickets where id = $1",
+          [id],
+        )
+      ).rows[0];
       before = cur ?? null;
       if (!cur) return null;
       if (!isAdmin && cur.metadata?.lock_assignment && (b.assigneeId !== undefined || b.assigneeIds !== undefined)) {
@@ -120,8 +160,56 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       if (!isAdmin && cur.metadata?.legacy_import && (b.status !== undefined || b.extendSlaHours !== undefined || b.slaStatus !== undefined)) {
         throw Object.assign(new Error("Imported legacy tickets are closed and read-only"), { code: "P0001" });
       }
+
+      // If reassigned and `routing.require_acknowledgment` is enabled, flag acknowledgment required
+      if (b.assigneeId && b.assigneeId !== cur.assignee_id && b.acknowledge !== true) {
+        const reqAck = (await c.query("select value from app_settings where key = 'routing.require_acknowledgment'")).rows[0];
+        if (reqAck?.value === true) {
+          vals.push(JSON.stringify({ _requires_acknowledgment: true, _acknowledged_at: null }));
+          sets.push(`collected_info = coalesce(collected_info, '{}'::jsonb) || $${vals.length}::jsonb`);
+        }
+      }
+
+      // Recompute SLA targets when priority changes (unless admin passed explicit slaResolutionTarget)
+      if (b.priority && b.priority !== cur.priority && b.slaResolutionTarget === undefined) {
+        const [slaRes, bhRes] = await Promise.all([
+          c.query<{
+            response_target_mins: number;
+            resolution_target_mins: number;
+            business_hours_only: boolean;
+          }>(
+            "select response_target_mins, resolution_target_mins, business_hours_only from sla_definitions where priority = $1 limit 1",
+            [b.priority],
+          ),
+          c.query("select value from app_settings where key = 'sla.business_hours'"),
+        ]);
+        const def = slaRes.rows[0];
+        if (def) {
+          const targets = computeSlaTargets({
+            createdAt: cur.created_at ? new Date(cur.created_at) : new Date(),
+            responseTargetMins: Number(def.response_target_mins),
+            resolutionTargetMins: Number(def.resolution_target_mins),
+            businessHoursOnly: Boolean(def.business_hours_only),
+            businessHours: (bhRes.rows[0]?.value ?? null) as BusinessHoursMap | null,
+          });
+          set("sla_response_target", targets.slaResponseTarget);
+          set("sla_resolution_target", targets.slaResolutionTarget);
+        }
+      }
+
       vals.push(id);
       await c.query(`update tickets set ${sets.join(", ")} where id = $${vals.length}`, vals);
+
+      if (b.acknowledge === true) {
+        await c
+          .query(
+            `insert into ticket_activities (ticket_id, activity_type, description, actor_user_id, actor_name)
+             values ($1, 'acknowledged', 'Ownership acknowledged', $2, $3)`,
+            [id, auth.session.user_id, auth.session.email],
+          )
+          .catch(() => {});
+      }
+
       return fetchTicket(c, id);
     });
     if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
