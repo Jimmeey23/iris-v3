@@ -12,6 +12,7 @@ export type ViewName =
   | "department_queue"
   | "escalations"
   | "trainers"
+  | "equipment"
   | "analytics"
   | "knowledge_base"
   | "templates"

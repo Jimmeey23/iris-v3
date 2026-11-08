@@ -14,6 +14,7 @@ import { EmailTemplatesView } from "@/components/iris/views/email-templates";
 import { SettingsView } from "@/components/iris/views/settings";
 import { KnowledgeBaseView } from "@/components/iris/views/knowledge-base";
 import { TrainersView } from "@/components/iris/views/trainers";
+import { EquipmentView } from "@/components/iris/views/equipment";
 import { useAppStore } from "@/lib/iris/store";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGate } from "@/components/iris/auth-gate";
@@ -33,6 +34,7 @@ export default function Home() {
         {currentView === "department_queue" && <AllTicketsView filterMode="department" />}
         {currentView === "escalations" && <AllTicketsView filterMode="escalations" />}
         {currentView === "trainers" && <TrainersView />}
+        {currentView === "equipment" && <EquipmentView />}
         {currentView === "analytics" && <AnalyticsView />}
         {currentView === "templates" && <TemplatesView />}
         {currentView === "reports" && <ReportsView />}

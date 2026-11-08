@@ -36,6 +36,7 @@ import {
   X,
   UserSearch,
   LogOut,
+  Wrench,
 } from "lucide-react";
 import { useAuth } from "./auth-gate";
 import { getInitials } from "@/lib/iris/utils";
@@ -76,6 +77,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "department_queue", label: "Department", icon: Building2, group: "main" },
   { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
   { id: "trainers", label: "Trainers", icon: Users, group: "main" },
+  { id: "equipment", label: "Equipment", icon: Wrench, group: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence" },
   { id: "templates", label: "Templates", icon: LayoutTemplate, group: "intelligence" },
   { id: "reports", label: "Reports", icon: FileBarChart, group: "intelligence" },
