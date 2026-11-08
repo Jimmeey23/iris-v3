@@ -1,4 +1,4 @@
-// Knowledge Base — emergencies, injuries, harassment, theft, closures and data security.
+// Knowledge Base - emergencies, injuries, harassment, theft, closures and data security.
 import { article, type KnowledgeArticle } from "./compose";
 
 export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
@@ -7,9 +7,9 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     title: "Studio Emergency Protocol",
     category: "Safety and Security",
     summary:
-      "The first-response protocol for any studio emergency — medical, fire, security threat or electrical — with the numbers to call, who does what, and the reporting that must follow.",
+      "The first-response protocol for any studio emergency - medical, fire, security threat or electrical - with the numbers to call, who does what, and the reporting that must follow.",
     glance: {
-      priority: "P0 — always",
+      priority: "P0 - always",
       owner: "Senior staff member on site → Studio Director",
       respond: "Immediately",
       resolve: "Incident report within 24 hours; team debrief within 48 hours",
@@ -40,12 +40,12 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       ["Gas smell", "No switches or flames; open windows; evacuate; call the building and the gas emergency line."],
     ],
     say: [
-      ["Evacuation", "Everyone, please stop and follow me to the exit now — leave your belongings. We're going to the assembly point outside the main gate."],
-      ["Calling emergency services", "This is Physique 57, Supreme HQ, Bandra — first floor. A member has collapsed and isn't responding. Our staff member will meet you at the main entrance."],
+      ["Evacuation", "Everyone, please stop and follow me to the exit now - leave your belongings. We're going to the assembly point outside the main gate."],
+      ["Calling emergency services", "This is Physique 57, Supreme HQ, Bandra - first floor. A member has collapsed and isn't responding. Our staff member will meet you at the main entrance."],
     ],
     dos: [
       "Know the exits, assembly point, first aid kit, AED and fire extinguisher locations.",
-      "Call emergency services early — you can always cancel.",
+      "Call emergency services early - you can always cancel.",
       "Keep a record of the timeline.",
     ],
     donts: [
@@ -74,7 +74,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     summary:
       "When a member reports damage to (or items missing from) their car after valet parking: document properly, involve the valet company and their insurance, and look after the member throughout.",
     glance: {
-      priority: "P1 — high member impact",
+      priority: "P1 - high member impact",
       owner: "Studio Operations Manager → valet company",
       respond: "Immediately, while the member is on site",
       resolve: "Valet company response within 48 hours",
@@ -85,7 +85,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       "Identify the valet on duty and the parking ticket number.",
     ],
     steps: [
-      "Acknowledge the incident and express concern — don't argue about whether it happened here.",
+      "Acknowledge the incident and express concern - don't argue about whether it happened here.",
       "Photograph the damage together with the member: close-ups and a wide shot with the number plate.",
       "Record the date, time of handover and return, parking ticket number, valet on duty and parking location.",
       "Ask the valet supervisor for their account and check any CCTV covering the drop-off and parking area.",
@@ -93,12 +93,12 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       "Give the member the valet company's incident and insurance contact, and a reference number.",
       "Offer a complimentary class as a goodwill gesture (this is not an admission of liability).",
       "Follow up within 24 hours and again after the valet company responds.",
-      "Review valet staffing at that time — a single valet covering a busy class change-over is a risk; raise it with management.",
+      "Review valet staffing at that time - a single valet covering a busy class change-over is a risk; raise it with management.",
       "Log the incident and inform the insurance team if the studio may be liable.",
     ],
     diagnose: [
       ["Clear damage visible on CCTV", "Share footage with the valet company (with management approval)."],
-      ["Items missing from the car", "Treat as theft — police complaint advised; follow the same evidence steps (TPL-228)."],
+      ["Items missing from the car", "Treat as theft - police complaint advised; follow the same evidence steps (TPL-228)."],
       ["Damage noticed days later", "Still log it; check the handover photos if the valet takes them."],
       ["Repeat incidents with the same vendor", "Escalate the contract review to the Studio Director."],
     ],
@@ -129,7 +129,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-015",
-    title: "Lost Item — Member's Personal Belonging",
+    title: "Lost Item - Member's Personal Belonging",
     category: "Theft and Lost Items",
     summary:
       "Finding and returning lost items: a quick search of likely spots, a proper lost-and-found log, CCTV checks for valuables, and clear updates to the member.",
@@ -149,8 +149,8 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       "Check the member's locker (items fall behind or under), benches, the studio floor, cubbies and the lost-and-found bin.",
       "Ask the trainer, housekeeping and the next class's members if anything was found.",
       "Log the report in the lost-and-found register with the member's contact details.",
-      "For valuables (jewellery, phones, wallets, watches), review CCTV of the locker and cubby area for the time window — front desk lead or manager only.",
-      "If footage shows someone else taking the item, escalate to the Studio Director — treat it as theft (TPL-226).",
+      "For valuables (jewellery, phones, wallets, watches), review CCTV of the locker and cubby area for the time window - front desk lead or manager only.",
+      "If footage shows someone else taking the item, escalate to the Studio Director - treat it as theft (TPL-226).",
       "Update the member within 24 hours whether it's found or not.",
       "Return found items only after verifying ownership (description or proof); record who collected it.",
       "Keep unclaimed items for 30 days, then donate or dispose of them per policy (valuables go to the manager).",
@@ -159,7 +159,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       ["Item found in lost-and-found", "Verify ownership and hand it back; record the collection."],
       ["Valuable item, not found", "CCTV review; inform the manager; advise a police complaint if stolen."],
       ["Locker was left open", "Remind the member gently about locks; still search and log."],
-      ["Several items missing the same day", "Possible theft pattern — escalate immediately."],
+      ["Several items missing the same day", "Possible theft pattern - escalate immediately."],
     ],
     say: [
       ["Not found yet", "We've checked the lockers, the studio and our lost-and-found and logged everything. I'll review the camera footage for the locker area and update you by tomorrow afternoon."],
@@ -187,7 +187,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-020",
-    title: "First Aid Incident — Member Injury During Class",
+    title: "First Aid Incident - Member Injury During Class",
     category: "Safety and Security",
     summary:
       "Responding when a member is hurt in class: stop, assess, give the right first aid or call an ambulance, document properly, and follow up with care.",
@@ -223,7 +223,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       ["Equipment caused the injury", "Take it out of service and raise an equipment ticket."],
     ],
     say: [
-      ["To the member", "Stay still for me — help is right here. Can you tell me where it hurts? We've called for help and someone will be with you the whole time."],
+      ["To the member", "Stay still for me - help is right here. Can you tell me where it hurts? We've called for help and someone will be with you the whole time."],
     ],
     dos: [
       "Keep first aid within your training.",
@@ -250,7 +250,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-024",
-    title: "Studio Closing — Emergency or Maintenance",
+    title: "Studio Closing - Emergency or Maintenance",
     category: "Safety and Security",
     summary:
       "Closing a studio safely for an emergency, maintenance or an external event: who decides, how to cancel classes so credits return, how to tell members, and the checks before reopening.",
@@ -262,7 +262,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     },
     firstFive: [
       "Make the studio safe and get people out if needed.",
-      "Call the Studio Director — they make the official closure call.",
+      "Call the Studio Director - they make the official closure call.",
       "Estimate the duration: hours, a day, or several days.",
     ],
     steps: [
@@ -286,7 +286,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       ["External shutdown (bandh)", "Follow official advice; waive late-cancel fees for the day."],
     ],
     say: [
-      ["Broadcast", "Today's classes at Kwality House are cancelled from 4 pm due to a power failure in the building. Your credits have been returned. The Supreme HQ studio is open as usual if you'd like to rebook — just reply here."],
+      ["Broadcast", "Today's classes at Kwality House are cancelled from 4 pm due to a power failure in the building. Your credits have been returned. The Supreme HQ studio is open as usual if you'd like to rebook - just reply here."],
     ],
     dos: [
       "Cancel classes so credits return automatically.",
@@ -324,7 +324,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     },
     firstFive: [
       "Verify the person asking is the locker's user before opening anything.",
-      "For theft: don't touch the locker — preserve it for checks.",
+      "For theft: don't touch the locker - preserve it for checks.",
       "Note the locker number and the time.",
     ],
     steps: [
@@ -339,13 +339,13 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       "Follow up with the member within 24 hours with the outcome of the review.",
     ],
     diagnose: [
-      ["Code lock won't accept the right code", "Battery or mechanism fault — master override, then repair."],
+      ["Code lock won't accept the right code", "Battery or mechanism fault - master override, then repair."],
       ["Key snapped in the lock", "Don't force it; locksmith; tag the locker out of use."],
-      ["Locker forced open", "Theft — preserve, CCTV, escalate."],
-      ["Several thefts in a short period", "Pattern — security review, notify members, police involvement."],
+      ["Locker forced open", "Theft - preserve, CCTV, escalate."],
+      ["Several thefts in a short period", "Pattern - security review, notify members, police involvement."],
     ],
     say: [
-      ["Theft report", "I'm so sorry. Let's not touch the locker for now. I'll note everything that's missing and our manager will review the cameras straight away. I'd also recommend filing a police complaint — we'll give you whatever details you need."],
+      ["Theft report", "I'm so sorry. Let's not touch the locker for now. I'll note everything that's missing and our manager will review the cameras straight away. I'd also recommend filing a police complaint - we'll give you whatever details you need."],
     ],
     dos: [
       "Open lockers only with a second staff member present.",
@@ -376,7 +376,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     summary:
       "What to do when a member or staff member reports harassment, unwanted contact or inappropriate behaviour: make them safe, listen and record their words, escalate immediately, and protect confidentiality.",
     glance: {
-      priority: "P0 — always",
+      priority: "P0 - always",
       owner: "Studio Director and HR (Internal Committee for sexual harassment involving staff)",
       respond: "Immediately",
       resolve: "Escalated the same hour; formal process led by HR",
@@ -392,9 +392,9 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       "Write down what they say in their own words: what happened, when, where, who was involved, and any witnesses.",
       "Explain what happens next: you must pass it to the Studio Director and HR, and it will be handled confidentially.",
       "Escalate to the Studio Director and HR immediately (within the hour).",
-      "Complaints of sexual harassment involving staff go to the Internal Committee under the POSH Act — HR manages this; don't run your own inquiry.",
+      "Complaints of sexual harassment involving staff go to the Internal Committee under the POSH Act - HR manages this; don't run your own inquiry.",
       "Preserve evidence: CCTV for the time and place, messages, and the class list.",
-      "If the person reported is a member, management decides on interim steps (e.g. pausing their bookings) — don't confront them yourself.",
+      "If the person reported is a member, management decides on interim steps (e.g. pausing their bookings) - don't confront them yourself.",
       "If the person reported is staff, HR decides interim steps (e.g. schedule changes) to protect the person reporting.",
       "Share details strictly on a need-to-know basis; never discuss it with other members or staff.",
       "Check on the person who reported (with HR's guidance) and tell them who their contact is.",
@@ -406,7 +406,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       ["Threats or stalking", "Police (100 / 112); security measures; management immediately."],
     ],
     say: [
-      ["Receiving the report", "Thank you for telling me — I believe you, and I'm going to make sure this is handled properly. I need to share it with our Studio Director and HR so they can act, and it will be kept confidential."],
+      ["Receiving the report", "Thank you for telling me - I believe you, and I'm going to make sure this is handled properly. I need to share it with our Studio Director and HR so they can act, and it will be kept confidential."],
     ],
     dos: [
       "Record their words, not your interpretation.",
@@ -433,12 +433,12 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-038",
-    title: "Medical Emergency — Fainting, Dizziness or Chest Pain",
+    title: "Medical Emergency - Fainting, Dizziness or Chest Pain",
     category: "Safety and Security",
     summary:
       "Recognising and responding to fainting, dizziness, breathlessness or chest pain in class: stop, position, call 108 / 112 early, use the AED if needed, and hand over clearly to paramedics.",
     glance: {
-      priority: "P0 — always",
+      priority: "P0 - always",
       owner: "Trainer and senior staff on site → Studio Director",
       respond: "Immediately",
       resolve: "Ambulance called within 2 minutes when red-flag symptoms appear",
@@ -451,9 +451,9 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     steps: [
       "Stop the member exercising and help them sit or lie down on the floor; clear space around them.",
       "Feeling faint or dizzy: lie them down and raise their legs if there's no injury; loosen tight clothing; give small sips of water once they're fully alert.",
-      "Chest pain, breathlessness, pain spreading to the arm, jaw or back, sweating or confusion: call 108 / 112 immediately — don't wait to see if it passes.",
+      "Chest pain, breathlessness, pain spreading to the arm, jaw or back, sweating or confusion: call 108 / 112 immediately - don't wait to see if it passes.",
       "If they are unresponsive and not breathing normally: call 108 / 112, start CPR if trained, and use the AED as soon as it arrives (follow its voice prompts).",
-      "If they're conscious and have their own medication (e.g. an asthma inhaler), help them take it — don't give medication yourself.",
+      "If they're conscious and have their own medication (e.g. an asthma inhaler), help them take it - don't give medication yourself.",
       "Keep the class away and calm; another staff member manages the room.",
       "Note the time symptoms started and everything that was done.",
       "Brief the paramedics: what happened, symptoms, time, actions taken, any medication.",
@@ -462,17 +462,17 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       "Follow up with the member; require medical clearance before they return to class.",
     ],
     diagnose: [
-      ["Brief light-headedness after standing quickly, recovers fast", "Sit them down, hydrate, end their session; follow up — still log it."],
+      ["Brief light-headedness after standing quickly, recovers fast", "Sit them down, hydrate, end their session; follow up - still log it."],
       ["Fainted and came round", "Ambulance advised; keep them lying down; don't let them leave alone."],
       ["Chest pain or breathlessness", "108 / 112 now; keep them at rest, sitting upright if that's easier."],
       ["Low blood sugar signs (shaky, sweaty, known diabetic)", "Sugary drink or food if they can swallow; call 108 if no improvement in 10 minutes."],
     ],
     say: [
-      ["To the member", "You're OK, I'm right here. Let's get you lying down. Help is on the way — just breathe slowly with me."],
-      ["To the class", "Please give us some space and move to the back of the room — my colleague will look after you."],
+      ["To the member", "You're OK, I'm right here. Let's get you lying down. Help is on the way - just breathe slowly with me."],
+      ["To the class", "Please give us some space and move to the back of the room - my colleague will look after you."],
     ],
     dos: [
-      "Call early — red flags mean an ambulance, every time.",
+      "Call early - red flags mean an ambulance, every time.",
       "Know where the AED is and check it monthly.",
       "Write down times.",
     ],
@@ -501,15 +501,15 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     summary:
       "If someone clicked a suspicious link, shared a password or OTP, or member data may have leaked: contain it in the first hour (passwords, sessions, access), preserve evidence, and escalate for the breach decision.",
     glance: {
-      priority: "P0 — act within the hour",
+      priority: "P0 - act within the hour",
       owner: "IT → Studio Director (with leadership for breach decisions)",
       respond: "Immediately",
       resolve: "Contained within 1 hour; review within 24 hours",
     },
     firstFive: [
-      "Don't delete the suspicious email or message — it's evidence.",
+      "Don't delete the suspicious email or message - it's evidence.",
       "Change the affected password from a clean device and sign out all sessions.",
-      "Tell IT immediately — speed matters more than certainty.",
+      "Tell IT immediately - speed matters more than certainty.",
     ],
     steps: [
       "Record what happened: the message, the link clicked, what was entered (password, OTP, card details), the time and the device.",
@@ -531,7 +531,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       ["Fake 'CEO' asking for payments or gift cards", "Don't pay; verify by phone on a known number; report it."],
     ],
     say: [
-      ["Staff member who clicked", "Thank you for telling us straight away — that's exactly the right thing to do. Let's change your password from my laptop now and IT will check your device."],
+      ["Staff member who clicked", "Thank you for telling us straight away - that's exactly the right thing to do. Let's change your password from my laptop now and IT will check your device."],
     ],
     dos: [
       "Report immediately, even if unsure.",
@@ -539,7 +539,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
       "Verify payment requests by phone.",
     ],
     donts: [
-      "Don't blame the person who reported — it discourages reporting.",
+      "Don't blame the person who reported - it discourages reporting.",
       "Don't forward the phishing email with live links.",
       "Don't wipe the device before IT has looked at it.",
     ],

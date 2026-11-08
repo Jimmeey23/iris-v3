@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
-import { RANGES, runReport, type RangeId } from "@/lib/server/report-engine";
+import { RANGES, runReport, type RangeId, type ReportFilters } from "@/lib/server/report-engine";
 import { EXPORT_FORMATS, exportReport, slug, type ExportFormat } from "@/lib/server/report-export";
 import { REPORTS } from "@/lib/iris/reports";
 
@@ -28,8 +28,12 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/reports/
     return NextResponse.json({ error: "Unsupported format" }, { status: 400 });
   }
 
+  const sp = request.nextUrl.searchParams;
+  const list = (k: string) => (sp.get(k) ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const filters: ReportFilters = { studios: list("studio"), departments: list("department"), priorities: list("priority"), statuses: list("status") };
+
   try {
-    const result = await withUser(auth.session.user_id, (c) => runReport(c, code, range));
+    const result = await withUser(auth.session.user_id, (c) => runReport(c, code, range, filters));
     if (!formatParam) return NextResponse.json(result);
     if (!result.available) return NextResponse.json({ error: result.reason }, { status: 409 });
 

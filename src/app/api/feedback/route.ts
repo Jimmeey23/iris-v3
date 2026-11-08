@@ -8,7 +8,7 @@ import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-lim
 export const dynamic = "force-dynamic";
 
 const KINDS = { bug: "Something is broken", visual: "Looks wrong", performance: "Too slow", idea: "Idea / request", content: "Wrong wording or data", other: "Something else" } as const;
-const SEVERITIES = { blocker: "Blocker — can't work", high: "High — painful workaround", normal: "Normal", low: "Low — cosmetic" } as const;
+const SEVERITIES = { blocker: "Blocker - can't work", high: "High - painful workaround", normal: "Normal", low: "Low - cosmetic" } as const;
 const MAX_SCREENSHOT = 3 * 1024 * 1024;
 
 /** Where reports go. Overridable so staging doesn't mail the production developer. */
@@ -90,8 +90,8 @@ export async function POST(request: Request) {
         section(`${label("Details")}<p style="font-family:${FONT};font-size:14px;line-height:1.55;color:${BRAND.ink};margin:0;white-space:pre-wrap">${esc(description)}</p>`),
         section(`${label("Context")}<p style="font-family:${FONT};font-size:12px;line-height:1.6;color:${BRAND.ink};margin:0">
           From <b>${esc(row.reporter_name)}</b> (${esc(row.reporter_email)})<br>
-          Screen: ${esc(ctx.view ?? "—")} · ${esc(ctx.viewport ?? "")}<br>
-          Browser: ${esc((ctx.userAgent ?? "—").slice(0, 160))}<br>
+          Screen: ${esc(ctx.view ?? "-")} · ${esc(ctx.viewport ?? "")}<br>
+          Browser: ${esc((ctx.userAgent ?? "-").slice(0, 160))}<br>
           ${shot ? "Screenshot attached in IRIS (Settings → Feedback)." : "No screenshot."}</p>`),
       ].join(""),
       footer: "Filed from the Feedback button in IRIS.",
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
         to: DEVELOPER_EMAIL(),
         subject: `[IRIS ${row.ref}] ${severity === "blocker" ? "BLOCKER · " : ""}${title}`,
         html,
-        text: `${row.ref} — ${title}\n${KINDS[kind]} · ${SEVERITIES[severity]}\nFrom ${row.reporter_name} (${row.reporter_email})\nScreen: ${ctx.view ?? "—"}\n\n${description}`,
+        text: `${row.ref} - ${title}\n${KINDS[kind]} · ${SEVERITIES[severity]}\nFrom ${row.reporter_name} (${row.reporter_email})\nScreen: ${ctx.view ?? "-"}\n\n${description}`,
         replyTo: row.reporter_email ?? undefined,
         category: "product_feedback",
       });

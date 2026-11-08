@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { toast } from "sonner";
@@ -108,10 +109,10 @@ const fmtDateTime = (iso?: string | null) =>
         hour: "numeric",
         minute: "2-digit",
       })
-    : "—";
+    : "-";
 
 const fmtDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-";
 
 export function MomenceView() {
   const { setCurrentView, selectTicket, dataVersion } = useAppStore();
@@ -127,7 +128,7 @@ export function MomenceView() {
   const loadStatus = React.useCallback(async () => {
     setStatusLoading(true);
     try {
-      const r = await fetch("/api/momence/status", { cache: "no-store" });
+      const r = await fetch(absUrl("/api/momence/status"), { cache: "no-store" });
       if (r.ok) setStatus(await r.json());
     } catch {
       /* offline safe */
@@ -174,7 +175,7 @@ export function MomenceView() {
         pageSize: "25",
         ...(debouncedMemberQuery.trim() ? { q: debouncedMemberQuery.trim() } : {}),
       });
-      const r = await fetch(`/api/momence/members?${qs.toString()}`, { cache: "no-store" });
+      const r = await fetch(absUrl(`/api/momence/members?${qs.toString()}`), { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || `Failed to load members (${r.status})`);
       const rows = (j.members ?? []) as LiveMemberSummary[];
@@ -238,7 +239,7 @@ export function MomenceView() {
         limit: "80",
         ...(debouncedSessionQuery.trim() ? { q: debouncedSessionQuery.trim() } : {}),
       });
-      const r = await fetch(`/api/momence/sessions?${qs.toString()}`, { cache: "no-store" });
+      const r = await fetch(absUrl(`/api/momence/sessions?${qs.toString()}`), { cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || "Failed to load sessions");
       const list = (j.sessions ?? []) as LiveSessionSummary[];
@@ -1062,7 +1063,7 @@ function LiveTrainersSection({ region, configured }: { region: RegionFilter; con
       setErr(null);
       try {
         const qs = new URLSearchParams({ region, ...(q.trim() ? { q: q.trim() } : {}) });
-        const r = await fetch(`/api/momence/trainers?${qs.toString()}`, { cache: "no-store" });
+        const r = await fetch(absUrl(`/api/momence/trainers?${qs.toString()}`), { cache: "no-store" });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error || "Failed to load instructors");
         if (!cancelled) setTrainers(j.trainers ?? []);
@@ -1184,10 +1185,10 @@ function LiveLeadsSection({ region, configured }: { region: "mum" | "blr"; confi
               {(s.data?.leads ?? []).map((l: any) => (
                 <tr key={l.id} className="hover:bg-muted/20">
                   <td className="py-2 px-3 font-medium">{l.name || l.id}</td>
-                  <td className="py-2 px-3 text-muted-foreground">{[l.email, l.phone].filter(Boolean).join(" · ") || "—"}</td>
-                  <td className="py-2 px-3">{l.source || "—"}</td>
+                  <td className="py-2 px-3 text-muted-foreground">{[l.email, l.phone].filter(Boolean).join(" · ") || "-"}</td>
+                  <td className="py-2 px-3">{l.source || "-"}</td>
                   <td className="py-2 px-3">
-                    {l.stage ? <Badge variant="outline" className="text-[10px]">{l.stage}</Badge> : "—"}
+                    {l.stage ? <Badge variant="outline" className="text-[10px]">{l.stage}</Badge> : "-"}
                   </td>
                   <td className="py-2 px-3 text-[11px] text-muted-foreground">{fmtDateTime(l.createdAt)}</td>
                 </tr>
@@ -1220,7 +1221,7 @@ function LiveWebhooksAndHealthSection({
   const runCapabilityProbe = async () => {
     setProbing(true);
     try {
-      const r = await fetch("/api/momence/meta?what=capabilities", { cache: "no-store" });
+      const r = await fetch(absUrl("/api/momence/meta?what=capabilities"), { cache: "no-store" });
       const j = await r.json();
       if (j.data) {
         setCaps(j.data);
@@ -1353,7 +1354,7 @@ function LiveWebhooksAndHealthSection({
                     ) : ev.ticket_id ? (
                       <span className="font-mono">{ev.ticket_id}</span>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </td>
                 </tr>

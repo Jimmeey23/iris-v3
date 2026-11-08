@@ -1,4 +1,4 @@
-// IRIS — 100+ Reports Library
+// IRIS - 100+ Reports Library
 
 export interface ReportItem {
   code: string;
@@ -17,9 +17,9 @@ export const REPORTS: ReportItem[] = [
   { code: "RPT-002", name: "Open Tickets by Studio", description: "Currently open tickets grouped by studio", category: "Ticket Operations", type: "tabular", dataSource: "tickets", outputFormats: ["csv", "xlsx", "pdf"], visualizations: ["bar"] },
   { code: "RPT-003", name: "Tickets by Priority Distribution", description: "Distribution of tickets across priority levels", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["pie", "bar"] },
   { code: "RPT-004", name: "Tickets by Status Distribution", description: "Current status distribution of all tickets", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png"], visualizations: ["donut"] },
-  { code: "RPT-005", name: "Ticket Volume Trend — Daily", description: "Daily ticket creation trend over selected period", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line"] },
-  { code: "RPT-006", name: "Ticket Volume Trend — Weekly", description: "Weekly ticket creation trend", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line", "bar"] },
-  { code: "RPT-007", name: "Ticket Volume Trend — Monthly", description: "Monthly ticket creation trend", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line", "bar"] },
+  { code: "RPT-005", name: "Ticket Volume Trend - Daily", description: "Daily ticket creation trend over selected period", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line"] },
+  { code: "RPT-006", name: "Ticket Volume Trend - Weekly", description: "Weekly ticket creation trend", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line", "bar"] },
+  { code: "RPT-007", name: "Ticket Volume Trend - Monthly", description: "Monthly ticket creation trend", category: "Ticket Operations", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line", "bar"] },
   { code: "RPT-008", name: "Ticket Resolution Time Analysis", description: "Average resolution time by category and priority", category: "Ticket Operations", type: "matrix", dataSource: "tickets", outputFormats: ["xlsx", "pdf", "csv"], visualizations: ["heatmap"] },
   { code: "RPT-009", name: "First Response Time Analysis", description: "First response time metrics by priority", category: "Ticket Operations", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "csv", "pdf"], visualizations: ["bar"] },
   { code: "RPT-010", name: "Reopened Tickets Report", description: "Tickets that have been reopened", category: "Ticket Operations", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "csv", "pdf"] },
@@ -49,13 +49,13 @@ export const REPORTS: ReportItem[] = [
   { code: "RPT-032", name: "Resolution Time Distribution", description: "Distribution of resolution times", category: "SLA & Performance", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png"], visualizations: ["histogram"] },
   { code: "RPT-033", name: "SLA Breach Root Cause Analysis", description: "Common causes for SLA breaches", category: "SLA & Performance", type: "summary", dataSource: "tickets", outputFormats: ["pdf", "xlsx"] },
   { code: "RPT-034", name: "Business Hours vs After-Hours SLA", description: "SLA compliance comparison for business vs after hours", category: "SLA & Performance", type: "matrix", dataSource: "tickets", outputFormats: ["xlsx", "pdf"] },
-  { code: "RPT-035", name: "SLA Performance Trend — Monthly", description: "Monthly SLA compliance trend", category: "SLA & Performance", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line"] },
+  { code: "RPT-035", name: "SLA Performance Trend - Monthly", description: "Monthly SLA compliance trend", category: "SLA & Performance", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["line"] },
 
   // === Department & Employee (15) ===
   { code: "RPT-036", name: "Department Workload Distribution", description: "Ticket workload across departments", category: "Department & Employee", type: "chart", dataSource: "tickets", outputFormats: ["pdf", "png", "csv"], visualizations: ["bar", "pie"] },
   { code: "RPT-037", name: "Employee Workload Report", description: "Open tickets per employee", category: "Department & Employee", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "csv", "pdf"], visualizations: ["bar"] },
   { code: "RPT-038", name: "Employee Performance Summary", description: "Individual employee performance metrics", category: "Department & Employee", type: "summary", dataSource: "tickets", outputFormats: ["pdf", "xlsx"] },
-  { code: "RPT-039", name: "Top Performers — Resolution", description: "Employees with best resolution metrics", category: "Department & Employee", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "pdf"], visualizations: ["bar"] },
+  { code: "RPT-039", name: "Top Performers - Resolution", description: "Employees with best resolution metrics", category: "Department & Employee", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "pdf"], visualizations: ["bar"] },
   { code: "RPT-040", name: "Department Response Time", description: "Average response time by department", category: "Department & Employee", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "csv", "pdf"], visualizations: ["bar"] },
   { code: "RPT-041", name: "Department Resolution Time", description: "Average resolution time by department", category: "Department & Employee", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "csv", "pdf"], visualizations: ["bar"] },
   { code: "RPT-042", name: "Employee Availability Status", description: "Current availability of all employees", category: "Department & Employee", type: "tabular", dataSource: "employees", outputFormats: ["xlsx", "csv", "pdf"] },

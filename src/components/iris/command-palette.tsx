@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 /**
- * ⌘K Command Palette — global smart search.
+ * ⌘K Command Palette - global smart search.
  *
  * Opens with Cmd+K (Mac) or Ctrl+K (Windows/Linux). Lets users:
  *   - Search across tickets, trainers, knowledge articles, templates, members

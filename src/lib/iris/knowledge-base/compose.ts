@@ -1,4 +1,4 @@
-// IRIS Knowledge Base — article shape, authoring helper and body parser.
+// IRIS Knowledge Base - article shape, authoring helper and body parser.
 //
 // Everything an article says lives in the fields Neon stores (summary, steps,
 // body, prevention, escalation, tags, relatedTemplates), so articles stay
@@ -38,7 +38,7 @@ export interface ArticleSpec {
   category: string;
   summary: string;
   glance: {
-    /** e.g. "P1 — class can't run safely" */
+    /** e.g. "P1 - class can't run safely" */
     priority: string;
     owner: string;
     /** First response target, e.g. "Within 15 minutes during class hours" */
@@ -46,7 +46,7 @@ export interface ArticleSpec {
     /** Resolution target, e.g. "Same day; vendor visit within 24 h" */
     resolve: string;
   };
-  /** Immediate triage — what to do before anything else. */
+  /** Immediate triage - what to do before anything else. */
   firstFive: string[];
   /** The full procedure, in order (stored as the article's steps). */
   steps: string[];
@@ -83,10 +83,10 @@ export function composeArticleBody(spec: ArticleSpec): string {
   );
   parts.push(`## ${KB_SECTIONS.firstFive}\n${bullets(spec.firstFive)}`);
   if (spec.diagnose?.length) {
-    parts.push(`## ${KB_SECTIONS.diagnose}\n${bullets(spec.diagnose.map(([see, act]) => `**${see}** — ${act}`))}`);
+    parts.push(`## ${KB_SECTIONS.diagnose}\n${bullets(spec.diagnose.map(([see, act]) => `**${see}** - ${act}`))}`);
   }
   if (spec.say?.length) {
-    parts.push(`## ${KB_SECTIONS.say}\n${spec.say.map(([when, words]) => `> **${when}** — “${words}”`).join("\n\n")}`);
+    parts.push(`## ${KB_SECTIONS.say}\n${spec.say.map(([when, words]) => `> **${when}** - “${words}”`).join("\n\n")}`);
   }
   if (spec.dos?.length) parts.push(`## ${KB_SECTIONS.dos}\n${bullets(spec.dos)}`);
   if (spec.donts?.length) parts.push(`## ${KB_SECTIONS.donts}\n${bullets(spec.donts)}`);

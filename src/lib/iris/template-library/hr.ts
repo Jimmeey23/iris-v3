@@ -253,7 +253,7 @@ export const HR_TEMPLATES = defineTemplates("HR", [
   },
   {
     code: "TPL-254",
-    title: "Recruitment Request — New Hire or Replacement",
+    title: "Recruitment Request - New Hire or Replacement",
     sub: "Onboarding & Exits",
     dept: "HRV", prio: "P3", role: "HR Manager", hrs: 336,
     desc: "A studio needs to hire for a new or vacant role (trainer, front desk, housekeeping, manager).",

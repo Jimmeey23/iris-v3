@@ -5,9 +5,9 @@
  *
  * Predictable messages (greetings, help, ticket lookups by number, queue
  * counts, Momence member/class lookups, confirming a pending draft) are
- * answered here instantly with no AI tokens. Anything open-ended — reporting
+ * answered here instantly with no AI tokens. Anything open-ended - reporting
  * or investigating an issue, judgment calls, follow-ups the rules can't fully
- * answer — returns null and goes to Claude.
+ * answer - returns null and goes to Claude.
  */
 
 import { ALL_TICKETS, getAssignee } from "./sample-tickets";
@@ -61,7 +61,7 @@ export async function routeDeterministic(raw: string, ctx: Ctx): Promise<RuleRep
   // ── Greetings / thanks / acknowledgements ───────────────────────────────
   if (!hasIssue && /^(hi|hello|hey|hiya|good (morning|afternoon|evening)|namaste)( iris| there| team)?[.!? ]*$/i.test(text)) {
     return {
-      content: `Hi${first ? ` ${first}` : ""}! Tell me what happened — who, where and when — and I'll look it up and draft a ticket. You can also ask things like "P57-02079", "my open tickets" or "find member Priya Shah".`,
+      content: `Hi${first ? ` ${first}` : ""}! Tell me what happened - who, where and when - and I'll look it up and draft a ticket. You can also ask things like "P57-02079", "my open tickets" or "find member Priya Shah".`,
       rule: "Greeting",
     };
   }
@@ -74,10 +74,10 @@ export async function routeDeterministic(raw: string, ctx: Ctx): Promise<RuleRep
     return {
       content: [
         "Here's what I can do:",
-        "• **Report an issue** — describe it in your own words; I check Momence and past tickets, then draft a ticket for you to confirm.",
-        "• **Look up a ticket** — type its number, e.g. P57-02079.",
-        "• **Your queue** — \"my open tickets\", \"open tickets at Kwality House\", \"how many P0 tickets\".",
-        "• **Momence** — \"find member <name/email/phone>\", \"classes today at Supreme HQ\".",
+        "• **Report an issue** - describe it in your own words; I check Momence and past tickets, then draft a ticket for you to confirm.",
+        "• **Look up a ticket** - type its number, e.g. P57-02079.",
+        "• **Your queue** - \"my open tickets\", \"open tickets at Kwality House\", \"how many P0 tickets\".",
+        "• **Momence** - \"find member <name/email/phone>\", \"classes today at Supreme HQ\".",
         "",
         "Instant answers (⚡) cost nothing; I only use AI (✨) when a message needs judgment.",
       ].join("\n"),
@@ -90,11 +90,11 @@ export async function routeDeterministic(raw: string, ctx: Ctx): Promise<RuleRep
   if (ids.length && !hasIssue && t.split(" ").length <= 8) {
     const lines = ids.slice(0, 5).map((id) => {
       const tk = ALL_TICKETS.find((x) => x.ticketId.toUpperCase() === id);
-      if (!tk) return `**${id}** — not found (or you don't have access).`;
+      if (!tk) return `**${id}** - not found (or you don't have access).`;
       const who = getAssignee(tk)?.name ?? "Unassigned";
       const status = STATUS_CONFIG[tk.status]?.label ?? tk.status;
       const res = tk.resolutionSummary ? `\n  Resolution: ${tk.resolutionSummary.slice(0, 220)}${tk.resolutionSummary.length > 220 ? "…" : ""}` : "";
-      return `**${tk.ticketId}** — ${tk.title}\n  ${status} · ${tk.priority} · ${who} · opened ${fmtDate(tk.createdAt)}${tk.legacy ? " · imported" : ""}${res}`;
+      return `**${tk.ticketId}** - ${tk.title}\n  ${status} · ${tk.priority} · ${who} · opened ${fmtDate(tk.createdAt)}${tk.legacy ? " · imported" : ""}${res}`;
     });
     return { content: lines.join("\n\n"), rule: "Ticket lookup" };
   }
@@ -126,9 +126,9 @@ export async function routeDeterministic(raw: string, ctx: Ctx): Promise<RuleRep
     list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const label = `${wantAll ? "" : "open "}tickets${parts.length ? ` ${parts.join(", ")}` : ""}`;
     if (!list.length) return { content: `No ${label}.`, rule: "Ticket queue" };
-    const top = list.slice(0, 8).map((x) => `• **${x.ticketId}** ${x.priority} — ${x.title} (${STATUS_CONFIG[x.status]?.label ?? x.status})`);
+    const top = list.slice(0, 8).map((x) => `• **${x.ticketId}** ${x.priority} - ${x.title} (${STATUS_CONFIG[x.status]?.label ?? x.status})`);
     return {
-      content: `${list.length} ${label}${list.length > 8 ? " — newest 8:" : ":"}\n${top.join("\n")}`,
+      content: `${list.length} ${label}${list.length > 8 ? " - newest 8:" : ":"}\n${top.join("\n")}`,
       rule: "Ticket queue",
     };
   }
@@ -144,7 +144,7 @@ export async function routeDeterministic(raw: string, ctx: Ctx): Promise<RuleRep
       if (!members.length) return { content: `No Momence members match "${q}". Try an email or phone number.`, rule: "Momence lookup" };
       const rows = members.slice(0, 6).map(
         (m) =>
-          `• **${m.name}** (${m.region === "blr" ? "Bengaluru" : "Mumbai"}) — ${m.totalVisits} visits${m.lastSeen ? `, last ${fmtDate(m.lastSeen)}` : ""}${m.email ? ` · ${m.email}` : ""}${m.phone ? ` · ${m.phone}` : ""}`,
+          `• **${m.name}** (${m.region === "blr" ? "Bengaluru" : "Mumbai"}) - ${m.totalVisits} visits${m.lastSeen ? `, last ${fmtDate(m.lastSeen)}` : ""}${m.email ? ` · ${m.email}` : ""}${m.phone ? ` · ${m.phone}` : ""}`,
       );
       return {
         content: `${members.length} match${members.length === 1 ? "" : "es"} in Momence${members.length > 6 ? " (top 6)" : ""}:\n${rows.join("\n")}\n\nTell me what happened with them and I'll take it from there.`,
@@ -173,7 +173,7 @@ export async function routeDeterministic(raw: string, ctx: Ctx): Promise<RuleRep
       if (!sessions.length) return { content: `No classes ${when}${studio ? ` at ${studio.name}` : ""}.`, rule: "Class schedule" };
       const rows = sessions.slice(0, 15).map(
         (s) =>
-          `• ${new Date(s.startsAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })} **${s.name}**${s.teacher ? ` — ${s.teacher}` : ""}${studio ? "" : s.location ? ` · ${s.location}` : ""} · ${s.booked}${s.capacity ? `/${s.capacity}` : ""}${s.cancelled ? " · cancelled" : ""}`,
+          `• ${new Date(s.startsAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })} **${s.name}**${s.teacher ? ` - ${s.teacher}` : ""}${studio ? "" : s.location ? ` · ${s.location}` : ""} · ${s.booked}${s.capacity ? `/${s.capacity}` : ""}${s.cancelled ? " · cancelled" : ""}`,
       );
       return {
         content: `${sessions.length} class${sessions.length === 1 ? "" : "es"} ${when}${studio ? ` at ${studio.name}` : ""}${sessions.length > 15 ? " (first 15)" : ""}:\n${rows.join("\n")}`,

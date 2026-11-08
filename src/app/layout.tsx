@@ -76,8 +76,16 @@ export default function RootLayout({
             })();`,
           }}
         />
+        <script
+          // Some browser extensions wrap window.fetch and call `new URL(input)`
+          // without a base, which throws "Failed to construct 'URL': Invalid URL"
+          // on relative paths like "/api/momence/status". Absolutize first.
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var f=window.fetch;if(!f||f.__irisAbs)return;var w=function(i,o){if(typeof i==="string"&&i.charAt(0)==="/"&&i.charAt(1)!=="/"){i=location.origin+i;}return f.call(this,i,o);};w.__irisAbs=true;window.fetch=w;}catch(e){}})();`,
+          }}
+        />
       </head>
-      <body className="font-sans">
+      <body className="font-sans" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

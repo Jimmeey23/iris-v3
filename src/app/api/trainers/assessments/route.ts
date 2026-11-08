@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
  * Trainers page still works from ticket data alone.
  */
 export async function GET() {
-  const auth = await requireSession();
+  // The Trainers module is admin-only.
+  const auth = await requireSession({ admin: true });
   if ("error" in auth) return auth.error;
   try {
     const rows = await withUser(auth.session.user_id, async (c) =>

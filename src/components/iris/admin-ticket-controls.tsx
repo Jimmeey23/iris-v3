@@ -224,13 +224,13 @@ function EditDialog({ ticket, onClose, onSave }: { ticket: Ticket; onClose: () =
             </label>
             <label className="grid gap-1">Subcategory
               <select className={sel} value={f.subcategory} onChange={(e) => setF({ ...f, subcategory: e.target.value })}>
-                <option value="">—</option>
+                <option value="">-</option>
                 {subs.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
             <label className="grid gap-1">Studio
               <select className={sel} value={f.studioCode} onChange={(e) => setF({ ...f, studioCode: e.target.value })}>
-                <option value="">—</option>
+                <option value="">-</option>
                 {STUDIOS.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
               </select>
             </label>

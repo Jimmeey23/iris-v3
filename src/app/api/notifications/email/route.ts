@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 const SAMPLE_TICKET: EmailTicketContext = {
   id: "tkt_sample_preview",
   ticketId: "P57-00142",
-  title: "Air Conditioning Malfunction — Main Barre Studio, Kwality House",
+  title: "Air Conditioning Malfunction - Main Barre Studio, Kwality House",
   description:
     "The main workout floor AC unit is blinking a fault indicator and blowing warm air ahead of the 6:00 PM Signature Barre session. Two members reported discomfort during the previous class.",
   priority: "P1",

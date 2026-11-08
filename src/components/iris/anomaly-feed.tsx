@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 /**
- * Anomaly Detection feed — shows operational anomalies detected across
+ * Anomaly Detection feed - shows operational anomalies detected across
  * the ticket history (spikes, new patterns, drops in resolution rate).
  *
  * Compact widget for the Overview page; expands into a dedicated panel

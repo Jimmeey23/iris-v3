@@ -419,7 +419,7 @@ export function AnalyticsView() {
         </Card>
       </div>
 
-      {/* === FEATURE: Workload Heatmap — team capacity visualization === */}
+      {/* === FEATURE: Workload Heatmap - team capacity visualization === */}
       <WorkloadHeatmap />
 
       {/* AI Insights */}
@@ -547,10 +547,10 @@ export function AnalyticsView() {
                 { label: "Accuracy", value: "91%", trend: "+4%" },
               ]}
               items={[
-                "Predicted 3 HVAC failures next week — preventive action recommended",
+                "Predicted 3 HVAC failures next week - preventive action recommended",
                 "Q4 ticket volume forecast: +15% (seasonal pattern)",
                 "Bengaluru studio likely to need additional front desk support",
-                "Payment issue resolution time trending down — automation working",
+                "Payment issue resolution time trending down - automation working",
               ]}
             />
 
@@ -577,7 +577,7 @@ export function AnalyticsView() {
               icon={AlertTriangle}
               color="rose"
               metrics={[
-                { label: "Anomalies flagged", value: "3", trend: "—" },
+                { label: "Anomalies flagged", value: "3", trend: "-" },
                 { label: "False positive rate", value: "4%", trend: "-1%" },
               ]}
               items={[
@@ -597,7 +597,7 @@ export function AnalyticsView() {
                 { label: "Negative sentiment", value: "12%", trend: "-3%" },
               ]}
               items={[
-                "Client frustration detected in 4 tickets — priority follow-up recommended",
+                "Client frustration detected in 4 tickets - priority follow-up recommended",
                 "Positive feedback trend on resolution speed (+18%)",
                 "Complaint language severity decreasing month-over-month",
               ]}
@@ -637,8 +637,8 @@ export function AnalyticsView() {
               { time: "8m ago", agent: "Pattern Detection", decision: "Flagged anomalous P0 spike at Supreme HQ", confidence: 87, status: "alert" },
               { time: "15m ago", agent: "SLA Agent", decision: "Auto-escalated IRIS-2026-0138 to Operations Manager (breach risk)", confidence: 100, status: "applied" },
               { time: "23m ago", agent: "Quality Agent", decision: "Verified Momence credit adjustment for MM-88214", confidence: 98, status: "verified" },
-              { time: "1h ago", agent: "Predictive", decision: "Forecasted 3 HVAC failures next week — preventive ticket suggested", confidence: 84, status: "suggested" },
-              { time: "2h ago", agent: "Sentiment", decision: "Detected negative sentiment in client complaint — priority flagged", confidence: 79, status: "flagged" },
+              { time: "1h ago", agent: "Predictive", decision: "Forecasted 3 HVAC failures next week - preventive ticket suggested", confidence: 84, status: "suggested" },
+              { time: "2h ago", agent: "Sentiment", decision: "Detected negative sentiment in client complaint - priority flagged", confidence: 79, status: "flagged" },
               { time: "3h ago", agent: "Classification", decision: "Reclassified IRIS-2026-0135 from IT to Membership (higher confidence)", confidence: 92, status: "applied" },
             ].map((log, i) => (
               <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border border-border hover:bg-muted/30 transition-colors">
@@ -816,7 +816,7 @@ function AdvancedAICard({
             <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{m.label}</div>
             <div className="flex items-center gap-1.5">
               <span className="text-[14px] font-bold tabular-nums">{m.value}</span>
-              {m.trend !== "—" && (
+              {m.trend !== "-" && (
                 <span className={cn("text-[9px] font-semibold", m.trend.startsWith("-") ? "text-rose-500" : "text-emerald-500")}>
                   {m.trend}
                 </span>

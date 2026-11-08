@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       const unread = (await c.query("select count(*)::int as n from notifications where user_id = $1 and not is_read", [auth.session.user_id])).rows[0].n;
       return { notifications: rows, unreadCount: unread as number };
     });
-    // The bell is polled by every open tab — the second hook for the request-driven sweeps.
+    // The bell is polled by every open tab - the second hook for the request-driven sweeps.
     sweepAfterResponse();
     return NextResponse.json(out);
   } catch (err) {

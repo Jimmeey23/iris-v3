@@ -78,7 +78,7 @@ function FeedbackDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
           },
         },
       });
-      toast.success(`Sent as ${r.ref}. Thank you — the developer has it.`);
+      toast.success(`Sent as ${r.ref}. Thank you - the developer has it.`);
       reset();
       onOpenChange(false);
     } catch (e) {

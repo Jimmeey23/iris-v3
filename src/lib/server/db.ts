@@ -75,7 +75,7 @@ export function withUser<T>(userId: string, fn: (c: PoolClient) => Promise<T>) {
 
 /**
  * Run the SECURITY DEFINER auth functions (login, validate_session, ...).
- * Only for those functions — never for reading user data.
+ * Only for those functions - never for reading user data.
  */
 export function asSystem<T>(fn: (c: PoolClient) => Promise<T>) {
   return inTransaction(fn, "set local search_path = iris, public;");

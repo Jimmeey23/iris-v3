@@ -56,7 +56,7 @@ export function TrainersView() {
   const [error, setError] = React.useState("");
   const seen = React.useRef<Set<string> | null>(null);
 
-  // Scored assessments (Fillout + imported). Managers/admins only — the API returns [] otherwise.
+  // Scored assessments (Fillout + imported). Managers/admins only - the API returns [] otherwise.
   const [assessments, setAssessments] = React.useState<AssessmentWithTrainer[]>([]);
   const loadAssessments = React.useCallback(async () => {
     try {

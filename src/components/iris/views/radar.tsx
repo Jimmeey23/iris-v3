@@ -30,7 +30,7 @@ export function RadarView() {
   const [period, setPeriod] = React.useState<PeriodId>("open");
   const [room, setRoom] = React.useState<string | null>(null);
 
-  // Tickets per studio for the period — computed once per data change, not per hover.
+  // Tickets per studio for the period - computed once per data change, not per hover.
   const byStudio = React.useMemo(() => {
     void dataVersion;
     const since = period === "open" ? null : Date.now() - Number(period) * 86400_000;
@@ -70,7 +70,7 @@ export function RadarView() {
             <RadarIcon className="w-3 h-3 text-primary" /> Studio radar · live from tickets
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Radar</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Where in each studio the work is — by room, from what the tickets say.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Where in each studio the work is - by room, from what the tickets say.</p>
         </div>
         <div className="flex items-center bg-muted/60 rounded-lg p-0.5" role="tablist" aria-label="Period">
           {PERIODS.map((p) => (
@@ -105,7 +105,7 @@ export function RadarView() {
             {(Object.keys(STATE) as RoomState[]).map((s) => (
               <span key={s} className="inline-flex items-center gap-1.5"><span className={cn("w-2 h-2 rounded-full", STATE[s].dot)} />{STATE[s].label}</span>
             ))}
-            <span className="ml-auto">{placed} of {studioTotal} ticket{studioTotal === 1 ? "" : "s"} placed in a room</span>
+            <span className="ml-auto">{placed} of {studioTotal} ticket{studioTotal === 1 ? "" : "s"} placed in a room{studioTotal > placed ? `, ${studioTotal - placed} studio-wide` : ""}</span>
           </div>
         </div>
 
@@ -186,6 +186,26 @@ const FloorPlan = React.memo(function FloorPlan({ plan, rooms, selected, onSelec
           </button>
         );
       })}
+      {(() => {
+        // Tickets that don't name a room still belong on the map: show them as a studio-wide marker.
+        const list = rooms.get(STUDIO_WIDE) ?? [];
+        if (!list.length) return null;
+        const st = roomState(list);
+        const open = list.filter((t) => t.status !== "resolved" && t.status !== "closed").length;
+        const isSel = selected === STUDIO_WIDE;
+        return (
+          <button onClick={() => onSelect(STUDIO_WIDE)} aria-pressed={isSel} aria-label={`${STUDIO_WIDE}: ${list.length} tickets, ${STATE[st].label}`}
+            title="Tickets that don't mention a specific room"
+            className={cn("absolute left-2 top-2 z-10 flex items-center gap-1.5 pl-2 pr-1 h-8 rounded-full border-2 bg-background/90 backdrop-blur shadow-sm text-[11px] font-semibold",
+              STATE[st].box, isSel && "ring-4 ring-primary/40 border-primary", st === "breached" && "radar-pulse")}>
+            <MapPin className="w-3.5 h-3.5" />
+            Studio-wide
+            <span className={cn("min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold tabular-nums text-white flex items-center justify-center", STATE[st].dot)}>
+              {open || list.length}
+            </span>
+          </button>
+        );
+      })()}
       <style>{`
         @keyframes radar-pulse-kf { 0%,100% { box-shadow: 0 0 0 0 rgba(244,63,94,.45); } 50% { box-shadow: 0 0 0 8px rgba(244,63,94,0); } }
         .radar-pulse { animation: radar-pulse-kf 2.2s ease-in-out infinite; }

@@ -1,22 +1,22 @@
-// Knowledge Base — class experience, trainer feedback, member service and scheduling.
+// Knowledge Base - class experience, trainer feedback, member service and scheduling.
 import { article, type KnowledgeArticle } from "./compose";
 
 export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
   article({
     id: "KB-001",
-    title: "Hosted Class Feedback — Handling Member Proposals",
+    title: "Hosted Class Feedback - Handling Member Proposals",
     category: "Class Experience",
     summary:
       "How to handle feedback on hosted / private class proposals (corporate groups, birthdays, bridal and community sessions): acknowledge fast, fix the proposal, and get the booking back on track within 3 business days.",
     glance: {
-      priority: "P2 — revenue at risk, not service-critical",
+      priority: "P2 - revenue at risk, not service-critical",
       owner: "Sales & Client Servicing (with Marketing for the proposal deck)",
       respond: "Within 2 hours of the feedback",
       resolve: "Revised proposal within 3 business days",
     },
     firstFive: [
       "Thank the member for the feedback and confirm who the decision-maker is (the member, an HR contact, a planner).",
-      "Open the proposal that was sent and note exactly what they objected to — price, format, timing, missing details or tone.",
+      "Open the proposal that was sent and note exactly what they objected to - price, format, timing, missing details or tone.",
       "Check whether the requested date and studio are still free before promising anything.",
     ],
     steps: [
@@ -35,10 +35,10 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["Price objection", "Offer a smaller group format, an off-peak slot, or remove extras before discounting; discounts above 10% need Studio Director approval."],
       ["Proposal missing details or case studies", "Ask Marketing for the current hosted-class deck and add two relevant case studies (similar group size or industry)."],
       ["Date or studio unavailable", "Offer the two nearest alternatives at once instead of asking them to pick again."],
-      ["Member embarrassed in front of their guests or HR", "Escalate to the Studio Director the same day — this is a reputation issue, not just a sale."],
+      ["Member embarrassed in front of their guests or HR", "Escalate to the Studio Director the same day - this is a reputation issue, not just a sale."],
     ],
     say: [
-      ["Acknowledging", "Thank you for being so candid — you're right that the proposal didn't cover what you needed. I'll send a revised version by Thursday, and I'd love 15 minutes with you before then to get the details exactly right."],
+      ["Acknowledging", "Thank you for being so candid - you're right that the proposal didn't cover what you needed. I'll send a revised version by Thursday, and I'd love 15 minutes with you before then to get the details exactly right."],
       ["Re-sending", "Here's the revised proposal. Based on your feedback we've changed the format to a 45-minute session for 18 guests and included mats, towels and refreshments in one price."],
     ],
     dos: [
@@ -49,7 +49,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     donts: [
       "Don't send a template proposal without the group's name, date and numbers on it.",
       "Don't offer discounts above 10% without approval.",
-      "Don't let feedback sit unanswered overnight — hosted bookings go to competitors fast.",
+      "Don't let feedback sit unanswered overnight - hosted bookings go to competitors fast.",
     ],
     closeOut: [
       "Revised proposal sent and logged in the hosted-class tracker.",
@@ -66,19 +66,19 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-002",
-    title: "Instructor Late for Class — Logging & Response",
+    title: "Instructor Late for Class - Logging & Response",
     category: "Trainer Feedback",
     summary:
       "What to do the moment a trainer is running late: keep members informed, start the class on time where possible, log it accurately, and route repeat lateness to the Training Manager.",
     glance: {
-      priority: "P2 (P0 if the trainer doesn't arrive within 15 minutes — treat as a no-show)",
+      priority: "P2 (P0 if the trainer doesn't arrive within 15 minutes - treat as a no-show)",
       owner: "Front Desk Lead on shift → Training Manager",
-      respond: "Immediately — before the scheduled start time",
+      respond: "Immediately - before the scheduled start time",
       resolve: "Incident logged the same shift; pattern review monthly",
     },
     firstFive: [
       "Call the trainer (not just WhatsApp) to get a realistic arrival time.",
-      "If they'll be more than 5 minutes late, tell the members in the studio now — don't let them wait in silence.",
+      "If they'll be more than 5 minutes late, tell the members in the studio now - don't let them wait in silence.",
       "Line up a cover option (a trainer on site or a standby) in case the delay grows past 10 minutes.",
     ],
     steps: [
@@ -96,12 +96,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     diagnose: [
       ["Trainer stuck in traffic, ETA under 10 min", "Inform members, start the warm-up with an on-site trainer if possible, log the delay."],
       ["ETA over 10 min or unknown", "Offer reschedule / credit, start cover arrangements, prepare to cancel at +15 min."],
-      ["Trainer not answering calls", "Call the standby list immediately and inform the Training Manager — assume a no-show."],
+      ["Trainer not answering calls", "Call the standby list immediately and inform the Training Manager - assume a no-show."],
       ["Class started late and ran over", "Apologise to members whose next commitments were affected; log it so scheduling buffers can be reviewed."],
     ],
     say: [
-      ["Members waiting", "Thanks for your patience — your trainer is running about 8 minutes late. We'll start by 7:10 and still give you the full class. If that doesn't work for you, I can move you to the 8 am or credit the class back."],
-      ["Trainer on arrival (privately)", "Glad you're here safely. Please start as soon as you can — I've let the class know. Let's have a quick word after class about what happened."],
+      ["Members waiting", "Thanks for your patience - your trainer is running about 8 minutes late. We'll start by 7:10 and still give you the full class. If that doesn't work for you, I can move you to the 8 am or credit the class back."],
+      ["Trainer on arrival (privately)", "Glad you're here safely. Please start as soon as you can - I've let the class know. Let's have a quick word after class about what happened."],
     ],
     dos: [
       "Communicate early and give a specific new start time.",
@@ -133,20 +133,20 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     summary:
       "When trainer lateness or a no-show forces a class to be cancelled: notify everyone, restore credits, recover the members' goodwill, and complete the incident and performance follow-up.",
     glance: {
-      priority: "P0 — booked members are affected right now",
+      priority: "P0 - booked members are affected right now",
       owner: "Front Desk Lead on shift → Studio Operations Manager → Training Manager",
       respond: "Immediately",
       resolve: "Members notified within 15 minutes; root-cause review within 24 hours",
     },
     firstFive: [
-      "Try the standby list one last time — a substitute beats a cancellation.",
+      "Try the standby list one last time - a substitute beats a cancellation.",
       "If no cover is possible, cancel the class in Momence so credits are returned automatically.",
       "Speak to members in the studio personally before sending the broadcast.",
     ],
     steps: [
       "Confirm with the trainer (or after 15 minutes of no contact) that they cannot take the class.",
       "Call substitutes in order of seniority for that format; if one can arrive within 10 minutes, keep the class and inform members of the new start time.",
-      "If no substitute is possible, cancel the class in Momence — this returns credits to package members automatically.",
+      "If no substitute is possible, cancel the class in Momence - this returns credits to package members automatically.",
       "Apologise in person to members already at the studio and offer them a place in the next suitable class today.",
       "Notify all booked members (including waitlist) by WhatsApp and email within 15 minutes of cancelling.",
       "Add a complimentary class credit for affected members as service recovery (Unlimited members: a guest pass or a complimentary add-on).",
@@ -159,12 +159,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     diagnose: [
       ["Substitute available within 10 minutes", "Keep the class, update the trainer in Momence and tell members about the change."],
       ["No substitute, members already in studio", "Cancel, apologise in person, rebook them into the next class and add the recovery credit."],
-      ["Credits didn't return after cancelling", "Restore manually in Momence and note it on the ticket — check whether the class was deleted instead of cancelled."],
+      ["Credits didn't return after cancelling", "Restore manually in Momence and note it on the ticket - check whether the class was deleted instead of cancelled."],
       ["Trainer gave no notice at all", "Treat as a no-show incident; Training Manager must be informed the same day."],
     ],
     say: [
-      ["In person", "I'm really sorry — your trainer can't make it and we couldn't find cover in time, so we've had to cancel this class. Your credit is already back in your account, and I've added a complimentary class for the inconvenience. Can I book you into the 6 pm?"],
-      ["Broadcast", "We're sorry — today's 7 am Barre 57 at Kwality House has been cancelled because the trainer is unavailable. Your class credit has been returned and we've added a complimentary class to your account. Reply here if you'd like help rebooking."],
+      ["In person", "I'm really sorry - your trainer can't make it and we couldn't find cover in time, so we've had to cancel this class. Your credit is already back in your account, and I've added a complimentary class for the inconvenience. Can I book you into the 6 pm?"],
+      ["Broadcast", "We're sorry - today's 7 am Barre 57 at Kwality House has been cancelled because the trainer is unavailable. Your class credit has been returned and we've added a complimentary class to your account. Reply here if you'd like help rebooking."],
     ],
     dos: [
       "Cancel (don't delete) the class so Momence returns credits.",
@@ -195,15 +195,15 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     title: "Member Arrived Late & Denied Entry",
     category: "Class Experience",
     summary:
-      "Applying the Late Entry Policy kindly and consistently: 10-minute grace for regular classes, no entry once express classes start, 5 minutes for PowerCycle (experienced riders only) — and how to recover the member's day.",
+      "Applying the Late Entry Policy kindly and consistently: 10-minute grace for regular classes, no entry once express classes start, 5 minutes for PowerCycle (experienced riders only) - and how to recover the member's day.",
     glance: {
-      priority: "P2 — complaint risk",
+      priority: "P2 - complaint risk",
       owner: "Front Desk on shift → Front Desk Lead for disputes",
       respond: "In the moment, at the desk",
       resolve: "Same day (rebooking or credit decision)",
     },
     firstFive: [
-      "Greet the member warmly — the goal is to keep them coming back, not to win the argument.",
+      "Greet the member warmly - the goal is to keep them coming back, not to win the argument.",
       "Check the class start time and the exact arrival time.",
       "Look for a same-day alternative class before explaining the policy.",
     ],
@@ -219,16 +219,16 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     ],
     diagnose: [
       ["Within the grace window", "Let them in quietly through the back of the room and inform the trainer."],
-      ["Express class already started", "No entry — offer the next class or another format today."],
-      ["Late because of a studio issue (valet, check-in queue, lift)", "Let them in if safe, or rebook with the credit restored — it's our delay, not theirs."],
+      ["Express class already started", "No entry - offer the next class or another format today."],
+      ["Late because of a studio issue (valet, check-in queue, lift)", "Let them in if safe, or rebook with the credit restored - it's our delay, not theirs."],
       ["Repeat late arrivals", "Mention the policy kindly and suggest arriving 10 minutes early; note the pattern on their profile."],
     ],
     say: [
-      ["Explaining", "I'm so sorry — the class started 12 minutes ago and for safety we can't bring anyone in without the warm-up. Let me get you into the 7:30 at Supreme HQ instead — I've got a spot right here."],
-      ["When they push back", "I completely understand how frustrating that is. I'll ask our Front Desk Lead to call you today to look at this properly — is this number best?"],
+      ["Explaining", "I'm so sorry - the class started 12 minutes ago and for safety we can't bring anyone in without the warm-up. Let me get you into the 7:30 at Supreme HQ instead - I've got a spot right here."],
+      ["When they push back", "I completely understand how frustrating that is. I'll ask our Front Desk Lead to call you today to look at this properly - is this number best?"],
     ],
     dos: [
-      "Apply the same rule for everyone — consistency avoids disputes.",
+      "Apply the same rule for everyone - consistency avoids disputes.",
       "Offer an alternative before you explain the policy.",
       "Record genuine exceptions and the reason.",
     ],
@@ -257,20 +257,20 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     summary:
       "Moving a member to a different class time, format or trainer: check capacity and the 12-hour window, rebook without losing their credit, and record preferences so the next booking is easier.",
     glance: {
-      priority: "P2 — routine request",
+      priority: "P2 - routine request",
       owner: "Front Desk / Client Servicing",
       respond: "Within 30 minutes (same day for next-day classes)",
       resolve: "At first contact where capacity allows",
     },
     firstFive: [
       "Find the member and the booking in Momence (name or phone).",
-      "Check how far away the original class is — the 12-hour cancellation window decides whether a fee applies.",
+      "Check how far away the original class is - the 12-hour cancellation window decides whether a fee applies.",
       "Check the requested class's capacity and waitlist.",
     ],
     steps: [
       "Look up the member's current booking in Momence and confirm which class they want to move from and to.",
       "Check the requested class has space; if it's full, add them to the waitlist and keep the original booking until a spot is confirmed.",
-      "If the original class is more than 12 hours away, cancel it and book the new class — no fee applies.",
+      "If the original class is more than 12 hours away, cancel it and book the new class - no fee applies.",
       "If it's within 12 hours, explain that it counts as a late cancellation; apply a one-off courtesy waiver only if they have no late cancels in the last 30 days.",
       "For trainer preference requests, show the member that trainer's upcoming classes and book the one that fits.",
       "If they want a specific trainer or time regularly, note the preference in their Momence profile and suggest a recurring booking.",
@@ -285,7 +285,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["Recurring booking keeps re-adding the old slot", "Cancel the recurring series, not just the single class, then create the new series."],
     ],
     say: [
-      ["Moving within the window", "Done — I've moved you from the 7 am to the 6 pm with Reshma. Your credit came across, and you'll get a confirmation on WhatsApp in a minute."],
+      ["Moving within the window", "Done - I've moved you from the 7 am to the 6 pm with Reshma. Your credit came across, and you'll get a confirmation on WhatsApp in a minute."],
       ["Inside 12 hours", "Because the class is in 4 hours this would normally count as a late cancellation. You haven't had one recently, so I've waived it this once."],
     ],
     dos: [
@@ -313,12 +313,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-011",
-    title: "Late Cancellation Policy Dispute — Member Pushback",
+    title: "Late Cancellation Policy Dispute - Member Pushback",
     category: "Customer Service and Communication",
     summary:
       "Resolving disputes about late-cancellation fees and booking blocks: verify the facts in Momence first, correct genuine errors immediately, and explain correct charges calmly with a fair goodwill option.",
     glance: {
-      priority: "P2 — complaint; P1 if the member threatens to cancel or post publicly",
+      priority: "P2 - complaint; P1 if the member threatens to cancel or post publicly",
       owner: "Front Desk Lead → Memberships Manager",
       respond: "Within 4 hours",
       resolve: "Within 24 hours",
@@ -333,7 +333,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "Verify the rule: 3 late cancellations within any 7 consecutive days triggers a 7-day booking block; Unlimited members may late-cancel 2 times per calendar week before the block.",
       "Check each cancellation was genuinely within 12 hours of the class start (time zone, app delays and class time changes can cause false positives).",
       "If any charge or block was applied in error, remove it immediately, refund any fee and apologise.",
-      "If it was applied correctly, explain the policy with the specific dates and times — facts, not policy quotes.",
+      "If it was applied correctly, explain the policy with the specific dates and times - facts, not policy quotes.",
       "Offer one fair goodwill option where appropriate (e.g. lift the block early if they have no history, or convert a fee into a credit deduction).",
       "For force majeure (bandh, extreme weather, studio-side issues), waive the charge and credit the class back.",
       "If the member threatens to cancel, hand over to the Memberships Manager for a retention conversation.",
@@ -341,14 +341,14 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "If the member has disputed 3 or more times, flag the account for management review.",
     ],
     diagnose: [
-      ["Cancellation was outside 12 hours", "Charge/block applied in error — reverse it now and apologise."],
-      ["Class time was changed by the studio", "Not the member's fault — waive and credit back."],
+      ["Cancellation was outside 12 hours", "Charge/block applied in error - reverse it now and apologise."],
+      ["Class time was changed by the studio", "Not the member's fault - waive and credit back."],
       ["Genuine late cancels, first offence", "Explain with dates; consider lifting the block a few days early as goodwill."],
       ["Repeat disputer", "Hold the line politely, document thoroughly, flag for review."],
     ],
     say: [
-      ["Charge was correct", "I've looked at this carefully: the cancellations were at 9:40 pm for a 7 am class, 6:15 am for 7 am, and 2 pm for 6 pm — all within the 12-hour window, which is what triggered the block. Since this is the first time, I've lifted it from tomorrow."],
-      ["Charge was wrong", "You're right, and I'm sorry — the second cancellation was more than 12 hours ahead, so the block shouldn't have applied. I've removed it and refunded the fee."],
+      ["Charge was correct", "I've looked at this carefully: the cancellations were at 9:40 pm for a 7 am class, 6:15 am for 7 am, and 2 pm for 6 pm - all within the 12-hour window, which is what triggered the block. Since this is the first time, I've lifted it from tomorrow."],
+      ["Charge was wrong", "You're right, and I'm sorry - the second cancellation was more than 12 hours ahead, so the block shouldn't have applied. I've removed it and refunded the fee."],
     ],
     dos: [
       "Lead with the facts from Momence.",
@@ -358,7 +358,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     donts: [
       "Don't argue the policy before checking the data.",
       "Don't offer compensation beyond the fee itself without approval.",
-      "Don't remove blocks silently — tell the member.",
+      "Don't remove blocks silently - tell the member.",
     ],
     closeOut: [
       "Decision recorded with the cancellation timestamps.",
@@ -375,7 +375,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-014",
-    title: "Member Complaint — Class Too Crowded",
+    title: "Member Complaint - Class Too Crowded",
     category: "Class Experience",
     summary:
       "Handling complaints that a class was overcrowded: verify bookings against capacity, find how the oversell happened, recover the member, and fix the capacity setting or schedule.",
@@ -402,13 +402,13 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "Follow up with the member on their next visit.",
     ],
     diagnose: [
-      ["Booked count above room capacity", "Capacity misconfigured or overridden — fix the setting and review who overrode it."],
+      ["Booked count above room capacity", "Capacity misconfigured or overridden - fix the setting and review who overrode it."],
       ["Booked count fine but room felt packed", "Check walk-ins and late check-ins; check props layout and spacing."],
       ["Waitlist pushed numbers over capacity", "IT ticket for Momence waitlist rules; manually cap until fixed."],
-      ["Same class crowded every week", "Demand issue — add a slot or move rooms."],
+      ["Same class crowded every week", "Demand issue - add a slot or move rooms."],
     ],
     say: [
-      ["Recovery", "You're right — that class had more people than it should have, and that's on us. I've added a complimentary class to your account, and we've corrected the capacity so it won't happen again."],
+      ["Recovery", "You're right - that class had more people than it should have, and that's on us. I've added a complimentary class to your account, and we've corrected the capacity so it won't happen again."],
     ],
     dos: [
       "Check the data before promising a cause.",
@@ -434,10 +434,10 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-016",
-    title: "Class Cancellation — Instructor Unavailable",
+    title: "Class Cancellation - Instructor Unavailable",
     category: "Scheduling",
     summary:
-      "When a trainer becomes unavailable at short notice: find a substitute in the right order, communicate the change, and only cancel as a last resort — with credits and recovery handled properly.",
+      "When a trainer becomes unavailable at short notice: find a substitute in the right order, communicate the change, and only cancel as a last resort - with credits and recovery handled properly.",
     glance: {
       priority: "P1 (P0 within 2 hours of class start)",
       owner: "Scheduling / Front Desk Lead → Training Manager",
@@ -468,8 +468,8 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["No cover, under 2 hours", "Cancel, notify, add recovery credits, and call regulars personally."],
     ],
     say: [
-      ["Trainer change", "Heads-up: tomorrow's 7 am PowerCycle at Supreme HQ will be taught by Karan instead of Rohan. Same time, same bike — see you there!"],
-      ["Cancellation", "We're sorry — today's 6 pm Barre 57 is cancelled as the trainer is unwell and we couldn't arrange cover. Your credit is back in your account. There's space in the 7 pm class if you'd like it."],
+      ["Trainer change", "Heads-up: tomorrow's 7 am PowerCycle at Supreme HQ will be taught by Karan instead of Rohan. Same time, same bike - see you there!"],
+      ["Cancellation", "We're sorry - today's 6 pm Barre 57 is cancelled as the trainer is unwell and we couldn't arrange cover. Your credit is back in your account. There's space in the 7 pm class if you'd like it."],
     ],
     dos: [
       "Update Momence before messaging members.",
@@ -495,12 +495,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-021",
-    title: "Front Desk — Handling Walk-In Inquiries",
+    title: "Front Desk - Handling Walk-In Inquiries",
     category: "Customer Service and Communication",
     summary:
-      "Turning walk-ins into first classes: a warm greeting, a quick needs check, the right offer (newcomer 2-for-1), a short tour, and a same-day follow-up — while verifying who is entering the studio.",
+      "Turning walk-ins into first classes: a warm greeting, a quick needs check, the right offer (newcomer 2-for-1), a short tour, and a same-day follow-up - while verifying who is entering the studio.",
     glance: {
-      priority: "P3 — sales opportunity",
+      priority: "P3 - sales opportunity",
       owner: "Front Desk / Sales",
       respond: "Greet within 10 seconds",
       resolve: "Follow-up within 24 hours",
@@ -514,7 +514,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "Greet the visitor: 'Hi, welcome to Physique 57! How can I help you today?'",
       "Ask two questions: what kind of workout they enjoy, and what goal they have (strength, posture, weight, rehab, community).",
       "Recommend the format that fits (Barre 57, Cardio Barre, Strength Lab, PowerCycle) and explain it in one line.",
-      "Explain the newcomer offer (2-for-1 trial) and check eligibility — first-time visitors only.",
+      "Explain the newcomer offer (2-for-1 trial) and check eligibility - first-time visitors only.",
       "If they want to try, create their Momence profile (name, phone, email), book the trial and take the waiver.",
       "Offer a 5-minute tour: studio floor, changing rooms, lockers and reception.",
       "Answer pricing questions with the current price sheet; highlight the most popular package rather than listing everything.",
@@ -529,8 +529,8 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["Asking detailed operational questions (possible competitor)", "Stay polite and general; inform the Studio Director discreetly."],
     ],
     say: [
-      ["Opening", "Welcome! Have you been to a Physique 57 class before? Great — what kind of workout do you usually enjoy?"],
-      ["Closing", "The first class is the best way to know — with our newcomer offer you get two classes for the price of one. Would tomorrow at 7 am or 6 pm suit you better?"],
+      ["Opening", "Welcome! Have you been to a Physique 57 class before? Great - what kind of workout do you usually enjoy?"],
+      ["Closing", "The first class is the best way to know - with our newcomer offer you get two classes for the price of one. Would tomorrow at 7 am or 6 pm suit you better?"],
     ],
     dos: [
       "Use their name once you have it.",
@@ -555,7 +555,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-022",
-    title: "Trainer Performance Concern — Member Feedback",
+    title: "Trainer Performance Concern - Member Feedback",
     category: "Trainer Feedback",
     summary:
       "Capturing member feedback about a trainer properly, separating safety and conduct issues (escalate now) from coaching issues (pattern review), and closing the loop with the member.",
@@ -571,11 +571,11 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "Decide: is this safety/conduct (escalate now) or coaching quality (log and review)?",
     ],
     steps: [
-      "Listen actively and acknowledge — never dismiss or defend the trainer.",
+      "Listen actively and acknowledge - never dismiss or defend the trainer.",
       "Record trainer name, class, date, the specific concern, and the member's contact details.",
       "Ask clarifying questions: what exactly happened, when, and how it affected them.",
-      "Don't promise an outcome — say you'll look into it and come back within 48 hours.",
-      "If it involves unsafe corrections, hands-on adjustments without consent, inappropriate behaviour, harassment or discrimination, escalate immediately to the Studio Director (and HR) — do not investigate yourself.",
+      "Don't promise an outcome - say you'll look into it and come back within 48 hours.",
+      "If it involves unsafe corrections, hands-on adjustments without consent, inappropriate behaviour, harassment or discrimination, escalate immediately to the Studio Director (and HR) - do not investigate yourself.",
       "For coaching issues (cueing, music, pacing, modifications), log it in the trainer's feedback file.",
       "Check the trainer's recent feedback and class observations for patterns.",
       "If there are 3 or more similar concerns in a month, the Training Manager schedules a coaching conversation with specific examples.",
@@ -590,7 +590,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["Member simply prefers a different style", "Suggest trainers whose style fits; log as preference, not a concern."],
     ],
     say: [
-      ["Acknowledging", "Thank you for telling me — this is exactly the feedback we need. I've written down what happened, and our Training Manager will review it. I'll update you by Thursday."],
+      ["Acknowledging", "Thank you for telling me - this is exactly the feedback we need. I've written down what happened, and our Training Manager will review it. I'll update you by Thursday."],
       ["Closing the loop", "I wanted to let you know we've reviewed your feedback with the trainer and agreed specific changes. Thank you again for raising it."],
     ],
     dos: [
@@ -618,12 +618,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-023",
-    title: "PowerCycle Class — Bike Setup & Member Onboarding",
+    title: "PowerCycle Class - Bike Setup & Member Onboarding",
     category: "Class Experience",
     summary:
       "Setting up a new rider on a Stages SC3 bike safely and quickly: saddle height and fore/aft, handlebar, FitLoc check, pedals and cleats, console basics, and the safety brief.",
     glance: {
-      priority: "P3 — onboarding standard (P1 if a bike fault is found)",
+      priority: "P3 - onboarding standard (P1 if a bike fault is found)",
       owner: "PowerCycle trainer / Front Desk",
       respond: "10 minutes before class",
       resolve: "Before class starts",
@@ -641,19 +641,19 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "Lock everything: the FitLoc lever pushed fully down until it clicks, saddle clamp tight, and test by pressing on bars and saddle.",
       "Feet: cleats clipped in properly, or sneakers flat with toe cages snug.",
       "Safety brief (2 minutes): push the resistance knob down to stop the flywheel, how to unclip, and that they can always sit down and reduce resistance.",
-      "Console basics: cadence (RPM), power (watts) and the colour zones — first class is about form, not numbers.",
+      "Console basics: cadence (RPM), power (watts) and the colour zones - first class is about form, not numbers.",
       "Late-entry rule: entry only within 5 minutes of start, and only for riders with more than 10 classes.",
       "Water bottle in the cage, towel ready, and tell them the trainer's name.",
       "After class, ask how the setup felt and note their settings on their profile for next time.",
     ],
     diagnose: [
-      ["Knee pain at the front", "Saddle too low or too far forward — raise it or move it back."],
-      ["Rocking hips / reaching for pedals", "Saddle too high — lower it."],
-      ["Handlebar drops during class", "FitLoc not engaged or worn — take the bike out of use (TPL-194)."],
+      ["Knee pain at the front", "Saddle too low or too far forward - raise it or move it back."],
+      ["Rocking hips / reaching for pedals", "Saddle too high - lower it."],
+      ["Handlebar drops during class", "FitLoc not engaged or worn - take the bike out of use (TPL-194)."],
       ["Pedal clicks or feels loose", "Stop using the bike; pedal needs refitting at 42 N·m (TPL-193)."],
     ],
     say: [
-      ["Safety brief", "If you ever need to stop quickly, push this red knob straight down — the wheel stops. And it's always OK to sit down and turn the resistance back."],
+      ["Safety brief", "If you ever need to stop quickly, push this red knob straight down - the wheel stops. And it's always OK to sit down and turn the resistance back."],
     ],
     dos: [
       "Check the bike before the rider gets on.",
@@ -678,18 +678,18 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-025",
-    title: "Member Cancellation — Retention Conversation",
+    title: "Member Cancellation - Retention Conversation",
     category: "Customer Service and Communication",
     summary:
       "A respectful retention conversation when a member asks to cancel: find the real reason, offer the one option that fits (freeze, downgrade, transfer, schedule fix), and process the cancellation gracefully if they still want to leave.",
     glance: {
-      priority: "P2 — revenue at risk",
+      priority: "P2 - revenue at risk",
       owner: "Memberships / Client Servicing",
       respond: "Within 4 hours of the request",
       resolve: "Within 48 hours (retained or cancelled cleanly)",
     },
     firstFive: [
-      "Thank them and ask what's prompting the decision — then listen.",
+      "Thank them and ask what's prompting the decision - then listen.",
       "Check their plan, end date, billing and freeze history in Momence.",
       "Pick one relevant alternative, not a menu of offers.",
     ],
@@ -701,7 +701,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "Dissatisfaction: ask for specifics (trainer, timing, crowding, facility) and offer a concrete fix.",
       "Injury or medical: offer a medical freeze instead of cancelling (see KB-007).",
       "Time constraints: offer a lower-frequency pack or a pause until their schedule settles.",
-      "If they still want to cancel, process it respectfully — no pressure, no repeated offers.",
+      "If they still want to cancel, process it respectfully - no pressure, no repeated offers.",
       "Confirm the terms in writing: last billing date, access end date, any remaining credits and how to rejoin.",
       "Cancel in Momence (including auto-renewal) and send the confirmation email.",
       "Log the reason and any offer made on the profile; schedule a win-back message for 60 days later.",
@@ -713,8 +713,8 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["Auto-renewal surprise", "Cancel the renewal now; check if a refund is due under policy (KB-018)."],
     ],
     say: [
-      ["Opening", "I'm sorry to hear that — before I process anything, can I ask what's prompting the cancellation? It really helps us improve."],
-      ["If they still want to leave", "Completely understood. I've cancelled your renewal — your access runs until 30 June and your remaining 3 classes stay usable until then. You're always welcome back."],
+      ["Opening", "I'm sorry to hear that - before I process anything, can I ask what's prompting the cancellation? It really helps us improve."],
+      ["If they still want to leave", "Completely understood. I've cancelled your renewal - your access runs until 30 June and your remaining 3 classes stay usable until then. You're always welcome back."],
     ],
     dos: [
       "Offer one tailored alternative.",
@@ -746,7 +746,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     summary:
       "Responding to a negative Google review, Instagram comment or DM: reply publicly within hours with empathy, move the details offline, fix the underlying issue, and only then ask whether they'd update their review.",
     glance: {
-      priority: "P1 — public and visible to prospects",
+      priority: "P1 - public and visible to prospects",
       owner: "Client Servicing with Marketing (Studio Director for serious allegations)",
       respond: "Public reply within 4 business hours",
       resolve: "Issue resolved and member followed up within 72 hours",
@@ -765,7 +765,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       "Fix the underlying problem and offer proportionate recovery (credit, complimentary class, refund if warranted).",
       "If the post contains abuse, personal data or false claims about staff, ask Marketing to hide or report it rather than arguing publicly.",
       "For allegations of injury, harassment or discrimination, escalate to the Studio Director before replying publicly.",
-      "After the issue is resolved, politely ask whether they'd consider updating their review — never pressure or offer incentives for it.",
+      "After the issue is resolved, politely ask whether they'd consider updating their review - never pressure or offer incentives for it.",
       "Log the theme (cleanliness, trainer, booking, billing) so recurring issues show up in reporting.",
     ],
     diagnose: [
@@ -775,7 +775,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["Abusive, discriminatory or containing personal data", "Hide/report via Marketing and document; don't engage."],
     ],
     say: [
-      ["Public reply", "Hi Priya, thank you for sharing this — it's not the experience we want anyone to have at Physique 57. We'd like to make it right; please could you WhatsApp us on our studio number or reply to our DM so we can look into it today?"],
+      ["Public reply", "Hi Priya, thank you for sharing this - it's not the experience we want anyone to have at Physique 57. We'd like to make it right; please could you WhatsApp us on our studio number or reply to our DM so we can look into it today?"],
       ["Private follow-up", "Thanks for taking my call. I've looked into what happened on Saturday and you were right about the changing room. Here's what we've done about it, and I've added a complimentary class to your account."],
     ],
     dos: [
@@ -803,7 +803,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-041",
-    title: "Waitlist & Overbooking — Fair Handling",
+    title: "Waitlist & Overbooking - Fair Handling",
     category: "Scheduling",
     summary:
       "Keeping waitlists fair and classes within safe capacity: how auto-promotion works, what to do when a promotion wasn't notified or a class is overbooked on the day, and when to add capacity.",
@@ -832,10 +832,10 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
       ["Promoted, not notified, no-show fee charged", "Reverse the fee, restore the credit, raise a notifications ticket (TPL-217) if systemic."],
       ["More bookings than bikes or spots", "Contact the latest bookers, rebook with a complimentary credit; investigate the cause."],
       ["Member jumped the queue", "Restore waitlist order; record who overrode it."],
-      ["Waitlist consistently long", "Demand signal — request extra capacity."],
+      ["Waitlist consistently long", "Demand signal - request extra capacity."],
     ],
     say: [
-      ["Overbooked", "I'm really sorry — because of a booking error the 7 am is over capacity. I've reserved you a bike in the 8 am and added a complimentary class. Would that work?"],
+      ["Overbooked", "I'm really sorry - because of a booking error the 7 am is over capacity. I've reserved you a bike in the 8 am and added a complimentary class. Would that work?"],
     ],
     dos: [
       "Respect waitlist order.",
@@ -861,12 +861,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-047",
-    title: "Pre/Post-Natal & Injury Modifications — Safe Participation",
+    title: "Pre/Post-Natal & Injury Modifications - Safe Participation",
     category: "Class Experience",
     summary:
       "Helping pregnant, post-natal and injured members train safely: medical clearance, trainer briefing, the right classes and modifications, and how to record it so every trainer knows.",
     glance: {
-      priority: "P2 — member safety",
+      priority: "P2 - member safety",
       owner: "Training Manager / trainer on the class",
       respond: "Before the member's next class",
       resolve: "Modification plan on the profile within 48 hours",
@@ -926,7 +926,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     summary:
       "Spotting members likely to churn (falling attendance, detractor scores, recent complaints) and running a short, personal recovery outreach before they cancel.",
     glance: {
-      priority: "P2 — retention",
+      priority: "P2 - retention",
       owner: "Client Servicing / Memberships",
       respond: "Within 48 hours of the trigger",
       resolve: "Outcome recorded within 7 days",
@@ -934,12 +934,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     firstFive: [
       "Confirm the trigger: attendance drop, NPS 0–6, complaint, or no visits in 21 days.",
       "Read their recent history: bookings, complaints, trainer preferences, billing issues.",
-      "Plan one personal, relevant message — not a generic promotion.",
+      "Plan one personal, relevant message - not a generic promotion.",
     ],
     steps: [
       "Identify at-risk members weekly: attendance down 50% vs. their usual, no visit in 21 days, an NPS score of 0–6, or an unresolved complaint.",
       "Review the member's history to guess the likely reason before reaching out.",
-      "Reach out personally (call first, then WhatsApp) within 48 hours — from someone they know where possible.",
+      "Reach out personally (call first, then WhatsApp) within 48 hours - from someone they know where possible.",
       "Ask an open question about how training is going and listen for the real reason.",
       "Offer one relevant fix: a new class time, a trainer suggestion, a freeze, a format change, or resolving an open issue.",
       "For NPS detractors, thank them for the score, ask what one thing would change it, and act on it.",
@@ -949,12 +949,12 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     ],
     diagnose: [
       ["Schedule no longer fits", "Suggest classes at their new times; offer a recurring booking."],
-      ["Unresolved complaint", "Resolve it first — outreach without a fix makes it worse."],
+      ["Unresolved complaint", "Resolve it first - outreach without a fix makes it worse."],
       ["Injury or life event", "Offer a freeze rather than letting the membership drift."],
       ["Lost motivation", "Suggest a challenge, a friend pass or a new format; invite them to a community class."],
     ],
     say: [
-      ["Opening call", "Hi Neha, it's Sana from Physique 57 Bandra — we've missed you in class! I wanted to check in and see how things are going, and whether there's anything we could do better."],
+      ["Opening call", "Hi Neha, it's Sana from Physique 57 Bandra - we've missed you in class! I wanted to check in and see how things are going, and whether there's anything we could do better."],
     ],
     dos: [
       "Make it personal and specific.",

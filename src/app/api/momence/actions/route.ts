@@ -4,7 +4,7 @@ import { MomenceError } from "@/lib/server/momence";
 import { runMomenceAction, auditMomenceAction, ACTION_LABELS, type ActionInput } from "@/lib/server/momence-extra";
 
 /**
- * POST /api/momence/actions — write actions against Momence.
+ * POST /api/momence/actions - write actions against Momence.
  * Managers and admins only; the body must carry `confirm: true` (the UI sets it
  * only after an explicit confirmation dialog). Every attempt is audited.
  */
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const upstream = e instanceof MomenceError;
     await auditMomenceAction(auth.session, input as ActionInput, false, (e as Error).message);
-    const msg = upstream ? `${(e as Error).message}${(e as MomenceError).status === 403 ? " — these Momence credentials aren't allowed to do this" : ""}` : (e as Error).message;
+    const msg = upstream ? `${(e as Error).message}${(e as MomenceError).status === 403 ? " - these Momence credentials aren't allowed to do this" : ""}` : (e as Error).message;
     return NextResponse.json({ error: msg }, { status: upstream ? 502 : 400 });
   }
 }

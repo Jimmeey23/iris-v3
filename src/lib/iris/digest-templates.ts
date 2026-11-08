@@ -1,4 +1,4 @@
-// IRIS — Digest & Notification Email Templates
+// IRIS - Digest & Notification Email Templates
 
 import { renderDigestEmail } from "./email-renderer";
 
@@ -24,17 +24,17 @@ export interface DigestData {
 
 export const DIGEST_TEMPLATES: Record<string, { subject: string; bodyHtml: (data: DigestData) => string }> = {
   daily_digest: {
-    subject: "IRIS Daily Operations Digest — {{date}} · {{studio}}",
+    subject: "IRIS Daily Operations Digest - {{date}} · {{studio}}",
     bodyHtml: (data) => renderDigestEmail({ ...data, period: "daily" }).html,
   },
   weekly_digest: {
-    subject: "IRIS Weekly Operations Digest — {{date}} · {{studio}}",
+    subject: "IRIS Weekly Operations Digest - {{date}} · {{studio}}",
     bodyHtml: (data) => renderDigestEmail({ ...data, period: "weekly" }).html,
   },
 };
 
 
-// === Digest data generators — compute REAL stats from ALL_TICKETS ===
+// === Digest data generators - compute REAL stats from ALL_TICKETS ===
 // These used to return hardcoded numbers ("totalTickets: 28", etc.). Now
 // they filter ALL_TICKETS by studio and period (daily = last 24h,
 // weekly = last 7 days) and compute real counts, SLA compliance, and
@@ -92,7 +92,7 @@ function slaCompliance(tickets: typeof ALL_TICKETS): number {
 /** Average resolution time in hours, formatted as "X.Y hours". */
 function avgResolutionHours(tickets: typeof ALL_TICKETS): string {
   const resolved = tickets.filter((t) => (t.status === "resolved" || t.status === "closed") && t.resolvedAt && t.createdAt);
-  if (resolved.length === 0) return "—";
+  if (resolved.length === 0) return "-";
   const totalH = resolved.reduce((n, t) => n + (+new Date(t.resolvedAt!) - +new Date(t.createdAt)) / 3600000, 0);
   return `${(totalH / resolved.length).toFixed(1)} hours`;
 }
@@ -147,7 +147,7 @@ function computeInsights(tickets: typeof ALL_TICKETS, studio: string) {
     if (n >= 3) {
       insights.push({
         type: "Pattern",
-        text: `${studio} has reported ${n} ${cat} tickets this period — review for a common root cause.`,
+        text: `${studio} has reported ${n} ${cat} tickets this period - review for a common root cause.`,
         confidence: 90 + Math.min(8, n),
       });
       break;
@@ -157,7 +157,7 @@ function computeInsights(tickets: typeof ALL_TICKETS, studio: string) {
   if (breached > 0) {
     insights.push({
       type: "Bottleneck",
-      text: `${breached} ticket${breached === 1 ? "" : "s"} breached SLA this period — review the resolution workflow.`,
+      text: `${breached} ticket${breached === 1 ? "" : "s"} breached SLA this period - review the resolution workflow.`,
       confidence: 88,
     });
   }
@@ -165,14 +165,14 @@ function computeInsights(tickets: typeof ALL_TICKETS, studio: string) {
   if (open >= 5) {
     insights.push({
       type: "Workload",
-      text: `${open} open tickets at ${studio} — consider load-balancing across the team.`,
+      text: `${open} open tickets at ${studio} - consider load-balancing across the team.`,
       confidence: 85,
     });
   }
   if (insights.length === 0) {
     insights.push({
       type: "Status",
-      text: `Operations at ${studio} are running smoothly — no critical signals detected.`,
+      text: `Operations at ${studio} are running smoothly - no critical signals detected.`,
       confidence: 95,
     });
   }

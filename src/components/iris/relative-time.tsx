@@ -8,7 +8,7 @@ import { formatRelativeTime } from "@/lib/iris/utils";
  *
  * Renders a relative-time string (e.g. "5m ago", "2h ago") that is computed
  * only on the client after mount. The server-rendered placeholder is a
- * non-time-dependent fallback ("—" or supplied `fallback`), which guarantees
+ * non-time-dependent fallback ("-" or supplied `fallback`), which guarantees
  * the server HTML always matches the first client render and avoids React
  * hydration warnings like:
  *
@@ -24,7 +24,7 @@ import { formatRelativeTime } from "@/lib/iris/utils";
  */
 export function RelativeTime({
   date,
-  fallback = "—",
+  fallback = "-",
   refreshMs = 30_000,
   className,
 }: {

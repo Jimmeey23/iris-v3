@@ -91,7 +91,7 @@ describe("Preset ticket builder payload", () => {
   const ctx = contextFor(tpl);
 
   it("personalises the default title with the member name", () => {
-    expect(defaultTicketTitle("Membership Incorrectly Frozen", "Priya Shah")).toBe("Membership Incorrectly Frozen — Priya Shah");
+    expect(defaultTicketTitle("Membership Incorrectly Frozen", "Priya Shah")).toBe("Membership Incorrectly Frozen - Priya Shah");
     expect(defaultTicketTitle("Membership Incorrectly Frozen ", "  ")).toBe("Membership Incorrectly Frozen");
   });
 
@@ -125,7 +125,7 @@ describe("Preset ticket builder payload", () => {
     const draft = { ...draftFor(tpl, values), title: defaultTicketTitle(tpl.title, "Priya Shah"), notes: "Called twice." };
     const body = buildTicketPayload(ctx, draft, { studioCode: "KH", idempotencyKey: "key-123456789" });
 
-    expect(body.title).toBe("Membership Incorrectly Frozen — Priya Shah");
+    expect(body.title).toBe("Membership Incorrectly Frozen - Priya Shah");
     expect(body.category).toBe(ctx.category);
     expect(body.subcategory).toBe(ctx.subcategory);
     expect(CATEGORY_MAP[body.category as string]).toContain(body.subcategory as string);

@@ -34,7 +34,7 @@ export function lintRoutingCondition(condition: string): string[] {
     }
     const field = m[1].toLowerCase();
     if (!(ROUTING_FIELDS as readonly string[]).includes(field)) {
-      problems.push(`Unknown field "${m[1]}" — the clause can never be true.`);
+      problems.push(`Unknown field "${m[1]}" - the clause can never be true.`);
     } else if (field === "priority" && !normalizeRoutePriority(unquote(m[3]))) {
       problems.push(`"${unquote(m[3])}" isn't a priority (use P0–P3 or Critical/High/Medium/Low).`);
     } else if ((m[2] === ">=" || m[2] === "<=") && field !== "priority" && !Number.isFinite(Number(unquote(m[3])))) {

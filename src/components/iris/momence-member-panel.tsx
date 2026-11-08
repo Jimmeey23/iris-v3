@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ export function useMomenceSection<T = any>(url: string | null, deps: unknown[] =
     if (!url) return;
     const ac = new AbortController();
     setState((s) => ({ ...s, loading: true }));
-    fetch(url, { signal: ac.signal, cache: "no-store" })
+    fetch(absUrl(url), { signal: ac.signal, cache: "no-store" })
       .then(async (r) => ({ ok: r.ok, j: await r.json().catch(() => ({})) }))
       .then(({ ok, j }) => setState(ok ? { ...j, loading: false } : { error: j.error ?? "Request failed", loading: false }))
       .catch((e) => e.name !== "AbortError" && setState({ error: "Network error", loading: false }));
@@ -34,8 +35,8 @@ export function useMomenceSection<T = any>(url: string | null, deps: unknown[] =
 }
 
 const fmt = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "2-digit", hour: "numeric", minute: "2-digit" }) : "—";
-const fmtDay = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
+  iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "2-digit", hour: "numeric", minute: "2-digit" }) : "-";
+const fmtDay = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-");
 const money = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 
 function Box({ s, children, empty }: { s: Section<any> & { loading: boolean }; children: React.ReactNode; empty?: string }) {
@@ -55,7 +56,7 @@ export function ConfirmActionDialog({ pending, onClose }: { pending: PendingActi
     if (!pending) return;
     setBusy(true);
     try {
-      const r = await fetch("/api/momence/actions", {
+      const r = await fetch(absUrl("/api/momence/actions"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...pending.payload, confirm: true }),
@@ -281,7 +282,7 @@ function NotesTab({ memberId }: { memberId: string }) {
           </div>
         ))}
       </div>
-      <div className="text-[9px] text-muted-foreground mt-2">Momence&apos;s API is read-only for notes — add them in Momence.</div>
+      <div className="text-[9px] text-muted-foreground mt-2">Momence&apos;s API is read-only for notes - add them in Momence.</div>
     </Box>
   );
 }
@@ -386,7 +387,7 @@ export function MomenceContextPanel({ clientMomenceId, bookingId, sessionId }: {
                     {ms.map((x) => (
                       <div key={x.id} className="text-[11px] flex justify-between gap-2">
                         <span className="truncate">{x.name}{x.isFrozen ? " (frozen)" : ""}</span>
-                        <span className="text-muted-foreground shrink-0">{x.creditsTotal != null ? `${x.creditsLeft}/${x.creditsTotal} left` : x.endDate ? `to ${fmtDay(x.endDate)}` : "—"}</span>
+                        <span className="text-muted-foreground shrink-0">{x.creditsTotal != null ? `${x.creditsLeft}/${x.creditsTotal} left` : x.endDate ? `to ${fmtDay(x.endDate)}` : "-"}</span>
                       </div>
                     ))}
                   </div>
@@ -397,7 +398,7 @@ export function MomenceContextPanel({ clientMomenceId, bookingId, sessionId }: {
                     {bk.rows.slice(0, 5).map((b: any) => (
                       <div key={b.bookingId} className={cn("text-[11px] flex justify-between gap-2", bookingId && b.bookingId.endsWith(`:${bookingId.replace(/^\w+:/, "")}`) && "font-semibold")}>
                         <span className="truncate">{b.session?.name} · {fmt(b.session?.startsAt)}</span>
-                        <span className="text-muted-foreground shrink-0">{b.cancelledAt ? "cancelled" : b.checkedIn ? "checked in" : "—"}</span>
+                        <span className="text-muted-foreground shrink-0">{b.cancelledAt ? "cancelled" : b.checkedIn ? "checked in" : "-"}</span>
                       </div>
                     ))}
                   </div>

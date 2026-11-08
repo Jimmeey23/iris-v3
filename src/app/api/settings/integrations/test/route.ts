@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
           const probe = await searchSessions({ limit: 5 });
           ok = true;
           status = "connected";
-          detail = `Verified Momence Host API v2 (${regions.join(", ")}) — ${probe.length} upcoming/recent sessions reachable.`;
+          detail = `Verified Momence Host API v2 (${regions.join(", ")}) - ${probe.length} upcoming/recent sessions reachable.`;
         } catch (err) {
           ok = false;
           status = "error";

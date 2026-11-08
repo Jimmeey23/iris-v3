@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 
 /**
- * Smart Bulk Operations bar — replaces the dead bulk action buttons in
+ * Smart Bulk Operations bar - replaces the dead bulk action buttons in
  * All Tickets with a working bulk action modal.
  *
  * When ≥1 ticket is selected, the bar shows the count + a "Bulk Actions"
@@ -79,7 +79,7 @@ export function SmartBulkActions({
     return candidates[0];
   }, [stats]);
 
-  // Don't render the bar if nothing is selected — but only AFTER all hooks
+  // Don't render the bar if nothing is selected - but only AFTER all hooks
   // have run (rules of hooks).
   if (selectedTickets.length === 0) return null;
 
@@ -151,7 +151,7 @@ function BulkActionsModal({
     let msg = "";
     if (tab === "assign") {
       const emp = EMPLOYEES.find((e) => e.id === assigneeId);
-      msg = `Re-assigned ${count} ticket${count === 1 ? "" : "s"} to ${emp?.name ?? "—"}`;
+      msg = `Re-assigned ${count} ticket${count === 1 ? "" : "s"} to ${emp?.name ?? "-"}`;
     } else if (tab === "priority") {
       msg = `Changed priority to ${priority} for ${count} ticket${count === 1 ? "" : "s"}`;
     } else if (tab === "status") {
@@ -217,7 +217,7 @@ function BulkActionsModal({
                   IRIS Suggests
                 </div>
                 <div className="text-[12px]">
-                  <strong>{suggestedAssignee.name}</strong> — {suggestedAssignee.role}
+                  <strong>{suggestedAssignee.name}</strong> - {suggestedAssignee.role}
                   <span className="text-muted-foreground"> · {suggestedAssignee.workload}/{suggestedAssignee.maxWorkload} workload (lowest available for this studio)</span>
                 </div>
               </div>
@@ -302,7 +302,7 @@ function BulkActionsModal({
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Bulk comment — e.g. 'Following up on all open payment disputes per today's review.'"
+                placeholder="Bulk comment - e.g. 'Following up on all open payment disputes per today's review.'"
                 className="w-full min-h-[80px] p-2 rounded-md border border-border bg-background text-[12px] resize-y"
               />
             </div>

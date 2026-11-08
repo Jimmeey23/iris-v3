@@ -20,7 +20,7 @@ async function call(url: string, init: RequestInit = {}): Promise<ProbeResult & 
     if (res.ok) return { ok: true, status: "connected", detail: "", body };
     const b = (body ?? {}) as Record<string, any>;
     const msg = b.error?.message ?? b.message ?? b.error_description ?? (typeof b.error === "string" ? b.error : "") ?? "";
-    return { ok: false, status: "error", detail: `${res.status} ${res.statusText}${msg ? ` — ${String(msg).slice(0, 160)}` : ""}` };
+    return { ok: false, status: "error", detail: `${res.status} ${res.statusText}${msg ? ` - ${String(msg).slice(0, 160)}` : ""}` };
   } catch (e) {
     return { ok: false, status: "error", detail: e instanceof Error ? e.message : "Request failed" };
   }
@@ -48,7 +48,7 @@ async function webhook(raw: string | undefined): Promise<ProbeResult> {
   } catch {
     return { ok: false, status: "error", detail: `${u.hostname} doesn't resolve.` };
   }
-  return { ok: true, status: "configured", detail: `Valid HTTPS webhook on ${u.hostname}. Not verified — that would post a message.` };
+  return { ok: true, status: "configured", detail: `Valid HTTPS webhook on ${u.hostname}. Not verified - that would post a message.` };
 }
 
 async function google(c: Record<string, string>): Promise<ProbeResult> {

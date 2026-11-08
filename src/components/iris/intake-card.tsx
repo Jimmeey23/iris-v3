@@ -53,13 +53,13 @@ export function missingRequired(s: IntakeState) {
   return out;
 }
 
-/** Build the ticket draft from the form — deterministic, no AI. */
+/** Build the ticket draft from the form - deterministic, no AI. */
 export function draftFromIntake(s: IntakeState): AgentTicketDraft {
   const studio = s.studioCode ? STUDIO_MAP[s.studioCode] : undefined;
   const who = s.member?.name ?? s.clientNameHint ?? undefined;
   const title =
     s.title ??
-    [s.subcategory ?? s.category, s.trainer ? s.trainer.name : who, studio ? studio.name.split(",")[0] : null].filter(Boolean).join(" — ");
+    [s.subcategory ?? s.category, s.trainer ? s.trainer.name : who, studio ? studio.name.split(",")[0] : null].filter(Boolean).join(" - ");
   const facts = [
     s.member && `Member: ${s.member.name} (${s.member.id})`,
     s.session && `Class: ${s.session.name}${s.session.subtitle ? ` · ${s.session.subtitle}` : ""} (${s.session.id})`,
@@ -183,7 +183,7 @@ export function IntakeCard({
               disabled={!cat}
               onChange={(e) => chooseCategory(state.category!, e.target.value || null)}
             >
-              <option value="">{cat ? "Subcategory…" : "—"}</option>
+              <option value="">{cat ? "Subcategory…" : "-"}</option>
               {cat?.subcategories.map((s) => (
                 <option key={s.name} value={s.name}>{s.name}</option>
               ))}
@@ -235,7 +235,7 @@ export function IntakeCard({
               <Picked icon={User} text={state.member.name} sub={state.member.id} onClear={() => set({ member: null })} />
             ) : (
               <>
-                {state.clientNameHint && <div className="text-[10px] text-muted-foreground mb-1">You mentioned “{state.clientNameHint}” — pick the right person:</div>}
+                {state.clientNameHint && <div className="text-[10px] text-muted-foreground mb-1">You mentioned “{state.clientNameHint}” - pick the right person:</div>}
                 <MomenceSearchField
                   type="momence_member"
                   placeholder={state.clientNameHint ? `Search “${state.clientNameHint}” in Momence` : undefined}

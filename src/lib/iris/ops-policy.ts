@@ -61,7 +61,7 @@ export function sweepClaimKey(job: SweepJob): string {
 }
 
 /**
- * Whether a claim row recorded at `lastRunAt` may be re-taken at `now` for `job`. Pure —
+ * Whether a claim row recorded at `lastRunAt` may be re-taken at `now` for `job`. Pure -
  * the database does the same comparison inside the upsert; this mirrors it for tests.
  */
 export function sweepDue(lastRunAt: string | null, job: SweepJob, now: Date): boolean {
@@ -158,7 +158,7 @@ export const RATE_LIMITS = {
   "intake-classify": { max: 20, windowSeconds: 60 },
   /** Filing a ticket. A person raising several in a row is normal; a script is not. */
   "ticket-create": { max: 20, windowSeconds: 60 },
-  /** Comments and status updates — each can fan out to email. */
+  /** Comments and status updates - each can fan out to email. */
   "ticket-write": { max: 60, windowSeconds: 60 },
   /** Password sign-in, keyed by IP and email; stops credential stuffing early. */
   login: { max: 10, windowSeconds: 300 },

@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "./utils";
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -245,7 +246,7 @@ export const useSettingsStore = create<SettingsStore>()(
             preferred_studio_code: next.preferredStudioCode || "",
           },
         };
-        const res = await fetch("/api/preferences", {
+        const res = await fetch(absUrl("/api/preferences"), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dbPayload),

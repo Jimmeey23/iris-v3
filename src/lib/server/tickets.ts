@@ -16,7 +16,7 @@ export const TICKET_SELECT = `
 
 /**
  * List query: tickets only. Activities and comments are attached afterwards in
- * one batched query (see attachThreads) — correlated subqueries re-ran the RLS
+ * one batched query (see attachThreads) - correlated subqueries re-ran the RLS
  * access check for every activity row and took 15s+ for ~800 tickets.
  */
 // The list drops search_vector and the raw imported CSV row (metadata.legacy):

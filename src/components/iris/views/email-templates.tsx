@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { toast } from "sonner";
@@ -103,7 +104,7 @@ type EmailServiceStatus = {
 const SAMPLE_PREVIEW_TICKET: EmailTicketContext = {
   id: "tkt_sample_preview",
   ticketId: "P57-00142",
-  title: "Air Conditioning Malfunction — Main Barre Studio, Kwality House",
+  title: "Air Conditioning Malfunction - Main Barre Studio, Kwality House",
   description:
     "The main workout floor AC unit is blinking a fault indicator and blowing warm air ahead of the 6:00 PM Signature Barre session. Two members reported discomfort during the previous class.",
   priority: "P1",
@@ -154,7 +155,7 @@ export function EmailTemplatesView() {
   const loadStatus = React.useCallback(async () => {
     setLoadingStatus(true);
     try {
-      const res = await fetch("/api/notifications/email", { cache: "no-store" });
+      const res = await fetch(absUrl("/api/notifications/email"), { cache: "no-store" });
       if (res.ok) {
         const json = (await res.json()) as EmailServiceStatus;
         setStatusData(json);
@@ -168,7 +169,7 @@ export function EmailTemplatesView() {
 
   React.useEffect(() => {
     let active = true;
-    fetch("/api/notifications/email", { cache: "no-store" })
+    fetch(absUrl("/api/notifications/email"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((json: EmailServiceStatus | null) => {
         if (active && json) setStatusData(json);
@@ -278,7 +279,7 @@ export function EmailTemplatesView() {
 
   const handleToggleRule = async (ruleName: string, nextVal: boolean) => {
     try {
-      const res = await fetch("/api/notifications/email", {
+      const res = await fetch(absUrl("/api/notifications/email"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "toggle_rule", eventName: ruleName, email: nextVal }),
@@ -305,7 +306,7 @@ export function EmailTemplatesView() {
               event: selectedEntry.event,
               ticketId: selectedTicketId,
             };
-      const res = await fetch("/api/notifications/email", {
+      const res = await fetch(absUrl("/api/notifications/email"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -314,7 +315,7 @@ export function EmailTemplatesView() {
       if (!res.ok) {
         toast.error(json.error || "Email dispatch failed");
       } else if (json.dryRun) {
-        toast.success(`Dry-run verified (${json.subject}) — logged to delivery ledger`);
+        toast.success(`Dry-run verified (${json.subject}) - logged to delivery ledger`);
         setTestDialogOpen(null);
       } else {
         toast.success(`Sent via ${json.transport} to ${json.to}`);
@@ -330,7 +331,7 @@ export function EmailTemplatesView() {
 
   const handleSaveOverride = async (key: string, override: EmailTemplateOverride) => {
     try {
-      const res = await fetch("/api/notifications/email", {
+      const res = await fetch(absUrl("/api/notifications/email"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save_override", key, override }),
@@ -347,7 +348,7 @@ export function EmailTemplatesView() {
 
   const handleSaveSchedule = async (schedule: EmailServiceStatus["digestSchedule"]) => {
     try {
-      const res = await fetch("/api/notifications/email", {
+      const res = await fetch(absUrl("/api/notifications/email"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save_schedule", schedule }),
@@ -364,7 +365,7 @@ export function EmailTemplatesView() {
 
   const handleOutboxAction = async (action: "drain_outbox" | "retry_failed", outboxId?: string) => {
     try {
-      const res = await fetch("/api/notifications/email", {
+      const res = await fetch(absUrl("/api/notifications/email"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, outboxId }),
@@ -497,14 +498,14 @@ export function EmailTemplatesView() {
         <StatCard label="Lifecycle Templates" value={NOTIFICATION_EMAIL_CATALOG.length} sub="100% table-safe HTML" icon={Bell} color="violet" />
         <StatCard
           label="Sent Today (IST)"
-          value={statusData ? statusData.stats.sentToday : "—"}
+          value={statusData ? statusData.stats.sentToday : "-"}
           sub={statusData ? `${statusData.stats.sent7d} in last 7 days` : "Loading ledger…"}
           icon={Send}
           color="emerald"
         />
         <StatCard
           label="7d Delivery Rate"
-          value={statusData ? `${statusData.stats.deliveryRatePct}%` : "—"}
+          value={statusData ? `${statusData.stats.deliveryRatePct}%` : "-"}
           sub={statusData ? `${statusData.stats.failed7d} failed · ${statusData.outbox.pending} queued` : "Loading…"}
           icon={CheckCircle2}
           color="sky"
@@ -639,7 +640,7 @@ export function EmailTemplatesView() {
                       <SelectItem value="sample">Sample · P57-00142 (Kwality House AC)</SelectItem>
                       {ticketOptions.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
-                          {t.ticketId} — {t.title.slice(0, 36)}
+                          {t.ticketId} - {t.title.slice(0, 36)}
                         </SelectItem>
                       ))}
                     </SelectContent>

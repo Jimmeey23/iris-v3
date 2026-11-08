@@ -68,8 +68,8 @@ export function SLAProgressBar({ createdAt, targetDate, breached }: { createdAt:
     return (
       <div className="space-y-1">
         <div className="flex items-center justify-between text-[9px] font-medium">
-          <span className="text-muted-foreground">—</span>
-          <span className="text-muted-foreground">—</span>
+          <span className="text-muted-foreground">-</span>
+          <span className="text-muted-foreground">-</span>
         </div>
         <div className="h-0.5 rounded-full bg-muted overflow-hidden" />
       </div>

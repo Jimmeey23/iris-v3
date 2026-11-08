@@ -7,7 +7,7 @@
  *
  *  `studioIds` are the legacy directory ids staff records carry (`StaffRecord.studioId`), not
  *  unique per studio: Courtside shares 1 with Kwality House and Copper & Cloves shares 3 with
- *  Kenkere House. Anything telling studios apart must key on the studio name — routing does. */
+ *  Kenkere House. Anything telling studios apart must key on the studio name - routing does. */
 export const STUDIOS = [
   {
     id: "kwality",
@@ -197,8 +197,8 @@ export function getStudioRoomsForStudio(studioNameOrId?: string): StudioRoom[] {
 }
 
 /** How the floor team actually says it, mapped to the room name on the room plan.
- *  Without this the same room is filed under two spellings — "Cycle studio" and
- *  "PowerCycle Studio" — and every report, filter and branch that keys off the name
+ *  Without this the same room is filed under two spellings - "Cycle studio" and
+ *  "PowerCycle Studio" - and every report, filter and branch that keys off the name
  *  (including the PowerCycle bike intake) only ever sees half of them. */
 export const AREA_ALIASES: Record<string, string> = {
   "cycle studio": "PowerCycle Studio",
@@ -235,7 +235,7 @@ const HAS_ROOM_PLAN = /kwality|kemps|supreme|bandra|shq|kenkere|indiranagar|cour
 /** The rooms offered for a studio: that studio's own plan plus the shared areas, with the
  *  two spellings of a room collapsed into one. Offering all 23 areas at every site let a
  *  Bandra ticket be filed against "Brain Cell" or "His Space", which only exist at
- *  Kwality House. When the studio is not known yet, everything stays on offer — narrowing
+ *  Kwality House. When the studio is not known yet, everything stays on offer - narrowing
  *  the list before we know where we are would only strand the reporter. */
 export function studioAreasFor(studioName?: string | null): string[] {
   const canonical = (name: string): string => {
@@ -461,7 +461,7 @@ export const CATEGORY_MAP: Record<string, string[]> = {
     "Additional Waiting Area Seating",
     "Fire Safety Compliance",
     "Water Dispenser Issues",
-    "Standard Operating Procedure (SOP) — create / update",
+    "Standard Operating Procedure (SOP) - create / update",
     "Vendor / AMC Management",
     "Retail & Boutique Stock Replenishment",
     "Attendance / Check-in Discrepancy",
@@ -756,7 +756,7 @@ export const STATUS_LABELS: Record<string, string> = {
   closed: "Closed",
 };
 
-/** Default resolution-target hours per priority — the one SLA table. The workspace's
+/** Default resolution-target hours per priority - the one SLA table. The workspace's
  *  `responseHours` (Settings) defaults to this and is what tickets are actually filed with. */
 export type SlaHours = Record<"critical" | "high" | "medium" | "low", number>;
 export const PRIORITY_SLA_HOURS: SlaHours = {
@@ -788,8 +788,8 @@ export const STAGES_SC3_PARTS: CyclePart[] = [
   { id: "resistance-knob", name: "Resistance / Brake Knob", aliases: ["resistance","brake knob","resistance dial","brake"], tools: "N/A", description: "Controls magnetic eddy-current braking force. Press down for emergency stop." },
   { id: "sprintshift-lever", name: "SprintShift Lever", aliases: ["sprint shift","shift lever","quick shift","sprint"], tools: "N/A", description: "Multi-stage quick shift for instant resistance jumps during sprints." },
   { id: "flywheel", name: "Flywheel", aliases: ["flywheel","fly wheel","wheel"], tools: "N/A", description: "Perimeter-weighted aluminum flywheel with magnetic eddy-current brake." },
-  { id: "pedal-left", name: "Pedal CR-L (Left)", aliases: ["left pedal","cr-l","pedal left"], tools: "15mm pedal wrench", torque: "42 N·m", description: "Left pedal — REVERSE THREADED. Turn CLOCKWISE to remove, counterclockwise to install." },
-  { id: "pedal-right", name: "Pedal CR-R (Right)", aliases: ["right pedal","cr-r","pedal right"], tools: "15mm pedal wrench", torque: "42 N·m", description: "Right pedal — standard thread. Turn counterclockwise to remove, clockwise to install." },
+  { id: "pedal-left", name: "Pedal CR-L (Left)", aliases: ["left pedal","cr-l","pedal left"], tools: "15mm pedal wrench", torque: "42 N·m", description: "Left pedal - REVERSE THREADED. Turn CLOCKWISE to remove, counterclockwise to install." },
+  { id: "pedal-right", name: "Pedal CR-R (Right)", aliases: ["right pedal","cr-r","pedal right"], tools: "15mm pedal wrench", torque: "42 N·m", description: "Right pedal - standard thread. Turn counterclockwise to remove, clockwise to install." },
   { id: "saddle-clamp", name: "Saddle Height Clamp", aliases: ["seat clamp","saddle clamp","seat height","saddle height"], tools: "13mm wrench", description: "Clamp securing the seatpost at the desired height." },
   { id: "stabilizers", name: "Stabilizers (Front/Rear)", aliases: ["stabilizer","stabiliser","feet","leveling feet","base"], tools: "6mm hex + 17mm wrench", description: "Front: wheels facing forward. Rear: step plates with sloped edge pointing away. M10 bolts. 4 leveling feet with 14mm nut." },
   { id: "belt-drive", name: "Belt Drive", aliases: ["belt","drive belt","belt tension"], tools: "Technician service", description: "Poly-V belt connecting pedal crank to flywheel. Vibration or slipping requires technician service." },
@@ -810,7 +810,7 @@ export const STAGES_SC3_TROUBLESHOOTING: CycleTroubleshoot[] = [
   { symptom: "FitLoc lever slipping / handlebar dropping", keywords: ["fitloc","handlebar dropping","handlebar slipping","handlebar loose","lever loose","handlebar won't hold"], diagnosis: "FitLoc cam mechanism worn or post not inserted deep enough.", action: "Check post insertion depth (min line visible). If still slipping, tag bike for FitLoc replacement.", severity: "high", partId: "fitloc-lever" },
   { symptom: "Power meter not pairing / no watts displayed", keywords: ["no power","watts not showing","power meter","not pairing","ant+","no reading","console blank power"], diagnosis: "ANT+ pairing failure or dead batteries in SPM2.", action: "1. Check/replace AA batteries (use spacer or tape). 2. Re-pair using 5-digit ANT+ ID on console. 3. If still dead, check power wire channel connection.", severity: "medium", partId: "spm2-power-meter" },
   { symptom: "Zero reset failing (ADC outside 790–990)", keywords: ["zero reset","adc","calibration","power calibration","zero offset"], diagnosis: "SPM2 zero offset out of range. May indicate mechanical stress on crank arm.", action: "Re-attempt zero reset with NO weight on pedals. If ADC reads outside 790–990 after 3 attempts, remove and reseat crank arm at 52–57 N·m. Escalate to Stages support if persistent.", severity: "medium", partId: "spm2-power-meter" },
-  { symptom: "Pedal detached / came off", keywords: ["pedal came off","pedal off","pedal fell off","pedal detached","pedal missing","pedal came loose","lost a pedal","pedal is off"], diagnosis: "Pedal has unscrewed from the crank arm — most often the left (CR-L) pedal, which is REVERSE threaded and works loose if it was never torqued to spec.", action: "Take the bike out of rotation immediately — a pedal that can detach is a rider-safety fault. Refit at 42 N·m with a 15mm pedal wrench (the left pedal is reverse-threaded: turn ANTI-CLOCKWISE to tighten). Inspect the crank-arm threads; if they are stripped, replace the crank arm (8mm hex, 52–57 N·m).", severity: "critical", partId: "pedal-left" },
+  { symptom: "Pedal detached / came off", keywords: ["pedal came off","pedal off","pedal fell off","pedal detached","pedal missing","pedal came loose","lost a pedal","pedal is off"], diagnosis: "Pedal has unscrewed from the crank arm - most often the left (CR-L) pedal, which is REVERSE threaded and works loose if it was never torqued to spec.", action: "Take the bike out of rotation immediately - a pedal that can detach is a rider-safety fault. Refit at 42 N·m with a 15mm pedal wrench (the left pedal is reverse-threaded: turn ANTI-CLOCKWISE to tighten). Inspect the crank-arm threads; if they are stripped, replace the crank arm (8mm hex, 52–57 N·m).", severity: "critical", partId: "pedal-left" },
   { symptom: "Pedal cross-threaded / won't tighten", keywords: ["pedal cross","stripped","pedal stuck","pedal loose","pedal thread","cross thread"], diagnosis: "Pedal threads stripped or cross-threaded. Remember: left pedal is REVERSE threaded.", action: "Do NOT force. Remove pedal, inspect threads. If crank arm threads are stripped, replace crank arm (8mm hex, 52–57 N·m). Apply grease to threads before reinstall.", severity: "high", partId: "pedal-left" },
   { symptom: "Console dead / no display", keywords: ["console dead","no display","screen blank","console not working","monitor dead"], diagnosis: "Power wire disconnected or console battery dead.", action: "1. Check power wire in channel under handlebar. 2. Replace console batteries. 3. Reseat 3mm hex screws. If still dead, replace SIC2 console unit.", severity: "medium", partId: "sic2-console" },
   { symptom: "Belt vibration or slipping", keywords: ["belt vibration","belt slip","belt noise","vibrating","belt squeal"], diagnosis: "Belt tension loss or misalignment. Normal wear after heavy usage.", action: "Take bike out of rotation. Belt tensioning requires trained technician. Do not attempt field adjustment.", severity: "high", partId: "belt-drive" },
@@ -825,7 +825,7 @@ export const CYCLE_INTAKE_QUESTIONS = [
   { key: "bikeNumber", prompt: "Which bike number is this about? (e.g. Bike #3, Bike 7)", type: "text" },
   { key: "cycleIssueType", prompt: "What exactly is wrong?", type: "select", values: STAGES_SC3_TROUBLESHOOTING.map(t => t.symptom) },
   { key: "cyclePart", prompt: "Which part of the bike is affected?", type: "select", values: STAGES_SC3_PARTS.map(p => p.name) },
-  { key: "cycleFirstOrRecurring", prompt: "Is this the first time this has happened on this bike, or has it happened before?", type: "select", values: ["First time", "Recurring — happened before", "Not sure"] },
+  { key: "cycleFirstOrRecurring", prompt: "Is this the first time this has happened on this bike, or has it happened before?", type: "select", values: ["First time", "Recurring - happened before", "Not sure"] },
   { key: "cycleReporterAction", prompt: "What did you do when you noticed it?", type: "select", values: ["Took bike out of rotation", "Flagged it but class continued", "Member reported mid-class", "Noticed during setup/walkthrough"] },
 ] as const;
 
@@ -863,7 +863,7 @@ export const TRAINER_IMAGES: Record<string, string> = {
   "Siya Mukund": "/trainer-images/siya-mukund.jpeg",
 };
 
-/** Headshots for the associates — the studio and office staff who are not
+/** Headshots for the associates - the studio and office staff who are not
  *  trainers. Kept as its own map because the two groups come from different
  *  shoots and live in different folders; the lookup below reads both. */
 export const ASSOCIATE_IMAGES: Record<string, string> = {
@@ -875,7 +875,7 @@ export const ASSOCIATE_IMAGES: Record<string, string> = {
 };
 
 /** A trainer's headshot, or null. Matches the full name first, then a first name on its own
- *  ("Anisha") — never a different person who happens to share a first name ("Rohan Mehta" is
+ *  ("Anisha") - never a different person who happens to share a first name ("Rohan Mehta" is
  *  not "Rohan Dahima"), and never "Karanvir" for "Karan". A co-taught "Anisha, Atulan" reads as
  *  its first trainer. */
 function lookupImage(name: string, map: Record<string, string>): string | null {
@@ -907,9 +907,9 @@ export function getPersonImage(name: string): string | null {
  * Equipment catalogue
  *
  * The register began as bikes only, because a bike is the thing the floor names out loud
- * when it breaks. Everything else in a studio breaks too — the biometric machine that
+ * when it breaks. Everything else in a studio breaks too - the biometric machine that
  * stops logging attendance, the microwave in the pantry, the 5 kg weights that walk between
- * rooms — and until each one is a row, "how often does this fail" has no answer.
+ * rooms - and until each one is a row, "how often does this fail" has no answer.
  *
  * `countable` marks the things a studio owns in identical multiples, where one row standing
  * for twelve bands is more honest than twelve rows nobody will keep up to date.
@@ -983,8 +983,8 @@ export const EQUIPMENT_CATALOGUE: EquipmentTypeDef[] = [
   {type: 'Coffee maker', category: 'Pantry', aliases: ['coffee maker', 'coffee machine', 'espresso machine']},
   {type: 'Microwave', category: 'Pantry', aliases: ['microwave', 'microwave oven']},
 
-  /* The vendor service & complaint register (Assets sheet). Items the catalogue already had —
-   * cycle, studio mic, speakers, resistance bands, laptop, printer, phone — stay under their
+  /* The vendor service & complaint register (Assets sheet). Items the catalogue already had -
+   * cycle, studio mic, speakers, resistance bands, laptop, printer, phone - stay under their
    * existing types (the aliases above now include the register's wording) so no equipment
    * already filed is regrouped. */
   {type: 'Walls / paint', category: 'Building & Civil', aliases: ['wall paint', 'paint peeling', 'damp wall', 'crack in the wall']},

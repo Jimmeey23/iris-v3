@@ -7,13 +7,13 @@ import { cn } from "@/lib/utils";
 import { Activity, AlertTriangle, Users } from "lucide-react";
 
 /**
- * Workload Heatmap — visualizes per-assignee ticket load over the last 7 days.
+ * Workload Heatmap - visualizes per-assignee ticket load over the last 7 days.
  *
  * Color intensity shows utilization:
  *   - Empty (0 tickets): subtle muted background
  *   - Light (1 ticket, <50% util): light primary tint
  *   - Medium (50-99% util): medium primary tint
- *   - Hot (100%+ util — overloaded): red/rose background, bold
+ *   - Hot (100%+ util - overloaded): red/rose background, bold
  *
  * Below the grid: top overload hotspots with recommendations.
  */

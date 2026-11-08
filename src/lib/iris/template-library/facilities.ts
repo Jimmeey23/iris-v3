@@ -35,7 +35,7 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
   },
   {
     code: "TPL-042",
-    title: "HVAC Maintenance — Scheduled",
+    title: "HVAC Maintenance - Scheduled",
     sub: "HVAC & Air Quality",
     dept: "FAC", prio: "P3", role: "Facilities Manager", hrs: 8,
     desc: "Scheduled HVAC / AC servicing is due or overdue and the AMC vendor needs to be booked.",
@@ -76,7 +76,7 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
     title: "TFA / Fresh Air Unit Malfunction",
     sub: "HVAC & Air Quality",
     dept: "FAC", prio: "P1", role: "Facilities Manager", hrs: 8,
-    desc: "The treated fresh air (TFA) unit is off, weak, noisy or showing an error — studios get stuffy fast.",
+    desc: "The treated fresh air (TFA) unit is off, weak, noisy or showing an error - studios get stuffy fast.",
     map: [RM, "TFA Malfunction"], outcome: "Fix the issue", by: "I noticed this myself",
     act: [
       "Check the TFA panel / error code and the power supply.",
@@ -103,7 +103,7 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
       "Deep-clean mats and floors; adjust air freshener use (members can be scent-sensitive).",
     ],
     f: [
-      pick("airIssue", "Issue", ["Humid / damp", "Musty odour", "Sweat odour lingering", "Stuffy — poor ventilation", "Air freshener too strong"], true),
+      pick("airIssue", "Issue", ["Humid / damp", "Musty odour", "Sweat odour lingering", "Stuffy - poor ventilation", "Air freshener too strong"], true),
       pick("whenNoticed", "When is it worst?", ["Morning opening", "Between classes", "Peak evening", "All day"]),
       check("dampPatches", "Damp patches / mould visible"),
       F.notes(),
@@ -273,10 +273,10 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
     title: "Electrical Issue",
     sub: "Electrical & Lighting",
     dept: "FAC", prio: "P0", role: "Facilities Manager", hrs: 2,
-    desc: "Electrical fault — tripping, sparking, burning smell, dead sockets or loss of power.",
+    desc: "Electrical fault - tripping, sparking, burning smell, dead sockets or loss of power.",
     map: POWER, outcome: "Fix the issue", when: "Just now", by: "I noticed this myself",
     act: [
-      "Sparking or burning smell: switch off at the DB, move people away and call the electrician — do not touch.",
+      "Sparking or burning smell: switch off at the DB, move people away and call the electrician - do not touch.",
       "Don't reset a repeatedly tripping MCB; isolate the circuit.",
       "Move classes out of the affected room if needed.",
       "Get the electrician's report before restoring power.",
@@ -309,7 +309,7 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
   },
   {
     code: "TPL-185",
-    title: "Power Outage — Backup Not Working",
+    title: "Power Outage - Backup Not Working",
     sub: "Electrical & Lighting",
     dept: "FAC", prio: "P0", role: "Facilities Manager", hrs: 2,
     desc: "Mains power is out and the inverter / UPS / DG backup did not take over (or ran out).",
@@ -471,7 +471,7 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
     desc: "Indoor or outdoor signage is broken, faded, unlit or missing.",
     map: ["Miscellaneous", "Outdoor Signage Visibility"], outcome: "Fix the issue",
     act: [
-      "Safety / exit signage is urgent — replace temporarily the same day.",
+      "Safety / exit signage is urgent - replace temporarily the same day.",
       "Brand signage: raise with Marketing for artwork and the vendor.",
     ],
     f: [
@@ -496,7 +496,7 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
       pick("appliance", "Appliance", ["Hair dryer", "Hair straightener", "Vanity light", "Mirror light", "Charging station"], true),
       text("applianceLocation", "Location (e.g. Her Space)", true),
       num("unitsAffected", "Units affected"),
-      check("safetyRisk", "Sparking / overheating — removed from use"),
+      check("safetyRisk", "Sparking / overheating - removed from use"),
     ],
   },
   {
@@ -512,7 +512,7 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
     ],
     f: [
       pick("fixture", "Item", ["Lounge seating", "Reception furniture", "Door / handle / hinge", "Shelving / hooks", "Mirror in the lounge"], true),
-      pick("fixtureDamage", "Damage", ["Broken", "Loose / wobbly", "Torn / stained", "Sharp edge — injury risk"], true),
+      pick("fixtureDamage", "Damage", ["Broken", "Loose / wobbly", "Torn / stained", "Sharp edge - injury risk"], true),
       check("removedFromUse", "Removed from use / cordoned off"),
       F.photos(),
     ],

@@ -13,6 +13,7 @@ import { MomenceContextPanel } from "../momence-member-panel";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { AdminTicketControls } from "../admin-ticket-controls";
 import { RecurrencePanel } from "../recurrence-panel";
+import { FormattedText } from "../formatted-text";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -47,6 +48,11 @@ import {
   Tag,
   Link2,
   Lock,
+  BellRing,
+  Hash,
+  Layers,
+  Timer,
+  Users,
 } from "lucide-react";
 
 export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
@@ -133,7 +139,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const reporter = getReporter(ticket);
   const studio = getStudio(ticket);
 
-  // Resolution permission — only owner or their reporting manager can resolve
+  // Resolution permission - only owner or their reporting manager can resolve
   const isOwner = isTicketOwner(ticket, currentUser.id) || ownerIds.includes(currentUser.id);
   const isManager = currentUser.tier === "admin" || currentUser.tier === "manager";
   const canResolve = isOwner || isManager;
@@ -213,7 +219,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
             </div>
           </div>
           <h1 className="text-[18px] font-semibold leading-tight tracking-tight mb-1">{ticket.title}</h1>
-          {/* Smart intelligence badges — breach risk, ETA, recurrence */}
+          {/* Smart intelligence badges - breach risk, ETA, recurrence */}
           <SmartBadges ticket={ticket} variant="sm" className="mb-1" />
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
             {studio && <StudioBadge studioCode={studio.code} showCity />}
@@ -289,10 +295,19 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                 {/* Resolution Center Tab */}
                 <TabsContent value="resolution" className="mt-3 space-y-3">
+                  {ticket.description && (
+                    <div className="iris-card p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="w-4 h-4 text-primary" />
+                        <div className="text-[13px] font-semibold">Issue Description</div>
+                      </div>
+                      <FormattedText text={ticket.description} className="text-[12px] text-foreground/90" />
+                    </div>
+                  )}
                   {/* Bike / microphone recurrence check: outcome buttons, or the schedule on the original */}
                   <RecurrencePanel key={`${ticket.id}:${ticket.status}`} ticketId={ticket.id} readOnly={readOnly} />
 
-                  {/* AI Resolution Suggestions — auto-matched KB articles, similar tickets, template */}
+                  {/* AI Resolution Suggestions - auto-matched KB articles, similar tickets, template */}
                   <AIResolutionSuggestions ticket={ticket} />
 
                   {/* AI Investigation Panel */}
@@ -309,16 +324,16 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         92% Confidence
                       </div>
                     </div>
-                    <div className="text-[12px] text-muted-foreground leading-relaxed bg-muted/30 rounded-lg p-3 mb-3 whitespace-pre-line">
-                      {ticket.investigationNotes}
+                    <div className="text-[12px] text-muted-foreground bg-muted/30 rounded-lg p-3 mb-3">
+                      <FormattedText text={ticket.investigationNotes} />
                     </div>
                     <div>
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                         <Zap className="w-3 h-3 text-amber-500" />
                         Recommended Resolution Steps
                       </div>
-                      <div className="text-[12px] text-foreground/90 leading-relaxed bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 whitespace-pre-line">
-                        {ticket.recommendedResolution}
+                      <div className="text-[12px] text-foreground/90 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
+                        <FormattedText text={ticket.recommendedResolution} />
                       </div>
                     </div>
                   </div>
@@ -327,7 +342,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     <AdminTicketControls ticket={ticket} onStatus={setStatus} onDeleted={() => selectTicket(null)} />
                   )}
 
-                  {/* Action Buttons — functional */}
+                  {/* Action Buttons - functional */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <ActionButton icon={PlayCircle} label="Start Work" color="violet" onClick={startWork} disabled={readOnly || busy || (status !== "open" && status !== "awaiting_response")} />
                     <ActionButton icon={PauseCircle} label={slaPaused ? "Resume SLA" : "Pause SLA"} color="amber" onClick={toggleSlaPause} disabled={readOnly || busy} />
@@ -365,7 +380,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                         <div className="text-[13px] font-semibold">Resolution Summary</div>
                       </div>
-                      <p className="text-[12px] text-muted-foreground leading-relaxed">{ticket.resolutionSummary}</p>
+                      <FormattedText text={ticket.resolutionSummary} className="text-[12px] text-muted-foreground" />
                     </div>
                   ) : (
                     <div className="iris-card p-4">
@@ -403,7 +418,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     </Button>
                   </div>
 
-                  {/* Resolution Log — notes, comments, follow-ups */}
+                  {/* Resolution Log - notes, comments, follow-ups */}
                   <div className="iris-card p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <MessageSquare className="w-4 h-4 text-muted-foreground" />
@@ -561,7 +576,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                   <div className="iris-card p-4 space-y-4">
                     <div>
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Description</div>
-                      <p className="text-[13px] text-foreground/90 leading-relaxed">{ticket.description}</p>
+                      <FormattedText text={ticket.description} className="text-[13px] text-foreground/90" />
                     </div>
 
                     {ticket.businessImpact && (
@@ -721,6 +736,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
             {/* Sidebar */}
             <div className="space-y-3">
+              {isAdmin && !["resolved", "closed"].includes(status) && (
+                <NudgeCard key={ownerIds.join(",")} ticket={ticket} ownerIds={ownerIds} />
+              )}
               {/* Status & Assignee */}
               <div className="iris-card">
                 <div className="px-3 py-2 border-b border-border">
@@ -838,6 +856,35 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                 </div>
               </div>
 
+              {/* Ticket facts */}
+              <div className="iris-card">
+                <div className="px-3 py-2 border-b border-border">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Layers className="w-3 h-3" />
+                    Ticket Details
+                  </div>
+                </div>
+                <div className="p-3 space-y-1.5">
+                  <FactRow icon={Hash} label="Ticket ID" value={ticket.ticketId} mono />
+                  <FactRow icon={Tag} label="Category" value={ticket.category || "Uncategorised"} />
+                  {ticket.subcategory && <FactRow icon={ChevronRight} label="Sub-category" value={ticket.subcategory} />}
+                  <FactRow icon={Sparkles} label="Source" value={ticket.source.replace(/_/g, " ")} />
+                  <FactRow icon={Clock} label="Created" value={formatDateTime(ticket.createdAt)} />
+                  <FactRow icon={History} label="Last updated" value={formatRelativeTime(ticket.updatedAt || ticket.createdAt)} />
+                  {ticket.affectedClient && <FactRow icon={User} label="Client" value={ticket.affectedClient} />}
+                  {ticket.clientMomenceId && <FactRow icon={Link2} label="Momence ID" value={ticket.clientMomenceId} mono />}
+                </div>
+              </div>
+
+              {/* Engagement */}
+              <div className="iris-card p-3">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <StatTile icon={MessageSquare} label="Comments" value={ticket.comments.length} />
+                  <StatTile icon={Activity} label="Events" value={ticket.activities.length} />
+                  <StatTile icon={Users} label="Owners" value={ownerIds.length} />
+                </div>
+              </div>
+
               {/* Reporter */}
               <div className="iris-card">
                 <div className="px-3 py-2 border-b border-border">
@@ -861,10 +908,55 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     </div>
                   )}
                   <div className="mt-2 text-[10px] text-muted-foreground">
-                    Created {formatRelativeTime(ticket.createdAt)} via {ticket.source.replace("_", " ")}
+                    Created {formatRelativeTime(ticket.createdAt)} via {ticket.source.replace(/_/g, " ")}
                   </div>
                 </div>
               </div>
+
+              {/* Tags */}
+              {ticket.tags && ticket.tags.length > 0 && (
+                <div className="iris-card">
+                  <div className="px-3 py-2 border-b border-border">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Tag className="w-3 h-3" />
+                      Tags
+                    </div>
+                  </div>
+                  <div className="p-3 flex flex-wrap gap-1">
+                    {ticket.tags.map((tag) => (
+                      <span key={tag} className="px-2 py-0.5 text-[11px] rounded-md bg-muted text-muted-foreground">#{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent activity */}
+              {ticket.activities.length > 0 && (
+                <div className="iris-card">
+                  <div className="px-3 py-2 border-b border-border flex items-center">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Timer className="w-3 h-3" />
+                      Recent Activity
+                    </div>
+                    <button type="button" onClick={() => setActiveTab("activity")} className="ml-auto text-[10px] text-primary hover:underline">
+                      View all
+                    </button>
+                  </div>
+                  <div className="p-3 space-y-2.5">
+                    {[...ticket.activities].reverse().slice(0, 5).map((a, i) => (
+                      <div key={i} className="flex gap-2">
+                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-[11px] leading-snug line-clamp-2">{a.description}</div>
+                          <div className="text-[9px] text-muted-foreground mt-0.5">
+                            {a.actor ? `${a.actor} · ` : ""}{formatRelativeTime(a.timestamp)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -898,5 +990,80 @@ function ActionButton({ icon: Icon, label, color, onClick, disabled }: { icon: R
       <Icon className="w-4 h-4" />
       <span className="text-[11px] font-medium">{label}</span>
     </button>
+  );
+}
+
+function FactRow({ icon: Icon, label, value, mono }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <Icon className="w-3 h-3 text-muted-foreground shrink-0" />
+      <span className="text-muted-foreground w-24 shrink-0">{label}</span>
+      <span className={cn("flex-1 min-w-0 truncate text-right font-medium capitalize", mono && "font-mono normal-case")}>{value}</span>
+    </div>
+  );
+}
+
+function StatTile({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: number }) {
+  return (
+    <div className="rounded-md bg-muted/40 py-2">
+      <Icon className="w-3.5 h-3.5 mx-auto text-muted-foreground" />
+      <div className="text-[15px] font-semibold tabular-nums mt-0.5">{value}</div>
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+/** Admin-only: send an instant in-app nudge asking owners to close the ticket on priority. */
+function NudgeCard({ ticket, ownerIds }: { ticket: Ticket; ownerIds: string[] }) {
+  const [targets, setTargets] = React.useState<string[]>(ownerIds);
+  const [message, setMessage] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+
+  const send = async () => {
+    if (!targets.length) {
+      toast.error("Pick at least one person to nudge");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await ticketsApi.nudge(ticket.id, { employeeIds: targets, message: message.trim() || undefined });
+      if (res.sent.length) toast.success(`Nudge sent to ${res.sent.join(", ")}`);
+      if (res.skipped.length) toast.warning(`No IRIS login for ${res.skipped.join(", ")}, nudge not delivered`);
+      setMessage("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't send nudge");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="iris-card border-l-4 border-l-rose-500">
+      <div className="px-3 py-2 border-b border-border">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+          <BellRing className="w-3 h-3" />
+          Nudge to Close
+        </div>
+      </div>
+      <div className="p-3 space-y-2">
+        <MultiSelect
+          size="md"
+          value={targets}
+          onChange={setTargets}
+          placeholder="Choose who to nudge"
+          options={EMPLOYEES.map((e) => ({ value: e.id, label: e.name, hint: e.role }))}
+        />
+        <Textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Optional message, e.g. client is waiting, please close today"
+          className="text-[12px] min-h-[52px] resize-none"
+        />
+        <Button size="sm" className="w-full h-8 text-[12px] bg-rose-600 hover:bg-rose-700 text-white" onClick={send} disabled={sending || !targets.length}>
+          <BellRing className="w-3.5 h-3.5 mr-1.5" />
+          {sending ? "Sending..." : "Send instant nudge"}
+        </Button>
+      </div>
+    </div>
   );
 }

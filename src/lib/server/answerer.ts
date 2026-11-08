@@ -16,7 +16,7 @@ export type Answer = {
 };
 
 const fmt = (d: Date | string | null) =>
-  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-";
 
 function periodSql(p: Period | null, col = "t.created_at", start = 1): { sql: string; params: unknown[] } {
   if (!p || p.days === null) return { sql: "true", params: [] };
@@ -65,7 +65,7 @@ async function equipment(c: PoolClient, i: Extract<Intent, { kind: "equipment" }
     return `- **${r.label}** · ${r.studio_name}: ${r.faults_total} fault${r.faults_total === 1 ? "" : "s"} (${r.faults_90d} in 90 days), last ${fmt(r.last_fault_at)}` +
       `${r.avg_repair_h !== null ? `, avg repair ${Math.round(Number(r.avg_repair_h))}h` : ""}` +
       `${r.rechecks_passed + r.rechecks_failed ? `, re-checks ${r.rechecks_passed} passed / ${r.rechecks_failed} failed` : ""}` +
-      `${flags.length ? ` — ${flags.join(", ")}` : ""}`;
+      `${flags.length ? ` - ${flags.join(", ")}` : ""}`;
   });
   return { route: "equipment", rule: "Equipment register", content: `${what}${where}:\n\n${lines.join("\n")}\n\nFull history is under **Equipment**.` };
 }
@@ -112,7 +112,7 @@ async function trainer(c: PoolClient, i: Extract<Intent, { kind: "trainer" }>, r
     route: "trainer",
     rule: "Trainer scores",
     content:
-      `**${t[0].name}** — ${a.length} assessment${a.length === 1 ? "" : "s"}, average **${avg}%**` +
+      `**${t[0].name}** - ${a.length} assessment${a.length === 1 ? "" : "s"}, average **${avg}%**` +
       `${trend === null ? "" : `, ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : "flat"} vs the three before`}.\n\n` +
       recent.map((r) => `- ${fmt(r.submitted_at)}: ${r.score}% (${r.band})${r.session ? ` · ${r.session}` : ""}`).join("\n") +
       `${latest.strengths ? `\n\n**Latest strengths:** ${latest.strengths}` : ""}` +
@@ -203,11 +203,11 @@ async function historyFor(c: PoolClient, i: Extract<Intent, { kind: "history" }>
     route: "history",
     rule: "Ticket history search",
     content:
-      `Yes — **${agg.n}** ticket${agg.n === 1 ? "" : "s"} match “${i.terms.join(" ")}”${where2}` +
+      `Yes - **${agg.n}** ticket${agg.n === 1 ? "" : "s"} match “${i.terms.join(" ")}”${where2}` +
       `${agg.n > 1 ? `, from ${fmt(agg.first)} to ${fmt(agg.last)}` : `, on ${fmt(agg.last)}`}` +
       `${!i.studioHint && agg.studios > 1 ? ` across ${agg.studios} studios` : ""}` +
       `${agg.open ? `; **${agg.open} still open**` : ""}.\n\n` +
-      recent.map((r) => `- **${r.ticket_id}** ${r.title} · ${r.studio_name ?? "—"} · ${fmt(r.created_at)} · ${r.status}`).join("\n") +
+      recent.map((r) => `- **${r.ticket_id}** ${r.title} · ${r.studio_name ?? "-"} · ${fmt(r.created_at)} · ${r.status}`).join("\n") +
       `${lastFix ? `\n\n**Last recorded fix:** ${String(lastFix).slice(0, 300)}` : ""}`,
   };
 }

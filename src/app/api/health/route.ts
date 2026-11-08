@@ -6,7 +6,7 @@ import { type SweepJob } from "@/lib/iris/ops-policy";
 export const dynamic = "force-dynamic";
 
 /**
- * Liveness, database reachability, and — for a signed-in administrator — whether the
+ * Liveness, database reachability, and - for a signed-in administrator - whether the
  * background work is actually running. Ported from iris-ai-v2's /api/health.
  *
  * The public answer stays what it was: `ok`, `db`, commit and environment, no writes

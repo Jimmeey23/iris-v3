@@ -306,7 +306,7 @@ export const OPERATIONS_TEMPLATES = defineTemplates("Operations", [
       "Protect equipment from water ingress.",
     ],
     f: [
-      pick("disruption", "Disruption", ["Roads waterlogged — members can't reach", "Staff can't reach the studio", "Water entering the premises", "Power cuts due to rain"], true),
+      pick("disruption", "Disruption", ["Roads waterlogged - members can't reach", "Staff can't reach the studio", "Water entering the premises", "Power cuts due to rain"], true),
       pick("decision", "Decision", ["Run with reduced classes", "Cancel evening classes", "Close for the day", "Monitor"], true),
       num("classesCancelled", "Classes cancelled"),
       check("membersNotified", "Members notified"),
@@ -358,7 +358,7 @@ export const OPERATIONS_TEMPLATES = defineTemplates("Operations", [
     sub: "Process, SOPs & Reporting",
     dept: "OPS", prio: "P3", role: "Operations Manager", hrs: 168,
     desc: "A standard operating procedure needs to be written, updated or retired.",
-    map: ["Repair and Maintenance", "Standard Operating Procedure (SOP) — create / update"], outcome: "Process change",
+    map: ["Repair and Maintenance", "Standard Operating Procedure (SOP) - create / update"], outcome: "Process change",
     act: [
       "Draft / update the SOP with the process owner.",
       "Get sign-off, version it and publish it to the team.",
@@ -376,7 +376,7 @@ export const OPERATIONS_TEMPLATES = defineTemplates("Operations", [
     title: "Shift Handover Gap",
     sub: "Process, SOPs & Reporting",
     dept: "OPS", prio: "P2", role: "Studio Manager", hrs: 24,
-    desc: "Something wasn't handed over between shifts — open issues, cash, member requests or keys.",
+    desc: "Something wasn't handed over between shifts - open issues, cash, member requests or keys.",
     map: HANDOVER, outcome: "Process change", by: "A colleague flagged it to me",
     act: [
       "Recover the dropped item now (call the member, reconcile cash).",

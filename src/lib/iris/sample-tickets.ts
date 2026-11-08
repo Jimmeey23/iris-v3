@@ -1,4 +1,4 @@
-// IRIS — ticket model + the live ticket list.
+// IRIS - ticket model + the live ticket list.
 //
 // ALL_TICKETS starts empty and is filled from Neon (GET /api/tickets) by
 // <AuthGate> before any screen renders. It is mutated in place so every module

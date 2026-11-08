@@ -143,7 +143,7 @@ export function predictBreachRisk(ticket: Ticket): BreachRiskAssessment {
     });
   }
 
-  // 3. Priority factor — tighter SLAs are more sensitive
+  // 3. Priority factor - tighter SLAs are more sensitive
   if (ticket.priority === "P0") {
     score += 10;
     factors.push({ label: "P0 priority - high stakes", impact: 10, detail: "Critical priority, any delay is significant" });
@@ -174,10 +174,10 @@ export function predictBreachRisk(ticket: Ticket): BreachRiskAssessment {
 
   const reason =
     score >= 70
-      ? `High risk of SLA breach — ${factors.filter((f) => f.impact > 0).length} factors working against on-time resolution.`
+      ? `High risk of SLA breach - ${factors.filter((f) => f.impact > 0).length} factors working against on-time resolution.`
       : score >= 40
-      ? `Medium breach risk — some signals indicate potential delay.`
-      : `Low breach risk — on track for on-time resolution.`;
+      ? `Medium breach risk - some signals indicate potential delay.`
+      : `Low breach risk - on track for on-time resolution.`;
 
   return { score, level, reason, hoursRemaining, estimatedHoursNeeded, factors };
 }
@@ -238,7 +238,7 @@ export function predictResolutionTime(ticket: Ticket): ResolutionEstimate {
 
   let hours: number;
   if (sampleSize === 0) {
-    // No data — use default by priority
+    // No data - use default by priority
     hours = ticket.priority === "P0" ? 4 : ticket.priority === "P1" ? 8 : ticket.priority === "P2" ? 24 : 48;
   } else {
     const totalHours = samples.reduce((n, t) => {
@@ -300,7 +300,7 @@ export interface RecurrencePattern {
  * Detect recurring issues: same category + studio within a 60-day window.
  * Returns patterns with 2+ occurrences, sorted by severity.
  *
- * The key is `category + studio` (subcategory is informational only —
+ * The key is `category + studio` (subcategory is informational only -
  * including it in the key would split patterns like "HVAC at Kwality House"
  * across "HVAC" + "General" subcategories and miss the recurrence).
  */
@@ -331,10 +331,10 @@ export function detectRecurrencePatterns(): RecurrencePattern[] {
 
     const recommendation =
       severity === "high"
-        ? `Recurring issue — schedule preventive maintenance / root-cause review for ${studio?.name ?? "this studio"}.`
+        ? `Recurring issue - schedule preventive maintenance / root-cause review for ${studio?.name ?? "this studio"}.`
         : severity === "medium"
-        ? `Pattern forming — monitor and prepare a preventive action plan.`
-        : `Repeat occurrence — log for trend tracking.`;
+        ? `Pattern forming - monitor and prepare a preventive action plan.`
+        : `Repeat occurrence - log for trend tracking.`;
 
     patterns.push({
       key,
@@ -429,7 +429,7 @@ export function detectAnomalies(): Anomaly[] {
     const baselineCount = baselineTickets.length;
     const observedCount = recentTickets.length;
     if (baselineCount === 0) {
-      // New pattern — only flag if there are 2+ tickets
+      // New pattern - only flag if there are 2+ tickets
       if (observedCount >= 2) {
         const [studioCode, category] = key.split("|");
         const studio = STUDIOS.find((s) => s.code === studioCode);
@@ -443,7 +443,7 @@ export function detectAnomalies(): Anomaly[] {
           observed: observedCount,
           baseline: 0,
           changePct: 100,
-          recommendation: `Investigate root cause — schedule a walkthrough and review equipment / processes for ${category}.`,
+          recommendation: `Investigate root cause - schedule a walkthrough and review equipment / processes for ${category}.`,
           sampleTicketIds: recentTickets.slice(0, 5).map((t) => t.id),
         });
       }
@@ -465,7 +465,7 @@ export function detectAnomalies(): Anomaly[] {
           recommendation:
             changePct >= 100
               ? `Schedule immediate root-cause analysis for ${category} at ${studio?.name ?? "all studios"}.`
-              : `Monitor closely — if the trend continues next week, schedule a review.`,
+              : `Monitor closely - if the trend continues next week, schedule a review.`,
           sampleTicketIds: recentTickets.slice(0, 5).map((t) => t.id),
         });
       }
@@ -589,7 +589,7 @@ export function buildWorkloadHeatmap(): WorkloadHeatmap {
 export interface DailyBriefing {
   generatedAt: string;
   user: { id: string; name: string; role: string };
-  /** Top priorities — most urgent things needing attention */
+  /** Top priorities - most urgent things needing attention */
   topPriorities: Array<{
     ticketId: string;
     title: string;
@@ -691,7 +691,7 @@ export function generateDailyBriefing(user: { id: string; name: string; role: st
   if (anomalies.length > 0) headlineParts.push(`${anomalies.length} anomal${anomalies.length === 1 ? "y" : "ies"} detected`);
   const headline = headlineParts.length
     ? headlineParts.join(", ") + "."
-    : `All systems nominal — ${userOpen.length} ticket${userOpen.length === 1 ? "" : "s"} in your queue, no critical signals.`;
+    : `All systems nominal - ${userOpen.length} ticket${userOpen.length === 1 ? "" : "s"} in your queue, no critical signals.`;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -807,7 +807,7 @@ export function suggestResolution(ticket: Ticket): ResolutionSuggestion {
       const matched = ticketKeywords.filter((k) => tplText.includes(k));
       score = Math.min(100, matched.length * 12);
       // Tickets are filed in the CATEGORY_MAP taxonomy; templates carry a library
-      // taxonomy plus the ticket pair they pre-fill — match on either.
+      // taxonomy plus the ticket pair they pre-fill - match on either.
       const tax = templateTaxonomy(tpl);
       const ticketCat = ticket.category.toLowerCase();
       const ticketSub = ticket.subcategory?.toLowerCase();
@@ -825,7 +825,7 @@ export function suggestResolution(ticket: Ticket): ResolutionSuggestion {
   const suggestedActions: string[] = [];
   if (bestTemplate) {
     suggestedActions.push(
-      `Apply template ${bestTemplate.code} (${bestTemplate.title}) — ${bestTemplate.matchScore}% match`,
+      `Apply template ${bestTemplate.code} (${bestTemplate.title}) - ${bestTemplate.matchScore}% match`,
     );
     // Add the first 2 steps from the template's recommended actions
     const steps = bestTemplate.recommendedActions.split("\n").filter((s) => s.trim()).slice(0, 2);
@@ -836,7 +836,7 @@ export function suggestResolution(ticket: Ticket): ResolutionSuggestion {
   }
   if (similarResolvedTickets.length > 0) {
     const sim = similarResolvedTickets[0].ticket;
-    suggestedActions.push(`Reference ${sim.ticketId} — same ${sim.category}, resolved${sim.resolution ? ` with: "${sim.resolution.slice(0, 80)}${sim.resolution.length > 80 ? "…" : ""}"` : ""}`);
+    suggestedActions.push(`Reference ${sim.ticketId} - same ${sim.category}, resolved${sim.resolution ? ` with: "${sim.resolution.slice(0, 80)}${sim.resolution.length > 80 ? "…" : ""}"` : ""}`);
   }
   if (suggestedActions.length === 0) {
     suggestedActions.push("Investigate the issue and document findings in the resolution log.");
@@ -880,7 +880,7 @@ export interface Member360 {
 }
 
 /**
- * Member directory — re-exported from the shared `member-directory.ts` so
+ * Member directory - re-exported from the shared `member-directory.ts` so
  * the Member 360 Lookup uses the same roster as the Momence search field
  * and the ⌘K command palette.
  *
@@ -903,7 +903,7 @@ export const MEMBER_DIRECTORY = MEMBERS.map((m) => ({
 export function buildMember360(memberName: string): Member360 | null {
   const tickets = ALL_TICKETS.filter((t) => t.affectedClient?.toLowerCase().includes(memberName.toLowerCase()));
   // Use the shared findMember helper to verify the member exists in the
-  // canonical roster (single source of truth — no duplicate directory here).
+  // canonical roster (single source of truth - no duplicate directory here).
   const member = findMember(memberName);
   if (tickets.length === 0 && !member) {
     return null;
@@ -947,13 +947,13 @@ export function buildMember360(memberName: string): Member360 | null {
 
   // Risk level
   let riskLevel: "high" | "medium" | "low" = "low";
-  let riskReason = "Low engagement risk — minimal issues on file.";
+  let riskReason = "Low engagement risk - minimal issues on file.";
   if (tickets.length >= 5 || negative >= 3) {
     riskLevel = "high";
-    riskReason = "High engagement risk — significant ticket volume or negative sentiment. Consider a retention conversation.";
+    riskReason = "High engagement risk - significant ticket volume or negative sentiment. Consider a retention conversation.";
   } else if (tickets.length >= 3 || negative >= 1) {
     riskLevel = "medium";
-    riskReason = "Medium engagement risk — monitor and proactively address any new issues.";
+    riskReason = "Medium engagement risk - monitor and proactively address any new issues.";
   }
 
   return {
@@ -994,7 +994,7 @@ export interface CommandItem {
 /**
  * Build the searchable index for the ⌘K command palette.
  *
- * COMPUTED ONCE AT MODULE LOAD — this is a module-level const, not a function
+ * COMPUTED ONCE AT MODULE LOAD - this is a module-level const, not a function
  * called on every render. The index depends only on static data (ALL_TICKETS,
  * KNOWLEDGE_ARTICLES, TICKET_TEMPLATES, MEMBERS) so it's stable for the
  * lifetime of the app session. The command palette can use it directly

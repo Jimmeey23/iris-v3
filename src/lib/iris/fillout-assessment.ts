@@ -11,7 +11,7 @@
 
 export type RubricFormat = "PowerCycle" | "Strength / FIT" | "Barre" | "Non-technical";
 
-/** [criterion, weight] — weights per format sum to 100. */
+/** [criterion, weight] - weights per format sum to 100. */
 export const RUBRICS: Record<RubricFormat, [string, number][]> = {
   PowerCycle: [
     ["Attendance & bike fill rate", 12.5], ["Retention & repeat riders", 12.5], ["Member connection", 12.5],

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { FormattedText } from "./formatted-text";
 import { cn } from "@/lib/utils";
 import { TicketDetailData, AssigneeDetail, CandidateAssignee } from "@/lib/iris/ticket-detail-builder";
 import { PRIORITY_CONFIG } from "@/lib/iris/types";
@@ -96,7 +97,7 @@ export function TicketPreviewModal({
               </div>
               <h2 className="text-[16px] font-semibold leading-tight pr-8">{data.title}</h2>
               <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground flex-wrap">
-                <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{data.studio || "—"}</span>
+                <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{data.studio || "-"}</span>
                 <span>·</span>
                 <span className="flex items-center gap-1"><GitBranch className="w-3 h-3" />{data.routing.department}</span>
                 <span>·</span>
@@ -224,11 +225,11 @@ function OverviewTab({ data }: { data: TicketDetailData }) {
           </div>
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Description</div>
-            <div className="text-[12px] text-foreground/90 leading-relaxed p-2.5 rounded-md bg-muted/30 border border-border">{data.description}</div>
+            <div className="text-[12px] text-foreground/90 p-2.5 rounded-md bg-muted/30 border border-border"><FormattedText text={data.description} /></div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <InfoBox label="Category" value={data.category} icon={Tag} />
-            <InfoBox label="Subcategory" value={data.subcategory || "—"} icon={Layers} />
+            <InfoBox label="Subcategory" value={data.subcategory || "-"} icon={Layers} />
             <InfoBox label="Source" value={data.source} icon={Sparkles} />
           </div>
         </div>
@@ -248,9 +249,9 @@ function OverviewTab({ data }: { data: TicketDetailData }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Section title="Location & Studio" icon={Building2}>
           <div className="space-y-2">
-            <DetailRow icon={Building2} label="Studio" value={data.studio || "—"} />
-            <DetailRow icon={Building2} label="City" value={data.studioCity || "—"} />
-            <DetailRow icon={Layers} label="Specific Location" value={data.location || "—"} />
+            <DetailRow icon={Building2} label="Studio" value={data.studio || "-"} />
+            <DetailRow icon={Building2} label="City" value={data.studioCity || "-"} />
+            <DetailRow icon={Layers} label="Specific Location" value={data.location || "-"} />
           </div>
         </Section>
 
@@ -258,7 +259,7 @@ function OverviewTab({ data }: { data: TicketDetailData }) {
           {data.affectedClient ? (
             <div className="space-y-2">
               <DetailRow icon={User} label="Client Name" value={data.affectedClient} />
-              <DetailRow icon={Tag} label="Momence ID" value={data.clientMomenceId || "—"} mono />
+              <DetailRow icon={Tag} label="Momence ID" value={data.clientMomenceId || "-"} mono />
               {data.clientContact && <DetailRow icon={Phone} label="Contact" value={data.clientContact} />}
               {data.membershipType && <DetailRow icon={Award} label="Membership" value={data.membershipType} />}
               {data.membershipId && <DetailRow icon={Tag} label="Membership ID" value={data.membershipId} mono />}
@@ -272,7 +273,7 @@ function OverviewTab({ data }: { data: TicketDetailData }) {
           <Section title="Payment Details" icon={DollarSign}>
             <div className="space-y-2">
               <DetailRow icon={DollarSign} label="Amount" value={data.paymentAmount} />
-              <DetailRow icon={Tag} label="Method" value={data.paymentMethod || "—"} />
+              <DetailRow icon={Tag} label="Method" value={data.paymentMethod || "-"} />
               {data.paymentReference && <DetailRow icon={Tag} label="Reference" value={data.paymentReference} mono />}
             </div>
           </Section>
@@ -290,9 +291,9 @@ function OverviewTab({ data }: { data: TicketDetailData }) {
 
         <Section title="Severity & Scope" icon={Gauge}>
           <div className="space-y-2">
-            <DetailRow icon={AlertTriangle} label="Severity" value={data.severity || "—"} />
-            <DetailRow icon={Clock} label="Duration" value={data.duration || "—"} />
-            <DetailRow icon={Users} label="Affected Count" value={data.affectedCount || "—"} />
+            <DetailRow icon={AlertTriangle} label="Severity" value={data.severity || "-"} />
+            <DetailRow icon={Clock} label="Duration" value={data.duration || "-"} />
+            <DetailRow icon={Users} label="Affected Count" value={data.affectedCount || "-"} />
           </div>
         </Section>
 
@@ -358,8 +359,8 @@ function InvestigationTab({ data }: { data: TicketDetailData }) {
           <div className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400 mb-1">Evidence Quality</div>
           <div className="text-[11px] text-foreground/90">
             {inv.evidenceQuality === "verified" && "✓ Verified via external API (Momence)"}
-            {inv.evidenceQuality === "user_reported" && "○ User-reported — not yet externally verified"}
-            {inv.evidenceQuality === "ai_hypothesis" && "△ AI-generated hypothesis — requires verification"}
+            {inv.evidenceQuality === "user_reported" && "○ User-reported - not yet externally verified"}
+            {inv.evidenceQuality === "ai_hypothesis" && "△ AI-generated hypothesis - requires verification"}
           </div>
         </div>
       </Section>
@@ -950,7 +951,7 @@ function ResolutionTab({ data }: { data: TicketDetailData }) {
       )}
 
       {/* Resolution Fields (with permissions) */}
-      <Section title="Resolution Fields" icon={FileText} subtitle={perms.canEdit ? "Editable — you are the assigned owner or manager" : "Read-only — only the assigned owner or reporting manager can edit"}>
+      <Section title="Resolution Fields" icon={FileText} subtitle={perms.canEdit ? "Editable - you are the assigned owner or manager" : "Read-only - only the assigned owner or reporting manager can edit"}>
         <div className="space-y-2">
           {perms.fields.map((field) => (
             <div key={field.name} className="p-2.5 rounded-md border border-border">
@@ -974,7 +975,7 @@ function ResolutionTab({ data }: { data: TicketDetailData }) {
                 />
               ) : (
                 <div className="text-[10px] text-muted-foreground italic px-2 py-1.5 rounded bg-muted/30">
-                  Field locked — awaiting owner input upon resolution
+                  Field locked - awaiting owner input upon resolution
                 </div>
               )}
             </div>
@@ -1363,10 +1364,10 @@ function ConnectedTab({ data }: { data: TicketDetailData }) {
                 )} style={{ width: `${data.sentimentScore}%` }} />
               </div>
               <div className="text-[10px] text-muted-foreground mt-1">
-                {(data.sentimentScore || 50) < 35 ? "High negative sentiment — prioritize empathetic response" :
-                 (data.sentimentScore || 50) < 50 ? "Negative sentiment detected — handle with care" :
-                 (data.sentimentScore || 50) < 65 ? "Neutral sentiment — standard handling" :
-                 "Positive sentiment — standard handling"}
+                {(data.sentimentScore || 50) < 35 ? "High negative sentiment - prioritize empathetic response" :
+                 (data.sentimentScore || 50) < 50 ? "Negative sentiment detected - handle with care" :
+                 (data.sentimentScore || 50) < 65 ? "Neutral sentiment - standard handling" :
+                 "Positive sentiment - standard handling"}
               </div>
             </div>
           </div>

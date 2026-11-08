@@ -357,7 +357,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
       inApp: "Ticket in progress",
     },
     status_awaiting_response: {
-      subject: `[${ref}] Action Needed — Awaiting Response: ${t.title}`,
+      subject: `[${ref}] Action Needed - Awaiting Response: ${t.title}`,
       context: "Awaiting Reply",
       accent: "#d97706",
       heading: "Waiting on a response to proceed",
@@ -381,7 +381,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
       calloutBlock: t.resolutionSummary
         ? callout({ title: "Resolution Summary", body: t.resolutionSummary, tone: "success" })
         : callout({ title: "Marked Resolved", body: "All operational steps were completed. Please verify at the studio if needed.", tone: "success" }),
-      steps: role === "reporter" ? ["Verify the fix on the floor — if anything recurs, you can reopen the ticket in one click."] : [],
+      steps: role === "reporter" ? ["Verify the fix on the floor - if anything recurs, you can reopen the ticket in one click."] : [],
       cta: "Verify Resolution",
       why: "you reported or own this ticket",
       inApp: "Ticket resolved",
@@ -437,7 +437,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
       inApp: `New comment on ${ref}`,
     },
     escalated: {
-      subject: `[ESCALATED · L${t.escalationLevel || 1}] ${ref} — ${t.title}`,
+      subject: `[ESCALATED · L${t.escalationLevel || 1}] ${ref} - ${t.title}`,
       context: `Escalation · Level ${t.escalationLevel || 1}`,
       accent: BRAND.red,
       heading: isOwner ? "Your ticket has been escalated" : "Urgent: Ticket escalated for intervention",
@@ -461,7 +461,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
       inApp: "Ticket escalated",
     },
     sla_at_risk: {
-      subject: `[SLA Warning] ${ref} — Approaching Deadline: ${t.title}`,
+      subject: `[SLA Warning] ${ref} - Approaching Deadline: ${t.title}`,
       context: "SLA Approaching",
       accent: "#d97706",
       heading: "SLA deadline is approaching",
@@ -479,7 +479,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
       inApp: "SLA approaching",
     },
     sla_breached: {
-      subject: `[SLA BREACHED] ${ref} — Overdue: ${t.title}`,
+      subject: `[SLA BREACHED] ${ref} - Overdue: ${t.title}`,
       context: "SLA Breached",
       accent: BRAND.red,
       heading: "SLA resolution target has been breached",
@@ -609,7 +609,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
     html,
     text: textLines.join("\n"),
     inAppTitle: spec.inApp,
-    inAppBody: `${labelRef}${event === "comment_added" && comment ? ` — ${comment.content.slice(0, 100)}` : ""}`,
+    inAppBody: `${labelRef}${event === "comment_added" && comment ? ` - ${comment.content.slice(0, 100)}` : ""}`,
   };
 }
 
@@ -643,8 +643,8 @@ export function renderDigestEmail(
   const isWeekly = data.period === "weekly";
   const accent = isWeekly ? BRAND.violet : BRAND.indigo;
   const baseSubject = isWeekly
-    ? `IRIS Weekly Operations Digest — ${data.date} · ${data.studio}`
-    : `IRIS Daily Operations Digest — ${data.date} · ${data.studio}`;
+    ? `IRIS Weekly Operations Digest - ${data.date} · ${data.studio}`
+    : `IRIS Daily Operations Digest - ${data.date} · ${data.studio}`;
   const prefixed = opts.override?.subjectPrefix?.trim()
     ? `${opts.override.subjectPrefix.trim()} ${baseSubject}`
     : baseSubject;
@@ -789,7 +789,7 @@ export function renderDigestEmail(
   const text = [
     `${greeting(data.recipientName)}`,
     "",
-    `${heading} — ${data.studio} (${data.date})`,
+    `${heading} - ${data.studio} (${data.date})`,
     intro,
     "",
     `Total: ${data.summary.totalTickets} | New: ${data.summary.newTickets} | Resolved: ${data.summary.resolvedTickets} | Critical Open: ${data.summary.criticalOpen} | Escalated: ${data.summary.escalatedTickets} | SLA: ${data.summary.slaCompliance}%`,

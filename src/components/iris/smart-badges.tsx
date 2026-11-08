@@ -45,7 +45,7 @@ export function BreachRiskBadge({ ticket, variant = "sm", className }: BadgeProp
         "inline-flex items-center gap-0.5 rounded font-bold border tabular-nums whitespace-nowrap",
         color, sizeCls, className,
       )}
-      title={risk.reason + " — " + risk.factors.filter((f) => f.impact > 0).map((f) => f.label).join("; ")}
+      title={risk.reason + " - " + risk.factors.filter((f) => f.impact > 0).map((f) => f.label).join("; ")}
     >
       <AlertTriangle className={variant === "xs" ? "w-2 h-2" : "w-2.5 h-2.5"} />
       {risk.score}% breach

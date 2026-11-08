@@ -92,7 +92,7 @@ export const SCHEDULING_TEMPLATES = defineTemplates("Scheduling", [
     title: "PowerCycle Bike Selection Issue",
     sub: "Bookings & Check-In",
     dept: "SCH", prio: "P2", role: "Bookings Associate", hrs: 4,
-    desc: "Problem with PowerCycle bike spot booking — two riders on one bike, faulty bike assigned, or bike selection not working in the app.",
+    desc: "Problem with PowerCycle bike spot booking - two riders on one bike, faulty bike assigned, or bike selection not working in the app.",
     map: [S, "Booking Restrictions"], outcome: "Fix the issue", sys: "Momence", areas: ["PowerCycle Studio"],
     act: [
       "Check the spot map for the class in Momence and fix double assignments.",
@@ -115,7 +115,7 @@ export const SCHEDULING_TEMPLATES = defineTemplates("Scheduling", [
     title: "Waitlist Management",
     sub: "Waitlists & Capacity",
     dept: "SCH", prio: "P2", role: "Bookings Associate", hrs: 4,
-    desc: "Issue with the class waitlist — not promoted, promoted without notice, or waitlist settings.",
+    desc: "Issue with the class waitlist - not promoted, promoted without notice, or waitlist settings.",
     map: [S, "Waitlist Concerns"], outcome: "Fix the issue", sys: "Momence",
     act: [
       "Review the waitlist log for the class in Momence.",
@@ -204,10 +204,10 @@ export const SCHEDULING_TEMPLATES = defineTemplates("Scheduling", [
     title: "Session Cancellation",
     sub: "Cancellations & Schedule Changes",
     dept: "SCH", prio: "P1", role: "Scheduling Manager", hrs: 4,
-    desc: "A scheduled class has to be cancelled — members must be told, credits restored and fees waived.",
+    desc: "A scheduled class has to be cancelled - members must be told, credits restored and fees waived.",
     map: [S, "Last-minute Cancellations"], outcome: "Fix the issue", sys: "Momence", by: "I noticed this myself",
     act: [
-      "Cancel the class in Momence (this restores credits automatically — verify it did).",
+      "Cancel the class in Momence (this restores credits automatically - verify it did).",
       "Message every booked member by WhatsApp / app with the reason and alternatives.",
       "Offer a goodwill credit for last-minute cancellations (under 2 hours).",
       "Log the cause so repeat cancellations are visible.",
@@ -293,7 +293,7 @@ export const SCHEDULING_TEMPLATES = defineTemplates("Scheduling", [
     title: "Instructor No-Show",
     sub: "Instructor Cover & Substitutions",
     dept: "TRN", prio: "P0", role: "Head Trainer", hrs: 1,
-    desc: "The scheduled trainer has not arrived and the class is at risk — find cover and look after waiting members.",
+    desc: "The scheduled trainer has not arrived and the class is at risk - find cover and look after waiting members.",
     map: ["Trainer Feedback", "Trainer No-Show / Late Arrival"], outcome: "Fix the issue", when: "Just now", by: "I noticed this myself",
     act: [
       "Call the trainer; at 5 minutes late call the on-call / nearest available trainer.",
@@ -306,7 +306,7 @@ export const SCHEDULING_TEMPLATES = defineTemplates("Scheduling", [
       F.classFormat(),
       F.classTime(),
       num("bookedCount", "Members booked", true),
-      pick("coverOutcome", "Outcome", ["Substitute found — class ran", "Class started late", "Class cancelled"], true),
+      pick("coverOutcome", "Outcome", ["Substitute found - class ran", "Class started late", "Class cancelled"], true),
       text("substituteName", "Substitute trainer"),
       check("membersCompensated", "Affected members compensated"),
     ],
@@ -362,7 +362,7 @@ export const SCHEDULING_TEMPLATES = defineTemplates("Scheduling", [
     title: "Incorrect Attendance Record",
     sub: "Attendance & Reminders",
     dept: "TRN", prio: "P2", role: "Head Trainer", hrs: 8,
-    desc: "A member's attendance was recorded wrongly — marked absent though present, or the class attendance is missing.",
+    desc: "A member's attendance was recorded wrongly - marked absent though present, or the class attendance is missing.",
     map: ["Operating Systems", "Attendance Record Discrepancies"], outcome: "Fix the issue", sys: "Momence",
     act: [
       "Verify with the trainer / class list (and CCTV if disputed).",
@@ -479,7 +479,7 @@ export const SCHEDULING_TEMPLATES = defineTemplates("Scheduling", [
       date("workshopDate", "Workshop date", true),
       num("capacity", "Capacity", true),
       num("registered", "Registered so far", true),
-      pick("workshopIssue", "Issue", ["Registrations above capacity", "Low registrations — promote or cancel", "Payment / registration link issue", "Attendee list needed"], true),
+      pick("workshopIssue", "Issue", ["Registrations above capacity", "Low registrations - promote or cancel", "Payment / registration link issue", "Attendee list needed"], true),
     ],
   },
   {

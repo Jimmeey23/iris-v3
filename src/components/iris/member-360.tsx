@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { buildMember360, MEMBER_DIRECTORY, type Member360 } from "@/lib/iris/intelligence";
@@ -18,7 +19,7 @@ import { RelativeTime } from "./relative-time";
 import { MomenceMemberTabs } from "./momence-member-panel";
 
 /**
- * Member 360 Lookup — opens a modal where you can search any member by
+ * Member 360 Lookup - opens a modal where you can search any member by
  * name, phone, email, or Momence ID. Shows a complete profile:
  *   - Membership details (from Momence directory)
  *   - All past tickets (with priority, status, date)
@@ -58,7 +59,7 @@ export function Member360Lookup({
       setMomenceId(q.trim());
     } else if (q.trim().length >= 2 || /^\d+$/.test(q.trim())) {
       setHitsLoading(true);
-      fetch(`/api/momence/members?q=${encodeURIComponent(q.trim())}`, { cache: "no-store" })
+      fetch(absUrl(`/api/momence/members?q=${encodeURIComponent(q.trim())}`), { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : { members: [] }))
         .then((j) => setHits((j.members ?? []).slice(0, 6)))
         .catch(() => setHits([]))

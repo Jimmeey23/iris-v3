@@ -120,7 +120,7 @@ export async function buildDigest(c: PoolClient, role: string, scopeLabel: strin
   };
 }
 
-const hours = (h: number | null) => (h === null ? "—" : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${h}h` : `${Math.round(h / 24)}d`);
+const hours = (h: number | null) => (h === null ? "-" : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${h}h` : `${Math.round(h / 24)}d`);
 
 export function renderDigest(d: Digest, name: string | null, appUrl: string): { subject: string; html: string; text: string } {
   const delta = d.createdPrev ? Math.round(((d.created - d.createdPrev) / d.createdPrev) * 100) : null;

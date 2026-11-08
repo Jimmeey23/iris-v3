@@ -237,7 +237,7 @@ export const MARKETING_TEMPLATES = defineTemplates("Marketing", [
   },
   {
     code: "TPL-261",
-    title: "Incorrect Information Sent to Members — Correction",
+    title: "Incorrect Information Sent to Members - Correction",
     sub: "Member Communications",
     dept: "MKT", prio: "P1", role: "Marketing Manager", hrs: 8,
     desc: "A message to members had wrong information (price, date, offer, schedule) and needs a correction.",

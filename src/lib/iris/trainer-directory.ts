@@ -11,8 +11,8 @@
  *    title or description names someone on the roster;
  *  - Trainer Feedback and Class Experience tickets are the member feedback; those whose
  *    subcategory, title or tags read as praise are compliments, the rest are flagged concerns;
- *  - assessments (weighted evaluation scores) come from iris.trainer_assessments — imported
- *    from v2 and fed live by the Fillout webhook — via /api/trainers/assessments. Only
+ *  - assessments (weighted evaluation scores) come from iris.trainer_assessments - imported
+ *    from v2 and fed live by the Fillout webhook - via /api/trainers/assessments. Only
  *    managers and admins can read them (RLS); for everyone else scores stay null.
  *
  * Grouping is by city, not studio. Bengaluru is a named list; everybody else is Mumbai.
@@ -262,7 +262,7 @@ export function trainerMentions(t: Ticket): string[] {
     }
     // Titles read "Subcategory - Trainer - Studio", so a bare first name there is deliberate.
     if (!out.size) {
-      for (const seg of t.title.split(/\s[-—–]\s/)) {
+      for (const seg of t.title.split(/\s[\u2014\u2013-]\s/)) {
         const w = seg.trim();
         if (w && !w.includes(" ") && knownTrainerNames().some((n) => firstName(n) === w.toLowerCase())) out.add(w);
       }

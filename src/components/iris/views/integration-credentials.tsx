@@ -85,7 +85,7 @@ export function IntegrationCredentials({ id, onSaved }: { id: string; onSaved: (
       </div>
       {info.help && <p className="text-[10.5px] text-muted-foreground leading-relaxed">{info.help}</p>}
       <div className="flex items-center gap-2 flex-wrap">
-        <Button size="sm" className="h-7 text-[11px]" disabled={!dirty || busy || !info.vaultReady} onClick={() => send(draft, "Credentials saved — run Test to verify")}>
+        <Button size="sm" className="h-7 text-[11px]" disabled={!dirty || busy || !info.vaultReady} onClick={() => send(draft, "Credentials saved - run Test to verify")}>
           {busy ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}Save credentials
         </Button>
         {info.fields.some((f) => f.source === "saved") && (

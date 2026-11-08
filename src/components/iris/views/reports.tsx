@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { REPORTS, REPORT_CATEGORIES, ReportItem } from "@/lib/iris/reports";
-import { PRIORITY_CONFIG } from "@/lib/iris/types";
+import { PRIORITY_CONFIG, STUDIOS, DEPARTMENTS } from "@/lib/iris/types";
+import { MultiSelect } from "@/components/iris/multi-select";
 import { api } from "@/lib/iris/live-data";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +29,7 @@ import {
   RefreshCw,
   Ban,
   Printer,
+  Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,7 +140,7 @@ export function ReportsView() {
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Reports Library</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Every report runs against live tickets and covers what you have access to — export to CSV, Excel, PDF, JSON or Markdown.
+            Every report runs against live tickets and covers what you have access to - export to CSV, Excel, PDF, JSON or Markdown.
           </p>
         </div>
       </div>
@@ -289,22 +291,27 @@ function ReportDetailDialog({ report }: { report: ReportItem }) {
   const [activeTab, setActiveTab] = React.useState("data");
   const [range, setRange] = React.useState<string>("365d");
   const [result, setResult] = React.useState<Result | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [rowFilter, setRowFilter] = React.useState("");
+  const [filters, setFilters] = React.useState<ReportFilterState>(EMPTY_FILTERS);
+  // Users pick filters first; nothing runs until they click "Run report".
+  const [configuring, setConfiguring] = React.useState(true);
+  const filterQs = filterQuery(filters);
+  const rangeQ = `${range}${filterQs}`;
 
   const run = React.useCallback(async () => {
+    setConfiguring(false);
     setLoading(true);
     setError(null);
     try {
-      setResult(await api<Result>(`/api/reports/${report.code}?range=${range}`));
+      setResult(await api<Result>(`/api/reports/${report.code}?range=${rangeQ}`));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't run this report");
     } finally {
       setLoading(false);
     }
-  }, [report.code, range]);
-  React.useEffect(() => { void Promise.resolve().then(run); }, [run]);
+  }, [report.code, rangeQ]);
 
   const live = result?.available ? result : null;
   const visibleRows = React.useMemo(() => {
@@ -318,7 +325,7 @@ function ReportDetailDialog({ report }: { report: ReportItem }) {
     const cell = (v: CellValue) => { const s = String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
     const csv = [live.headers, ...visibleRows].map((r) => r.map(cell).join(",")).join("\n");
     void navigator.clipboard.writeText(csv).then(
-      () => toast({ title: "Report data copied", description: `${report.name} — ${visibleRows.length} rows copied as CSV` }),
+      () => toast({ title: "Report data copied", description: `${report.name} - ${visibleRows.length} rows copied as CSV` }),
       () => toast({ title: "Couldn't copy", description: "Your browser blocked clipboard access.", variant: "destructive" }),
     );
   };
@@ -352,7 +359,16 @@ function ReportDetailDialog({ report }: { report: ReportItem }) {
         <p className="text-[12px] text-muted-foreground mt-1">{report.description}</p>
       </DialogHeader>
 
-      {loading && !result ? (
+      {configuring ? (
+        <ReportFilterPanel
+          range={range}
+          onRange={setRange}
+          filters={filters}
+          onChange={setFilters}
+          onRun={run}
+          onCancel={result ? () => setConfiguring(false) : undefined}
+        />
+      ) : loading && !result ? (
         <div className="flex-1 flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" /> Running report…
         </div>
@@ -543,13 +559,13 @@ function ReportDetailDialog({ report }: { report: ReportItem }) {
               <div className="iris-card-elevated p-4">
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Download</div>
                 <p className="text-[11px] text-muted-foreground mb-3">
-                  Exports the full report for {RANGES.find((r) => r.value === range)!.label.toLowerCase()}. Excel opens the CSV directly; PDF opens a print view — choose “Save as PDF”.
+                  Exports the full report for {RANGES.find((r) => r.value === range)!.label.toLowerCase()}. Excel opens the CSV directly; PDF opens a print view - choose “Save as PDF”.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {EXPORTS.map((f) => (
                     <button
                       key={f.id}
-                      onClick={() => download(report.code, range, f.id)}
+                      onClick={() => download(report.code, rangeQ, f.id)}
                       className="flex flex-col items-center gap-1 p-3 rounded-lg border border-border hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
                     >
                       {f.id === "pdf" ? <Printer className="w-4 h-4 text-violet-600 dark:text-violet-400" /> : <Download className="w-4 h-4 text-violet-600 dark:text-violet-400" />}
@@ -568,20 +584,99 @@ function ReportDetailDialog({ report }: { report: ReportItem }) {
           <Copy className="w-3 h-3 mr-1.5" />
           Copy Data
         </Button>
-        <Button size="sm" className="h-8 text-[12px] iris-btn-premium" onClick={run} disabled={loading}>
+        {!configuring && (
+          <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setConfiguring(true)}>
+            <Filter className="w-3 h-3 mr-1.5" />
+            Filters{activeFilterCount(filters) ? ` (${activeFilterCount(filters)})` : ""}
+          </Button>
+        )}
+        <Button size="sm" className="h-8 text-[12px] iris-btn-premium" onClick={run} disabled={loading || configuring}>
           {loading ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1.5" />}
           Refresh
         </Button>
-        <Button variant="outline" size="sm" className="h-8 text-[12px] ml-auto" disabled={!live} onClick={() => download(report.code, range, "xlsx")}>
+        <Button variant="outline" size="sm" className="h-8 text-[12px] ml-auto" disabled={!live} onClick={() => download(report.code, rangeQ, "xlsx")}>
           <Download className="w-3 h-3 mr-1.5" />
           Excel
         </Button>
-        <Button variant="outline" size="sm" className="h-8 text-[12px]" disabled={!live} onClick={() => download(report.code, range, "pdf")}>
+        <Button variant="outline" size="sm" className="h-8 text-[12px]" disabled={!live} onClick={() => download(report.code, rangeQ, "pdf")}>
           <Printer className="w-3 h-3 mr-1.5" />
           PDF
         </Button>
       </div>
     </>
+  );
+}
+
+type ReportFilterState = { studio: string[]; department: string[]; priority: string[]; status: string[] };
+const EMPTY_FILTERS: ReportFilterState = { studio: [], department: [], priority: [], status: [] };
+const STATUS_OPTIONS = [
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In progress" },
+  { value: "awaiting_response", label: "Awaiting response" },
+  { value: "escalated", label: "Escalated" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+];
+const activeFilterCount = (f: ReportFilterState) => f.studio.length + f.department.length + f.priority.length + f.status.length;
+function filterQuery(f: ReportFilterState) {
+  return (Object.entries(f) as [string, string[]][])
+    .filter(([, v]) => v.length)
+    .map(([k, v]) => `&${k}=${encodeURIComponent(v.join(","))}`)
+    .join("");
+}
+
+function ReportFilterPanel({ range, onRange, filters, onChange, onRun, onCancel }: {
+  range: string; onRange: (r: string) => void; filters: ReportFilterState; onChange: (f: ReportFilterState) => void; onRun: () => void; onCancel?: () => void;
+}) {
+  const set = (k: keyof ReportFilterState) => (v: string[]) => onChange({ ...filters, [k]: v });
+  return (
+    <div className="flex-1 overflow-y-auto p-5">
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div>
+          <div className="text-[13px] font-semibold">Set up this report</div>
+          <p className="text-[12px] text-muted-foreground mt-0.5">Choose a period and narrow it down. Leave a filter empty to include everything.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FilterField label="Period">
+            <Select value={range} onValueChange={onRange}>
+              <SelectTrigger className="h-9 text-[12px]" aria-label="Report period"><SelectValue /></SelectTrigger>
+              <SelectContent>{RANGES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </FilterField>
+          <FilterField label="Studio">
+            <MultiSelect size="md" value={filters.studio} onChange={set("studio")} placeholder="All studios" options={STUDIOS.map((s) => ({ value: s.code, label: s.name, hint: s.city }))} />
+          </FilterField>
+          <FilterField label="Department">
+            <MultiSelect size="md" value={filters.department} onChange={set("department")} placeholder="All departments" options={DEPARTMENTS.map((d) => ({ value: d.code, label: d.name, hint: d.code }))} />
+          </FilterField>
+          <FilterField label="Priority">
+            <MultiSelect size="md" value={filters.priority} onChange={set("priority")} placeholder="All priorities" options={Object.keys(PRIORITY_CONFIG).map((p) => ({ value: p, label: `${p} ${PRIORITY_CONFIG[p as keyof typeof PRIORITY_CONFIG].label ?? ""}`.trim() }))} />
+          </FilterField>
+          <FilterField label="Status">
+            <MultiSelect size="md" value={filters.status} onChange={set("status")} placeholder="All statuses" options={STATUS_OPTIONS} />
+          </FilterField>
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <Button size="sm" className="h-9 text-[12px] iris-btn-premium" onClick={onRun}>
+            <Play className="w-3.5 h-3.5 mr-1.5" />
+            Run report
+          </Button>
+          {activeFilterCount(filters) > 0 && (
+            <Button variant="ghost" size="sm" className="h-9 text-[12px]" onClick={() => onChange(EMPTY_FILTERS)}>Clear filters</Button>
+          )}
+          {onCancel && <Button variant="ghost" size="sm" className="h-9 text-[12px] ml-auto" onClick={onCancel}>Back to results</Button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+      {children}
+    </div>
   );
 }
 

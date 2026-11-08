@@ -47,8 +47,8 @@ const STATUS = {
   retired: "Retired",
 } as const;
 
-const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
-const hours = (h: number | null) => (h === null ? "—" : h < 48 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`);
+const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-");
+const hours = (h: number | null) => (h === null ? "-" : h < 48 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`);
 
 export function EquipmentView() {
   const [items, setItems] = React.useState<Item[] | null>(null);
@@ -128,7 +128,7 @@ export function EquipmentView() {
             <Wrench className="w-3 h-3 text-violet-500" /> Studio equipment · Live from repair tickets
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Equipment</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Every bike, microphone and AC system, its fault history and re-check results — so repeat failures get replaced, not patched again.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Every bike, microphone and AC system, its fault history and re-check results - so repeat failures get replaced, not patched again.</p>
         </div>
         <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={load} disabled={loading}>
           {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}Refresh
@@ -149,7 +149,7 @@ export function EquipmentView() {
           <HelpCircle className="w-4 h-4 text-sky-500 mt-0.5 shrink-0" />
           <div className="text-[12px]">
             <span className="font-semibold">{unnumbered} of {unnumbered + numberedFaults} faults didn't say which bike or mic.</span>{" "}
-            <span className="text-muted-foreground">They're grouped under “unnumbered” per studio, so repeat failures on one unit stay hidden. Ask teams to include the number (e.g. “Bike 7”) — IRIS picks it up automatically.</span>
+            <span className="text-muted-foreground">They're grouped under “unnumbered” per studio, so repeat failures on one unit stay hidden. Ask teams to include the number (e.g. “Bike 7”) - IRIS picks it up automatically.</span>
           </div>
         </div>
       )}
@@ -201,7 +201,7 @@ export function EquipmentView() {
                 <Metric label="90 days" value={i.faults_90d} warn={i.faults_90d >= 3} />
                 <Metric label="Open" value={i.open_faults} warn={i.open_faults > 0} />
                 <Metric label="Avg repair" value={hours(i.avg_repair_h)} />
-                <Metric label="Re-checks" value={i.rechecks_passed + i.rechecks_failed ? `${i.rechecks_passed}✓ ${i.rechecks_failed}✗` : "—"} warn={i.rechecks_failed > 0} />
+                <Metric label="Re-checks" value={i.rechecks_passed + i.rechecks_failed ? `${i.rechecks_passed}✓ ${i.rechecks_failed}✗` : "-"} warn={i.rechecks_failed > 0} />
                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", expanded && "rotate-180")} />
               </button>
 

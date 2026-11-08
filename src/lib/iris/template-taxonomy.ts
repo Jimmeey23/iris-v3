@@ -1,4 +1,4 @@
-// IRIS — Template library taxonomy: the Category → Sub-category tree shown on the
+// IRIS - Template library taxonomy: the Category → Sub-category tree shown on the
 // Templates page (Step 1: pick a category, Step 2: pick a sub-category, Step 3: pick
 // a template). Pure data, safe to import anywhere (client, server, unit tests).
 

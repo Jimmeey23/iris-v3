@@ -1,10 +1,10 @@
 /**
  * Structured error logging for every uncaught server error, ported from iris-ai-v2's
- * instrumentation.ts (minus Sentry — add a DSN-shaped sink here if it is ever needed).
+ * instrumentation.ts (minus Sentry - add a DSN-shaped sink here if it is ever needed).
  *
  * Next.js calls onRequestError for Server Components, Route Handlers, Server Actions
  * and middleware. One JSON line per error goes to the server logs, carrying the digest
- * the error page shows — so a user's screenshot can be matched to a log line:
+ * the error page shows - so a user's screenshot can be matched to a log line:
  *   { source: "onRequestError", message, digest, path, method, routeType, commit }
  */
 export async function register(): Promise<void> {

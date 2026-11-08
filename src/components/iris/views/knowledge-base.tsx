@@ -116,10 +116,10 @@ const ARTICLE_OUTLINE = [
   "- ",
   "",
   `## ${KB_SECTIONS.diagnose}`,
-  "- **What you see** — what to do",
+  "- **What you see** - what to do",
   "",
   `## ${KB_SECTIONS.say}`,
-  "> **Moment** — “Words to use”",
+  "> **Moment** - “Words to use”",
   "",
   `## ${KB_SECTIONS.dos}`,
   "- ",
@@ -160,7 +160,7 @@ function CodeChip({ code, children }: { code: string; children?: React.ReactNode
         e.stopPropagation();
         links.open(code);
       }}
-      title={isTemplate ? `Raise a ticket with ${code}${label ? ` — ${label}` : ""}` : `Open ${code}${label ? ` — ${label}` : ""}`}
+      title={isTemplate ? `Raise a ticket with ${code}${label ? ` - ${label}` : ""}` : `Open ${code}${label ? ` - ${label}` : ""}`}
       className={cn(
         "inline-flex items-center px-1 rounded font-mono text-[0.92em] font-medium no-underline align-baseline transition-colors",
         isTemplate
@@ -451,7 +451,7 @@ function ArticleList({
         <div className="relative max-w-xl">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search a symptom, situation or code — e.g. “AC red light”, “refund”, “TPL-034”"
+            placeholder="Search a symptom, situation or code - e.g. “AC red light”, “refund”, “TPL-034”"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             className="h-9 pl-8 pr-8 text-[12px]"
@@ -988,7 +988,7 @@ function StepChecklist({ article }: { article: KnowledgeArticle }) {
       await navigator.clipboard.writeText(stepsAsText(article));
       toast.success("Steps copied");
     } catch {
-      toast.error("Couldn't copy — select the steps and copy them manually");
+      toast.error("Couldn't copy - select the steps and copy them manually");
     }
   };
 
@@ -1000,7 +1000,7 @@ function StepChecklist({ article }: { article: KnowledgeArticle }) {
             <ListChecks className="w-4 h-4 text-primary" />
             Step-by-step
           </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Tick each step as you go — your progress is kept while IRIS is open.</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Tick each step as you go - your progress is kept while IRIS is open.</p>
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={copy}>
@@ -1068,7 +1068,7 @@ function StepChecklist({ article }: { article: KnowledgeArticle }) {
       {steps.length > 0 && doneCount === steps.length && (
         <div className="mt-3 text-[12px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
           <CheckCircle2 className="w-3.5 h-3.5" />
-          All steps done — run through “{KB_SECTIONS.closeOut}” before resolving the ticket.
+          All steps done - run through “{KB_SECTIONS.closeOut}” before resolving the ticket.
         </div>
       )}
     </section>
@@ -1082,7 +1082,7 @@ function FirstFiveCard({ section }: { section: ArticleSection }) {
       <h2 className="text-[13px] font-semibold flex items-center gap-1.5 text-rose-700 dark:text-rose-300 mb-2.5">
         <Zap className="w-4 h-4" />
         {section.heading}
-        <span className="text-[11px] font-normal text-rose-700/70 dark:text-rose-300/70">— do these before anything else</span>
+        <span className="text-[11px] font-normal text-rose-700/70 dark:text-rose-300/70">- do these before anything else</span>
       </h2>
       {items ? (
         <ol className="space-y-1.5">
@@ -1270,7 +1270,7 @@ function RaiseTicketCard({ codes }: { codes: string[] }) {
             if (!t) {
               return (
                 <div key={code} className="rounded-lg border border-dashed border-border p-2.5 text-[11px] text-muted-foreground">
-                  <span className="font-mono">{code}</span> — template no longer available
+                  <span className="font-mono">{code}</span> - template no longer available
                 </div>
               );
             }
@@ -1328,7 +1328,7 @@ function Callout({
 }
 
 /* ------------------------------------------------------------------ */
-/* Edit modal — full editable form                                     */
+/* Edit modal - full editable form                                     */
 /* ------------------------------------------------------------------ */
 
 function EditArticleModal({
@@ -1390,7 +1390,7 @@ function EditArticleModal({
     const v = newTemplate.trim().toUpperCase();
     if (!v) return;
     if (!TEMPLATE_MAP[v]) {
-      toast.error(`${v} isn't a template code — use a code like TPL-034`);
+      toast.error(`${v} isn't a template code - use a code like TPL-034`);
       return;
     }
     if (!draft.relatedTemplates?.includes(v)) update("relatedTemplates", [...(draft.relatedTemplates || []), v]);
@@ -1494,7 +1494,7 @@ function EditArticleModal({
           />
         </div>
 
-        {/* Steps editor — the heart of the knowledge doc */}
+        {/* Steps editor - the heart of the knowledge doc */}
         <div className="iris-edit-form-row">
           <label className="iris-edit-form-label">Troubleshooting Steps ({draft.steps.length})</label>
           <div className="iris-edit-field-list">
@@ -1579,7 +1579,7 @@ function EditArticleModal({
               value={draft.body ?? ""}
               onChange={(e) => update("body", e.target.value)}
               className="text-[12px] min-h-[200px] resize-y font-mono"
-              placeholder={"## First 5 minutes\n- What to check first\n\n## If you see… do this\n- **Symptom** — what to do"}
+              placeholder={"## First 5 minutes\n- What to check first\n\n## If you see… do this\n- **Symptom** - what to do"}
             />
           )}
         </div>

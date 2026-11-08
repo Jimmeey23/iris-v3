@@ -1,4 +1,4 @@
-// IRIS — Momence API v2 Integration Service
+// IRIS - Momence API v2 Integration Service
 // Based on https://api.docs.momence.com/reference
 // OAuth 2.0 flow + all host endpoints
 
@@ -148,7 +148,7 @@ export async function refreshToken(
   return res.json();
 }
 
-// === HOST API — All endpoints require Authorization: Bearer {token} ===
+// === HOST API - All endpoints require Authorization: Bearer {token} ===
 
 async function momenceRequest(
   config: MomenceConfig,

@@ -23,9 +23,9 @@ const toneVar = (tone: string) =>
   : tone === "red" ? "#ff3b30"
   : "var(--primary)";
 
-/** indiaDate from reference repo — formats in Asia/Kolkata timezone. */
+/** indiaDate from reference repo - formats in Asia/Kolkata timezone. */
 function indiaDate(v: unknown, short = false): string {
-  if (!v) return "—";
+  if (!v) return "-";
   const d = new Date(String(v));
   if (Number.isNaN(d.getTime())) return String(v);
   return new Intl.DateTimeFormat("en-IN", {
@@ -78,7 +78,7 @@ function ScoreDial({ value, size = 104 }: { value: number; size?: number }) {
         />
       </svg>
       <div className="tr-dial-label">
-        <strong>{value || "—"}</strong>
+        <strong>{value || "-"}</strong>
         <span>score</span>
       </div>
     </div>
@@ -268,7 +268,7 @@ function ReviewCard({
   active: boolean;
   latest?: boolean;
 }) {
-  const evaluator = review.evaluator && review.evaluator !== "—" ? review.evaluator : "Evaluator not recorded";
+  const evaluator = review.evaluator && review.evaluator !== "-" ? review.evaluator : "Evaluator not recorded";
   return (
     <div className={`tr-review${active ? " active" : ""}${open ? " open" : ""}${latest ? " latest" : ""}`}>
       <div className="tr-review-head">
@@ -279,7 +279,7 @@ function ReviewCard({
           onClick={onSelect}
           title="Load this review into the rubric and radar above"
         >
-          {review.score ? review.score + "%" : "—"}
+          {review.score ? review.score + "%" : "-"}
         </button>
         <button type="button" className="tr-review-summary" onClick={onToggle} aria-expanded={open}>
           <span className="tr-review-title">
@@ -365,7 +365,7 @@ function ReviewCard({
               {review.answers.map((answer, i) => (
                 <div key={i}>
                   <span>{answer.label}</span>
-                  <p>{answer.value || "—"}</p>
+                  <p>{answer.value || "-"}</p>
                 </div>
               ))}
             </div>
@@ -505,7 +505,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
 
   return (
     <div className="tr-report">
-      {/* 01 — masthead */}
+      {/* 01 - masthead */}
       <section className="tr-masthead">
         <div className="tr-portrait" data-empty={getTrainerImage(trainer.name) ? undefined : "true"}>
           <TrainerPhoto
@@ -535,21 +535,21 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
       <div className="tr-kpis">
         <KpiTile
           label="Profile average"
-          value={trainer.avgScore !== null ? trainer.avgScore + "%" : "—"}
+          value={trainer.avgScore !== null ? trainer.avgScore + "%" : "-"}
           sub={trainer.band || "No assessments yet"}
           tone={scoreColor(avg)}
           pct={avg}
         />
         <KpiTile
           label="Best on record"
-          value={best ? best + "%" : "—"}
+          value={best ? best + "%" : "-"}
           sub="Highest weighted result"
           tone="#34c759"
           pct={best}
         />
         <KpiTile
           label="Lowest on record"
-          value={worst ? worst + "%" : "—"}
+          value={worst ? worst + "%" : "-"}
           sub="Weakest weighted result"
           tone="#ff3b30"
           pct={worst}
@@ -575,7 +575,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         </Section>
       )}
 
-      {/* 02 — trajectory */}
+      {/* 02 - trajectory */}
       <Section
         index="02"
         title="Score trajectory"
@@ -589,7 +589,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         />
       </Section>
 
-      {/* 03 — rubric for the selected review */}
+      {/* 03 - rubric for the selected review */}
       <Section
         index="03"
         title="Rubric attainment"
@@ -633,7 +633,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         )}
       </Section>
 
-      {/* 04 — coaching notes from the selected review */}
+      {/* 04 - coaching notes from the selected review */}
       {selected && (selected.strengths || selected.improvements || selected.coachingPlan || selected.summary) && (
         <Section index="04" title="Coaching notes" subtitle={`As recorded on ${selected.ticketNumber}`}>
           <div className="tr-notes">
@@ -665,7 +665,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         </Section>
       )}
 
-      {/* 05 — lifetime rubric */}
+      {/* 05 - lifetime rubric */}
       {lifetimeRubric.length > 0 && (
         <Section
           index="05"
@@ -679,7 +679,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         </Section>
       )}
 
-      {/* 06 — the reviews themselves */}
+      {/* 06 - the reviews themselves */}
       <Section
         index="06"
         title="Reviews on file"
@@ -725,7 +725,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         )}
       </Section>
 
-      {/* 07 — evaluators + studios */}
+      {/* 07 - evaluators + studios */}
       {(evaluators.length > 0 || studios.length > 0) && (
         <Section
           index="07"
@@ -767,7 +767,7 @@ export function TrainerReport({ trainer }: { trainer: Trainer }) {
         </Section>
       )}
 
-      {/* 08 — member feedback */}
+      {/* 08 - member feedback */}
       <Section
         index="08"
         title="Member feedback and compliments"

@@ -100,16 +100,16 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
       F.memberName(),
       F.amount(),
       pick("upiApp", "UPI app", ["GPay", "PhonePe", "Paytm", "BHIM / bank app", "Other"], true),
-      text("utr", "UPI reference (UTR — 12 digits)", true),
+      text("utr", "UPI reference (UTR - 12 digits)", true),
       F.paymentDate(),
-      pick("appStatus", "Status in the member's app", ["Pending", "Debited — awaiting confirmation", "Failed but debited"], true),
+      pick("appStatus", "Status in the member's app", ["Pending", "Debited - awaiting confirmation", "Failed but debited"], true),
     ],
   },
 
   /* ---------------- Refunds ---------------- */
   {
     code: "TPL-005",
-    title: "Refund Request — Membership",
+    title: "Refund Request - Membership",
     sub: "Refunds",
     dept: "PAY", prio: "P2", role: "Finance Manager", hrs: 72,
     desc: "Member is requesting a refund for a membership or package purchase.",
@@ -117,7 +117,7 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
     act: [
       "Verify the original payment in Momence and the gateway.",
       "Check the refund policy and usage (classes attended since purchase).",
-      "Calculate the refundable amount; refunds above the approval limit go to ‘Refund Processing — Authorization Required’.",
+      "Calculate the refundable amount; refunds above the approval limit go to ‘Refund Processing - Authorization Required’.",
       "Process via the original payment method, record the refund in Momence and send the reference to the member.",
     ],
     f: [
@@ -154,7 +154,7 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
   },
   {
     code: "TPL-029",
-    title: "Refund Processing — Authorization Required",
+    title: "Refund Processing - Authorization Required",
     sub: "Refunds",
     dept: "PAY", prio: "P2", role: "Finance Manager", hrs: 72,
     desc: "Refund needs management approval because of the amount or because it falls outside policy.",
@@ -176,7 +176,7 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
   },
   {
     code: "TPL-075",
-    title: "Client Booking Error — Refund Required",
+    title: "Client Booking Error - Refund Required",
     sub: "Refunds",
     dept: "PAY", prio: "P2", role: "Finance Associate", hrs: 24,
     desc: "Member was charged because of a booking error (wrong class, cancelled class, double booking) and needs a refund or credit.",
@@ -211,7 +211,7 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
     f: [
       F.memberName(),
       F.plan(),
-      pick("exceptionReason", "Reason", ["Medical — unable to train", "Relocating to a city without a studio", "Bereavement", "Other hardship"], true),
+      pick("exceptionReason", "Reason", ["Medical - unable to train", "Relocating to a city without a studio", "Bereavement", "Other hardship"], true),
       num("unusedValue", "Unused value (₹)", true),
       pick("proposedResolution", "Proposed resolution", ["Pro-rata refund", "Transfer to a family member", "Long freeze", "Account credit"]),
       check("docsReceived", "Supporting documents received"),
@@ -499,7 +499,7 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
     title: "Cheque Payment Processing",
     sub: "Cash, Wallet & Instalments",
     dept: "PAY", prio: "P3", role: "Finance Associate", hrs: 96,
-    desc: "Member or company is paying by cheque — record, deposit and activate after clearance.",
+    desc: "Member or company is paying by cheque - record, deposit and activate after clearance.",
     map: INTERNAL, outcome: "Action the request",
     act: [
       "Record the cheque details and issue a provisional receipt.",

@@ -6,13 +6,13 @@ import { RATE_LIMITS, rateLimitKey, rateWindow, type RateLimitBucket } from "@/l
  * Fixed-window request counters, ported from iris-ai-v2's lib/rate-limit.
  *
  * The endpoints that call the AI, send mail, or accept anonymous logins are reachable
- * by signed-in staff by design — that only holds if a caller cannot spend the API
+ * by signed-in staff by design - that only holds if a caller cannot spend the API
  * budget or mailbomb a colleague in a loop.
  *
  * The counter lives in the database rather than a module-scope Map because the next
  * request is not guaranteed to reach the same process; an in-memory limiter would be a
  * limit per instance, which is not a limit. The whole count is one statement: the
- * insert either creates the window or, on conflict, increments it — resetting the
+ * insert either creates the window or, on conflict, increments it - resetting the
  * count when the previous window has expired. Read-then-write would let two concurrent
  * requests both read 29 and both proceed.
  */

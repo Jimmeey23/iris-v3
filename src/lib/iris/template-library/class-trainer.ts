@@ -16,7 +16,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     map: [TF, "Trainer Punctuality Issues"], outcome: "Process change", by: "I noticed this myself",
     act: [
       "Confirm the arrival time (front-desk log / CCTV) and the impact on the class.",
-      "Training Manager speaks with the trainer within 24 hours — understand the cause and agree a fix.",
+      "Training Manager speaks with the trainer within 24 hours - understand the cause and agree a fix.",
       "Apply the punctuality policy (formal warning after 3 late arrivals in 30 days).",
       "If members were affected, apologise and add a goodwill credit where the class started late.",
     ],
@@ -61,7 +61,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     map: [TF, "Injury Prevention and Safety"], outcome: "Process change",
     act: [
       "Thank the member; ask whether they felt any discomfort afterwards.",
-      "Review the class plan with the trainer — warm-up and stretch are non-negotiable for injury prevention.",
+      "Review the class plan with the trainer - warm-up and stretch are non-negotiable for injury prevention.",
       "Observe one of the trainer's next classes.",
     ],
     f: [
@@ -77,7 +77,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
   /* ---------------- Coaching Quality & Cueing ---------------- */
   {
     code: "TPL-148",
-    title: "Unclear Cueing — Hard to Follow",
+    title: "Unclear Cueing - Hard to Follow",
     sub: "Coaching Quality & Cueing",
     dept: "TRN", prio: "P3", role: "Head Trainer", hrs: 72,
     desc: "Member found the class hard to follow because of unclear cues, fast transitions or not enough demonstration.",
@@ -123,7 +123,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     title: "Hands-On Adjustment Concern",
     sub: "Coaching Quality & Cueing",
     dept: "TRN", prio: "P1", role: "Training Manager", hrs: 24,
-    desc: "Member was uncomfortable with a hands-on adjustment — given without consent, painful or felt inappropriate.",
+    desc: "Member was uncomfortable with a hands-on adjustment - given without consent, painful or felt inappropriate.",
     map: [TF, "Hands-on Adjustments"], outcome: "Escalate to management",
     act: [
       "Treat as sensitive: acknowledge the member privately the same day.",
@@ -156,7 +156,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
       feedbackFrom(),
       F.trainer(),
       F.classFormat(),
-      pick("correctionFeedback", "Feedback", ["Too many corrections — felt singled out", "Too few — wanted more guidance", "Corrections given unclearly"], true),
+      pick("correctionFeedback", "Feedback", ["Too many corrections - felt singled out", "Too few - wanted more guidance", "Corrections given unclearly"], true),
       F.classDate(false),
     ],
   },
@@ -230,7 +230,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     title: "Music Too Loud / Playlist Concern",
     sub: "Music, Mic & Atmosphere",
     dept: "TRN", prio: "P3", role: "Head Trainer", hrs: 48,
-    desc: "Member feedback on class music — volume, explicit lyrics, repetitive playlist or energy mismatch.",
+    desc: "Member feedback on class music - volume, explicit lyrics, repetitive playlist or energy mismatch.",
     map: [TF, "Instructor Music Balance & Schedule Fit"], outcome: "Process change",
     act: [
       "Share with the trainer; check the playlist against brand music guidelines.",
@@ -293,7 +293,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     title: "Trainer Behaviour Complaint",
     sub: "Trainer Conduct & Professionalism",
     dept: "TRN", prio: "P1", role: "Training Manager", hrs: 24,
-    desc: "Member complains about a trainer's behaviour — rude, dismissive, embarrassing or unprofessional.",
+    desc: "Member complains about a trainer's behaviour - rude, dismissive, embarrassing or unprofessional.",
     map: [TF, "Trainer Behaviour"], outcome: "Escalate to management",
     act: [
       "Acknowledge the member within 2 hours; listen and capture specifics.",
@@ -334,7 +334,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     title: "Trainer Distracted / Phone Use in Class",
     sub: "Trainer Conduct & Professionalism",
     dept: "TRN", prio: "P2", role: "Training Manager", hrs: 48,
-    desc: "Trainer was distracted during class — on the phone, chatting to a few members, or not watching form.",
+    desc: "Trainer was distracted during class - on the phone, chatting to a few members, or not watching form.",
     map: [TF, "Trainer Focus on Individual Needs"], outcome: "Process change",
     act: [
       "Verify (other feedback / CCTV) and speak with the trainer.",
@@ -354,7 +354,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     title: "Low Member Engagement / Trainer Forgot Names",
     sub: "Trainer Conduct & Professionalism",
     dept: "TRN", prio: "P3", role: "Head Trainer", hrs: 72,
-    desc: "Member felt invisible in class — trainer didn't know names, welcome first-timers or check in before / after class.",
+    desc: "Member felt invisible in class - trainer didn't know names, welcome first-timers or check in before / after class.",
     map: [TF, "Trainer Forgot Names"], outcome: "Process change",
     act: [
       "Share the feedback; remind trainers to review the class list (first-timers, birthdays, milestones) before class.",
@@ -375,7 +375,7 @@ export const CLASS_TRAINER_TEMPLATES = defineTemplates("Class & Trainer Experien
     title: "Trainer Compliment / Shout-Out",
     sub: "Recognition & Development",
     dept: "TRN", prio: "P3", role: "Training Manager", hrs: 72,
-    desc: "A member praised a trainer — record it, share it with the trainer and use it for recognition.",
+    desc: "A member praised a trainer - record it, share it with the trainer and use it for recognition.",
     map: [TF, "Trainer Encouragement"], outcome: "Information only",
     act: [
       "Thank the member.",

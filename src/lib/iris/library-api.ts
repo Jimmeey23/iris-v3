@@ -2,8 +2,8 @@
 
 // Client side of the editable library (ticket templates + knowledge docs).
 // Persisted in Neon via /api/templates and /api/knowledge. The in-code arrays
-// (TICKET_TEMPLATES, KNOWLEDGE_ARTICLES) are mutated in place — same approach as
-// live-data.ts — so the AI assistant / intelligence code sees edits too.
+// (TICKET_TEMPLATES, KNOWLEDGE_ARTICLES) are mutated in place - same approach as
+// live-data.ts - so the AI assistant / intelligence code sees edits too.
 
 import { api } from "./live-data";
 import { useAppStore } from "./store";

@@ -754,7 +754,7 @@ function pickAck(template: string[], value: string): string {
  * Heuristic: real Momence member names from our mock data are title-cased
  * and contain a space (e.g. "Priya Agarwal"). Free-text like "jimmeey" or
  * "jimmee" is single-token and lowercased. This isn't perfect but is a good
- * first-pass signal — and most importantly, it never FALSELY claims
+ * first-pass signal - and most importantly, it never FALSELY claims
  * "verified" for an obvious free-text input.
  */
 function pickAckForQuestion(
@@ -971,7 +971,7 @@ export function processUserInput(
       dynamicQuestionsToAdd = ["affected_client"];
     }
 
-    // Pick ack — uses verified/unverified pool for Momence-related questions
+    // Pick ack - uses verified/unverified pool for Momence-related questions
     // to avoid falsely claiming "Member verified" for free-text input.
     const ack = pickAckForQuestion(currentQ, capturedValue);
 
@@ -1149,14 +1149,14 @@ export function buildInvestigationResult(state: ConversationState): AIMessageOut
   // Pick the best assignee using workload-aware routing from REAL employees
   const assigneeName = pickAssigneeName(intent.suggestedDepartment || "FAC");
 
-  // Deterministic ticket ID — uses a monotonic counter seeded from the
+  // Deterministic ticket ID - uses a monotonic counter seeded from the
   // current timestamp + a hash of the title. Avoids Math.random() which
   // would produce different IDs on server vs client (hydration mismatch)
   // and on re-renders (the same ticket preview would get a new ID each
   // time the component re-rendered).
   const ticketId = generateDeterministicTicketId(title);
 
-  // Pull SLA from the canonical SLA_DEFINITIONS engine — single source of
+  // Pull SLA from the canonical SLA_DEFINITIONS engine - single source of
   // truth. The conversation engine used to duplicate these values in a
   // hardcoded map that drifted from sla-definitions.ts.
   const slaDef = SLA_MAP[priority] || SLA_MAP.P3;
@@ -1184,7 +1184,7 @@ export function buildInvestigationResult(state: ConversationState): AIMessageOut
     collectedFields: Object.entries(info).filter(([_, v]) => v).map(([k, v]) => ({ field: k, value: String(v) })),
   };
 
-  // Investigation steps — use REAL counts, not hardcoded "found 2" / "4 candidates"
+  // Investigation steps - use REAL counts, not hardcoded "found 2" / "4 candidates"
   const candidateCount = countCandidatesForDept(intent.suggestedDepartment || "FAC");
   const similarCount = countSimilarHistoricalTickets(state);
   const investigationSteps: string[] = [
@@ -1389,7 +1389,7 @@ function pickAssigneeName(deptCode: string): string {
       e.workload < e.maxWorkload,
   );
   if (candidates.length > 0) {
-    // Lowest workload first — load-balanced routing
+    // Lowest workload first - load-balanced routing
     candidates.sort((a, b) => a.workload - b.workload);
     return candidates[0].name;
   }
@@ -1407,7 +1407,7 @@ function pickAssigneeName(deptCode: string): string {
   const inDept = EMPLOYEES.filter((e) => e.departmentCode === deptCode);
   if (inDept.length > 0) return inDept[0].name;
 
-  // Truly nothing — return a sensible default, not a fake name
+  // Truly nothing - return a sensible default, not a fake name
   return "Operations Team";
 }
 

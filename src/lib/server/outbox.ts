@@ -187,7 +187,7 @@ export async function deliverPending({ limit = 10 }: { limit?: number } = {}): P
   }
 }
 
-/** Manually retry one parked ('failed') row — wired to the Integrations/ops surface later. */
+/** Manually retry one parked ('failed') row - wired to the Integrations/ops surface later. */
 export async function retryFailed(id: string): Promise<boolean> {
   const res = await pool.query(
     `update iris.outbox set status = 'pending', next_attempt_at = now(), attempts = 0, updated_at = now()

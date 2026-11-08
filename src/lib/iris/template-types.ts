@@ -1,4 +1,4 @@
-// IRIS — Ticket template types, shared option lists and the preset-form builders
+// IRIS - Ticket template types, shared option lists and the preset-form builders
 // used by the built-in template catalogue (src/lib/iris/template-library/*).
 //
 // Every built-in template is a *preset ticket form*: it pre-selects the ticket
@@ -56,7 +56,7 @@ export interface TicketTemplate {
   code: string;
   title: string;
   description: string;
-  /** Library taxonomy — drives the Category → Sub-category drill-down on the Templates page. */
+  /** Library taxonomy - drives the Category → Sub-category drill-down on the Templates page. */
   category: string;
   subcategory?: string;
   departmentCode: string;
@@ -133,7 +133,7 @@ export const OPT_CONTACT_CHANNELS = ["WhatsApp", "Phone call", "Email", "In pers
 export const OPT_YES_NO_UNSURE = ["Yes", "No", "Not sure"];
 
 /* ------------------------------------------------------------------ */
-/* Field builders — ids must match /^[A-Za-z][A-Za-z0-9_]*$/            */
+/* Field builders - ids must match /^[A-Za-z][A-Za-z0-9_]*$/            */
 /* ------------------------------------------------------------------ */
 
 type Extra = { helper?: string; def?: string };

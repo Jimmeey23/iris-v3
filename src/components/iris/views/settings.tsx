@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { toast } from "sonner";
@@ -333,6 +334,10 @@ function NativeSelect({
   disabled?: boolean;
   className?: string;
 }) {
+  // Some option lists (e.g. subcategories shared by two categories) repeat a value;
+  // a <select> can't tell them apart anyway, so keep the first and avoid duplicate keys.
+  const seen = new Set<string>();
+  const unique = options.filter((o) => (seen.has(o.value) ? false : (seen.add(o.value), true)));
   return (
     <select
       value={value ?? ""}
@@ -343,7 +348,7 @@ function NativeSelect({
         className,
       )}
     >
-      {options.map((o) => (
+      {unique.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
@@ -2173,7 +2178,7 @@ function AIModelSettings() {
   } | null>(null);
 
   React.useEffect(() => {
-    fetch("/api/ai/usage", { cache: "no-store" })
+    fetch(absUrl("/api/ai/usage"), { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => j && setUsage(j))
       .catch(() => {});
@@ -2455,7 +2460,7 @@ function NotificationsSettings() {
     if (!to) return toast.error("No email on current session");
     setTestingEmail(true);
     try {
-      const res = await fetch("/api/notifications/email", {
+      const res = await fetch(absUrl("/api/notifications/email"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "send_test", to, event: "ticket_created" }),
@@ -2750,9 +2755,9 @@ function IntegrationsSettings() {
 }
 
 const TIERS = [
-  { value: "executive", label: "Executive — own & department tickets" },
-  { value: "manager", label: "Manager — department + staff edits" },
-  { value: "admin", label: "Admin — everything" },
+  { value: "executive", label: "Executive - own & department tickets" },
+  { value: "manager", label: "Manager - department + staff edits" },
+  { value: "admin", label: "Admin - everything" },
 ];
 
 function PermissionsSettings() {
@@ -2944,7 +2949,7 @@ function AuditLogsSettings() {
                   {l.entity_type}
                   {l.entity_id ? ` · ${l.entity_id}` : ""}
                 </td>
-                <td className="py-1.5 px-2 font-mono text-[10px] text-muted-foreground">{l.ip ?? "—"}</td>
+                <td className="py-1.5 px-2 font-mono text-[10px] text-muted-foreground">{l.ip ?? "-"}</td>
                 <td className="py-1.5 px-2 text-right text-[11px] text-muted-foreground">
                   {new Date(l.created_at).toLocaleString()}
                 </td>

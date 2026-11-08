@@ -7,7 +7,7 @@ import { INTEGRATION_CATALOGUE, type IntegrationDefinition } from "@/lib/iris/in
  * Integration credentials, ported from IRIS v2 (lib/config.ts).
  *
  * - Secrets are stored in iris.integrations.credentials_enc as AES-256-GCM
- *   ("iv.tag.data", base64) under INTEGRATION_ENCRYPTION_KEY — the same format
+ *   ("iv.tag.data", base64) under INTEGRATION_ENCRYPTION_KEY - the same format
  *   v2 used, so a v2 key decrypts v2-era values.
  * - Environment variables win; values saved in Settings fill whatever the
  *   deployment does not supply. Env names: <ID>_<FIELD>, e.g. STRIPE_API_KEY,
@@ -75,7 +75,7 @@ export async function loadCredentials(c: PoolClient, dbId: string) {
   try {
     saved = decryptSecrets(row?.credentials_enc);
   } catch {
-    decryptError = "Saved credentials can't be decrypted — INTEGRATION_ENCRYPTION_KEY has changed. Re-enter them.";
+    decryptError = "Saved credentials can't be decrypted - INTEGRATION_ENCRYPTION_KEY has changed. Re-enter them.";
   }
   const env = envCredentials(catalogueIdFor(dbId));
   const values: Record<string, string> = { ...saved, ...env };

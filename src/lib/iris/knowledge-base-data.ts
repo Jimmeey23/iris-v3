@@ -1,9 +1,9 @@
-// IRIS Knowledge Base — the shipped articles.
+// IRIS Knowledge Base - the shipped articles.
 //
 // Articles are authored per area in ./knowledge-base/* with the `article()`
-// helper (see ./knowledge-base/compose.ts), which turns a structured spec —
+// helper (see ./knowledge-base/compose.ts), which turns a structured spec -
 // triage, the full procedure, a symptom → action guide, scripts, do's and
-// don'ts, close-out checks — into the fields Neon stores. Managers can still
+// don'ts, close-out checks - into the fields Neon stores. Managers can still
 // edit any article in the app; the server sync never overwrites their edits.
 
 import type { KnowledgeArticle } from "./knowledge-base/compose";
@@ -20,7 +20,7 @@ const articleNumber = (id: string) => Number(/(\d+)$/.exec(id)?.[1] ?? 0);
 /**
  * Live article list. On the client it is replaced in place by whatever Neon
  * returns (see library-api.ts), so treat it as the current library, not the
- * shipped defaults — use BUILTIN_KNOWLEDGE_ARTICLES for those.
+ * shipped defaults - use BUILTIN_KNOWLEDGE_ARTICLES for those.
  */
 export const KNOWLEDGE_ARTICLES: KnowledgeArticle[] = [
   ...MEMBER_EXPERIENCE_ARTICLES,

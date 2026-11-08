@@ -5,7 +5,7 @@
  * Email HTML is its own medium. No CSS Grid, no Flexbox, no external stylesheet, and
  * Outlook on Windows renders with Word. So: tables for layout, every style inline, and
  * a small <style> block that progressively enhances clients which read it (Apple Mail,
- * iOS, Gmail apps) — chiefly stacking two-column rows and widening buttons below 620px.
+ * iOS, Gmail apps) - chiefly stacking two-column rows and widening buttons below 620px.
  *
  * Kept completely free of database and server-only imports so both server mailers and
  * browser template previews render identical HTML.

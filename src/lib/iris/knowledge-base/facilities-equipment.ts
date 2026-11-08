@@ -1,4 +1,4 @@
-// Knowledge Base — facilities, audio, HVAC, power, plumbing, hygiene, equipment and vendors.
+// Knowledge Base - facilities, audio, HVAC, power, plumbing, hygiene, equipment and vendors.
 import { article, type KnowledgeArticle } from "./compose";
 
 export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
@@ -21,7 +21,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     ],
     steps: [
       "Give the trainer the charged backup mic from the equipment cupboard so the class can continue.",
-      "Check the faulty mic's batteries — replace with fresh AAs (or charge it) even if the indicator looks fine.",
+      "Check the faulty mic's batteries - replace with fresh AAs (or charge it) even if the indicator looks fine.",
       "Check the mute switch on the bodypack and that the bodypack and receiver are on the same channel / frequency.",
       "Look at the receiver: no RF light means no signal (re-sync the pair); RF but no audio means check the mixer.",
       "Check cables: headset connector firmly in the bodypack, and the receiver output (XLR) firmly in the mixer.",
@@ -34,14 +34,14 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "Confirm the repaired or replacement mic works before the next class.",
     ],
     diagnose: [
-      ["No power light on the bodypack", "Batteries or charging — replace / charge, then re-test."],
-      ["Power on, no RF light on the receiver", "Channel mismatch — re-sync the bodypack and receiver."],
-      ["RF light on, no sound", "Mixer channel muted / gain down, or the XLR cable — check the mixer chain."],
-      ["Sound cuts in and out", "Interference or a damaged headset cable — change frequency, swap the headset."],
-      ["Crackling only when the trainer moves", "Headset cable or connector damaged — replace the headset element."],
+      ["No power light on the bodypack", "Batteries or charging - replace / charge, then re-test."],
+      ["Power on, no RF light on the receiver", "Channel mismatch - re-sync the bodypack and receiver."],
+      ["RF light on, no sound", "Mixer channel muted / gain down, or the XLR cable - check the mixer chain."],
+      ["Sound cuts in and out", "Interference or a damaged headset cable - change frequency, swap the headset."],
+      ["Crackling only when the trainer moves", "Headset cable or connector damaged - replace the headset element."],
     ],
     say: [
-      ["Trainer mid-class", "Here's the backup mic — it's charged and synced. I'll sort out the other one after class."],
+      ["Trainer mid-class", "Here's the backup mic - it's charged and synced. I'll sort out the other one after class."],
     ],
     dos: [
       "Keep a charged, synced backup mic for every studio.",
@@ -49,7 +49,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "Log every failure with the unit number.",
     ],
     donts: [
-      "Don't make the class wait while you troubleshoot — swap first.",
+      "Don't make the class wait while you troubleshoot - swap first.",
       "Don't put a faulty unit back in the cupboard unlabelled.",
     ],
     closeOut: [
@@ -80,30 +80,30 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     firstFive: [
       "Note the blink pattern / fault code on the display before touching anything.",
       "Check the room temperature and how many classes are coming up.",
-      "Make sure the TFA (fresh air) unit is running — the AC works with it.",
+      "Make sure the TFA (fresh air) unit is running - the AC works with it.",
     ],
     steps: [
-      "Record the fault code or count the red-light blinks (e.g. 3 blinks, pause) — the vendor needs this.",
+      "Record the fault code or count the red-light blinks (e.g. 3 blinks, pause) - the vendor needs this.",
       "Check the thermostat or remote: Cool mode, set point 18–22°C, fan on.",
       "Check the TFA (Treated Fresh Air) system is running; if it has tripped, the AC can struggle or fault.",
       "Do one safe reset: switch the unit off at the remote, then off at its MCB/isolator for 5 minutes, then back on.",
-      "If the red light returns after the reset, it's a hardware or gas fault — stop resetting and call the HVAC vendor with the fault code.",
+      "If the red light returns after the reset, it's a hardware or gas fault - stop resetting and call the HVAC vendor with the fault code.",
       "Check for water dripping from the indoor unit (blocked drain) and put a bucket and wet-floor sign down if needed.",
       "If classes are running: open doors where safe, use portable fans, and tell members and the trainer what's happening.",
-      "If the room exceeds 28°C, reduce intensity, move the class to another room, or cancel — member safety first.",
+      "If the room exceeds 28°C, reduce intensity, move the class to another room, or cancel - member safety first.",
       "Message members booked in the next classes if the AC won't be fixed before they start, and offer a free cancellation.",
       "Log the downtime, readings and actions; record the vendor's diagnosis and parts used.",
       "If the AC was down more than 24 hours, offer affected members a class credit.",
     ],
     diagnose: [
-      ["Red light returns immediately after reset", "Hardware, sensor or gas fault — vendor visit; don't keep resetting."],
-      ["Unit running but blowing warm air", "Possible low gas or outdoor unit fault — check the outdoor unit is running; call the vendor."],
-      ["Water dripping from the indoor unit", "Blocked drain line — bucket and sign, switch off if it's heavy, vendor to clear the drain."],
-      ["Several units faulted at once", "Check the power supply / phase and the main HVAC panel — electrical issue, call the electrician too."],
-      ["Room stuffy but cool", "TFA / fresh-air problem rather than AC — see TPL-177 / TPL-178."],
+      ["Red light returns immediately after reset", "Hardware, sensor or gas fault - vendor visit; don't keep resetting."],
+      ["Unit running but blowing warm air", "Possible low gas or outdoor unit fault - check the outdoor unit is running; call the vendor."],
+      ["Water dripping from the indoor unit", "Blocked drain line - bucket and sign, switch off if it's heavy, vendor to clear the drain."],
+      ["Several units faulted at once", "Check the power supply / phase and the main HVAC panel - electrical issue, call the electrician too."],
+      ["Room stuffy but cool", "TFA / fresh-air problem rather than AC - see TPL-177 / TPL-178."],
     ],
     say: [
-      ["Members in class", "Apologies — one of our AC units has developed a fault and the technician is on the way. We've set up fans; please hydrate and take it at your own pace today."],
+      ["Members in class", "Apologies - one of our AC units has developed a fault and the technician is on the way. We've set up fans; please hydrate and take it at your own pace today."],
       ["Booked members", "Heads-up: the AC in Studio 1 at Kwality House is being repaired, so the room may be warmer than usual this evening. If you'd prefer to skip, you can cancel without a late-cancel charge."],
     ],
     dos: [
@@ -113,7 +113,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     ],
     donts: [
       "Don't open AC panels or touch wiring.",
-      "Don't reset the unit repeatedly — it can damage the compressor.",
+      "Don't reset the unit repeatedly - it can damage the compressor.",
       "Don't run high-intensity classes in a room above 28°C.",
     ],
     closeOut: [
@@ -131,7 +131,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-010",
-    title: "PowerCycle Bike Malfunction — SC3 Troubleshooting",
+    title: "PowerCycle Bike Malfunction - SC3 Troubleshooting",
     category: "Repair and Maintenance",
     summary:
       "Fixing or safely retiring a faulty Stages SC3 bike: console and SPM2 power meter, pedals (the left pedal is reverse-threaded), FitLoc and saddle clamp, resistance and brake, belt and flywheel noise, and stability.",
@@ -142,33 +142,33 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       resolve: "Field fixes same day; technician within 72 hours",
     },
     firstFive: [
-      "Decide: is it safe to ride? If the fault involves pedals, FitLoc, saddle, brake, belt or flywheel noise — no.",
+      "Decide: is it safe to ride? If the fault involves pedals, FitLoc, saddle, brake, belt or flywheel noise - no.",
       "Take unsafe bikes out of rotation now: OUT OF ORDER tag and block the bike in Momence.",
       "Note the bike number and the exact symptom.",
     ],
     steps: [
       "Tag the bike OUT OF ORDER and block its spot in Momence if there's any safety doubt.",
       "Console blank: check the power wire in the channel under the handlebar, replace the console batteries, and re-seat the 3 mm hex screws; if still dead, the SIC2 console needs replacing.",
-      "No watts / power meter not pairing: replace the SPM2's AA batteries (use the battery spacer — don't tape them), then re-pair using the 5-digit ANT+ ID on the console.",
+      "No watts / power meter not pairing: replace the SPM2's AA batteries (use the battery spacer - don't tape them), then re-pair using the 5-digit ANT+ ID on the console.",
       "Zero reset failing: run it with no weight on the pedals; the ADC should read 790–990. If it's outside that range after 3 attempts, the crank arm needs re-seating at 52–57 N·m.",
-      "Pedal loose or detached: stop using the bike. Refit with a 15 mm pedal wrench at 42 N·m — the right pedal tightens clockwise; the left (CR-L) is reverse-threaded and tightens ANTI-clockwise. Never force a pedal that binds — it may be cross-threaded.",
+      "Pedal loose or detached: stop using the bike. Refit with a 15 mm pedal wrench at 42 N·m - the right pedal tightens clockwise; the left (CR-L) is reverse-threaded and tightens ANTI-clockwise. Never force a pedal that binds - it may be cross-threaded.",
       "Handlebar dropping: push the FitLoc lever fully down until it clicks and check the post insertion line isn't visible; if it still slips, the FitLoc needs replacement.",
       "Saddle slipping: tighten the 13 mm saddle clamp; replace the clamp if it's stripped.",
       "Resistance knob does nothing or the brake doesn't stop the flywheel: check the brake cable under the shroud; if intact, the magnetic brake gap needs a technician. The bike stays out of use.",
-      "Belt squeal, slipping, grinding or scraping from the flywheel: take the bike out of use — belt tension and flywheel faults are technician-only.",
+      "Belt squeal, slipping, grinding or scraping from the flywheel: take the bike out of use - belt tension and flywheel faults are technician-only.",
       "Wobbling: adjust the 4 levelling feet (14 mm nut) until all touch the floor; tighten the M10 stabiliser bolts.",
       "Log the bike number, symptom, what you did and parts used; raise the technician visit for anything you couldn't fix.",
       "Create follow-up checks at 5 and 10 days for the original reporter to confirm the fix held.",
     ],
     diagnose: [
-      ["Clicking with each pedal stroke", "Loose pedal or crank arm — stop riding, check pedal torque (42 N·m) and crank arm (52–57 N·m)."],
-      ["Grinding or scraping noise", "Brake pad / flywheel housing misalignment — out of use, technician only."],
-      ["Watts stuck at zero", "SPM2 batteries or pairing — replace batteries, re-pair."],
-      ["Handlebar sinks during class", "FitLoc not engaged or worn — re-lock; replace if it slips again."],
-      ["Bike rocks side to side", "Levelling feet — adjust all four, tighten stabiliser bolts."],
+      ["Clicking with each pedal stroke", "Loose pedal or crank arm - stop riding, check pedal torque (42 N·m) and crank arm (52–57 N·m)."],
+      ["Grinding or scraping noise", "Brake pad / flywheel housing misalignment - out of use, technician only."],
+      ["Watts stuck at zero", "SPM2 batteries or pairing - replace batteries, re-pair."],
+      ["Handlebar sinks during class", "FitLoc not engaged or worn - re-lock; replace if it slips again."],
+      ["Bike rocks side to side", "Levelling feet - adjust all four, tighten stabiliser bolts."],
     ],
     say: [
-      ["Rider mid-class", "Let's move you to bike 14 — this one needs a check before anyone rides it again. Thanks for flagging it."],
+      ["Rider mid-class", "Let's move you to bike 14 - this one needs a check before anyone rides it again. Thanks for flagging it."],
     ],
     dos: [
       "Check pedal torque monthly with a torque wrench.",
@@ -177,7 +177,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     ],
     donts: [
       "Don't ride or let anyone ride a bike with a pedal, FitLoc, brake or flywheel fault.",
-      "Don't force a pedal thread — remember the left pedal is reverse-threaded.",
+      "Don't force a pedal thread - remember the left pedal is reverse-threaded.",
       "Don't adjust belt tension yourself.",
     ],
     closeOut: [
@@ -195,10 +195,10 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-013",
-    title: "Sound System Failure — Studio Audio Troubleshooting",
+    title: "Sound System Failure - Studio Audio Troubleshooting",
     category: "Repair and Maintenance",
     summary:
-      "Restoring studio audio quickly by working along the signal chain — source device, cable or Bluetooth, mixer, amplifier, speakers — and keeping the class going while you do.",
+      "Restoring studio audio quickly by working along the signal chain - source device, cable or Bluetooth, mixer, amplifier, speakers - and keeping the class going while you do.",
     glance: {
       priority: "P0 if a class is starting within 30 minutes; P2 otherwise",
       owner: "Front Desk on shift → Facilities Manager → AV vendor (AudioTech Solutions)",
@@ -211,7 +211,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "If a class is starting, set up the backup speaker first.",
     ],
     steps: [
-      "Identify the scope — one speaker, a whole studio, or the whole building.",
+      "Identify the scope - one speaker, a whole studio, or the whole building.",
       "Check the source device is playing, its volume is up, and it's not connected to another speaker by Bluetooth.",
       "Test with a known-good source (a phone with a 3.5 mm cable) to separate source problems from system problems.",
       "Mixer: correct input selected, channel not muted, gain and master fader up.",
@@ -223,14 +223,14 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "Log the failure with time, symptom, cause and resolution.",
     ],
     diagnose: [
-      ["No sound anywhere, amp lights off", "Power — check the AV rack socket and MCB."],
-      ["Amp in protect mode", "Overheating or a shorted speaker cable — power-cycle, check speaker wiring, call the vendor if it repeats."],
-      ["Works with a phone but not the trainer's iPad", "Source problem — Bluetooth paired elsewhere, volume limit, or a faulty adapter (TPL-181)."],
+      ["No sound anywhere, amp lights off", "Power - check the AV rack socket and MCB."],
+      ["Amp in protect mode", "Overheating or a shorted speaker cable - power-cycle, check speaker wiring, call the vendor if it repeats."],
+      ["Works with a phone but not the trainer's iPad", "Source problem - Bluetooth paired elsewhere, volume limit, or a faulty adapter (TPL-181)."],
       ["Static or crackling", "Loose cable or a failing speaker driver (TPL-180)."],
-      ["One speaker out", "Speaker cable or terminal — re-seat both ends."],
+      ["One speaker out", "Speaker cable or terminal - re-seat both ends."],
     ],
     say: [
-      ["Class waiting", "We're having a sound issue — we'll use our portable speaker today so we can start on time. Thanks for bearing with us."],
+      ["Class waiting", "We're having a sound issue - we'll use our portable speaker today so we can start on time. Thanks for bearing with us."],
     ],
     dos: [
       "Work the chain in order: source → cable → mixer → amp → speaker.",
@@ -239,7 +239,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     ],
     donts: [
       "Don't open the amplifier or rewire speakers yourself.",
-      "Don't crank the gain to compensate — it damages speakers.",
+      "Don't crank the gain to compensate - it damages speakers.",
     ],
     closeOut: [
       "Audio restored and tested in every affected studio.",
@@ -256,14 +256,14 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-019",
-    title: "Studio Equipment Damage — Member Caused",
+    title: "Studio Equipment Damage - Member Caused",
     category: "Repair and Maintenance",
     summary:
       "When a member damages equipment: make it safe, find out what happened respectfully, decide between accident and negligence fairly, and route the repair and any cost recovery correctly.",
     glance: {
       priority: "P2 (P1 if the equipment is unsafe or a person was hurt)",
       owner: "Studio Operations Manager (Studio Director for cost recovery)",
-      respond: "Immediately — make it safe",
+      respond: "Immediately - make it safe",
       resolve: "Repair quote within 24 hours",
     },
     firstFive: [
@@ -276,7 +276,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "If the equipment is unsafe, tag it OUT OF ORDER and remove it from the studio floor.",
       "Photograph the damage and note the equipment, serial or asset number, time and class.",
       "Confirm what happened with the trainer and any witnesses.",
-      "Speak to the member privately after class — never in front of others — and ask for their account.",
+      "Speak to the member privately after class - never in front of others - and ask for their account.",
       "Decide whether it was normal-use wear or an accident (no charge) or clear negligence or misuse (e.g. dropping weights from height, forcing a mechanism).",
       "For accidents, don't charge the member; route the repair through the normal budget or insurance.",
       "For negligence, discuss cost recovery with the Studio Director before saying anything to the member about money.",
@@ -286,7 +286,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "Arrange the repair or replacement and return the equipment to service only after it's checked.",
     ],
     diagnose: [
-      ["Normal wear (old band snapped, worn strap)", "No member responsibility — replace and review the inspection schedule."],
+      ["Normal wear (old band snapped, worn strap)", "No member responsibility - replace and review the inspection schedule."],
       ["Accident in normal use", "No charge; thank the member for reporting it."],
       ["Clear misuse against trainer instruction", "Document witnesses; Studio Director decides on recovery."],
       ["Damage hurt someone", "Injury protocol first; incident report; check insurance (TPL-104)."],
@@ -335,11 +335,11 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     ],
     steps: [
       "Cordon off the area with wet-floor signs; move members away.",
-      "If water is reaching electrical points, switch off that circuit at the distribution board — never touch wet electrics.",
+      "If water is reaching electrical points, switch off that circuit at the distribution board - never touch wet electrics.",
       "Close the isolation valve for the fixture (under the basin, behind the toilet, or the washroom main).",
       "Contain the water: buckets under drips, towels and a wet vac on floors; protect wooden studio floors immediately.",
       "Photograph the source, the damage and any ceiling stains, with time stamps.",
-      "Ceiling seepage: inform building or society management at once — the source is often the floor above or a common pipe.",
+      "Ceiling seepage: inform building or society management at once - the source is often the floor above or a common pipe.",
       "Call the plumber with clear details: fixture, symptom, valve status, photos.",
       "If a studio or washroom is unusable, block affected classes and inform booked members.",
       "After the repair, dry the area fully and check for damp, odour or mould; note any floor or wall damage for repair.",
@@ -348,12 +348,12 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     diagnose: [
       ["Toilet overflowing", "Close the valve behind the toilet; don't flush again; plunger or plumber."],
       ["Steady drip from the ceiling", "Bucket and cordon; building management to inspect the floor above."],
-      ["Water spreading on the studio floor", "Stop classes in that room, dry immediately — wooden floors warp within hours."],
-      ["Low pressure or no hot water", "Not an emergency — check the geyser MCB and raise TPL-182."],
+      ["Water spreading on the studio floor", "Stop classes in that room, dry immediately - wooden floors warp within hours."],
+      ["Low pressure or no hot water", "Not an emergency - check the geyser MCB and raise TPL-182."],
       ["Drain backing up", "Stop use of that drain; plumber to clear; check for hair or debris traps."],
     ],
     say: [
-      ["Members nearby", "Please mind this area — we have a leak and the plumber is on the way. The other washroom is available just down the corridor."],
+      ["Members nearby", "Please mind this area - we have a leak and the plumber is on the way. The other washroom is available just down the corridor."],
     ],
     dos: [
       "Isolate the water first, then clean up.",
@@ -379,7 +379,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-034",
-    title: "Power Outage & Electrical Faults — Safe Response",
+    title: "Power Outage & Electrical Faults - Safe Response",
     category: "Repair and Maintenance",
     summary:
       "What to do when power fails, a breaker keeps tripping, or there's a burning smell or sparking: safety first, check backup power, keep classes and members safe, and get a qualified electrician.",
@@ -396,9 +396,9 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     ],
     steps: [
       "If there's smoke, burning smell or sparking, switch off the affected circuit or the main if safe, move people away, and evacuate if it doesn't stop.",
-      "Check the building: if the corridor and lift are also out, it's a grid or building outage — call building management for an estimate.",
+      "Check the building: if the corridor and lift are also out, it's a grid or building outage - call building management for an estimate.",
       "If only our studio is out, check the distribution board for tripped MCBs or RCCB/ELCB.",
-      "Reset a tripped breaker once. If it trips again immediately, leave it off — there's a fault — and unplug devices on that circuit.",
+      "Reset a tripped breaker once. If it trips again immediately, leave it off - there's a fault - and unplug devices on that circuit.",
       "Confirm the inverter or DG backup is running emergency lights, front desk, router and the AC where supported.",
       "During a class: stop high-intensity work and bike sprints in the dark; open blinds or use emergency lighting; move members to safety if it's dark.",
       "If power won't be back within 30 minutes, decide with the Studio Operations Manager whether to cancel upcoming classes and notify members.",
@@ -407,14 +407,14 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "Log the outage duration, cause and actions.",
     ],
     diagnose: [
-      ["Whole building dark", "Grid or building issue — get an ETA from building management, run on backup."],
-      ["One breaker trips repeatedly", "Faulty appliance or wiring on that circuit — leave it off, unplug devices, call the electrician."],
-      ["RCCB / ELCB tripped", "Possible earth leakage (often water or a damaged cable) — don't keep resetting; electrician."],
-      ["Backup didn't start", "Inverter / DG fault — P0 if classes are running (TPL-185)."],
-      ["Flickering lights", "Loose connection or failing fitting — raise TPL-040; electrician to inspect."],
+      ["Whole building dark", "Grid or building issue - get an ETA from building management, run on backup."],
+      ["One breaker trips repeatedly", "Faulty appliance or wiring on that circuit - leave it off, unplug devices, call the electrician."],
+      ["RCCB / ELCB tripped", "Possible earth leakage (often water or a damaged cable) - don't keep resetting; electrician."],
+      ["Backup didn't start", "Inverter / DG fault - P0 if classes are running (TPL-185)."],
+      ["Flickering lights", "Loose connection or failing fitting - raise TPL-040; electrician to inspect."],
     ],
     say: [
-      ["Class in progress", "We've lost power — please stop where you are and stay on your mat or bike. Emergency lights are on; we'll update you in two minutes."],
+      ["Class in progress", "We've lost power - please stop where you are and stay on your mat or bike. Emergency lights are on; we'll update you in two minutes."],
     ],
     dos: [
       "Treat burning smells and sparks as emergencies.",
@@ -441,7 +441,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-035",
-    title: "Changing Room Hygiene, Towels & Showers — Service Recovery",
+    title: "Changing Room Hygiene, Towels & Showers - Service Recovery",
     category: "Studio Amenities and Facilities",
     summary:
       "When members report a dirty changing room, no towels, no hot water or empty toiletries: fix it within the hour, recover the member, and trace why the checklist or supply chain failed.",
@@ -452,7 +452,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       resolve: "Fixed within the hour; cause addressed within 48 hours",
     },
     firstFive: [
-      "Go and look yourself — confirm what the member saw.",
+      "Go and look yourself - confirm what the member saw.",
       "Get housekeeping on it immediately (or do the urgent part yourself).",
       "Check the next class change-over time so it's fixed before the rush.",
     ],
@@ -463,18 +463,18 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "No hot water: check the geyser switch / MCB and the heater timer; if it's not a quick fix, raise a plumbing ticket and warn members.",
       "Restock toiletries (shampoo, body wash, sanitary products, tissues) and note anything running low.",
       "Thank the member who reported it and offer proportionate recovery (an apology, a complimentary class for a serious lapse).",
-      "Check the cleaning checklist for that slot — was it skipped, rushed, or understaffed?",
+      "Check the cleaning checklist for that slot - was it skipped, rushed, or understaffed?",
       "Fix the cause: adjust the cleaning schedule around peak change-overs, add a mid-day deep clean, or raise a vendor issue.",
       "Log the lapse with photos and the cause.",
     ],
     diagnose: [
-      ["Checklist signed but room dirty", "Supervision gap — spot-check with the housekeeping supervisor."],
-      ["Towels short every evening", "Laundry cycle or par level too low — raise par stock and vendor pickup frequency (TPL-187)."],
-      ["Smell persists after cleaning", "Drain trap or ventilation issue — plumber or exhaust check."],
+      ["Checklist signed but room dirty", "Supervision gap - spot-check with the housekeeping supervisor."],
+      ["Towels short every evening", "Laundry cycle or par level too low - raise par stock and vendor pickup frequency (TPL-187)."],
+      ["Smell persists after cleaning", "Drain trap or ventilation issue - plumber or exhaust check."],
       ["Pests seen", "Pest control same day (TPL-043); remove food sources."],
     ],
     say: [
-      ["Member who reported it", "Thank you for telling us — you shouldn't have found it like that. It's being cleaned right now, and I've asked for a check before every class change-over from today."],
+      ["Member who reported it", "Thank you for telling us - you shouldn't have found it like that. It's being cleaned right now, and I've asked for a check before every class change-over from today."],
     ],
     dos: [
       "Check peak change-over times first.",
@@ -505,7 +505,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     summary:
       "A loose barre, cracked mirror or damaged / slippery floor patch is a fall and injury risk. Make the spot unusable immediately, protect the class, and get a repair booked with a safe interim plan.",
     glance: {
-      priority: "P1 — injury risk",
+      priority: "P1 - injury risk",
       owner: "Facilities Manager → carpenter / glazier / flooring vendor",
       respond: "Immediately",
       resolve: "Area made safe now; repair within 48 hours",
@@ -518,7 +518,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     steps: [
       "Stop use of the affected spot immediately and tell the trainer.",
       "Mark the area with tape or cones and an OUT OF USE sign; move mats and spots away.",
-      "Loose barre: check whether the brackets or wall anchors have pulled out — don't lean or load it at all.",
+      "Loose barre: check whether the brackets or wall anchors have pulled out - don't lean or load it at all.",
       "Cracked or loose mirror: keep people at least 1 m away; if a piece could fall, tape it across and arrange urgent removal.",
       "Floor: dry and clean slippery patches (sweat, spilled water, polish residue); for lifted boards or splinters, cover and cordon.",
       "Block affected spots in Momence if capacity must be reduced until it's fixed.",
@@ -528,13 +528,13 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
       "Log the hazard, actions, vendor and cost.",
     ],
     diagnose: [
-      ["Barre moves when pressed", "Anchors failing — out of use until re-fixed; check the neighbouring brackets too."],
-      ["Hairline crack in a mirror", "Tape it, keep people clear, replace — cracks spread with vibration."],
-      ["Floor slippery after cleaning", "Wrong cleaning product or residue — re-mop with plain water; check what product was used."],
+      ["Barre moves when pressed", "Anchors failing - out of use until re-fixed; check the neighbouring brackets too."],
+      ["Hairline crack in a mirror", "Tape it, keep people clear, replace - cracks spread with vibration."],
+      ["Floor slippery after cleaning", "Wrong cleaning product or residue - re-mop with plain water; check what product was used."],
       ["Board lifted or splintered", "Cover, cordon, flooring vendor; check for moisture underneath."],
     ],
     say: [
-      ["Class briefing", "Quick note — this section of the barre is closed for repair, so we've spread the spots out a little more today. Please use the barre on the mirror side."],
+      ["Class briefing", "Quick note - this section of the barre is closed for repair, so we've spread the spots out a little more today. Please use the barre on the mirror side."],
     ],
     dos: [
       "Make it physically impossible to use the hazard.",
@@ -588,7 +588,7 @@ export const FACILITIES_EQUIPMENT_ARTICLES: KnowledgeArticle[] = [
     ],
     diagnose: [
       ["Technician didn't show", "Escalate to the coordinator; ask for a same-day slot; log the no-show."],
-      ["Visited but problem returned within 7 days", "Treat as the same incident — the repeat visit is free under most AMCs."],
+      ["Visited but problem returned within 7 days", "Treat as the same incident - the repeat visit is free under most AMCs."],
       ["Vendor disputes scope", "Check the AMC wording; involve Finance before agreeing extra charges."],
       ["Invoice for work not done", "Hold payment and raise TPL-233."],
     ],

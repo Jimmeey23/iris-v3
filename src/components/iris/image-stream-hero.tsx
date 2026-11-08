@@ -9,7 +9,7 @@ import * as React from "react";
  * sweeps outward from the vanishing point, because the projection
  * scales position and size by the same factor.
  *
- * Every length is in `cqw` — a percentage of the container's width —
+ * Every length is in `cqw` - a percentage of the container's width -
  * so the whole corridor keeps its proportions at any size.
  * ──────────────────────────────────────────────────────────────── */
 

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
-  // Cheap to write, but each comment can fan out to email — the limit stops a script
+  // Cheap to write, but each comment can fan out to email - the limit stops a script
   // from turning the studio's inboxes into a mailbomb.
   try {
     await enforceRateLimit("ticket-write", userKey(session.user_id));

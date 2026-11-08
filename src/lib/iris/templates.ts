@@ -1,4 +1,4 @@
-// IRIS — Ticket template library for Physique 57 India.
+// IRIS - Ticket template library for Physique 57 India.
 //
 // 260+ built-in preset ticket forms covering operational scenarios across the
 // Mumbai & Bengaluru studios. Each template lives in a category catalogue under

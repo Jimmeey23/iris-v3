@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
@@ -67,7 +68,7 @@ function SessionRosterLine({ id }: { id: string }) {
   const [r, setR] = React.useState<{ counts: { booked: number; checkedIn: number; cancelled: number }; waitlist: number } | null | "na">(null);
   React.useEffect(() => {
     const ac = new AbortController();
-    fetch(`/api/momence/sessions/${encodeURIComponent(id)}/roster`, { signal: ac.signal, cache: "no-store" })
+    fetch(absUrl(`/api/momence/sessions/${encodeURIComponent(id)}/roster`), { signal: ac.signal, cache: "no-store" })
       .then((x) => x.json())
       .then((j) => setR(j.data ?? "na"))
       .catch(() => {});

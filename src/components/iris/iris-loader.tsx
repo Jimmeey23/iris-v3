@@ -4,16 +4,16 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * IrisLoader — a polished, on-brand loading animation.
+ * IrisLoader - a polished, on-brand loading animation.
  *
  * Three concentric arcs rotate at different speeds around a pulsing center
  * node, echoing the new IrisLogo design. The arcs use var(--primary) so the
  * loader matches the active accent color.
  *
  * Variants:
- *   - "sm" (24px) — inline loaders in buttons / message bubbles
- *   - "md" (40px) — default, for content placeholders
- *   - "lg" (64px) — full-view loaders (page transitions, AI thinking)
+ *   - "sm" (24px) - inline loaders in buttons / message bubbles
+ *   - "md" (40px) - default, for content placeholders
+ *   - "lg" (64px) - full-view loaders (page transitions, AI thinking)
  *
  * An optional `label` prop renders a small text label below the spinner
  * (e.g. "IRIS is thinking…").
@@ -48,7 +48,7 @@ export function IrisLoader({
         aria-label={label || "Loading"}
       >
         <svg viewBox="0 0 40 40" width={px} height={px}>
-          {/* Outer arc — slow rotation */}
+          {/* Outer arc - slow rotation */}
           <g style={{ transformOrigin: "20px 20px", animation: "iris-loader-outer 2s linear infinite" }}>
             <path
               d="M 20 3 A 17 17 0 0 1 37 20"
@@ -59,7 +59,7 @@ export function IrisLoader({
               strokeOpacity="0.85"
             />
           </g>
-          {/* Middle arc — medium rotation, opposite direction */}
+          {/* Middle arc - medium rotation, opposite direction */}
           <g style={{ transformOrigin: "20px 20px", animation: "iris-loader-middle 1.5s linear infinite reverse" }}>
             <path
               d="M 20 7 A 13 13 0 0 1 33 20"
@@ -70,7 +70,7 @@ export function IrisLoader({
               strokeOpacity="0.65"
             />
           </g>
-          {/* Inner arc — fast rotation */}
+          {/* Inner arc - fast rotation */}
           <g style={{ transformOrigin: "20px 20px", animation: "iris-loader-inner 1s linear infinite" }}>
             <path
               d="M 20 11 A 9 9 0 0 1 29 20"
@@ -105,7 +105,7 @@ export function IrisLoader({
 }
 
 /**
- * IrisThinkingIndicator — drop-in replacement for the old 3-dot thinking
+ * IrisThinkingIndicator - drop-in replacement for the old 3-dot thinking
  * bubble in the AI assistant. Uses IrisLoader + a small label that cycles
  * through "thinking" messages.
  */

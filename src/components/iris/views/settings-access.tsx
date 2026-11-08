@@ -141,7 +141,7 @@ export function UsersAccessSettings({ data, patch, create, setting, saveSetting 
     if (!window.confirm(`Reset the password for ${u.email}? They'll be signed out everywhere.`)) return;
     const pw = tempPassword();
     if (await patch("users", u.id, { password: pw })) {
-      window.prompt(`Temporary password for ${u.email} — copy it now, it won't be shown again. They must change it at next sign-in.`, pw);
+      window.prompt(`Temporary password for ${u.email} - copy it now, it won't be shown again. They must change it at next sign-in.`, pw);
     }
   };
 
@@ -318,7 +318,7 @@ function AddLogin({ data, linked, create, onDone }: { data: AccessProps["data"];
     const ok = await create("users", { ...form, email: form.email.trim().toLowerCase() });
     setBusy(false);
     if (ok) {
-      window.prompt(`Account created. Temporary password for ${form.email} — copy it now. They must change it at first sign-in, or they can use Google.`, form.password);
+      window.prompt(`Account created. Temporary password for ${form.email} - copy it now. They must change it at first sign-in, or they can use Google.`, form.password);
       onDone();
     }
   };
@@ -425,7 +425,7 @@ export function HealthSettings({ onNavigate }: { onNavigate: (section: string) =
   return (
     <Card
       title="Configuration health"
-      description="Checks the rules that keep tickets moving — routing, escalation, SLA, access, delivery — and points to the section that fixes each problem."
+      description="Checks the rules that keep tickets moving - routing, escalation, SLA, access, delivery - and points to the section that fixes each problem."
       action={
         <Button size="sm" variant="outline" className="h-8 text-[12px]" onClick={run} disabled={loading}>
           {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}Re-run checks

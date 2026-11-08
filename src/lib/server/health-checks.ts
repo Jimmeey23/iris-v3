@@ -25,7 +25,7 @@ export async function runHealthChecks(
   const out: HealthIssue[] = [];
   const q = async (sql: string) => (await c.query(sql)).rows;
 
-  const departments = await q("select code, name, is_active from departments");
+  const departments = await q("select code, name, is_active, head_employee_id from departments");
   const activeDept = new Set(
     departments.filter((d) => d.is_active).map((d) => d.code),
   );
@@ -87,7 +87,7 @@ export async function runHealthChecks(
         severity: "warning",
         area: "routing",
         title: "Rules with the same condition",
-        detail: `${names.join(", ")} — only the first in sort order ever applies.`,
+        detail: `${names.join(", ")} - only the first in sort order ever applies.`,
         section: "routing",
       });
     }
@@ -97,7 +97,9 @@ export async function runHealthChecks(
       select d.code,
              count(e.*) filter (where e.is_active) as active,
              count(e.*) filter (where e.is_active and not coalesce(e.exclude_from_escalation, false)) as escalatable
-        from departments d left join employees e on e.department_code = d.code
+        from departments d
+        -- members, plus the department head (who may sit in another department)
+        left join employees e on (e.department_code = d.code or e.id = d.head_employee_id)
        where d.is_active group by d.code`);
   for (const s of staffing) {
     const name = deptName.get(s.code) ?? s.code;
@@ -127,14 +129,15 @@ export async function runHealthChecks(
       });
     }
   }
-  const noHead = departments.filter((d) => d.is_active && !d.head_employee_id);
+  const activeEmp = new Set((await q("select id from employees where is_active")).map((r) => r.id as string));
+  const noHead = departments.filter((d) => d.is_active && (!d.head_employee_id || !activeEmp.has(d.head_employee_id)));
   if (noHead.length) {
     out.push({
       id: "dept-nohead",
       severity: "warning",
       area: "escalation",
       title: `${noHead.length} department${noHead.length > 1 ? "s have" : " has"} no head`,
-      detail: `${noHead.map((d) => d.name).join(", ")} — the top escalation level has nobody to reach.`,
+      detail: `${noHead.map((d) => d.name).join(", ")} - the top escalation level has nobody to reach.`,
       section: "departments",
     });
   }

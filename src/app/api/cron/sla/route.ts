@@ -14,7 +14,7 @@ import { sendWeeklyDigests } from "@/lib/server/weekly-digest";
  * target, so a re-run never re-sends.
  *
  * The sweep logic itself lives in lib/server/sweeps so the request-driven sweeps and
- * /api/cron/outbox share this exact implementation. Note escalation does NOT run here —
+ * /api/cron/outbox share this exact implementation. Note escalation does NOT run here -
  * use /api/cron/outbox for the combined pass.
  */
 export const dynamic = "force-dynamic";

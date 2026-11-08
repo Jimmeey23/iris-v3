@@ -1,10 +1,10 @@
-// Knowledge Base — memberships, freezes, payments, refunds, disputes and promotions.
+// Knowledge Base - memberships, freezes, payments, refunds, disputes and promotions.
 import { article, type KnowledgeArticle } from "./compose";
 
 export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
   article({
     id: "KB-007",
-    title: "Membership Freeze Request — Injury or Medical",
+    title: "Membership Freeze Request - Injury or Medical",
     category: "Pricing and Memberships",
     summary:
       "Processing a freeze for injury, illness, pregnancy or another medical reason: check eligibility, collect the right documentation, set an automatic unfreeze, and extend validity correctly.",
@@ -23,10 +23,10 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
       "Verify the membership type and its freeze entitlement (days allowed vs. already used this term).",
       "Check whether the member has already used their annual freeze.",
       "First freeze within the allowance: process it in Momence with the start and end dates.",
-      "Second freeze, or beyond the allowance: needs Memberships Manager approval — raise it as an exception with the reason.",
+      "Second freeze, or beyond the allowance: needs Memberships Manager approval - raise it as an exception with the reason.",
       "Ask for a medical certificate if the absence exceeds 3 consecutive days (doctor's note with dates); for emergencies, allow up to 30 days first and collect the certificate later.",
       "Cancel any classes booked inside the freeze window without late-cancel fees.",
-      "Set the automatic unfreeze date in Momence — never rely on someone remembering to unfreeze manually.",
+      "Set the automatic unfreeze date in Momence - never rely on someone remembering to unfreeze manually.",
       "Class packs: extend the package validity by the freeze duration.",
       "Pause any auto-renewal or instalment billing that falls inside the freeze, if the plan allows.",
       "Confirm by email: freeze start, end, new expiry date and billing implications.",
@@ -40,7 +40,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
       ["Freeze beyond policy", "Exception route with documents (TPL-019 / TPL-112)."],
     ],
     say: [
-      ["Confirming", "I've frozen your membership from 3 to 24 March and moved your expiry date to 21 July. Your 5 March booking has been cancelled with no charge. Get well soon — we'll check in before the 24th."],
+      ["Confirming", "I've frozen your membership from 3 to 24 March and moved your expiry date to 21 July. Your 5 March booking has been cancelled with no charge. Get well soon - we'll check in before the 24th."],
     ],
     dos: [
       "Set the automatic unfreeze date every time.",
@@ -66,12 +66,12 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-017",
-    title: "Payment Dispute — Member Claims Double Charge",
+    title: "Payment Dispute - Member Claims Double Charge",
     category: "Pricing and Memberships",
     summary:
-      "Working out whether a 'double charge' is a real duplicate, an authorisation hold, or two different purchases — and refunding genuine duplicates quickly with a reference the member can track.",
+      "Working out whether a 'double charge' is a real duplicate, an authorisation hold, or two different purchases - and refunding genuine duplicates quickly with a reference the member can track.",
     glance: {
-      priority: "P1 — member out of pocket",
+      priority: "P1 - member out of pocket",
       owner: "Client Servicing → Finance",
       respond: "Within 4 hours",
       resolve: "Refund initiated within 24 hours of confirmation",
@@ -93,14 +93,14 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
       "Check why the duplicate happened (retry after timeout, double tap, POS and online both used) and raise it if it's systemic.",
     ],
     diagnose: [
-      ["Two captured payments, same amount, minutes apart", "Duplicate — refund one now (TPL-007)."],
-      ["One captured, one 'pending' on the statement", "Authorisation hold — releases in 3–7 business days; share the captured transaction ID."],
-      ["Charged a different amount than agreed", "Incorrect amount — refund the difference (TPL-023)."],
-      ["Charged after cancellation", "Auto-debit after cancellation — refund and fix the mandate (TPL-125)."],
+      ["Two captured payments, same amount, minutes apart", "Duplicate - refund one now (TPL-007)."],
+      ["One captured, one 'pending' on the statement", "Authorisation hold - releases in 3–7 business days; share the captured transaction ID."],
+      ["Charged a different amount than agreed", "Incorrect amount - refund the difference (TPL-023)."],
+      ["Charged after cancellation", "Auto-debit after cancellation - refund and fix the mandate (TPL-125)."],
     ],
     say: [
-      ["Confirmed duplicate", "You're right — you were charged twice on 4 May. I've refunded ₹6,500 to your card; the reference is rfnd_8F2K… and it usually reaches you in 5–7 business days."],
-      ["Authorisation hold", "I can see one successful payment of ₹6,500 — the second line is a temporary hold from the first attempt and your bank will release it within 3–7 business days. Here's the transaction ID if your bank asks."],
+      ["Confirmed duplicate", "You're right - you were charged twice on 4 May. I've refunded ₹6,500 to your card; the reference is rfnd_8F2K… and it usually reaches you in 5–7 business days."],
+      ["Authorisation hold", "I can see one successful payment of ₹6,500 - the second line is a temporary hold from the first attempt and your bank will release it within 3–7 business days. Here's the transaction ID if your bank asks."],
     ],
     dos: [
       "Verify in the gateway, not just Momence.",
@@ -125,7 +125,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-018",
-    title: "Membership Refund Processing — Full Workflow",
+    title: "Membership Refund Processing - Full Workflow",
     category: "Pricing and Memberships",
     summary:
       "The end-to-end refund workflow: eligibility, refund type, the approval matrix by amount, processing through the original gateway, GST credit notes, and confirming the member actually received the money.",
@@ -141,10 +141,10 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
       "Work out the approval level from the amount.",
     ],
     steps: [
-      "Verify the original payment in Momence and the gateway — date, amount, payment method, transaction ID.",
+      "Verify the original payment in Momence and the gateway - date, amount, payment method, transaction ID.",
       "Check eligibility: within the cooling-off period, service not delivered, billing error, or an approved exception (medical, relocation).",
       "Decide the refund type: full, partial (pro-rated for classes used), or credit to the account.",
-      "Approval: under ₹5,000 — Front Desk Lead; ₹5,000–₹25,000 — Memberships Manager; over ₹25,000 — Studio Director.",
+      "Approval: under ₹5,000 - Front Desk Lead; ₹5,000–₹25,000 - Memberships Manager; over ₹25,000 - Studio Director.",
       "Process through the original payment method or gateway (Razorpay / Pine Labs / POS); cash refunds need a signed receipt.",
       "If a GST invoice was issued, raise a credit note for the refunded amount.",
       "Record the refund reference in Momence and close or adjust the membership accordingly.",
@@ -185,12 +185,12 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-029",
-    title: "Payment Deducted but Not Reflecting — UPI Pending or Failed",
+    title: "Payment Deducted but Not Reflecting - UPI Pending or Failed",
     category: "Pricing and Memberships",
     summary:
       "A member says money left their account but the membership or class pack isn't active. Match the payment in the gateway, activate if it was captured, and explain auto-reversal if it wasn't.",
     glance: {
-      priority: "P1 — member paid but can't book",
+      priority: "P1 - member paid but can't book",
       owner: "Client Servicing → Finance",
       respond: "Within 1 hour",
       resolve: "Activated or reversal explained within 24 hours",
@@ -206,19 +206,19 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
       "Captured in the gateway but not in Momence: activate the purchase manually in Momence against that payment and note the reference.",
       "Pending in the gateway: wait for the final status (usually within 30 minutes); don't take a second payment meanwhile.",
       "Failed in the gateway but debited by the bank: explain that UPI auto-reverses failed debits, normally within 1–2 working days (T+1); give them the reference to show their bank.",
-      "If the member needs to book today, hold their booking or offer a complimentary class while the payment settles — don't ask them to pay twice.",
-      "If you're sure it's failed and they want to proceed, a fresh payment is fine — but note the original reference for the reversal.",
+      "If the member needs to book today, hold their booking or offer a complimentary class while the payment settles - don't ask them to pay twice.",
+      "If you're sure it's failed and they want to proceed, a fresh payment is fine - but note the original reference for the reversal.",
       "Confirm the outcome to the member in writing.",
       "If several members report the same thing, check the gateway status page and raise a gateway incident.",
     ],
     diagnose: [
-      ["Captured in gateway, nothing in Momence", "Webhook / sync failure — activate manually, raise TPL-060 if repeated."],
+      ["Captured in gateway, nothing in Momence", "Webhook / sync failure - activate manually, raise TPL-060 if repeated."],
       ["Pending for more than 2 hours", "Contact the gateway support with the payment ID."],
       ["Failed in gateway, debited at bank", "Auto-reversal T+1; member's bank can trace with the UTR."],
-      ["No trace in the gateway at all", "Payment went elsewhere (wrong UPI ID / QR) — ask for the payee name on their screenshot."],
+      ["No trace in the gateway at all", "Payment went elsewhere (wrong UPI ID / QR) - ask for the payee name on their screenshot."],
     ],
     say: [
-      ["Captured", "Found it — your payment of ₹8,900 came through at 9:14 am. I've activated your membership now; you can book straight away."],
+      ["Captured", "Found it - your payment of ₹8,900 came through at 9:14 am. I've activated your membership now; you can book straight away."],
       ["Failed", "The payment didn't complete on our side, so your bank will automatically return the money, usually within 1–2 working days. Here's the reference if your bank asks: 4127…"],
     ],
     dos: [
@@ -228,7 +228,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     ],
     donts: [
       "Don't ask the member to pay again until the first payment's status is clear.",
-      "Don't promise a reversal date you can't control — give the typical window.",
+      "Don't promise a reversal date you can't control - give the typical window.",
     ],
     closeOut: [
       "Membership active with the payment reference, or reversal explained in writing.",
@@ -249,43 +249,43 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     summary:
       "When a member disputes a charge with their bank: respond with evidence before the gateway deadline, talk to the member directly, and decide whether to refund, defend or settle.",
     glance: {
-      priority: "P1 — deadline-driven",
+      priority: "P1 - deadline-driven",
       owner: "Finance (with Memberships for the evidence)",
       respond: "Same day the dispute notice arrives",
       resolve: "Evidence submitted before the gateway deadline",
     },
     firstFive: [
-      "Note the deadline shown in the gateway dashboard — they can be just a few days away.",
+      "Note the deadline shown in the gateway dashboard - they can be just a few days away.",
       "Identify the transaction and the member.",
       "Freeze any further refunds on that transaction until the dispute is decided.",
     ],
     steps: [
       "Record the dispute ID, reason code, amount and response deadline from the gateway.",
       "Identify the member and pull the purchase details, terms accepted, and attendance (check-ins) since purchase.",
-      "Call the member to understand why they disputed — many disputes are unrecognised merchant names or forgotten renewals.",
-      "If the charge was wrong (duplicate, charged after cancellation), accept the dispute or refund — don't defend errors.",
+      "Call the member to understand why they disputed - many disputes are unrecognised merchant names or forgotten renewals.",
+      "If the charge was wrong (duplicate, charged after cancellation), accept the dispute or refund - don't defend errors.",
       "If the charge was valid, compile evidence: invoice, signed waiver or terms, cancellation policy, booking and check-in history, and communication logs.",
       "Submit the evidence in the gateway before the deadline.",
-      "Don't refund separately while a dispute is open — the member could be refunded twice.",
+      "Don't refund separately while a dispute is open - the member could be refunded twice.",
       "If the member agrees the charge was valid, ask them to withdraw the dispute with their bank and keep their written confirmation.",
       "Record the outcome and update the membership (suspend if a disputed membership is lost).",
     ],
     diagnose: [
-      ["'Unrecognised transaction'", "Merchant name confusion — share the invoice; ask the member to withdraw the dispute."],
-      ["Charged after cancellation", "Our error — accept and fix the auto-debit mandate (TPL-125)."],
+      ["'Unrecognised transaction'", "Merchant name confusion - share the invoice; ask the member to withdraw the dispute."],
+      ["Charged after cancellation", "Our error - accept and fix the auto-debit mandate (TPL-125)."],
       ["Duplicate charge", "Accept or refund the duplicate only (TPL-007)."],
       ["Member used the service and disputes anyway", "Defend with attendance and terms evidence."],
     ],
     say: [
-      ["Calling the member", "Hi, I'm calling from Physique 57 about a dispute your bank raised on your 12 April payment. I wanted to check what happened — if something went wrong on our side, I'd like to fix it directly."],
+      ["Calling the member", "Hi, I'm calling from Physique 57 about a dispute your bank raised on your 12 April payment. I wanted to check what happened - if something went wrong on our side, I'd like to fix it directly."],
     ],
     dos: [
       "Diary the deadline the day the notice arrives.",
       "Include attendance and terms evidence.",
-      "Talk to the member — many disputes resolve with one call.",
+      "Talk to the member - many disputes resolve with one call.",
     ],
     donts: [
-      "Don't miss the deadline — missed disputes are lost automatically.",
+      "Don't miss the deadline - missed disputes are lost automatically.",
       "Don't refund outside the dispute process while it's open.",
     ],
     closeOut: [
@@ -307,7 +307,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     summary:
       "When a promo code is being used outside its terms, leaked publicly, or discounts were given without approval: stop the leak, decide fairly on existing purchases, and tighten controls.",
     glance: {
-      priority: "P1 — ongoing revenue leakage",
+      priority: "P1 - ongoing revenue leakage",
       owner: "Marketing (code owner) with Finance and the Studio Director",
       respond: "Within 2 hours",
       resolve: "Code fixed today; review within 3 days",
@@ -325,14 +325,14 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
       "Decide on existing redemptions: honour purchases made in good faith by members, but cancel clearly abusive ones (e.g. one person creating many accounts) with Studio Director approval.",
       "If staff applied unauthorised discounts, document each one and raise it with the Studio Director; retrain on the approval rules.",
       "Calculate the revenue impact for Finance.",
-      "Communicate with affected members only if a purchase must be reversed — politely and with an alternative.",
+      "Communicate with affected members only if a purchase must be reversed - politely and with an alternative.",
       "Record the incident and the control changes made.",
     ],
     diagnose: [
       ["Code posted on a coupon site", "Expire it, issue a new targeted code, add a usage limit."],
       ["Members stacking multiple codes", "Check stacking rules in Momence; disable stacking."],
       ["Discounts given at the desk without approval", "Document and escalate; restrict manual discounts to managers."],
-      ["Code not working for eligible members", "Different problem — see TPL-010."],
+      ["Code not working for eligible members", "Different problem - see TPL-010."],
     ],
     say: [
       ["Reversing an abusive purchase", "We noticed this offer was redeemed across several accounts, which isn't allowed under its terms, so we've cancelled the extra purchases and refunded them in full. Your original purchase stays as it is."],

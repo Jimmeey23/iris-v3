@@ -1,4 +1,4 @@
-// IRIS — Email Templates for Ticket Lifecycle Notifications
+// IRIS - Email Templates for Ticket Lifecycle Notifications
 
 export interface EmailTemplateItem {
   code: string;
@@ -29,7 +29,7 @@ const footerStyle = `
     </div>
     <div style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #f0f0f3;">
       <div style="color: #6b7280; font-size: 11px; line-height: 1.6;">
-        <div style="margin-bottom: 8px;">This is an automated notification from IRIS — Issue Resolution & Intelligence System.</div>
+        <div style="margin-bottom: 8px;">This is an automated notification from IRIS - Issue Resolution & Intelligence System.</div>
         <div>Physique 57 India · Mumbai & Bengaluru Studios</div>
         <div style="margin-top: 8px;">Need help? Contact <a href="mailto:iris-support@physique57.in" style="color: #6366f1; text-decoration: none;">iris-support@physique57.in</a></div>
       </div>
@@ -87,7 +87,7 @@ export const EMAIL_TEMPLATES: EmailTemplateItem[] = [
     name: "Ticket Escalated",
     trigger: "escalation",
     description: "Sent to escalation managers when a ticket is escalated.",
-    subject: "[ESCALATED] {{ticketId}} — {{ticketTitle}}",
+    subject: "[ESCALATED] {{ticketId}} - {{ticketTitle}}",
     preview: "A ticket has been escalated to you. Immediate attention required.",
     recipientType: "escalation_manager",
     bodyHtml: `${baseStyle}
@@ -140,7 +140,7 @@ export const EMAIL_TEMPLATES: EmailTemplateItem[] = [
     name: "Due in 3 Hours",
     trigger: "due_3h",
     description: "Reminder sent 3 hours before ticket resolution deadline.",
-    subject: "[REMINDER] {{ticketId}} — Resolution due in 3 hours",
+    subject: "[REMINDER] {{ticketId}} - Resolution due in 3 hours",
     preview: "This ticket is due in 3 hours. Please take action if needed.",
     recipientType: "assignee",
     bodyHtml: `${baseStyle}
@@ -167,7 +167,7 @@ export const EMAIL_TEMPLATES: EmailTemplateItem[] = [
     name: "Due Today",
     trigger: "due_today",
     description: "Reminder sent on the day ticket resolution is due.",
-    subject: "[DUE TODAY] {{ticketId}} — {{ticketTitle}}",
+    subject: "[DUE TODAY] {{ticketId}} - {{ticketTitle}}",
     preview: "This ticket is due for resolution today.",
     recipientType: "assignee",
     bodyHtml: `${baseStyle}
@@ -194,7 +194,7 @@ export const EMAIL_TEMPLATES: EmailTemplateItem[] = [
     name: "3 Hours Past Due",
     trigger: "past_due_3h",
     description: "Alert sent 3 hours after ticket resolution deadline has passed.",
-    subject: "[OVERDUE] {{ticketId}} — Resolution 3 hours past due",
+    subject: "[OVERDUE] {{ticketId}} - Resolution 3 hours past due",
     preview: "This ticket is now 3 hours past its resolution deadline.",
     recipientType: "all_stakeholders",
     bodyHtml: `${baseStyle}
@@ -221,7 +221,7 @@ export const EMAIL_TEMPLATES: EmailTemplateItem[] = [
     name: "Ticket Resolved",
     trigger: "resolved",
     description: "Sent to reporter and stakeholders when a ticket is resolved.",
-    subject: "[RESOLVED] {{ticketId}} — {{ticketTitle}}",
+    subject: "[RESOLVED] {{ticketId}} - {{ticketTitle}}",
     preview: "Your ticket has been resolved. Please confirm.",
     recipientType: "reporter",
     bodyHtml: `${baseStyle}
@@ -254,7 +254,7 @@ export const EMAIL_TEMPLATES: EmailTemplateItem[] = [
     name: "Ticket Reopened",
     trigger: "reopened",
     description: "Sent to assignee when a ticket is reopened by reporter.",
-    subject: "[REOPENED] {{ticketId}} — {{ticketTitle}}",
+    subject: "[REOPENED] {{ticketId}} - {{ticketTitle}}",
     preview: "A ticket has been reopened by the reporter.",
     recipientType: "assignee",
     bodyHtml: `${baseStyle}

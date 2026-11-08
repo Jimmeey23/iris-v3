@@ -121,7 +121,7 @@ export function PremiumMetricCard({
     setHoveredIndex(closestIndex);
   };
 
-  // Stable scattered decorative dots — generated via a deterministic PRNG
+  // Stable scattered decorative dots - generated via a deterministic PRNG
   // seeded by the label so the dots are identical on server and client (no
   // hydration mismatch). `Math.random()` would produce different values on
   // SSR vs CSR and trigger React hydration warnings.

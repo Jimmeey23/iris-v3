@@ -21,7 +21,7 @@ export async function GET() {
       (await c.query(`${TICKET_LIST_SELECT} order by t.created_at desc`)).rows,
     );
     await asSystem((c) => attachThreads(c, rows));
-    // Every open tab polls this route — the request-driven sweeps (SLA, escalation,
+    // Every open tab polls this route - the request-driven sweeps (SLA, escalation,
     // outbox drain) ride on it after the response, claimed once per window.
     sweepAfterResponse();
     return NextResponse.json({ tickets: rows.map(toClientTicket) });
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
             ? routed.priority
             : requestedPriority;
 
-      // 2. Ownership policy (Physique 57's standing rules) — wins over form/agent suggestions
+      // 2. Ownership policy (Physique 57's standing rules) - wins over form/agent suggestions
       //    unless an admin explicitly overrides. See lib/iris/ownership-policy.ts.
       let effectiveAssigneeId = str(b.assigneeId, 64);
       let explicitAssigneeIds = strList(b.assigneeIds);
@@ -187,6 +187,16 @@ export async function POST(request: Request) {
             studioCode,
             flags,
           });
+          // Nobody sits in the department itself: hand it to the department head.
+          if (!effectiveAssigneeId) {
+            effectiveAssigneeId =
+              ((
+                await c.query(
+                  "select h.id from departments d join employees h on h.id = d.head_employee_id and h.is_active where d.code = $1",
+                  [effectiveDepartmentCode],
+                )
+              ).rows[0]?.id as string | undefined) ?? effectiveAssigneeId;
+          }
         }
       }
 

@@ -1,5 +1,5 @@
 /**
- * Notification event taxonomy — pure, so both the server (notify.ts, sweeps) and the
+ * Notification event taxonomy - pure, so both the server (notify.ts, sweeps) and the
  * unit tests can import it without pulling in `server-only` or the database.
  */
 

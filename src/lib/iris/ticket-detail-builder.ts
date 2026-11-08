@@ -1,4 +1,4 @@
-// IRIS — Advanced Ticket Detail Builder
+// IRIS - Advanced Ticket Detail Builder
 // Produces comprehensive routing, SLA, investigation, and resolution data for the ticket modal
 
 import { STUDIOS, DEPARTMENTS, EMPLOYEES, EMPLOYEE_MAP, Priority } from "./types";
@@ -340,7 +340,7 @@ export function buildTicketDetail(state: ConversationState): TicketDetailData {
   const dept = DEPARTMENTS.find((d) => d.code === intent.suggestedDepartment);
   const studio = STUDIOS.find((s) => s.name === info.studio);
 
-  // Deterministic ticket ID — derived from the issue description hash.
+  // Deterministic ticket ID - derived from the issue description hash.
   // Avoids Math.random() which produces different IDs on server vs client
   // (hydration mismatch) and on re-renders.
   const issueText = info.issue || info.affectedClient || intent.description || "";
@@ -672,7 +672,7 @@ function buildSecondaryStakeholders(info: CollectedInfo, deptCode: string): Stak
           name: frontDesk.name,
           role: frontDesk.role,
           department: "Front Desk",
-          reason: "Studio front desk — informed for client communication",
+          reason: "Studio front desk - informed for client communication",
         });
       }
     }
@@ -685,7 +685,7 @@ function buildSecondaryStakeholders(info: CollectedInfo, deptCode: string): Stak
         name: memMgr.name,
         role: memMgr.role,
         department: "Memberships",
-        reason: "Member-facing impact — kept informed of resolution",
+        reason: "Member-facing impact - kept informed of resolution",
       });
     }
   }
@@ -697,7 +697,7 @@ function buildSecondaryStakeholders(info: CollectedInfo, deptCode: string): Stak
         name: finMgr.name,
         role: finMgr.role,
         department: "Finance",
-        reason: "Financial impact — requires finance awareness",
+        reason: "Financial impact - requires finance awareness",
       });
     }
   }
@@ -708,7 +708,7 @@ function buildSecondaryStakeholders(info: CollectedInfo, deptCode: string): Stak
       name: opsMgr.name,
       role: opsMgr.role,
       department: "Operations",
-      reason: "Operations visibility — cross-department coordination",
+      reason: "Operations visibility - cross-department coordination",
     });
   }
 
@@ -782,7 +782,7 @@ function buildSLADetail(state: ConversationState, priority: Priority, info: Coll
       "Paused by assignee with reason",
       "Outside business hours (non-P0 only)",
     ],
-    slaCalculation: `Priority ${priority} computed from ${factors.length} weighted factors totaling ${priorityScore}/100. Response target: ${formatDuration(targets.response)}. Resolution target: ${formatDuration(targets.resolution)}. SLA clock starts on ticket creation. ${priority === "P0" ? "P0 tickets run 24/7 — no business-hours restriction." : "SLA pauses outside business hours."}`,
+    slaCalculation: `Priority ${priority} computed from ${factors.length} weighted factors totaling ${priorityScore}/100. Response target: ${formatDuration(targets.response)}. Resolution target: ${formatDuration(targets.resolution)}. SLA clock starts on ticket creation. ${priority === "P0" ? "P0 tickets run 24/7 - no business-hours restriction." : "SLA pauses outside business hours."}`,
   };
 }
 
@@ -846,7 +846,7 @@ function buildInvestigationDetail(state: ConversationState, info: CollectedInfo)
     step: steps.length + 1,
     agent: "Investigation Agent",
     action: "Searched historical tickets for similar issues",
-    result: "Found 2 similar tickets in last 90 days — both resolved",
+    result: "Found 2 similar tickets in last 90 days - both resolved",
     duration: 540,
     timestamp: new Date(now - 3000).toISOString(),
   });
@@ -855,7 +855,7 @@ function buildInvestigationDetail(state: ConversationState, info: CollectedInfo)
     step: steps.length + 1,
     agent: "Routing Agent",
     action: "Evaluated candidate assignees",
-    result: `Scored ${EMPLOYEES.filter((e) => e.departmentCode === intent.suggestedDepartment).length} candidates — top match selected`,
+    result: `Scored ${EMPLOYEES.filter((e) => e.departmentCode === intent.suggestedDepartment).length} candidates - top match selected`,
     duration: 320,
     timestamp: new Date(now - 2500).toISOString(),
   });
@@ -951,7 +951,7 @@ function buildInvestigationDetail(state: ConversationState, info: CollectedInfo)
   }
   findings.push({
     type: "historical_pattern",
-    description: "2 similar tickets found in last 90 days — both resolved within SLA",
+    description: "2 similar tickets found in last 90 days - both resolved within SLA",
     source: "Historical search",
     confidence: 90,
   });
@@ -1088,7 +1088,7 @@ function buildResolutionDetail(state: ConversationState, template: any, priority
     approvalRequired: approvals,
     resolutionPath: priority === "P0" ? "Immediate → Investigate → Resolve → Verify" : "Acknowledge → Investigate → Resolve → Verify → Close",
     autoResolutionPossible,
-    autoResolutionReason: autoResolutionPossible ? "Some steps may be auto-resolved via API actions with proper authorization" : "Manual intervention required — no safe auto-resolution path available",
+    autoResolutionReason: autoResolutionPossible ? "Some steps may be auto-resolved via API actions with proper authorization" : "Manual intervention required - no safe auto-resolution path available",
   };
 }
 
@@ -1134,7 +1134,7 @@ function buildRiskDetail(state: ConversationState, priority: Priority, info: Col
   }
 
   if (info.duration?.includes("More than") || info.duration?.includes("yesterday")) {
-    factors.push({ factor: "Prolonged issue", impact: "Issue has persisted — increased client frustration", severity: "medium" });
+    factors.push({ factor: "Prolonged issue", impact: "Issue has persisted - increased client frustration", severity: "medium" });
     score += 10;
   }
 
@@ -1148,13 +1148,13 @@ function buildRiskDetail(state: ConversationState, priority: Priority, info: Col
     mitigations: [
       "SLA tracking active with escalation thresholds",
       "Assignee selected with verified availability",
-      "Historical precedent found — established resolution path exists",
+      "Historical precedent found - established resolution path exists",
       "Stakeholders identified for cross-team coordination",
       priority === "P0" ? "Management escalation pre-configured" : "Standard escalation chain ready",
     ],
-    escalationRisk: priority === "P0" ? "High — will escalate to director if not resolved in 4 hours" : priority === "P1" ? "Medium — escalates after 12 hours" : "Low — standard escalation timeline",
-    clientTrustRisk: info.affectedClient ? "Medium — client directly affected, follow-up communication recommended" : "Low — no specific client named",
-    operationalRisk: info.affectedCount?.includes("Entire") ? "High — entire studio operations at risk" : info.affectedCount?.includes("Multiple") ? "Medium — multiple sessions affected" : "Low — contained operational impact",
+    escalationRisk: priority === "P0" ? "High - will escalate to director if not resolved in 4 hours" : priority === "P1" ? "Medium - escalates after 12 hours" : "Low - standard escalation timeline",
+    clientTrustRisk: info.affectedClient ? "Medium - client directly affected, follow-up communication recommended" : "Low - no specific client named",
+    operationalRisk: info.affectedCount?.includes("Entire") ? "High - entire studio operations at risk" : info.affectedCount?.includes("Multiple") ? "Medium - multiple sessions affected" : "Low - contained operational impact",
   };
 }
 
@@ -1166,49 +1166,49 @@ function buildRelatedTickets(intent: any, info: CollectedInfo): RelatedTicket[] 
   if (intent.suggestedCategory === "Facilities" && info.subcategory === "HVAC") {
     related.push({
       ticketId: "IRIS-2026-0098",
-      title: "AC Not Cooling — Studio 1, Kwality House",
+      title: "AC Not Cooling - Studio 1, Kwality House",
       similarity: 87,
       matchReason: "Same category, same studio, similar equipment",
       resolution: "HVAC technician dispatched, refrigerant topped up, unit serviced",
       resolutionTime: "3.5 hours",
       department: "Facilities & Maintenance",
-      recurrenceRisk: "Medium — same unit, 6 weeks apart",
+      recurrenceRisk: "Medium - same unit, 6 weeks apart",
     });
     related.push({
       ticketId: "IRIS-2026-0112",
-      title: "Thermostat Malfunction — Supreme HQ",
+      title: "Thermostat Malfunction - Supreme HQ",
       similarity: 72,
       matchReason: "Same category (HVAC), different studio",
       resolution: "Thermostat replaced, calibration done",
       resolutionTime: "2 hours",
       department: "Facilities & Maintenance",
-      recurrenceRisk: "Low — different equipment type",
+      recurrenceRisk: "Low - different equipment type",
     });
   } else if (intent.suggestedCategory === "Payment") {
     related.push({
       ticketId: "IRIS-2026-0089",
-      title: "UPI Payment Not Reflecting — ₹2,500",
+      title: "UPI Payment Not Reflecting - ₹2,500",
       similarity: 91,
       matchReason: "Same category, same payment method, similar amount",
       resolution: "Verified with Razorpay, manually credited client account",
       resolutionTime: "18 hours",
       department: "Payments & Finance",
-      recurrenceRisk: "Medium — UPI sync issue appears intermittent",
+      recurrenceRisk: "Medium - UPI sync issue appears intermittent",
     });
     related.push({
       ticketId: "IRIS-2026-0105",
-      title: "Duplicate Payment Charge — ₹4,500",
+      title: "Duplicate Payment Charge - ₹4,500",
       similarity: 68,
       matchReason: "Same category (Payment), different issue type",
       resolution: "Refund processed for duplicate, gateway issue reported",
       resolutionTime: "24 hours",
       department: "Payments & Finance",
-      recurrenceRisk: "Low — one-off gateway glitch",
+      recurrenceRisk: "Low - one-off gateway glitch",
     });
   } else {
     related.push({
       ticketId: "IRIS-2026-0095",
-      title: `Similar ${intent.suggestedCategory} Issue — Earlier Report`,
+      title: `Similar ${intent.suggestedCategory} Issue - Earlier Report`,
       similarity: 78,
       matchReason: `Same category: ${intent.suggestedCategory}`,
       resolution: "Resolved via standard department procedure",
@@ -1287,50 +1287,50 @@ function buildAuditPreview(state: ConversationState, ticketId: string): AuditEnt
 
 function generateBusinessImpact(info: CollectedInfo, priority: Priority): string {
   if (priority === "P0") {
-    return "Critical — classes or operations are actively disrupted. Immediate intervention required. Revenue at risk if classes must be cancelled. Client trust impact high if not resolved within the hour.";
+    return "Critical - classes or operations are actively disrupted. Immediate intervention required. Revenue at risk if classes must be cancelled. Client trust impact high if not resolved within the hour.";
   }
   if (priority === "P1") {
-    return "High — significant client-facing disruption. Resolution needed within the shift to prevent escalation. Potential for class cancellation or client dissatisfaction if delayed.";
+    return "High - significant client-facing disruption. Resolution needed within the shift to prevent escalation. Potential for class cancellation or client dissatisfaction if delayed.";
   }
   if (info.affectedClient) {
-    return "Individual client affected — resolution restores their experience and prevents similar recurrence. Manageable business impact with timely action.";
+    return "Individual client affected - resolution restores their experience and prevents similar recurrence. Manageable business impact with timely action.";
   }
-  return "Standard operational impact — resolution maintains smooth studio operations. No immediate revenue or client trust risk.";
+  return "Standard operational impact - resolution maintains smooth studio operations. No immediate revenue or client trust risk.";
 }
 
 function generateOperationalImpact(info: CollectedInfo, priority: Priority): string {
   if (info.affectedCount?.includes("Entire")) {
-    return "Entire studio operations impacted — all sessions and front desk activities affected. Requires immediate operational contingency (class cancellation, client notification, possible temporary closure).";
+    return "Entire studio operations impacted - all sessions and front desk activities affected. Requires immediate operational contingency (class cancellation, client notification, possible temporary closure).";
   }
   if (info.affectedCount?.includes("Multiple")) {
-    return "Multiple classes affected — coordinated scheduling adjustment required. Front desk needs communication protocol for affected clients.";
+    return "Multiple classes affected - coordinated scheduling adjustment required. Front desk needs communication protocol for affected clients.";
   }
   if (info.affectedCount?.includes("One class")) {
-    return "Single class affected (~20 clients) — class relocation or cancellation may be needed. Front desk to proactively communicate with booked clients.";
+    return "Single class affected (~20 clients) - class relocation or cancellation may be needed. Front desk to proactively communicate with booked clients.";
   }
   if (info.affectedClient) {
-    return "Single client operational impact — front desk workflow adjustment needed for check-in/handling. Minimal disruption to overall operations.";
+    return "Single client operational impact - front desk workflow adjustment needed for check-in/handling. Minimal disruption to overall operations.";
   }
-  return "Limited operational impact — standard procedure sufficient. No special operational adjustments required.";
+  return "Limited operational impact - standard procedure sufficient. No special operational adjustments required.";
 }
 
 function generateClientImpact(info: CollectedInfo, priority: Priority): string {
   if (!info.affectedClient && !info.affectedCount?.includes("client")) {
-    return "No specific client directly impacted — internal operational issue.";
+    return "No specific client directly impacted - internal operational issue.";
   }
   if (priority === "P0") {
     return info.affectedClient
-      ? `${info.affectedClient} directly affected — high risk of dissatisfaction. Personal follow-up recommended post-resolution. Goodwill credit consideration.`
-      : "Multiple clients affected — proactive communication essential. Mass notification may be required.";
+      ? `${info.affectedClient} directly affected - high risk of dissatisfaction. Personal follow-up recommended post-resolution. Goodwill credit consideration.`
+      : "Multiple clients affected - proactive communication essential. Mass notification may be required.";
   }
   if (priority === "P1") {
     return info.affectedClient
       ? `${info.affectedClient} experiencing significant inconvenience. Acknowledge promptly, provide regular updates.`
-      : "Client-facing impact — ensure front desk has talking points and alternative arrangements ready.";
+      : "Client-facing impact - ensure front desk has talking points and alternative arrangements ready.";
   }
   return info.affectedClient
-    ? `${info.affectedClient} affected — standard resolution will restore their experience. Document for member notes.`
-    : "Minor client inconvenience — resolve and document.";
+    ? `${info.affectedClient} affected - standard resolution will restore their experience. Document for member notes.`
+    : "Minor client inconvenience - resolve and document.";
 }
 
 function generateFinancialImpact(info: CollectedInfo): string | undefined {
@@ -1338,7 +1338,7 @@ function generateFinancialImpact(info: CollectedInfo): string | undefined {
     return `Financial transaction involved: ${info.paymentAmount}. Requires finance team verification and proper audit trail. Refund processing may be needed pending investigation outcome.`;
   }
   if (info.affectedCount?.includes("Entire") || info.affectedCount?.includes("Multiple")) {
-    return "Potential revenue impact if classes are cancelled — credit/refund liability for affected clients. Track for financial reporting.";
+    return "Potential revenue impact if classes are cancelled - credit/refund liability for affected clients. Track for financial reporting.";
   }
   return undefined;
 }
@@ -1396,7 +1396,7 @@ function generateTicketTitle(state: ConversationState): string {
     parts.push("Operational Issue");
   }
 
-  if (info.affectedClient) parts.push(`— ${info.affectedClient}`);
+  if (info.affectedClient) parts.push(`- ${info.affectedClient}`);
   if (info.studio) parts.push(`(${info.studio})`);
 
   return parts.join(" ");
@@ -1463,7 +1463,7 @@ function buildConnectedTickets(intent: any, info: CollectedInfo): ConnectedTicke
   if (info.equipment) {
     connected.push({
       ticketId: `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
-      title: `${info.equipment} maintenance — last service`,
+      title: `${info.equipment} maintenance - last service`,
       connectionType: "same_equipment",
       connectionReason: `Same equipment: ${info.equipment}`,
       status: "resolved",
@@ -1486,7 +1486,7 @@ function buildConnectedTickets(intent: any, info: CollectedInfo): ConnectedTicke
   if (intent.suggestedCategory) {
     connected.push({
       ticketId: `IRIS-2026-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
-      title: `Related ${intent.suggestedCategory} issue — different studio`,
+      title: `Related ${intent.suggestedCategory} issue - different studio`,
       connectionType: "same_category",
       connectionReason: `Same category: ${intent.suggestedCategory}`,
       status: "resolved",
@@ -1523,7 +1523,7 @@ function buildRecurrenceDetail(info: CollectedInfo, state: ConversationState): R
     tickets: [
       {
         id: `REC-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
-        title: `${followUpLabel} (5 days) — ${info.equipment || "Equipment"} check`,
+        title: `${followUpLabel} (5 days) - ${info.equipment || "Equipment"} check`,
         dueDate: due5.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
         daysAfterResolution: 5,
         type: followUpType,
@@ -1532,7 +1532,7 @@ function buildRecurrenceDetail(info: CollectedInfo, state: ConversationState): R
       },
       {
         id: `REC-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
-        title: `${followUpLabel} (10 days) — ${info.equipment || "Equipment"} check`,
+        title: `${followUpLabel} (10 days) - ${info.equipment || "Equipment"} check`,
         dueDate: due10.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
         daysAfterResolution: 10,
         type: followUpType,
@@ -1546,7 +1546,7 @@ function buildRecurrenceDetail(info: CollectedInfo, state: ConversationState): R
 // === RESOLUTION PERMISSIONS ===
 
 function buildResolutionPermissions(state: ConversationState): ResolutionPermissions {
-  // Current user is "Aarav Mehta" (Front Desk Lead) — not the owner or manager
+  // Current user is "Aarav Mehta" (Front Desk Lead) - not the owner or manager
   // So resolution fields are read-only for them
   const currentUserRole = "Front Desk Lead";
   const allowedRoles = ["Assignee (Owner)", "Reporting Manager", "Department Manager", "Studio Director"];

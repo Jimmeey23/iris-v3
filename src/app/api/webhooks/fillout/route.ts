@@ -105,10 +105,10 @@ export async function POST(req: Request) {
           [
             a.sourceRef, trainer?.id ?? null, trainer?.name ?? a.trainer, a.studio || null, a.submittedAt, a.score, a.band, a.bandTone,
             JSON.stringify({
-              id: a.sourceRef, title: `${a.sessionName} — assessment`, score: a.score, band: a.band, bandTone: a.bandTone,
+              id: a.sourceRef, title: `${a.sessionName} - assessment`, score: a.score, band: a.band, bandTone: a.bandTone,
               studio: a.studio, rubric: a.rubric, answers: a.answers, summary, evaluator: a.evaluator,
               strengths: a.strengths, improvements: a.improvements, coachingPlan: a.coachingPlan,
-              sessionName: a.sessionName, sourceLabel: `Fillout — ${a.format} assessment`,
+              sessionName: a.sessionName, sourceLabel: `Fillout - ${a.format} assessment`,
               submittedAt: a.submittedAt, createdAt: a.submittedAt, format: a.format,
             }),
           ],

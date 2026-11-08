@@ -217,6 +217,9 @@ export const ticketsApi = {
     if (i >= 0) ALL_TICKETS.splice(i, 1);
     useAppStore.getState().bumpData();
   },
+  /** Admin-only: instant in-app nudge to the ticket's owners (or chosen employees). */
+  nudge: async (id: string, body: { employeeIds?: string[]; message?: string } = {}) =>
+    api<{ sent: string[]; skipped: string[] }>(`/api/tickets/${encodeURIComponent(id)}/nudge`, { method: "POST", json: body }),
   comment: async (id: string, content: string, isInternal = true) => {
     const { comment } = await api(`/api/tickets/${encodeURIComponent(id)}/comments`, { method: "POST", json: { content, isInternal } });
     const t = ALL_TICKETS.find((x) => x.id === id);

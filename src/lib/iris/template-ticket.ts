@@ -1,4 +1,4 @@
-// IRIS — Turn a filled-in preset template form into a real ticket payload.
+// IRIS - Turn a filled-in preset template form into a real ticket payload.
 //
 // Pure functions (no React, no network) shared by the Preset Ticket Builder on
 // the Templates page and covered by scripts/unit/template-ticket.test.ts. The
@@ -66,7 +66,7 @@ export interface TicketPayloadOptions {
 export function defaultTicketTitle(prefill: string, memberName?: string): string {
   const base = prefill.trim();
   const who = (memberName ?? "").trim();
-  return who ? `${base} — ${who}` : base;
+  return who ? `${base} - ${who}` : base;
 }
 
 /** Department for the ticket: the template's own when it exists, else the queue inferred from the category. */

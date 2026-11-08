@@ -2,7 +2,7 @@ import { F, area, check, date, defineTemplates, multi, num, pick, text } from ".
 
 const SS = "Safety and Security";
 const TL = "Theft and Lost Items";
-const SEVERITIES = ["Minor — first aid only", "Moderate — medical attention advised", "Serious — ambulance called", "Reported after the session"];
+const SEVERITIES = ["Minor - first aid only", "Moderate - medical attention advised", "Serious - ambulance called", "Reported after the session"];
 
 export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
   /* ---------------- Injuries & Medical Emergencies ---------------- */
@@ -34,7 +34,7 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
   },
   {
     code: "TPL-219",
-    title: "Medical Emergency — Fainting / Dizziness / Chest Pain",
+    title: "Medical Emergency - Fainting / Dizziness / Chest Pain",
     sub: "Injuries & Medical Emergencies",
     dept: "MGT", prio: "P0", role: "Studio Manager", hrs: 2,
     desc: "A member or visitor fainted, felt faint, had chest pain, a seizure or an allergic reaction at the studio.",
@@ -143,7 +143,7 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
     desc: "An emergency exit or evacuation route is blocked or locked.",
     map: [SS, "Emergency Exits Blocked"], outcome: "Fix the issue", when: "Just now", by: "Raised during a walkthrough / audit",
     act: [
-      "Clear the exit immediately — exits must never be blocked or locked during opening hours.",
+      "Clear the exit immediately - exits must never be blocked or locked during opening hours.",
       "Find out why (storage shortage, deliveries) and fix the cause.",
       "Add exit checks to the opening checklist.",
     ],
@@ -199,7 +199,7 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
     title: "Studio Access Issue",
     sub: "CCTV & Access Control",
     dept: "FAC", prio: "P1", role: "Facilities Manager", hrs: 4,
-    desc: "An employee or member can't get into the studio — lost key, access card / biometric failure or jammed lock.",
+    desc: "An employee or member can't get into the studio - lost key, access card / biometric failure or jammed lock.",
     map: ["Repair and Maintenance", "Doors, Locks & Fixture Repairs"], outcome: "Fix the issue", sys: "Access control / door lock",
     act: [
       "Verify the person is authorised.",
@@ -221,7 +221,7 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
     desc: "Footage is needed for a theft, incident, injury, policy dispute or police request.",
     map: [SS, "Reporting Suspicious Activity"], outcome: "Action the request", sys: "CCTV / surveillance",
     act: [
-      "Get Ops Manager approval (footage is personal data — need-to-know only).",
+      "Get Ops Manager approval (footage is personal data - need-to-know only).",
       "Export the clip before it's overwritten and store it securely.",
       "Share only with authorised people / police against a written request.",
     ],
@@ -346,7 +346,7 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
     title: "Harassment Report (Member or Staff)",
     sub: "Harassment & Personal Safety",
     dept: "MGT", prio: "P0", role: "Studio Director", hrs: 24,
-    desc: "Someone reports harassment — verbal, physical, sexual, online or stalking — involving members, staff or visitors.",
+    desc: "Someone reports harassment - verbal, physical, sexual, online or stalking - involving members, staff or visitors.",
     map: [SS, "Harassment Reports"], outcome: "Escalate to management",
     act: [
       "Ensure immediate safety; separate the people involved.",
@@ -362,7 +362,7 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
       area("incident", "What happened", true),
       text("personAccused", "Person accused (if known)"),
       check("immediateSafety", "Immediate safety measures taken"),
-      check("confidential", "Confidential — share on a need-to-know basis", true),
+      check("confidential", "Confidential - share on a need-to-know basis", true),
     ],
   },
   {

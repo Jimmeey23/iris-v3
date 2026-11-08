@@ -11,7 +11,7 @@ import { PriorityBadge, SLABadge, StatusBadge } from "./badges";
 import { RelativeTime } from "./relative-time";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Metric definitions — shared by the cards (value, sparkline, trend) and the drill-down.
+// Metric definitions - shared by the cards (value, sparkline, trend) and the drill-down.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DONE = new Set(["resolved", "closed"]);
@@ -77,7 +77,7 @@ function Breakdown({ title, rows, total }: { title: string; rows: [string, numbe
     <div className="rounded-xl border border-border/70 p-3">
       <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground mb-2">{title}</div>
       {rows.length === 0 ? (
-        <div className="text-[11px] text-muted-foreground">—</div>
+        <div className="text-[11px] text-muted-foreground">-</div>
       ) : (
         <ul className="space-y-1.5">
           {rows.map(([k, n]) => (

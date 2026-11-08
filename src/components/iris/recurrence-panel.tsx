@@ -158,7 +158,7 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
               {checks.some((x) => x.cycle > 1) && <span className="text-[10px] text-muted-foreground">round {c.cycle}</span>}
               <span className="text-muted-foreground">· {c.status === "scheduled" ? `due ${day(c.due_at)}` : s.label}</span>
               {c.check_ticket && <span className="font-mono text-[10px] text-muted-foreground">{c.check_ticket}</span>}
-              {c.outcome_note && <span className="text-muted-foreground truncate">— {c.outcome_note}</span>}
+              {c.outcome_note && <span className="text-muted-foreground truncate">- {c.outcome_note}</span>}
             </li>
           );
         })}

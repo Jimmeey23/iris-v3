@@ -58,7 +58,7 @@ const FR_ON_TIME = "(t.first_response_at <= t.sla_response_target)";
 /** Response-time breakdown by any dimension; only tickets with a recorded first response count. */
 const responseBy = (dim: string, label: string, order = "avg_h desc nulls last"): CustomSpec =>
   table(
-    `select coalesce((${dim})::text, '—') as label, count(*)::int as responded,
+    `select coalesce((${dim})::text, '-') as label, count(*)::int as responded,
             round(avg(${FR_H})::numeric, 1) as avg_h,
             round(percentile_cont(0.5) within group (order by ${FR_H})::numeric, 1) as median_h,
             round(100.0 * count(*) filter (where ${FR_ON_TIME}) / nullif(count(*) filter (where t.sla_response_target is not null), 0), 1) as on_time_pct
@@ -67,14 +67,46 @@ const responseBy = (dim: string, label: string, order = "avg_h desc nulls last")
     [label, "Responded", "Avg first response (h)", "Median (h)", "Within response target %"],
     { chart: "bar" },
   );
-const RANGE = "($1::int is null or t.created_at >= now() - make_interval(days => $1::int))";
+const FILTER_MARK = "/*iris:filters*/";
+const RANGE = `(($1::int is null or t.created_at >= now() - make_interval(days => $1::int)) ${FILTER_MARK})`;
+
+export type ReportFilters = { studios?: string[]; departments?: string[]; priorities?: string[]; statuses?: string[] };
+const SAFE = /^[A-Za-z0-9_-]{1,40}$/;
+const lit = (xs: string[]) => "array[" + xs.map((x) => `'${x}'`).join(",") + "]::text[]";
+/** SQL for the user's filters. Values are whitelisted to [A-Za-z0-9_-], so inlining is safe. */
+function filterSql(f: ReportFilters): string {
+  const clean = (xs?: string[]) => (xs ?? []).filter((x) => SAFE.test(x)).slice(0, 50);
+  const parts: string[] = [];
+  const st = clean(f.studios), dp = clean(f.departments), pr = clean(f.priorities), ss = clean(f.statuses);
+  if (st.length) parts.push(`t.studio_code = any(${lit(st)})`);
+  // v_tickets_full predates department_codes, so look the secondary departments up on tickets.
+  if (dp.length) parts.push(`t.id in (select d.id from tickets d where d.department_code = any(${lit(dp)}) or coalesce(d.department_codes, '{}'::text[]) && ${lit(dp)})`);
+  if (pr.length) parts.push(`t.priority::text = any(${lit(pr)})`);
+  if (ss.length) parts.push(`t.status::text = any(${lit(ss)})`);
+  return parts.length ? parts.map((x) => `and ${x}`).join(" ") : "";
+}
+/** Client wrapper that injects the filters wherever a ticket query uses the period predicate. */
+function filteredClient(c: PoolClient, f: ReportFilters): PoolClient {
+  const sql = filterSql(f);
+  if (!sql) return c;
+  return new Proxy(c, {
+    get(target, prop, recv) {
+      if (prop === "query") {
+        return (text: unknown, ...rest: unknown[]) =>
+          (target.query as (...a: unknown[]) => unknown)(typeof text === "string" ? text.split(FILTER_MARK).join(sql) : text, ...rest);
+      }
+      const v = Reflect.get(target, prop, recv);
+      return typeof v === "function" ? v.bind(target) : v;
+    },
+  });
+}
 const RANGE_SQL = RANGE;
 const kw = (...words: string[]) =>
   "(" + words.map((w) => `(t.category || ' ' || coalesce(t.subcategory,'') || ' ' || t.title) ilike '%${w}%'`).join(" or ") + ")";
 
 const fmtDate = (d: unknown) =>
-  d ? new Date(d as string).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
-const num = (v: unknown) => (v === null || v === undefined ? "—" : Number(v));
+  d ? new Date(d as string).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-";
+const num = (v: unknown) => (v === null || v === undefined ? "-" : Number(v));
 
 // ── Spec kinds ──────────────────────────────────────────────────────────────
 type ListSpec = { kind: "list"; where?: string; order?: string; aging?: boolean };
@@ -104,7 +136,7 @@ async function runList(c: PoolClient, days: number | null, s: ListSpec) {
   return {
     headers,
     rows: list.map((r) => [
-      r.ticket_id, r.title, r.priority, r.status, r.studio_name ?? "—", r.department_name ?? "—", r.assignee_name ?? "Unassigned",
+      r.ticket_id, r.title, r.priority, r.status, r.studio_name ?? "-", r.department_name ?? "-", r.assignee_name ?? "Unassigned",
       r.breached ? "Breached" : "Within SLA", fmtDate(r.created_at), s.aging ? r.age_days : fmtDate(r.resolved_at),
     ]),
     charts: [],
@@ -119,7 +151,7 @@ async function runList(c: PoolClient, days: number | null, s: ListSpec) {
 
 async function runGroup(c: PoolClient, days: number | null, s: GroupSpec) {
   const rows = (await c.query(
-    `select coalesce((${s.dim})::text, '—') as label, count(*)::int as total,
+    `select coalesce((${s.dim})::text, '-') as label, count(*)::int as total,
             count(*) filter (where ${OPEN})::int as open,
             count(*) filter (where not ${OPEN})::int as closed,
             count(*) filter (where ${BREACHED})::int as breached,
@@ -137,7 +169,7 @@ async function runGroup(c: PoolClient, days: number | null, s: GroupSpec) {
   const chartData = rows.slice(0, 12).map((r) => ({ name: String(r.label), value: r.total }));
   return {
     headers: [s.label, "Total", "Open", "Closed", "Breached", "Within SLA %", "Avg resolution (h)"],
-    rows: rows.map((r) => [r.label, r.total, r.open, r.closed, r.breached, r.sla_pct === null ? "—" : `${r.sla_pct}%`, num(r.avg_res_h)]),
+    rows: rows.map((r) => [r.label, r.total, r.open, r.closed, r.breached, r.sla_pct === null ? "-" : `${r.sla_pct}%`, num(r.avg_res_h)]),
     charts: rows.length
       ? [
           { title: `Tickets by ${s.label.toLowerCase()}`, subtitle: `${total} tickets`, type: "bar" as const, data: chartData },
@@ -174,7 +206,7 @@ async function runTrend(c: PoolClient, days: number | null, s: TrendSpec) {
   const peak = rows.reduce<(typeof rows)[number] | null>((m, r) => (!m || r.created > m.created ? r : m), null);
   return {
     headers: ["Period", "Created", "Resolved", "Breached", "Within SLA %", "Avg resolution (h)"],
-    rows: rows.map((r) => [label(r.period), r.created, r.resolved, r.breached, r.sla_pct === null ? "—" : `${r.sla_pct}%`, num(r.avg_res_h)]),
+    rows: rows.map((r) => [label(r.period), r.created, r.resolved, r.breached, r.sla_pct === null ? "-" : `${r.sla_pct}%`, num(r.avg_res_h)]),
     charts: rows.length
       ? [
           { title: "Tickets created", subtitle: `Per ${s.bucket}`, type: "line" as const, data: rows.map((r) => ({ name: label(r.period), value: r.created })), seriesName: "Created" },
@@ -195,7 +227,7 @@ function table(sql: string, headers: string[], opts: { chart?: "bar" | "pie" | "
     kind: "custom",
     run: async (c, days) => {
       const res = await c.query(sql, opts.params ? opts.params(days) : [days]);
-      const rows = res.rows.slice(0, ROW_LIMIT).map((r) => Object.values(r).map((v) => (v instanceof Date ? fmtDate(v) : v === null ? "—" : typeof v === "number" ? v : /^-?\d+(\.\d+)?$/.test(String(v)) ? Number(v) : String(v)))) as Cell[][];
+      const rows = res.rows.slice(0, ROW_LIMIT).map((r) => Object.values(r).map((v) => (v instanceof Date ? fmtDate(v) : v === null ? "-" : typeof v === "number" ? v : /^-?\d+(\.\d+)?$/.test(String(v)) ? Number(v) : String(v)))) as Cell[][];
       const numIdx = rows[0]?.findIndex((v, i) => i > 0 && typeof v === "number") ?? -1;
       const charts: Chart[] = opts.chart && numIdx > 0 && rows.length
         ? [{ title: headers[numIdx], subtitle: `By ${headers[0].toLowerCase()}`, type: opts.chart, data: rows.slice(0, opts.chart === "line" ? 400 : 12).map((r) => ({ name: String(r[0]), value: Number(r[numIdx]) })) }]
@@ -235,7 +267,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
   "RPT-010": { kind: "unavailable", reason: NOT_TRACKED("ticket reopens") },
   "RPT-011": { kind: "list", where: "t.escalation_level > 0", order: "t.escalation_level desc, t.created_at desc" },
   "RPT-012": { kind: "group", dim: "t.category", label: "Category" },
-  "RPT-013": { kind: "group", dim: "t.category || ' › ' || coalesce(t.subcategory, '—')", label: "Category › Subcategory" },
+  "RPT-013": { kind: "group", dim: "t.category || ' › ' || coalesce(t.subcategory, '-')", label: "Category › Subcategory" },
   "RPT-014": { kind: "group", dim: "t.source", label: "Source" },
   "RPT-015": { kind: "list", where: "t.assignee_id is null" },
   "RPT-016": { kind: "list", where: OPEN, order: "t.created_at asc", aging: true },
@@ -248,7 +280,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
     ["When", "Ticket", "Activity", "Description", "By"],
   ),
   "RPT-019": { kind: "list" },
-  "RPT-020": { kind: "unavailable", reason: "Search results live in All Tickets — use its export there, or Bulk Ticket Export here." },
+  "RPT-020": { kind: "unavailable", reason: "Search results live in All Tickets - use its export there, or Bulk Ticket Export here." },
   // SLA & performance
   "RPT-021": { kind: "group", dim: "t.priority", label: "Priority", order: "label" },
   "RPT-022": { kind: "group", dim: "t.priority", label: "Priority", order: "label" },
@@ -292,7 +324,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
     ["Resolution time", "Tickets"],
     { chart: "bar" },
   ),
-  "RPT-033": { kind: "group", dim: "t.category || ' › ' || coalesce(t.subcategory, '—')", label: "Breached in", where: BREACHED },
+  "RPT-033": { kind: "group", dim: "t.category || ' › ' || coalesce(t.subcategory, '-')", label: "Breached in", where: BREACHED },
   "RPT-034": { kind: "group", dim: "case when extract(hour from t.created_at at time zone 'Asia/Kolkata') between 7 and 20 then 'Business hours (7am–9pm)' else 'After hours' end", label: "Raised during" },
   "RPT-035": { kind: "trend", bucket: "month" },
   // Department & employee
@@ -335,7 +367,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
     ["Employee", "Department", "Skills"],
   ),
   "RPT-048": table(
-    `select d.name, coalesce(h.name, '— no head —'), count(e.id)::int from departments d
+    `select d.name, coalesce(h.name, '- no head -'), count(e.id)::int from departments d
        left join employees h on h.id = d.head_employee_id
        left join employees e on e.department_code = d.code and e.is_active
       where d.is_active and $1::int is not distinct from $1::int group by d.name, h.name order by d.name`,
@@ -354,9 +386,9 @@ export const REPORT_SPECS: Record<string, Spec> = {
   "RPT-052": { kind: "group", dim: "t.studio_name", label: "Studio", order: "label" },
   "RPT-053": { kind: "group", dim: "t.studio_name", label: "Studio", where: "t.studio_city ilike 'mumbai%'" },
   "RPT-054": { kind: "group", dim: "t.studio_name", label: "Studio", where: "t.studio_city ilike 'beng%'" },
-  "RPT-055": { kind: "group", dim: "coalesce(t.studio_name, '—') || ' · ' || t.category", label: "Studio · Category" },
+  "RPT-055": { kind: "group", dim: "coalesce(t.studio_name, '-') || ' · ' || t.category", label: "Studio · Category" },
   "RPT-056": { kind: "unavailable", reason: "A composite health score needs agreed weights; use Studio Operations Overview for the real inputs." },
-  "RPT-057": { kind: "group", dim: "coalesce(t.studio_name, '—') || ' · ' || coalesce(t.subcategory, t.category)", label: "Studio · Issue", having: "count(*) >= 3" },
+  "RPT-057": { kind: "group", dim: "coalesce(t.studio_name, '-') || ' · ' || coalesce(t.subcategory, t.category)", label: "Studio · Issue", having: "count(*) >= 3" },
   "RPT-058": { kind: "group", dim: "t.studio_name", label: "Studio", where: `(t.equipment is not null or ${kw("equipment", "bike", "reformer", "machine")})` },
   "RPT-059": { kind: "group", dim: "t.studio_name", label: "Studio", where: kw("facilit", "hvac", "plumb", "clean", "maintenance", "repair") },
   "RPT-060": { kind: "group", dim: "t.studio_name", label: "Studio", where: kw("complaint", "feedback", "unhappy", "rude") },
@@ -411,7 +443,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
   "RPT-086": { kind: "group", dim: "to_char(t.created_at at time zone 'Asia/Kolkata', 'FMDay')", label: "Weekday" },
   "RPT-087": { kind: "unavailable", reason: "Similarity clustering isn't built yet; Recurring Issue Detection groups identical issues." },
   "RPT-088": table(
-    `select t.ticket_id, t.category, coalesce(t.subcategory, '—'), coalesce(t.resolution_summary, t.resolution) as resolution
+    `select t.ticket_id, t.category, coalesce(t.subcategory, '-'), coalesce(t.resolution_summary, t.resolution) as resolution
        from v_tickets_full t where ${RANGE} and coalesce(t.resolution_summary, t.resolution) is not null
       order by t.resolved_at desc nulls last limit ${ROW_LIMIT + 1}`,
     ["Ticket", "Category", "Subcategory", "Resolution"],
@@ -449,7 +481,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
     { chart: "bar" },
   ),
   "RPT-105": table(
-    `select coalesce(u.email::text, '—'), count(*)::int as notifications, count(*) filter (where not n.is_read)::int as unread
+    `select coalesce(u.email::text, '-'), count(*)::int as notifications, count(*) filter (where not n.is_read)::int as unread
        from notifications n left join users u on u.id = n.user_id
       where ($1::int is null or n.created_at >= now() - make_interval(days => $1::int)) group by 1 order by 2 desc`,
     ["User", "Notifications", "Unread"],
@@ -480,7 +512,8 @@ export function reportAvailability(code: string): { available: boolean; reason?:
   return spec.kind === "unavailable" ? { available: false, reason: spec.reason } : { available: true };
 }
 
-export async function runReport(c: PoolClient, code: string, range: RangeId): Promise<ReportResult> {
+export async function runReport(raw: PoolClient, code: string, range: RangeId, filters: ReportFilters = {}): Promise<ReportResult> {
+  const c = filteredClient(raw, filters);
   const spec = REPORT_SPECS[code];
   if (!spec) return { available: false, reason: "This report isn't defined yet." };
   if (spec.kind === "unavailable") return { available: false, reason: spec.reason };

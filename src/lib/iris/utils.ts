@@ -1,4 +1,4 @@
-// IRIS — Utility functions
+// IRIS - Utility functions
 
 export function formatRelativeTime(dateStr: string | Date): string {
   const date = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
@@ -104,4 +104,14 @@ export function getAvatarColor(name: string): string {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   return colors[Math.abs(hash) % colors.length];
+}
+
+/**
+ * Absolute same-origin URL. Some browser extensions wrap window.fetch and call
+ * `new URL(input)` with no base, which throws "Failed to construct 'URL'" on
+ * relative paths. Passing an absolute URL sidesteps that.
+ */
+export function absUrl(path: string): string {
+  if (typeof window === "undefined" || !path.startsWith("/") || path.startsWith("//")) return path;
+  return window.location.origin + path;
 }

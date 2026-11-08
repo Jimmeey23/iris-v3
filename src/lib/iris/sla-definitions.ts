@@ -1,4 +1,4 @@
-// IRIS — Definitive SLA Rules Engine
+// IRIS - Definitive SLA Rules Engine
 // Auto-triggered escalation and resolution rules
 
 export interface SLADefinition {
@@ -99,7 +99,7 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
       {
         id: "P0-A5",
         trigger: "4 hours without resolution",
-        action: "Critical breach — notify board, activate incident response",
+        action: "Critical breach - notify board, activate incident response",
         type: "escalate",
         target: "Board + All Directors",
         timing: "4 hours",
@@ -107,10 +107,10 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
       },
     ],
     escalationRules: [
-      { id: "P0-E1", trigger: "5 min no response", condition: "firstResponseAt is null AND now > created + 5min", escalateTo: "L2 — Department Manager", timeframe: "5 min", automatic: true },
-      { id: "P0-E2", trigger: "15 min no response", condition: "firstResponseAt is null AND now > created + 15min", escalateTo: "L3 — Studio Director", timeframe: "15 min", automatic: true },
-      { id: "P0-E3", trigger: "30 min unresolved", condition: "status != resolved AND now > created + 30min", escalateTo: "L4 — India Director", timeframe: "30 min", automatic: true },
-      { id: "P0-E4", trigger: "2 hours unresolved", condition: "status != resolved AND now > created + 2h", escalateTo: "L5 — Emergency Response Team", timeframe: "2 hours", automatic: true },
+      { id: "P0-E1", trigger: "5 min no response", condition: "firstResponseAt is null AND now > created + 5min", escalateTo: "L2 - Department Manager", timeframe: "5 min", automatic: true },
+      { id: "P0-E2", trigger: "15 min no response", condition: "firstResponseAt is null AND now > created + 15min", escalateTo: "L3 - Studio Director", timeframe: "15 min", automatic: true },
+      { id: "P0-E3", trigger: "30 min unresolved", condition: "status != resolved AND now > created + 30min", escalateTo: "L4 - India Director", timeframe: "30 min", automatic: true },
+      { id: "P0-E4", trigger: "2 hours unresolved", condition: "status != resolved AND now > created + 2h", escalateTo: "L5 - Emergency Response Team", timeframe: "2 hours", automatic: true },
       { id: "P0-E5", trigger: "4 hours (SLA breach)", condition: "status != resolved AND now > created + 4h", escalateTo: "Board Notification", timeframe: "4 hours", automatic: true },
     ],
     resolutionRules: [
@@ -182,10 +182,10 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
       },
     ],
     escalationRules: [
-      { id: "P1-E1", trigger: "30 min no response", condition: "firstResponseAt is null AND now > created + 30min", escalateTo: "L2 — Department Manager", timeframe: "30 min", automatic: true },
-      { id: "P1-E2", trigger: "60 min no response", condition: "firstResponseAt is null AND now > created + 60min", escalateTo: "L3 — Operations Manager", timeframe: "60 min", automatic: true },
-      { id: "P1-E3", trigger: "6 hours unresolved", condition: "status != resolved AND now > created + 6h", escalateTo: "L4 — Studio Director", timeframe: "6 hours", automatic: true },
-      { id: "P1-E4", trigger: "12 hours (SLA breach)", condition: "status != resolved AND now > created + 12h", escalateTo: "L5 — Director + Board notification", timeframe: "12 hours", automatic: true },
+      { id: "P1-E1", trigger: "30 min no response", condition: "firstResponseAt is null AND now > created + 30min", escalateTo: "L2 - Department Manager", timeframe: "30 min", automatic: true },
+      { id: "P1-E2", trigger: "60 min no response", condition: "firstResponseAt is null AND now > created + 60min", escalateTo: "L3 - Operations Manager", timeframe: "60 min", automatic: true },
+      { id: "P1-E3", trigger: "6 hours unresolved", condition: "status != resolved AND now > created + 6h", escalateTo: "L4 - Studio Director", timeframe: "6 hours", automatic: true },
+      { id: "P1-E4", trigger: "12 hours (SLA breach)", condition: "status != resolved AND now > created + 12h", escalateTo: "L5 - Director + Board notification", timeframe: "12 hours", automatic: true },
     ],
     resolutionRules: [
       { id: "P1-R1", trigger: "Status changed to resolved", condition: "assignee confirms resolution", action: "Notify reporter, start 48h reopen window", automatic: true },
@@ -194,7 +194,7 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
     ],
     triggers: [
       { id: "P1-T1", event: "ticket_created", condition: "priority = P1", action: "Notify assignee + email", timing: "0 min" },
-      { id: "P1-T2", event: "sla_50%", condition: "elapsed > 50%", action: "Notify assignee — halfway reminder", timing: "6 hours" },
+      { id: "P1-T2", event: "sla_50%", condition: "elapsed > 50%", action: "Notify assignee - halfway reminder", timing: "6 hours" },
       { id: "P1-T3", event: "sla_75%", condition: "elapsed > 75%", action: "Warn assignee + dept head", timing: "9 hours" },
       { id: "P1-T4", event: "3h_before_due", condition: "remaining = 3h", action: "Send 'due in 3 hours' email to assignee", timing: "9 hours" },
       { id: "P1-T5", event: "due_today", condition: "resolution target is today", action: "Send 'due today' email", timing: "Today" },
@@ -258,9 +258,9 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
       },
     ],
     escalationRules: [
-      { id: "P2-E1", trigger: "8 hours no response", condition: "firstResponseAt is null AND now > created + 8h", escalateTo: "L2 — Department Manager", timeframe: "8 hours", automatic: true },
-      { id: "P2-E2", trigger: "24 hours unresolved", condition: "status != resolved AND now > created + 24h", escalateTo: "L3 — Operations Manager", timeframe: "24 hours", automatic: true },
-      { id: "P2-E3", trigger: "48 hours (SLA breach)", condition: "status != resolved AND now > created + 48h", escalateTo: "L4 — Studio Director", timeframe: "48 hours", automatic: true },
+      { id: "P2-E1", trigger: "8 hours no response", condition: "firstResponseAt is null AND now > created + 8h", escalateTo: "L2 - Department Manager", timeframe: "8 hours", automatic: true },
+      { id: "P2-E2", trigger: "24 hours unresolved", condition: "status != resolved AND now > created + 24h", escalateTo: "L3 - Operations Manager", timeframe: "24 hours", automatic: true },
+      { id: "P2-E3", trigger: "48 hours (SLA breach)", condition: "status != resolved AND now > created + 48h", escalateTo: "L4 - Studio Director", timeframe: "48 hours", automatic: true },
     ],
     resolutionRules: [
       { id: "P2-R1", trigger: "Status changed to resolved", condition: "assignee confirms resolution", action: "Notify reporter, start 72h reopen window", automatic: true },
@@ -270,7 +270,7 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
     triggers: [
       { id: "P2-T1", event: "ticket_created", condition: "priority = P2", action: "In-app notify assignee", timing: "0 min" },
       { id: "P2-T2", event: "4h_no_ack", condition: "firstResponseAt is null AND elapsed > 4h", action: "Reminder to assignee", timing: "4 hours" },
-      { id: "P2-T3", event: "sla_50%", condition: "elapsed > 50%", action: "Notify assignee — halfway reminder", timing: "24 hours" },
+      { id: "P2-T3", event: "sla_50%", condition: "elapsed > 50%", action: "Notify assignee - halfway reminder", timing: "24 hours" },
       { id: "P2-T4", event: "sla_75%", condition: "elapsed > 75%", action: "Warn assignee + dept head", timing: "36 hours" },
       { id: "P2-T5", event: "sla_breached", condition: "now > resolutionTarget", action: "Breach alert to ops manager", timing: "48 hours" },
     ],
@@ -322,9 +322,9 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
       },
     ],
     escalationRules: [
-      { id: "P3-E1", trigger: "12 hours no response", condition: "firstResponseAt is null AND now > created + 12h", escalateTo: "L2 — Department Manager", timeframe: "12 hours", automatic: true },
-      { id: "P3-E2", trigger: "3 days unresolved", condition: "status != resolved AND now > created + 3d", escalateTo: "L3 — Operations Manager", timeframe: "3 days", automatic: true },
-      { id: "P3-E3", trigger: "7 days (SLA breach)", condition: "status != resolved AND now > created + 7d", escalateTo: "L4 — Studio Director", timeframe: "7 days", automatic: true },
+      { id: "P3-E1", trigger: "12 hours no response", condition: "firstResponseAt is null AND now > created + 12h", escalateTo: "L2 - Department Manager", timeframe: "12 hours", automatic: true },
+      { id: "P3-E2", trigger: "3 days unresolved", condition: "status != resolved AND now > created + 3d", escalateTo: "L3 - Operations Manager", timeframe: "3 days", automatic: true },
+      { id: "P3-E3", trigger: "7 days (SLA breach)", condition: "status != resolved AND now > created + 7d", escalateTo: "L4 - Studio Director", timeframe: "7 days", automatic: true },
     ],
     resolutionRules: [
       { id: "P3-R1", trigger: "Status changed to resolved", condition: "assignee confirms", action: "Notify reporter, start 7-day reopen window", automatic: true },
@@ -333,7 +333,7 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
     triggers: [
       { id: "P3-T1", event: "ticket_created", condition: "priority = P3", action: "Add to queue, notify assignee", timing: "0 min" },
       { id: "P3-T2", event: "12h_no_ack", condition: "firstResponseAt is null AND elapsed > 12h", action: "Reminder", timing: "12 hours" },
-      { id: "P3-T3", event: "sla_50%", condition: "elapsed > 50%", action: "Notify — halfway", timing: "3.5 days" },
+      { id: "P3-T3", event: "sla_50%", condition: "elapsed > 50%", action: "Notify - halfway", timing: "3.5 days" },
       { id: "P3-T4", event: "sla_breached", condition: "now > resolutionTarget", action: "Breach alert", timing: "7 days" },
     ],
   },
@@ -353,7 +353,7 @@ export function formatSLADuration(mins: number): string {
   return `${d} day${d > 1 ? "s" : ""}`;
 }
 
-// Auto-trigger evaluation — given a ticket's current state, what actions should fire?
+// Auto-trigger evaluation - given a ticket's current state, what actions should fire?
 export function evaluateSLATriggers(
   priority: string,
   createdAt: Date,

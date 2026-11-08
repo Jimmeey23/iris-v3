@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 /**
- * AI Resolution Suggestions panel — shown in the ticket detail view.
+ * AI Resolution Suggestions panel - shown in the ticket detail view.
  *
  * Surfaces the most useful resolution resources for the current ticket:
  *   - Matching knowledge base articles (click to open)
@@ -53,7 +53,7 @@ export function AIResolutionSuggestions({ ticket }: { ticket: Ticket }) {
         </div>
       </div>
 
-      {/* Suggested actions — the synthesized recommendations */}
+      {/* Suggested actions - the synthesized recommendations */}
       {suggestion.suggestedActions.length > 0 && (
         <div className="mb-3 p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400 mb-1.5 flex items-center gap-1">

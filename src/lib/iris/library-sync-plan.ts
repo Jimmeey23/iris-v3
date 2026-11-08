@@ -1,4 +1,4 @@
-// IRIS — Decide how the built-in template / knowledge library reaches Neon.
+// IRIS - Decide how the built-in template / knowledge library reaches Neon.
 //
 // The library is editable in the app and persisted in Neon (iris.ticket_templates,
 // iris.knowledge_docs), and the client swaps its in-code defaults for whatever
@@ -6,10 +6,10 @@
 // are written to Neon. This module is the pure, unit-tested half of that sync
 // (src/lib/server/library-sync.ts runs it). Per built-in item it decides:
 //
-//   • insert  — the row doesn't exist and never did;
-//   • update  — the row is exactly as the system last wrote it (or exactly as the
+//   • insert  - the row doesn't exist and never did;
+//   • update  - the row is exactly as the system last wrote it (or exactly as the
 //               original seed left it), so upgrading it can't lose anyone's work;
-//   • leave   — someone edited it (it's theirs now), deleted it (never resurrect —
+//   • leave   - someone edited it (it's theirs now), deleted it (never resurrect -
 //               including seed rows deleted before this sync existed), or created
 //               their own item under the same code.
 //
@@ -70,7 +70,7 @@ export function stableStringify(value: unknown): string {
   return JSON.stringify(value ?? null);
 }
 
-/** cyrb53 — small, fast, well-distributed 53-bit string hash (hex). Not cryptographic; it only detects change. */
+/** cyrb53 - small, fast, well-distributed 53-bit string hash (hex). Not cryptographic; it only detects change. */
 export function hashString(str: string, seed = 0): string {
   let h1 = 0xdeadbeef ^ seed;
   let h2 = 0x41c6ce57 ^ seed;
@@ -130,11 +130,11 @@ export function planCollectionSync(
       continue;
     }
 
-    if (!row) continue; // deleted after we wrote it — respect the deletion
+    if (!row) continue; // deleted after we wrote it - respect the deletion
     if (record.at === null) continue; // owned by a person
     if (record.h === hash) continue; // nothing new to write
     if (row.atUs === record.at) {
-      // Untouched since our last write — safe to upgrade.
+      // Untouched since our last write - safe to upgrade.
       update.push(key);
       records[key] = { h: hash, at: "" };
     } else {

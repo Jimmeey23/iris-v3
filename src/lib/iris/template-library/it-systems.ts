@@ -11,7 +11,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     title: "Momence System Outage",
     sub: "Momence Platform",
     dept: "ITS", prio: "P0", role: "IT Manager", hrs: 1,
-    desc: "Momence is down or badly degraded — check-in, bookings or payments are not working at one or more studios.",
+    desc: "Momence is down or badly degraded - check-in, bookings or payments are not working at one or more studios.",
     map: [OS, "System Delays"], outcome: "Fix the issue", sys: "Momence", when: "Just now", by: "I noticed this myself",
     act: [
       "Check the Momence status page and confirm whether it's all studios or one network.",
@@ -111,7 +111,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     title: "Network Connectivity Issue",
     sub: "Network & Wi-Fi",
     dept: "ITS", prio: "P1", role: "IT Manager", hrs: 2,
-    desc: "The studio internet is down, slow or dropping — affecting check-in, payments or music.",
+    desc: "The studio internet is down, slow or dropping - affecting check-in, payments or music.",
     map: [TECH, "Studio Wi-Fi Not Working"], outcome: "Fix the issue", sys: "Wi-Fi / router", by: "I noticed this myself",
     act: [
       "Restart the router / modem (30 seconds off) and check the ISP lights.",
@@ -165,7 +165,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
   },
   {
     code: "TPL-210",
-    title: "ISP Broadband Down — Failover Needed",
+    title: "ISP Broadband Down - Failover Needed",
     sub: "Network & Wi-Fi",
     dept: "ITS", prio: "P1", role: "IT Manager", hrs: 4,
     desc: "The broadband line is down at a studio and operations need to fail over to the backup connection.",
@@ -194,7 +194,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     map: [OS, "POS System Malfunctions"], outcome: "Fix the issue", sys: "POS / card machine", when: "Just now", by: "I noticed this myself",
     act: [
       "Restart the terminal and check its network / SIM connection.",
-      "Offer UPI or a payment link meanwhile — never note card numbers manually.",
+      "Offer UPI or a payment link meanwhile - never note card numbers manually.",
       "Call the bank / POS helpdesk with the terminal ID; request a replacement if needed.",
     ],
     f: [
@@ -228,7 +228,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     title: "Computer Hardware Failure",
     sub: "Front Desk Hardware & POS",
     dept: "ITS", prio: "P2", role: "Systems Administrator", hrs: 24,
-    desc: "A studio or staff computer / laptop has a hardware failure — won't start, very slow, damaged screen / keyboard, battery or charger fault.",
+    desc: "A studio or staff computer / laptop has a hardware failure - won't start, very slow, damaged screen / keyboard, battery or charger fault.",
     map: [TECH, "Laptops Not Functioning"], outcome: "Fix the issue",
     act: [
       "Basic checks: charger, restart, updates, storage space.",
@@ -266,7 +266,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     title: "Studio Phone / WhatsApp Business Line Down",
     sub: "Front Desk Hardware & POS",
     dept: "ITS", prio: "P1", role: "Systems Administrator", hrs: 4,
-    desc: "The studio phone, mobile or WhatsApp Business number isn't working — members can't reach the studio.",
+    desc: "The studio phone, mobile or WhatsApp Business number isn't working - members can't reach the studio.",
     map: [TECH, "Phones Not Working"], outcome: "Fix the issue",
     act: [
       "Check SIM / line status, recharge / bill and call forwarding.",
@@ -287,7 +287,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     title: "Mobile App Issue",
     sub: "Member App & Website",
     dept: "ITS", prio: "P2", role: "Systems Administrator", hrs: 8,
-    desc: "The Momence member app or staff app is not working — crashes, booking / payment failures, wrong schedule or login problems.",
+    desc: "The Momence member app or staff app is not working - crashes, booking / payment failures, wrong schedule or login problems.",
     map: [TECH, "App Performance Bugs"], outcome: "Fix the issue", sys: "Website / mobile app",
     act: [
       "Reproduce on the same platform / version.",
@@ -327,7 +327,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     title: "Member Can't Log In / Reset Password",
     sub: "Member App & Website",
     dept: "ITS", prio: "P2", role: "Systems Administrator", hrs: 4,
-    desc: "A member can't log in to the app / website — reset email or OTP not received, account locked or duplicate accounts.",
+    desc: "A member can't log in to the app / website - reset email or OTP not received, account locked or duplicate accounts.",
     map: [TECH, "Password and Login Issues"], outcome: "Fix the issue", sys: "Website / mobile app",
     act: [
       "Confirm the login email / phone on the Momence profile.",
@@ -509,7 +509,7 @@ export const IT_TEMPLATES = defineTemplates("IT", [
     map: ["Safety and Security", "Data Breach Concerns"], outcome: "Escalate to management", when: "Just now", by: "I noticed this myself",
     act: [
       "Contain: change passwords, sign out all sessions, disconnect the device.",
-      "Preserve evidence (emails, screenshots, login logs) — don't delete anything.",
+      "Preserve evidence (emails, screenshots, login logs) - don't delete anything.",
       "Assess what data was exposed; inform management immediately.",
       "Notify affected members if their personal data was exposed, as required by law.",
     ],

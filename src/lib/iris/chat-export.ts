@@ -1,5 +1,5 @@
 /**
- * Chat export utilities — convert an AI conversation into multiple formats.
+ * Chat export utilities - convert an AI conversation into multiple formats.
  *
  * Supported formats:
  *   - TXT   plain text (current default, kept for backward compat)
@@ -120,7 +120,7 @@ export function toMarkdown(messages: AIMessage[], meta: ExportMeta): string {
       .split("\n")
       .map((l) => (l.trim() ? `> ${l}` : `>`))
       .join("\n");
-    lines.push(`### ${role} — ${time}`);
+    lines.push(`### ${role} - ${time}`);
     lines.push(``);
     lines.push(quoted);
     lines.push(``);
@@ -218,7 +218,7 @@ export function toCSV(messages: AIMessage[], meta: ExportMeta): string {
   });
   // Prepend a meta header comment line
   return (
-    `# IRIS Chat Export — User: ${meta.user} — Exported: ${fmtTime(meta.exportedAt)} — Messages: ${meta.messageCount}\n` +
+    `# IRIS Chat Export - User: ${meta.user} - Exported: ${fmtTime(meta.exportedAt)} - Messages: ${meta.messageCount}\n` +
     rows.join("\n")
   );
 }
@@ -255,7 +255,7 @@ export function toHTML(messages: AIMessage[], meta: ExportMeta): string {
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>IRIS Chat Export — ${meta.user} — ${fmtDateOnly(meta.exportedAt)}</title>
+  <title>IRIS Chat Export - ${meta.user} - ${fmtDateOnly(meta.exportedAt)}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif; max-width: 760px; margin: 0 auto; padding: 24px; color: #1d1d1f; background: #ffffff; }
@@ -342,7 +342,7 @@ export function exportAndSave(
         }
       }, 400);
     } else {
-      // Popup blocked — fall back to download
+      // Popup blocked - fall back to download
       downloadString(content, mime, `iris-chat-${meta.exportedAt.slice(0, 10)}.${extension}`);
     }
     return;
@@ -418,7 +418,7 @@ export const EXPORT_FORMATS: Array<{
 }> = [
   { value: "txt", label: "Plain Text", description: "Simple .txt file, one message per block" },
   { value: "md", label: "Markdown", description: "GitHub-flavored .md with headings & quotes" },
-  { value: "json", label: "JSON", description: "Structured .json — full message metadata" },
-  { value: "html", label: "HTML / PDF", description: "Printable HTML — opens in new tab, Ctrl+P to save as PDF" },
-  { value: "csv", label: "CSV", description: "Spreadsheet-ready .csv — one row per message" },
+  { value: "json", label: "JSON", description: "Structured .json - full message metadata" },
+  { value: "html", label: "HTML / PDF", description: "Printable HTML - opens in new tab, Ctrl+P to save as PDF" },
+  { value: "csv", label: "CSV", description: "Spreadsheet-ready .csv - one row per message" },
 ];

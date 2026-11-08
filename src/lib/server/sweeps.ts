@@ -20,7 +20,7 @@ import {
  * The daily cron is the backstop for a day when nobody signs in. But a once-a-day
  * sweep is not good enough for an outbox holding somebody's escalation email, so the
  * work is *also* driven opportunistically by ordinary requests: the polled routes
- * (tickets, notifications — the bell every open tab hits) invoke runDueWorkThrottled()
+ * (tickets, notifications - the bell every open tab hits) invoke runDueWorkThrottled()
  * through next/server `after()`.
  *
  * Two things make that safe rather than wasteful:
@@ -92,7 +92,7 @@ export function sweepAfterResponse(): void {
   try {
     after(() => runDueWorkThrottled().catch(() => {}));
   } catch {
-    // Outside a request scope (script, test) — nothing to sweep.
+    // Outside a request scope (script, test) - nothing to sweep.
   }
 }
 
@@ -146,7 +146,7 @@ export type SlaSweepResult = { breached: { id: string; target: string }[]; atRis
 /**
  * Marks open tickets at_risk (75% of the resolution window elapsed) or breached (target
  * passed) and notifies once per transition; the notification dedupe key includes the SLA
- * target, so a re-run never re-sends. Same SQL as the pre-port cron route — moved here so
+ * target, so a re-run never re-sends. Same SQL as the pre-port cron route - moved here so
  * the request-driven sweep and the cron share one implementation.
  */
 export async function runSlaSweep({ dry = false }: { dry?: boolean } = {}): Promise<SlaSweepResult> {
@@ -213,9 +213,9 @@ type EscalationRow = {
 
 /** What the ticket activity says, naming the tier the ticket actually went to. */
 function targetLabel(level: number, managerName: string | null): string {
-  if (level === 1) return managerName ? `Reassigned to the reporting manager (${managerName}).` : "No reporting manager resolved — needs an admin.";
+  if (level === 1) return managerName ? `Reassigned to the reporting manager (${managerName}).` : "No reporting manager resolved - needs an admin.";
   if (level === 2) return "Reassigned to the department head.";
-  return "No automatic owner left — needs an admin.";
+  return "No automatic owner left - needs an admin.";
 }
 
 /**
@@ -290,7 +290,7 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
       const targetRole = nextLevel === 1 ? "manager" : nextLevel === 2 ? "department_head" : "admin";
       const reason = escalationReason(nextLevel, s.afterBreachHours);
 
-      // Claim with a conditional update on the exact current level — the idempotency lock.
+      // Claim with a conditional update on the exact current level - the idempotency lock.
       const claimed = await client.query<{ id: string }>(
         `update tickets
             set escalation_level = $2,

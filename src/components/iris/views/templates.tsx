@@ -129,7 +129,7 @@ function categoryVisual(category: string): { Icon: LucideIcon; accent: (typeof A
 const PRIORITY_ORDER: Priority[] = ["P0", "P1", "P2", "P3"];
 
 /**
- * Ticket Templates — a three-step drill-down: Category → Sub-category → Template.
+ * Ticket Templates - a three-step drill-down: Category → Sub-category → Template.
  *
  * Nothing is listed until a category and sub-category are chosen; picking a
  * template opens its Preset Ticket Builder, which files a real ticket. Templates
@@ -282,7 +282,7 @@ export function TemplatesView() {
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Ticket Templates</h1>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-3xl">
-            Pick a category, then a sub-category, then the exact scenario. Each template is a preset ticket form — answer
+            Pick a category, then a sub-category, then the exact scenario. Each template is a preset ticket form - answer
             a few questions and submit a real ticket, already categorised, prioritised and routed.
           </p>
         </div>
@@ -339,7 +339,7 @@ export function TemplatesView() {
             <StatCard label="Templates" value={templates.length} icon={Wand2} color="violet" />
             <StatCard label="Categories" value={categories.length} icon={Layers} color="sky" />
             <StatCard label="Sub-categories" value={subcategoryTotal} icon={FolderTree} color="emerald" />
-            <StatCard label="Avg target resolution" value={templates.length ? `${avgHours}h` : "—"} icon={Clock} color="amber" />
+            <StatCard label="Avg target resolution" value={templates.length ? `${avgHours}h` : "-"} icon={Clock} color="amber" />
           </div>
           <StepHeading
             n={1}
@@ -626,7 +626,7 @@ function SubcategoryStep({
             className="text-left rounded-xl border border-dashed border-border p-4 hover:bg-muted/30 transition-colors"
           >
             <div className="text-[13px] font-semibold text-muted-foreground">{s.name}</div>
-            <div className="text-[11px] text-muted-foreground mt-1">No templates yet — add the first one.</div>
+            <div className="text-[11px] text-muted-foreground mt-1">No templates yet - add the first one.</div>
           </button>
         ))}
       </div>
@@ -714,7 +714,7 @@ function TemplateStep({
       <StepHeading
         n={3}
         title="Choose the template"
-        subtitle={`${group.count} preset ${group.count === 1 ? "form" : "forms"} — pick the one that matches the situation.`}
+        subtitle={`${group.count} preset ${group.count === 1 ? "form" : "forms"} - pick the one that matches the situation.`}
       >
         {canEdit && (
           <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={onNew}>
@@ -848,7 +848,7 @@ function SearchResults({
         ))}
       </div>
       {results.length > 60 && (
-        <div className="text-[11px] text-muted-foreground text-center">Showing the first 60 — refine the search to see more.</div>
+        <div className="text-[11px] text-muted-foreground text-center">Showing the first 60 - refine the search to see more.</div>
       )}
     </div>
   );
@@ -902,13 +902,13 @@ function TemplateDetail({
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <InfoBox label="Library category" value={templateCategoryLabel(normalizeTemplateCategory(t.category))} />
           <InfoBox label="Library sub-category" value={normalizeTemplateSubcategory(t.subcategory)} />
-          <InfoBox label="Department" value={DEPT_MAP[t.departmentCode]?.name || t.departmentCode || "—"} />
+          <InfoBox label="Department" value={DEPT_MAP[t.departmentCode]?.name || t.departmentCode || "-"} />
           <InfoBox label="Default Priority" value={t.defaultPriority} />
-          <InfoBox label="Default Severity" value={t.defaultSeverity || "—"} />
+          <InfoBox label="Default Severity" value={t.defaultSeverity || "-"} />
           <InfoBox label="Estimated Resolution" value={`${t.estimatedResolutionHours} hours`} />
-          <InfoBox label="Ticket category" value={form.category || "—"} />
-          <InfoBox label="Ticket sub-category" value={form.subcategory || "—"} />
-          <InfoBox label="Requested outcome" value={form.requestedOutcome || "—"} />
+          <InfoBox label="Ticket category" value={form.category || "-"} />
+          <InfoBox label="Ticket sub-category" value={form.subcategory || "-"} />
+          <InfoBox label="Requested outcome" value={form.requestedOutcome || "-"} />
           <InfoBox label="Suggested Assignee" value={t.suggestedAssigneeRole || "Auto-routed"} />
           {form.studioOptions && (
             <InfoBox label="Studios" value={form.studioOptions.map((s) => s.split(",")[0]).join(", ")} />
@@ -1436,7 +1436,7 @@ function EditTemplateModal({
           </div>
           {fields.length === 0 && (
             <div className="text-[11px] italic text-muted-foreground">
-              No scenario questions — the ticket form will only ask the basics.
+              No scenario questions - the ticket form will only ask the basics.
             </div>
           )}
           {fields.map((f, i) => {

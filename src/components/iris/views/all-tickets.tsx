@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useAppStore } from "@/lib/iris/store";
 import { ALL_TICKETS, isMine, getAssignee, getStudio, getDepartment, Ticket } from "@/lib/iris/sample-tickets";
-import { STUDIOS, DEPARTMENTS, Priority } from "@/lib/iris/types";
+import { STUDIOS, DEPARTMENTS, EMPLOYEES, EMPLOYEE_MAP, Priority } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge, StudioBadge } from "../badges";
 import { formatRelativeTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
@@ -145,16 +145,26 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
     setQuick(next);
   };
 
+  const myDepartment = currentUser.departmentCode || EMPLOYEE_MAP[currentUser.id]?.departmentCode || null;
   const base = React.useMemo(() => {
     let r = [...ALL_TICKETS];
     if (filterMode === "my") r = r.filter((t) => isMine(t, currentUser.id));
     else if (filterMode === "escalations") r = r.filter((t) => t.status === "escalated" || t.slaStatus === "breached" || t.slaStatus === "at_risk");
-    else if (filterMode === "department" && currentUser.departmentCode) {
-      r = r.filter((t) => (t.departmentCodes?.length ? t.departmentCodes : [t.departmentCode]).includes(currentUser.departmentCode!));
+    else if (filterMode === "department") {
+      // Every ticket routed to the signed-in user's department, or owned by anyone in it.
+      const dept = myDepartment;
+      if (!dept) return [];
+      const members = new Set(EMPLOYEES.filter((e) => e.departmentCode === dept).map((e) => e.id));
+      r = r.filter((t) => {
+        const depts = t.departmentCodes?.length ? t.departmentCodes : t.departmentCode ? [t.departmentCode] : [];
+        if (depts.includes(dept)) return true;
+        const owners = t.assigneeIds?.length ? t.assigneeIds : t.assigneeId ? [t.assigneeId] : [];
+        return owners.some((o) => members.has(o));
+      });
     }
     return r;
     // dataVersion: ALL_TICKETS changes in place
-  }, [filterMode, currentUser.id, currentUser.departmentCode, dataVersion]);
+  }, [filterMode, currentUser.id, myDepartment, dataVersion]);
 
   const counts = React.useMemo(() => ({
     open: base.filter(isOpen).length,
@@ -202,7 +212,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
   const selectedTicket = selectedTicketId ? ALL_TICKETS.find((t) => t.id === selectedTicketId) : null;
   if (selectedTicket) return <TicketWorkspace ticket={selectedTicket} />;
 
-  const titles: Record<string, string> = { all: "All Tickets", my: "My Tickets", department: "Department Queue", escalations: "Escalations & SLA Risks" };
+  const titles: Record<string, string> = { all: "All Tickets", my: "My Tickets", department: myDepartment ? `${DEPARTMENTS.find((d) => d.code === myDepartment)?.name ?? myDepartment} Queue` : "Department Queue", escalations: "Escalations & SLA Risks" };
   const filtersActive = quick.size > 0 || ticketFilters.priority.length + ticketFilters.status.length + ticketFilters.studio.length + ticketFilters.department.length + ticketFilters.slaStatus.length > 0 || Boolean(ticketFilters.search);
   const breached = tickets.filter((t) => t.slaStatus === "breached").length;
   const unassigned = tickets.filter((t) => !t.assigneeId).length;
@@ -451,7 +461,7 @@ function Table({ tickets, compact, onSelect, selectedIds, onToggle, onToggleAll,
                   </td>
                   <td className={pad}><PriorityBadge priority={t.priority} /></td>
                   <td className={pad}><StatusBadge status={t.status} /></td>
-                  {!compact && <td className={cn(pad, "whitespace-nowrap")}>{getStudio(t)?.name ?? <span className="text-muted-foreground">—</span>}</td>}
+                  {!compact && <td className={cn(pad, "whitespace-nowrap")}>{getStudio(t)?.name ?? <span className="text-muted-foreground">-</span>}</td>}
                   <td className={cn(pad, "max-w-[180px]")}><Owner t={t} /></td>
                   <td className={pad}><SLABadge status={t.slaStatus} targetDate={t.slaResolutionTarget} /></td>
                   <td className={cn(pad, "text-right text-[11px] text-muted-foreground tabular-nums whitespace-nowrap")}>{formatRelativeTime(t.updatedAt)}</td>
@@ -606,8 +616,8 @@ function Split({ tickets, preview, setPreview, onOpen }: { tickets: Ticket[]; pr
           <div className="text-[12px] text-muted-foreground mt-1">{t.category}{t.subcategory ? ` › ${t.subcategory}` : ""}</div>
           <div className="grid grid-cols-2 gap-3 mt-4 text-[12px]">
             <Fact label="Owner"><Owner t={t} size={6} /></Fact>
-            <Fact label="Studio">{getStudio(t)?.name ?? "—"}</Fact>
-            <Fact label="Department">{getDepartment(t)?.name ?? "—"}</Fact>
+            <Fact label="Studio">{getStudio(t)?.name ?? "-"}</Fact>
+            <Fact label="Department">{getDepartment(t)?.name ?? "-"}</Fact>
             <Fact label="Created">{new Date(t.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</Fact>
           </div>
           <div className="mt-4"><SmartBadges ticket={t} variant="xs" /></div>

@@ -94,6 +94,7 @@ function looksLikeQuestion(text: string) {
 }
 import { PRIORITY_CONFIG, DEPT_MAP, STUDIO_MAP, EMPLOYEE_MAP } from "@/lib/iris/types";
 import { toast } from "sonner";
+import { buildWelcome, detectLiveContext } from "@/lib/iris/chat-welcome";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -144,7 +145,7 @@ export function AIAssistantView() {
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [hasInitialized, setHasInitialized] = React.useState(false);
   const [showFormIntake, setShowFormIntake] = React.useState(false);
-  const isProcessingRef = React.useRef(false); // Synchronous guard — prevents race conditions
+  const isProcessingRef = React.useRef(false); // Synchronous guard - prevents race conditions
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -153,13 +154,14 @@ export function AIAssistantView() {
   React.useEffect(() => {
     // Only add welcome if truly empty (fresh mount or after clear)
     if (aiMessages.length === 0 && !hasInitialized) {
+      const welcome = buildWelcome(currentUser);
       addAIMessage({
         id: generateId("msg"),
         role: "assistant",
-        content: `Hi ${currentUser.name.split(" ")[0]} — I'm IRIS, your intelligent operations assistant.\n\nI can help you report, investigate, and resolve any operational issue across all Physique 57 India studios. Just describe what's happening in your own words — I'll handle classification, investigation, routing, and SLA.\n\nWhat issue would you like to report today?`,
+        content: welcome.content,
         timestamp: new Date().toISOString(),
         variant: "default",
-        buttons: SUGGESTED_ISSUES.slice(0, 4).map((s) => ({ label: s.label, value: s.label, captures: s.label })),
+        buttons: welcome.buttons,
       });
       setHasInitialized(true);
     }
@@ -232,7 +234,7 @@ export function AIAssistantView() {
     if (ruled) {
       if (ruled.action === "create_draft" && pendingDraft?.ticketDraft) {
         const t = await createAgentDraft(pendingDraft.id, pendingDraft.ticketDraft);
-        ruled.content = t ? `Created **${t.ticketId}**. You'll find it under All Tickets.` : "I couldn't create the ticket — see the error above and try again.";
+        ruled.content = t ? `Created **${t.ticketId}**. You'll find it under All Tickets.` : "I couldn't create the ticket - see the error above and try again.";
       }
       addAIMessage({
         id: generateId("msg"),
@@ -262,7 +264,7 @@ export function AIAssistantView() {
       if (openIntake?.intake && !looksLikeQuestion(trimmed) && (await addDetailsToIntake(openIntake.id, openIntake.intake, trimmed))) {
         // folded into the open form
       } else if (await answerFromData(trimmed)) {
-        // Answered from IRIS data (equipment, counts, history, trainers, knowledge) — no AI.
+        // Answered from IRIS data (equipment, counts, history, trainers, knowledge) - no AI.
       } else if (looksLikeQuestion(trimmed)) {
         // Investigation / open question the data path couldn't answer → full agent.
         await runAgent(trimmed);
@@ -299,7 +301,7 @@ export function AIAssistantView() {
     addAIMessage({
       id: generateId("msg"),
       role: "assistant",
-      content: out.reply || (out.draft ? "I've drafted a ticket — review it below." : "Done."),
+      content: out.reply || (out.draft ? "I've drafted a ticket - review it below." : "Done."),
       timestamp: new Date().toISOString(),
       variant: "default",
       source: "ai",
@@ -362,7 +364,7 @@ export function AIAssistantView() {
       done: false,
     };
     const lead = top
-      ? `Got it — this looks like **${top.subcategory ?? top.category}**${f.studioCode ? ` at ${STUDIO_MAP[f.studioCode]?.name ?? f.studioCode}` : ""}. ` +
+      ? `Got it - this looks like **${top.subcategory ?? top.category}**${f.studioCode ? ` at ${STUDIO_MAP[f.studioCode]?.name ?? f.studioCode}` : ""}. ` +
         (missingRequired(intake).length
           ? `I just need the ${missingRequired(intake).join(", ")} below.`
           : "Check the details and review the ticket.")
@@ -475,7 +477,7 @@ export function AIAssistantView() {
     setTimeout(() => setCopyStatus("idle"), 1800);
   };
 
-  // Per-message copy handler — bubbles the copy state up so the button can
+  // Per-message copy handler - bubbles the copy state up so the button can
   // show a transient "Copied!" check mark.
   const handleMessageCopy = async (
     msg: AIMessage,
@@ -488,19 +490,20 @@ export function AIAssistantView() {
   };
 
   const handleReset = () => {
-    // Clear everything in one go — no setTimeout, no manual welcome message
+    // Clear everything in one go - no setTimeout, no manual welcome message
     // The useEffect on mount won't re-run, so we add the welcome directly here
     isProcessingRef.current = false;
     clearAIChat();
     setConversationState(createInitialState());
     // Add fresh welcome message directly (not via useEffect or setTimeout)
+    const welcome = buildWelcome(currentUser);
     addAIMessage({
       id: generateId("msg"),
       role: "assistant",
-      content: `Hi ${currentUser.name.split(" ")[0]} — I'm IRIS, your intelligent operations assistant.\n\nWhat issue would you like to report today? Just describe it in your own words.`,
+      content: welcome.content,
       timestamp: new Date().toISOString(),
       variant: "default",
-      buttons: SUGGESTED_ISSUES.slice(0, 4).map((s) => ({ label: s.label, value: s.label, captures: s.label })),
+      buttons: welcome.buttons,
     });
   };
 
@@ -608,11 +611,11 @@ export function AIAssistantView() {
           </Button>
         </div>
 
-        {/* Context Bar — highlights fields as they're identified */}
+        {/* Context Bar - highlights fields as they're identified */}
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-6 py-8 space-y-4">
+          <div className="max-w-5xl mx-auto px-5 py-5 space-y-3">
             {aiMessages.map((msg, idx) => (
               <MessageBubble
                 key={msg.id}
@@ -631,7 +634,7 @@ export function AIAssistantView() {
 
         {/* Input */}
         <div className="border-t border-border bg-background p-4 shrink-0">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             {/* Momence hint - shown when the latest question expects a Momence
                 search. Encourages the user to use the search field above
                 instead of typing free-text into the regular input. */}
@@ -652,6 +655,7 @@ export function AIAssistantView() {
                 </div>
               );
             })()}
+            <ContextBar state={conversationState} draft={input} />
             <div className="flex items-end gap-1.5 p-1.5 bg-card border border-border rounded-xl focus-within:border-primary/40 transition-colors">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
                 <Paperclip className="w-3.5 h-3.5" />
@@ -717,60 +721,61 @@ export function AIAssistantView() {
   );
 }
 
-// === CONTEXT BAR — highlights identified fields during conversation ===
+// === CONTEXT BAR - highlights identified fields during conversation ===
 
-function ContextBar({ state }: { state: ConversationState }) {
+const CONTEXT_SLOTS: Array<{ key: string; label: string; tone: string }> = [
+  { key: "studio", label: "Studio", tone: "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300" },
+  { key: "location", label: "Location", tone: "border-teal-500/50 bg-teal-500/10 text-teal-700 dark:text-teal-300" },
+  { key: "category", label: "Category", tone: "border-violet-500/50 bg-violet-500/10 text-violet-700 dark:text-violet-300" },
+  { key: "priority", label: "Priority", tone: "border-rose-500/50 bg-rose-500/10 text-rose-700 dark:text-rose-300" },
+  { key: "affectedClient", label: "Client", tone: "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  { key: "equipment", label: "Equipment", tone: "border-indigo-500/50 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
+  { key: "recurrence", label: "Pattern", tone: "border-orange-500/50 bg-orange-500/10 text-orange-700 dark:text-orange-300" },
+];
+
+/** Sits above the input. Slots light up in their own colour as fields are recognised, live while typing. */
+function ContextBar({ state, draft }: { state: ConversationState; draft: string }) {
   const info = state.collectedInfo;
-  const fields = [
-    { key: "category", label: "Category", value: info.category },
-    { key: "subcategory", label: "Subcategory", value: info.subcategory },
-    { key: "studio", label: "Studio", value: info.studio },
-    { key: "location", label: "Location", value: info.location },
-    { key: "severity", label: "Severity", value: info.severity },
-    { key: "affectedClient", label: "Client", value: info.affectedClient },
-    { key: "equipment", label: "Equipment", value: info.equipment },
-    { key: "sentiment", label: "Sentiment", value: info.sentiment },
-    { key: "department", label: "Dept", value: state.intent.suggestedDepartment },
-    { key: "priority", label: "Priority", value: state.intent.suggestedPriority },
-  ];
-
-  const identified = fields.filter(f => f.value);
-  const confidence = state.intent.confidenceScore || 0;
-
-  if (identified.length === 0 && state.stage === "greeting") return null;
+  const known: Record<string, string | undefined> = {
+    studio: info.studio ? String(info.studio) : undefined,
+    location: info.location ? String(info.location) : undefined,
+    category: info.subcategory ? String(info.subcategory) : info.category ? String(info.category) : undefined,
+    priority: state.intent.suggestedPriority ? String(state.intent.suggestedPriority) : info.severity ? String(info.severity) : undefined,
+    affectedClient: info.affectedClient ? String(info.affectedClient) : undefined,
+    equipment: info.equipment ? String(info.equipment) : undefined,
+  };
+  const live = React.useMemo(() => detectLiveContext(draft), [draft]);
+  const liveMap = Object.fromEntries(live.map((f) => [f.key, f.value]));
+  const slots = CONTEXT_SLOTS.map((s) => ({ ...s, value: liveMap[s.key] ?? known[s.key], isLive: Boolean(liveMap[s.key]) }));
+  const found = slots.filter((s) => s.value).length;
+  const confidence = Math.max(state.intent.confidenceScore || 0, Math.round((found / 4) * 100) > 100 ? 100 : Math.round((found / 4) * 100));
+  const visible = slots.filter((s) => s.value || s.key !== "recurrence" && s.key !== "equipment");
 
   return (
-    <div className="border-b border-border bg-muted/30 px-5 py-2 shrink-0">
-      <div className="max-w-2xl mx-auto flex items-center gap-2 flex-wrap">
-        <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Context:</div>
-        {identified.map((f) => (
+    <div className="mb-2 flex items-center gap-1.5 flex-wrap" aria-live="polite">
+      <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mr-0.5">Context</span>
+      {visible.map((s) => (
+        <span
+          key={s.key}
+          className={cn(
+            "inline-flex items-center gap-1 h-6 px-2 rounded-full border text-[10.5px] transition-all duration-300",
+            s.value ? cn(s.tone, "font-medium") : "border-dashed border-border text-muted-foreground/60",
+            s.isLive && "shadow-sm ring-2 ring-offset-0 ring-current/10",
+          )}
+        >
+          {s.value ? <CheckCircle2 className="w-2.5 h-2.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />}
+          <span className={cn(s.value && "opacity-70")}>{s.label}</span>
+          {s.value && <span className="truncate max-w-[120px] font-semibold">{s.value}</span>}
+        </span>
+      ))}
+      <div className="ml-auto flex items-center gap-1.5 shrink-0">
+        <div className="w-14 h-1 rounded-full bg-muted overflow-hidden">
           <div
-            key={f.key}
-            className="iris-chip iris-scale-in"
-            style={{ background: "var(--accent)", color: "var(--accent-foreground)", borderColor: "var(--primary)" }}
-          >
-            <CheckCircle2 className="w-2 h-2" />
-            <span className="font-semibold">{f.label}:</span>
-            <span className="truncate max-w-[80px]">{String(f.value)}</span>
-          </div>
-        ))}
-        {identified.length === 0 && (
-          <div className="text-[10px] text-muted-foreground italic">Fields will appear here as they're identified...</div>
-        )}
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          <div className="text-[9px] text-muted-foreground">Confidence:</div>
-          <div className="flex items-center gap-1">
-            <div className="w-12 h-1 rounded-full bg-muted overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all", confidence >= 90 ? "bg-emerald-500" : confidence >= 70 ? "bg-amber-500" : "bg-rose-500")}
-                style={{ width: `${confidence}%` }}
-              />
-            </div>
-            <span className={cn("text-[9px] font-semibold tabular-nums", confidence >= 90 ? "text-emerald-500" : confidence >= 70 ? "text-amber-500" : "text-rose-500")}>
-              {confidence}%
-            </span>
-          </div>
+            className={cn("h-full rounded-full transition-all duration-300", confidence >= 75 ? "bg-emerald-500" : confidence >= 40 ? "bg-amber-500" : "bg-rose-500")}
+            style={{ width: `${confidence}%` }}
+          />
         </div>
+        <span className="text-[9px] font-semibold tabular-nums text-muted-foreground">{confidence}%</span>
       </div>
     </div>
   );
@@ -944,7 +949,7 @@ function MessageBubble({
             {new Date(message.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
           </span>
 
-          {/* Per-message copy dropdown — shows on hover via .group class */}
+          {/* Per-message copy dropdown - shows on hover via .group class */}
           {onCopyMessage && message.content && (
             <DropdownMenu open={copyMenuOpen} onOpenChange={setCopyMenuOpen}>
               <DropdownMenuTrigger asChild>
@@ -1029,7 +1034,7 @@ function MessageBubble({
           )}
         </div>
 
-        {/* Agent activity — compact inline indicator */}
+        {/* Agent activity - compact inline indicator */}
         {message.agentActivity && (
           <div className="mt-1 iris-fade-in">
             <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70 mb-1 flex items-center gap-1">
@@ -1134,7 +1139,7 @@ function MessageBubble({
         {message.buttons && message.buttons.length > 0 && (
           <div className="mt-3 space-y-1.5">
             {message.buttons.length <= 4 ? (
-              <div className="grid grid-cols-1 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {message.buttons.map((btn, i) => (
                   <button
                     key={i}
@@ -1148,7 +1153,7 @@ function MessageBubble({
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5">
                 {message.buttons.map((btn, i) => (
                   <button
                     key={i}
@@ -1268,7 +1273,7 @@ function TicketPreviewCard({ ticket, metadata }: { ticket: NonNullable<AIMessage
       <div className="px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
         <div className="flex items-center gap-2 mb-1">
           <TicketIcon className="w-4 h-4" />
-          <div className="text-[12px] font-semibold">Ticket Preview — Ready to Create</div>
+          <div className="text-[12px] font-semibold">Ticket Preview - Ready to Create</div>
           <span className="ml-auto text-[10px] font-mono bg-white/15 px-1.5 py-0.5 rounded">{ticket.ticketId}</span>
         </div>
         <div className="text-[10px] text-white/80">All fields auto-populated by IRIS multi-agent system · Click "Review Full Details" for advanced view</div>
@@ -1461,7 +1466,7 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
       ) : (
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <span className="text-[18px] font-semibold tabular-nums">{u.priced ? fmtUsd(u.today.costUsd) : "—"}</span>
+            <span className="text-[18px] font-semibold tabular-nums">{u.priced ? fmtUsd(u.today.costUsd) : "-"}</span>
             <span className="text-[10px] text-muted-foreground tabular-nums">
               {fmtTokens(u.today.tokens)} tokens · {u.today.calls} call{u.today.calls === 1 ? "" : "s"}
             </span>
@@ -1491,7 +1496,7 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
             </div>
           )}
           {u.withoutAi && u.withoutAi.month.total > 0 && (
-            <div className="flex items-center justify-between text-[9px] text-emerald-600 dark:text-emerald-400 tabular-nums" title="Turns answered by rules, IRIS data or a form — no tokens spent">
+            <div className="flex items-center justify-between text-[9px] text-emerald-600 dark:text-emerald-400 tabular-nums" title="Turns answered by rules, IRIS data or a form - no tokens spent">
               <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5" />Answered without AI</span>
               <span>
                 {Math.round((100 * u.withoutAi.month.answered) / u.withoutAi.month.total)}% this month ({u.withoutAi.month.answered}/{u.withoutAi.month.total})
@@ -1502,13 +1507,13 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
             <div className="flex justify-between">
               <span>This month</span>
               <span className={cn(warn(monthPct) && "text-rose-500 font-semibold")}>
-                {u.priced ? fmtUsd(u.month.costUsd) : "—"}
+                {u.priced ? fmtUsd(u.month.costUsd) : "-"}
                 {u.limits.monthlyBudgetUsd ? ` of $${u.limits.monthlyBudgetUsd}` : ""}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Your share today</span>
-              <span>{u.priced ? fmtUsd(u.today.myCostUsd) : "—"}</span>
+              <span>{u.priced ? fmtUsd(u.today.myCostUsd) : "-"}</span>
             </div>
             {!u.priced && <div>No price on file for this model, so cost isn&apos;t shown.</div>}
           </div>
@@ -1542,14 +1547,14 @@ function SourceBadge({ source, rule }: { source: "ai" | "rules"; rule?: string }
   const ai = source === "ai";
   return (
     <span
-      title={ai ? "Answered by AI (Claude) — uses tokens" : `Instant answer${rule ? ` (${rule})` : ""} — no AI, no tokens`}
+      title={ai ? "Answered by AI (Claude) - uses tokens" : `Instant answer${rule ? ` (${rule})` : ""} `}
       className={cn(
         "inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[9px] font-medium",
         ai ? "bg-violet-500/10 text-violet-600 dark:text-violet-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       )}
     >
       {ai ? <Sparkles className="w-2.5 h-2.5" /> : <Zap className="w-2.5 h-2.5" />}
-      {ai ? "AI" : "Instant · no AI"}
+      {ai ? "AI" : "Instant"}
     </span>
   );
 }
@@ -1581,7 +1586,7 @@ function AgentDraftCard({ messageId, draft, created }: { messageId: string; draf
     <div>
       <div className="px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white flex items-center gap-2">
         <TicketIcon className="w-4 h-4" />
-        <div className="text-[12px] font-semibold">Ticket draft — review before creating</div>
+        <div className="text-[12px] font-semibold">Ticket draft - review before creating</div>
         {p && <span className="ml-auto text-[10px] font-semibold bg-white/15 px-1.5 py-0.5 rounded">{p.label}</span>}
       </div>
       <div className="p-4 space-y-3">

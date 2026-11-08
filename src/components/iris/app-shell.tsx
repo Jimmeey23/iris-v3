@@ -1,4 +1,5 @@
 "use client";
+import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { FeedbackButton } from "./feedback-dialog";
@@ -23,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
+  Lock,
   Search,
   Command,
   Moon,
@@ -69,6 +71,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   group: "main" | "intelligence" | "config";
   badge?: () => number;
+  adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -78,7 +81,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "my_tickets", label: "My Tickets", icon: UserCircle, group: "main", badge: () => ALL_TICKETS.filter(t => isOwner(t, useAppStore.getState().currentUser.id) && t.status !== "closed" && t.status !== "resolved").length },
   { id: "department_queue", label: "Department", icon: Building2, group: "main" },
   { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
-  { id: "trainers", label: "Trainers", icon: Users, group: "main" },
+  { id: "trainers", label: "Trainers", icon: Users, group: "main", adminOnly: true },
   { id: "equipment", label: "Equipment", icon: Wrench, group: "main" },
   { id: "radar", label: "Radar", icon: RadarIcon, group: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence" },
@@ -161,7 +164,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = React.useState(0);
   const loadNotifications = React.useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications?limit=20", { cache: "no-store" });
+      const res = await fetch(absUrl("/api/notifications?limit=20"), { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
       setNotifications(data.notifications ?? []);
@@ -180,7 +183,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setNotifications((list) => list.map((n) => (body.all || body.ids?.includes(n.id) ? { ...n, isRead: true } : n)));
     setUnreadCount((c) => (body.all ? 0 : Math.max(0, c - (body.ids?.length ?? 0))));
     try {
-      await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      await fetch(absUrl("/api/notifications"), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     } catch {
       void loadNotifications();
     }
@@ -273,6 +276,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           >
                             <Icon className={cn("w-[16px] h-[16px] shrink-0", isActive && "text-primary")} />
                             {!sidebarCollapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
+                            {!sidebarCollapsed && item.adminOnly && currentUser.tier !== "admin" && (
+                              <Lock className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-label="Admins only" />
+                            )}
                             {!sidebarCollapsed && badgeCount != null && badgeCount > 0 && (
                               <span className={cn(
                                 "text-[10px] font-semibold tabular-nums px-1.5 py-px rounded",
@@ -376,7 +382,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground">
+          {/* Right cluster: status + actions, pinned to extreme right */}
+          <div className="ml-auto flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 mr-1 rounded-md text-[10px] font-medium text-muted-foreground">
             <span className="iris-live-dot" />
             Operational
           </div>
@@ -514,6 +522,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </PopoverContent>
           </Popover>
+          </div>
         </header>
 
         {/* Content */}
@@ -523,9 +532,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* === GLOBAL OVERLAYS === */}
-      {/* ⌘K Command Palette — global smart search across tickets / members / KB / templates */}
+      {/* ⌘K Command Palette - global smart search across tickets / members / KB / templates */}
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
-      {/* Member 360 Lookup — full member profile modal */}
+      {/* Member 360 Lookup - full member profile modal */}
       <Member360Lookup
         open={memberLookupOpen}
         onOpenChange={setMemberLookupOpen}

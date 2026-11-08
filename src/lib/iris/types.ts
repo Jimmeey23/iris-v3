@@ -1,4 +1,4 @@
-// IRIS Platform — Types & Constants
+// IRIS Platform - Types & Constants
 
 export type Priority = "P0" | "P1" | "P2" | "P3";
 export type TicketStatus =
@@ -27,7 +27,7 @@ export type Department = {
 
 // Note: Employee is declared below (after STUDIOS/DEPARTMENTS) with the full
 // field set including departmentName, location, reportingManager, birthday.
-// Do not redeclare it here — the earlier declaration was a duplicate that
+// Do not redeclare it here - the earlier declaration was a duplicate that
 // TypeScript would silently override anyway.
 
 export const STUDIOS: Studio[] = [
@@ -47,7 +47,7 @@ export const DEPARTMENTS: Department[] = [
 
   // Operational sub-departments used by ticket routing & sample data.
   // These are the codes the conversation engine routes to (FAC, MEM, PAY,
-  // SCH, ITS, HRV, FRT) — declaring them here means getDepartment() resolves
+  // SCH, ITS, HRV, FRT) - declaring them here means getDepartment() resolves
   // correctly instead of returning undefined for routed tickets.
   { id: "dept_fac", name: "Facilities", code: "FAC", description: "Facilities maintenance, HVAC, audio, equipment, plumbing" },
   { id: "dept_mem", name: "Memberships", code: "MEM", description: "Membership freezes, credits, changes, cancellations" },
@@ -161,7 +161,7 @@ export const PRIORITY_CONFIG: Record<
   }
 > = {
   P0: {
-    label: "P0 — Critical",
+    label: "P0 - Critical",
     description: "Safety incidents, major operational disruptions, critical system failures",
     responseMins: 15,
     resolutionMins: 240,
@@ -171,7 +171,7 @@ export const PRIORITY_CONFIG: Record<
     text: "text-rose-600 dark:text-rose-400",
   },
   P1: {
-    label: "P1 — High",
+    label: "P1 - High",
     description: "Significant client-facing disruptions, essential equipment failures",
     responseMins: 60,
     resolutionMins: 720,
@@ -181,7 +181,7 @@ export const PRIORITY_CONFIG: Record<
     text: "text-amber-600 dark:text-amber-400",
   },
   P2: {
-    label: "P2 — Medium",
+    label: "P2 - Medium",
     description: "Individual client requests, non-critical technical issues",
     responseMins: 240,
     resolutionMins: 2880,
@@ -191,7 +191,7 @@ export const PRIORITY_CONFIG: Record<
     text: "text-sky-600 dark:text-sky-400",
   },
   P3: {
-    label: "P3 — Low",
+    label: "P3 - Low",
     description: "General enquiries, minor improvements, non-urgent admin",
     responseMins: 720,
     resolutionMins: 10080,

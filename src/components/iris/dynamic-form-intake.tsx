@@ -267,7 +267,7 @@ export function DynamicFormIntake({ onClose, template }: { onClose: () => void; 
             <div className="flex-1">
               <div className="text-[14px] font-semibold">{template ? template.title : "Dynamic Form Intake"}</div>
               <div className="text-[11px] text-muted-foreground">
-                {template ? `Template ${template.code} · structured intake` : "Structured form — alternative to AI chat"}
+                {template ? `Template ${template.code} · structured intake` : "Structured form - alternative to AI chat"}
               </div>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
@@ -310,7 +310,7 @@ export function DynamicFormIntake({ onClose, template }: { onClose: () => void; 
                   <Wand2 className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
                   <div className="text-[11px] leading-relaxed">
                     <div className="text-[12px] font-semibold">
-                      Template applied: <span className="font-mono">{template.code}</span> — {template.title}
+                      Template applied: <span className="font-mono">{template.code}</span> - {template.title}
                     </div>
                     <div className="text-muted-foreground">
                       Category, subcategory, priority ({template.defaultPriority}), department and {tplForm?.fields.length ?? 0} template field
@@ -587,11 +587,11 @@ export function DynamicFormIntake({ onClose, template }: { onClose: () => void; 
                   <ReviewRow label="Category" value={form.category} />
                   <ReviewRow label="Subcategory" value={form.subcategory} />
                   <ReviewRow label="Studio" value={form.studio} />
-                  <ReviewRow label="Area" value={form.area || "—"} />
+                  <ReviewRow label="Area" value={form.area || "-"} />
                   <ReviewRow label="Priority" value={form.priority.toUpperCase()} highlight={form.priority} />
-                  <ReviewRow label="Department" value={departmentName || "—"} />
+                  <ReviewRow label="Department" value={departmentName || "-"} />
                   {form.severity && <ReviewRow label="Severity" value={form.severity} />}
-                  {template && <ReviewRow label="Template" value={`${template.code} — ${template.title}`} />}
+                  {template && <ReviewRow label="Template" value={`${template.code} - ${template.title}`} />}
                   {form.affectedClient && <ReviewRow label="Client" value={form.affectedClient} />}
                   {form.membershipType && <ReviewRow label="Membership" value={form.membershipType} />}
                   {form.trainer && <ReviewRow label="Trainer" value={form.trainer} />}
@@ -602,7 +602,7 @@ export function DynamicFormIntake({ onClose, template }: { onClose: () => void; 
                 {tplForm && tplForm.fields.length > 0 && (
                   <div className="pt-2 border-t border-border grid grid-cols-2 gap-3">
                     {tplForm.fields.map((f) => (
-                      <ReviewRow key={f.id} label={f.label} value={formatFieldValue(templateValues[f.id]) || "—"} />
+                      <ReviewRow key={f.id} label={f.label} value={formatFieldValue(templateValues[f.id]) || "-"} />
                     ))}
                   </div>
                 )}
@@ -746,7 +746,7 @@ function FormField({ label, required, hint, children }: { label: string; require
     <div>
       <div className="flex items-center gap-1.5 mb-1.5">
         <label className="text-[12px] font-semibold">{label}{required && <span className="text-rose-500">*</span>}</label>
-        {hint && <span className="text-[10px] text-muted-foreground">— {hint}</span>}
+        {hint && <span className="text-[10px] text-muted-foreground">- {hint}</span>}
       </div>
       {children}
     </div>
@@ -784,7 +784,7 @@ function ReviewRow({ label, value, multiline, highlight }: { label: string; valu
         highlight === "medium" && "text-sky-600 dark:text-sky-400",
         highlight === "low" && "text-emerald-600 dark:text-emerald-400"
       )}>
-        {value || "—"}
+        {value || "-"}
       </div>
     </div>
   );

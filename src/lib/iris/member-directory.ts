@@ -1,5 +1,5 @@
 /**
- * IRIS Member Directory — shared data source.
+ * IRIS Member Directory - shared data source.
  *
  * Single source of truth for the Momence member roster used by:
  *   - `momence-search-field.tsx` (the AI assistant's member picker)

@@ -1,4 +1,4 @@
-// IRIS — Constants extracted from iris-ai-v2 reference repository
+// IRIS - Constants extracted from iris-ai-v2 reference repository
 // Real Physique 57 India operational data
 
 export const IRIS_STUDIOS = [
@@ -104,7 +104,7 @@ export const INTEGRATIONS = [
   { id: "yellowmessenger", name: "Yellow Messenger", category: "Communication", description: "Chatbot & customer communication", status: "connected", type: "chat" },
 ];
 
-// Smart routing function — determines priority from subcategory
+// Smart routing function - determines priority from subcategory
 export function inferPriority(subcategory: string): "critical" | "high" | "medium" | "low" {
   if (CRITICAL_SUBS.has(subcategory)) return "critical";
   if (HIGH_SUBS.has(subcategory)) return "high";
@@ -112,7 +112,7 @@ export function inferPriority(subcategory: string): "critical" | "high" | "mediu
   return "low";
 }
 
-// Smart routing — determines department from category
+// Smart routing - determines department from category
 export function inferDepartment(category: string): string {
   return CATEGORY_DEPARTMENT[category] || "operations";
 }

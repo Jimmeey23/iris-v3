@@ -1,10 +1,10 @@
-// Knowledge Base — Momence and studio systems, connectivity, POS, cash, payroll, comms and continuity.
+// Knowledge Base - Momence and studio systems, connectivity, POS, cash, payroll, comms and continuity.
 import { article, type KnowledgeArticle } from "./compose";
 
 export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
   article({
     id: "KB-026",
-    title: "Momence Down — Running the Front Desk Offline",
+    title: "Momence Down - Running the Front Desk Offline",
     category: "Operating Systems",
     summary:
       "When Momence is unreachable or very slow: confirm whether it's us or Momence, switch to the offline check-in sheet, keep classes running, and reconcile every attendance and payment once it's back.",
@@ -15,7 +15,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       resolve: "Offline process running within 10 minutes; full reconciliation the same day",
     },
     firstFive: [
-      "Check another site works — if nothing loads, it's our internet (see KB-028).",
+      "Check another site works - if nothing loads, it's our internet (see KB-028).",
       "Try Momence on mobile data and the Momence status page.",
       "Print or open the latest class lists (the morning export or a screenshot) and start the offline sheet.",
     ],
@@ -26,22 +26,22 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "Switch to the offline check-in sheet: name, phone, class, time, payment status, and staff initials.",
       "Use the morning's exported class lists (or the trainer's app if it still works) to check members in.",
       "Admit members with a valid booking or a clear purchase history; note anyone you couldn't verify.",
-      "Take payments on the POS or payment link and record each one on the sheet — don't take cash without a receipt.",
+      "Take payments on the POS or payment link and record each one on the sheet - don't take cash without a receipt.",
       "Tell members briefly that check-in is manual today; don't turn people away for system reasons.",
-      "Pause new bookings for walk-ins beyond room capacity — count heads manually.",
+      "Pause new bookings for walk-ins beyond room capacity - count heads manually.",
       "When Momence is back, enter every check-in and payment from the sheet the same day and match the totals.",
       "Correct any no-show or late-cancel fees the outage triggered.",
       "Log the outage duration, impact and any member complaints on the ticket.",
     ],
     diagnose: [
-      ["Other websites don't load either", "Our internet — KB-028 (switch to the mobile hotspot)."],
-      ["Momence loads on mobile data but not Wi-Fi", "Network or DNS issue at the studio — IT ticket; use the hotspot meanwhile."],
-      ["Status page shows an incident", "Momence-side outage — run offline until resolved; nothing to fix locally."],
-      ["Only member search is slow or broken", "Partial outage — search by phone number; see TPL-054."],
-      ["Bookings not syncing to the member app", "Sync issue — TPL-058; check-in by class list."],
+      ["Other websites don't load either", "Our internet - KB-028 (switch to the mobile hotspot)."],
+      ["Momence loads on mobile data but not Wi-Fi", "Network or DNS issue at the studio - IT ticket; use the hotspot meanwhile."],
+      ["Status page shows an incident", "Momence-side outage - run offline until resolved; nothing to fix locally."],
+      ["Only member search is slow or broken", "Partial outage - search by phone number; see TPL-054."],
+      ["Bookings not syncing to the member app", "Sync issue - TPL-058; check-in by class list."],
     ],
     say: [
-      ["Members at the desk", "Our booking system is having a moment, so I'm checking everyone in by hand today — it'll only take a second. Can I have your name and phone number?"],
+      ["Members at the desk", "Our booking system is having a moment, so I'm checking everyone in by hand today - it'll only take a second. Can I have your name and phone number?"],
     ],
     dos: [
       "Export tomorrow's class lists every evening (or first thing each morning).",
@@ -73,13 +73,13 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     summary:
       "Sorting out check-in failures at the desk: find the booking (or the reason there isn't one), let the member into class, and fix the underlying credit, membership or sync issue afterwards.",
     glance: {
-      priority: "P1 — member waiting at the desk",
+      priority: "P1 - member waiting at the desk",
       owner: "Front Desk → Memberships / IT",
       respond: "Immediately",
       resolve: "Member in class on time; root cause fixed within 24 hours",
     },
     firstFive: [
-      "Search by phone number as well as name — duplicates are common.",
+      "Search by phone number as well as name - duplicates are common.",
       "Check the booking under the right studio, date and class.",
       "If they clearly booked and paid, check them in manually and fix it after class.",
     ],
@@ -97,12 +97,12 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     diagnose: [
       ["Two profiles for the same member", "Merge them; move bookings and credits to the main profile."],
       ["Booked into the wrong class", "Move the booking (TPL-133); waive the fee if it was a system error."],
-      ["App shows a booking, Momence doesn't", "Sync issue — screenshot it and raise TPL-058."],
-      ["Credits show zero after a purchase", "Payment not linked — check the gateway (KB-029) and restore credits (TPL-002)."],
+      ["App shows a booking, Momence doesn't", "Sync issue - screenshot it and raise TPL-058."],
+      ["Credits show zero after a purchase", "Payment not linked - check the gateway (KB-029) and restore credits (TPL-002)."],
       ["Membership frozen unexpectedly", "Check the freeze log; unfreeze and fix billing (TPL-001)."],
     ],
     say: [
-      ["At the desk", "I can see what's happened — your booking landed on a second profile. I've checked you in, so go ahead to class, and I'll tidy up your account while you're in there."],
+      ["At the desk", "I can see what's happened - your booking landed on a second profile. I've checked you in, so go ahead to class, and I'll tidy up your account while you're in there."],
     ],
     dos: [
       "Get the member into class first, fix the admin second.",
@@ -128,7 +128,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-028",
-    title: "Studio Internet or Wi-Fi Down — Failover & Recovery",
+    title: "Studio Internet or Wi-Fi Down - Failover & Recovery",
     category: "Tech Issues",
     summary:
       "Restoring connectivity for the front desk, POS and trainer devices: find whether it's the router, the ISP or the Wi-Fi, fail over to the backup line or hotspot, and get the ISP to commit to a fix.",
@@ -147,23 +147,23 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "Check scope: if only one device is offline, forget and rejoin the network or restart that device.",
       "Check the router and the ISP modem / ONT: power on, cables firmly connected, and no red LOS / PON light.",
       "Restart in the right order: ONT / modem first, wait 2 minutes, then the router, wait 2 minutes.",
-      "A red LOS light on the ONT means a fibre or ISP problem — call the ISP with the account ID and ask for a ticket number and ETA.",
+      "A red LOS light on the ONT means a fibre or ISP problem - call the ISP with the account ID and ask for a ticket number and ETA.",
       "Switch to the backup: the secondary ISP line if installed, or a charged mobile hotspot for the front desk and POS.",
       "Prioritise the hotspot for Momence and payments; keep music on downloaded playlists.",
       "If Wi-Fi works but there's no internet, check the router's WAN status page or ask IT to check remotely.",
-      "If guest Wi-Fi alone is down, it's lower priority — fix after the staff network.",
+      "If guest Wi-Fi alone is down, it's lower priority - fix after the staff network.",
       "Log the outage time, ISP ticket number, and the restoration time.",
       "Escalate with the ISP if their ETA is missed; ask for SLA credit for long outages.",
     ],
     diagnose: [
-      ["Red LOS / PON light on the ONT", "Fibre cut or ISP outage — ISP ticket; failover."],
-      ["Router lights normal, no internet", "ISP authentication or DNS issue — restart in order; IT remote check."],
-      ["Wi-Fi visible but devices can't join", "Router overloaded or DHCP issue — restart the router; IT to check."],
-      ["Slow only at peak times", "Bandwidth saturation — limit guest Wi-Fi; plan an upgrade."],
+      ["Red LOS / PON light on the ONT", "Fibre cut or ISP outage - ISP ticket; failover."],
+      ["Router lights normal, no internet", "ISP authentication or DNS issue - restart in order; IT remote check."],
+      ["Wi-Fi visible but devices can't join", "Router overloaded or DHCP issue - restart the router; IT to check."],
+      ["Slow only at peak times", "Bandwidth saturation - limit guest Wi-Fi; plan an upgrade."],
       ["Only guest Wi-Fi down", "Lower priority; check the guest network (TPL-057)."],
     ],
     say: [
-      ["Members", "Our Wi-Fi is down for a bit — we're on it. Check-in and payments are still working on our backup connection."],
+      ["Members", "Our Wi-Fi is down for a bit - we're on it. Check-in and payments are still working on our backup connection."],
     ],
     dos: [
       "Keep a charged hotspot with enough data at the desk.",
@@ -172,7 +172,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     ],
     donts: [
       "Don't factory-reset the router.",
-      "Don't keep power-cycling every few minutes — give each restart 2 minutes.",
+      "Don't keep power-cycling every few minutes - give each restart 2 minutes.",
     ],
     closeOut: [
       "Connectivity restored on the staff network and POS.",
@@ -205,7 +205,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "Make sure no transaction was charged twice during retries.",
     ],
     steps: [
-      "Switch the member to an alternative: a Momence / gateway payment link or UPI QR — record it against their purchase.",
+      "Switch the member to an alternative: a Momence / gateway payment link or UPI QR - record it against their purchase.",
       "Check the terminal's charge, network connection (SIM or Wi-Fi) and paper; restart it.",
       "If a transaction failed mid-way, check the terminal's last-transaction report before retrying to avoid double charges.",
       "Note the error code and call the POS provider's helpdesk; get a ticket number.",
@@ -215,13 +215,13 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "Record the reconciliation outcome and any adjustments in the daily closing.",
     ],
     diagnose: [
-      ["'Host not reachable' or network error", "SIM signal or Wi-Fi — move the terminal, switch network, restart."],
-      ["Card declined repeatedly", "Card or bank side — suggest UPI or another card; don't keep retrying."],
-      ["Settlement lower than sales", "Unrecorded refunds or voids, or sales logged as card but paid by UPI — check line by line."],
-      ["Settlement not credited to the bank", "Provider settlement delay — ticket with the POS provider (TPL-130)."],
+      ["'Host not reachable' or network error", "SIM signal or Wi-Fi - move the terminal, switch network, restart."],
+      ["Card declined repeatedly", "Card or bank side - suggest UPI or another card; don't keep retrying."],
+      ["Settlement lower than sales", "Unrecorded refunds or voids, or sales logged as card but paid by UPI - check line by line."],
+      ["Settlement not credited to the bank", "Provider settlement delay - ticket with the POS provider (TPL-130)."],
     ],
     say: [
-      ["Member at the desk", "Our card machine is acting up — I can send you a secure payment link on WhatsApp, or you can scan our UPI QR. Which is easier?"],
+      ["Member at the desk", "Our card machine is acting up - I can send you a secure payment link on WhatsApp, or you can scan our UPI QR. Which is easier?"],
     ],
     dos: [
       "Check the last transaction before retrying.",
@@ -267,15 +267,15 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "Check common causes: a sale recorded as card or UPI but paid in cash (or the reverse), unrecorded petty cash, change errors, refunds paid without entry.",
       "Check the previous day's closing float and handover note.",
       "If the difference is explained, correct the records and note the explanation.",
-      "If it's unexplained, record the exact amount, the people on shift and the steps taken — don't 'adjust' the drawer to make it match.",
+      "If it's unexplained, record the exact amount, the people on shift and the steps taken - don't 'adjust' the drawer to make it match.",
       "Report unexplained shortages over ₹1,000, or any repeated difference, to the Studio Operations Manager and Finance the same day.",
       "Deposit or secure the cash per the procedure, with a signed closing sheet.",
       "Review the process gap (e.g. no receipts for petty cash, shared drawer access) and fix it.",
     ],
     diagnose: [
-      ["Shortage equals one class or pack price", "Likely a sale recorded as cash but paid digitally (or vice versa) — check that day's sales."],
-      ["Excess cash", "A cash payment not recorded in Momence — find the member and record it."],
-      ["Small differences most days", "Change-giving or float issues — tighten counting and float procedure."],
+      ["Shortage equals one class or pack price", "Likely a sale recorded as cash but paid digitally (or vice versa) - check that day's sales."],
+      ["Excess cash", "A cash payment not recorded in Momence - find the member and record it."],
+      ["Small differences most days", "Change-giving or float issues - tighten counting and float procedure."],
       ["Large unexplained shortage", "Escalate the same day; manager review including CCTV of the desk."],
     ],
     say: [
@@ -305,12 +305,12 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-042",
-    title: "Wrong Information Sent to Members — Correction Protocol",
+    title: "Wrong Information Sent to Members - Correction Protocol",
     category: "Brand Feedback",
     summary:
       "When a broadcast, email or automated message went out with a wrong time, price, offer or studio: stop further sends, correct quickly and clearly, honour reasonable commitments, and fix the approval gap.",
     glance: {
-      priority: "P1 — affects many members at once",
+      priority: "P1 - affects many members at once",
       owner: "Marketing (Mitali Kumar) with Client Servicing",
       respond: "Within 1 hour of discovery",
       resolve: "Correction sent within 2 hours",
@@ -324,7 +324,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "Pause the campaign, broadcast or automation so the error doesn't spread further.",
       "Identify the error precisely and the audience (list, segment, number of recipients).",
       "Assess the impact: will anyone turn up at the wrong time, buy at the wrong price, or miss a class?",
-      "Write a short correction: what was wrong, the correct information, and an apology — through the same channel as the original.",
+      "Write a short correction: what was wrong, the correct information, and an apology - through the same channel as the original.",
       "Send the correction within 2 hours; for time-critical errors, also call members booked into affected classes.",
       "Brief the front desk so they can answer questions consistently.",
       "Decide how to handle commitments made in good faith (e.g. honour a wrongly advertised price for purchases already made) with the Studio Director.",
@@ -338,7 +338,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       ["Automation sending wrong content repeatedly", "Disable the automation, fix the template (TPL-217)."],
     ],
     say: [
-      ["Correction message", "Correction: this Sunday's Barre 57 community class at Supreme HQ starts at 9 am, not 8 am as we mentioned earlier. Sorry for the mix-up — see you there!"],
+      ["Correction message", "Correction: this Sunday's Barre 57 community class at Supreme HQ starts at 9 am, not 8 am as we mentioned earlier. Sorry for the mix-up - see you there!"],
     ],
     dos: [
       "Correct through the same channel as the error.",
@@ -346,7 +346,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "Fix the template or process at the source.",
     ],
     donts: [
-      "Don't send multiple corrections — get it right once.",
+      "Don't send multiple corrections - get it right once.",
       "Don't ignore members who already acted on the wrong information.",
     ],
     closeOut: [
@@ -382,7 +382,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     steps: [
       "Record the claim: period, expected amount, paid amount, and the specific classes, shifts or days in question.",
       "Pull classes taught from Momence for the period, including covers and substitutions.",
-      "Check the cover log — covered classes pay the trainer who actually taught.",
+      "Check the cover log - covered classes pay the trainer who actually taught.",
       "Check attendance and leave records for staff (Zoho Shift / biometric) and any missed punches.",
       "Compare with the rate card: class type, duration, premium slots, workshop rates, deductions.",
       "List each difference and its cause (missed cover entry, wrong rate, missed punch, tax or deduction).",
@@ -446,7 +446,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
       "If cancelling: cancel in Momence (credits return automatically) and notify members by WhatsApp and email.",
       "Protect the studio: unplug equipment near entrances, move items off the floor, check for leaks and seepage (KB-033).",
       "Building services down (lift, water, power, parking): inform members before they travel and adjust classes accordingly.",
-      "Keep staff who are on site safe — let them leave early if conditions are worsening.",
+      "Keep staff who are on site safe - let them leave early if conditions are worsening.",
       "Record decisions, cancellations and fee waivers on the ticket.",
       "After the disruption, check the studio for damage before reopening.",
     ],
@@ -483,7 +483,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
 
   article({
     id: "KB-046",
-    title: "Staff Departure — Same-Day Access Revocation",
+    title: "Staff Departure - Same-Day Access Revocation",
     category: "Tech Issues",
     summary:
       "Removing every system and physical access for a departing employee or trainer on their last day: Momence, email, WhatsApp groups, payment dashboards, shared passwords, keys and door codes.",
@@ -520,12 +520,12 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     ],
     dos: [
       "Use a checklist every time.",
-      "Remove access at the agreed time — not 'later this week'.",
+      "Remove access at the agreed time - not 'later this week'.",
       "Rotate shared credentials.",
     ],
     donts: [
       "Don't leave accounts active 'just in case'.",
-      "Don't share the departing person's password with others — transfer data instead.",
+      "Don't share the departing person's password with others - transfer data instead.",
     ],
     closeOut: [
       "Access checklist completed with timestamps.",

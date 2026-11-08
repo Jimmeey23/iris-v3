@@ -1,6 +1,6 @@
 "use client";
 
-// Preset Ticket Builder — a template rendered as a real, submittable ticket form.
+// Preset Ticket Builder - a template rendered as a real, submittable ticket form.
 //
 // Everything the template knows is pre-filled (title, summary, ticket category,
 // priority, department, requested outcome, typed scenario fields with defaults);
@@ -299,7 +299,7 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
         </div>
 
         {/* 1. Basics */}
-        <Section step={1} icon={FileText} title="Ticket basics" subtitle="Pre-filled from the template — change anything that's different.">
+        <Section step={1} icon={FileText} title="Ticket basics" subtitle="Pre-filled from the template - change anything that's different.">
           <Field label="Ticket title" required invalid={invalid("Ticket title")}>
             <Input
               value={title}
@@ -311,7 +311,7 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1">
               {titleOverride === null ? (
                 <span>
-                  From the template{form.fields.some((f) => f.id === "memberName") ? " — adds the member's name once entered" : ""}.
+                  From the template{form.fields.some((f) => f.id === "memberName") ? " - adds the member's name once entered" : ""}.
                 </span>
               ) : (
                 <button type="button" className="text-primary hover:underline" onClick={() => setTitleOverride(null)}>
@@ -450,7 +450,7 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Notes for the team" hint="Optional — anything else they should know.">
+          <Field label="Notes for the team" hint="Optional - anything else they should know.">
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[64px] text-[13px]" />
           </Field>
         </Section>

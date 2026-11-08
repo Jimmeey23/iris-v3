@@ -1,4 +1,4 @@
-// IRIS Knowledge Base — pure helpers behind the Knowledge Base view: search
+// IRIS Knowledge Base - pure helpers behind the Knowledge Base view: search
 // ranking, related articles, the "At a glance" facts, cross-reference linking
 // (TPL-… / KB-… codes in text) and parsing the authored sections into
 // structured pieces the reader can lay out (falling back to plain markdown
@@ -93,7 +93,7 @@ export function articlePriority(a: Pick<KnowledgeArticle, "body">): Priority | n
   return [...found].sort()[0] as Priority;
 }
 
-/** Other articles that share linked templates, tags or the category — best first. */
+/** Other articles that share linked templates, tags or the category - best first. */
 export function relatedArticles(a: KnowledgeArticle, all: KnowledgeArticle[], limit = 4): KnowledgeArticle[] {
   const templates = new Set(a.relatedTemplates ?? []);
   const tags = new Set(a.tags ?? []);
@@ -116,7 +116,7 @@ export function relatedArticles(a: KnowledgeArticle, all: KnowledgeArticle[], li
 
 /** Plain-text checklist of an article's steps (for copying into a ticket or chat). */
 export function stepsAsText(a: Pick<KnowledgeArticle, "id" | "title" | "steps">): string {
-  return [`${a.id} — ${a.title}`, "", ...a.steps.map((s, i) => `${i + 1}. ${s}`)].join("\n");
+  return [`${a.id} - ${a.title}`, "", ...a.steps.map((s, i) => `${i + 1}. ${s}`)].join("\n");
 }
 
 /* ---------------- cross-references ---------------- */
@@ -179,26 +179,26 @@ export function parseBulletList(markdown: string): string[] | null {
   return items;
 }
 
-/** "- **What you see** — what to do" lines → pairs; null when the section holds anything else. */
+/** "- **What you see** - what to do" lines → pairs; null when the section holds anything else. */
 export function parseDiagnose(markdown: string): Array<[string, string]> | null {
   const items = parseBulletList(markdown);
   if (!items) return null;
   const pairs: Array<[string, string]> = [];
   for (const item of items) {
-    const m = /^\*\*(.+?)\*\*\s*[—–-]+\s*(.+)$/.exec(item);
+    const m = /^\*\*(.+?)\*\*\s*[\u2014\u2013-]+\s*(.+)$/.exec(item);
     if (!m) return null;
     pairs.push([m[1].trim(), m[2].trim()]);
   }
   return pairs;
 }
 
-/** "> **Moment** — “words”" quotes → [moment, words]; null when the section holds anything else. */
+/** "> **Moment** - “words”" quotes → [moment, words]; null when the section holds anything else. */
 export function parseScripts(markdown: string): Array<[string, string]> | null {
   const lines = nonEmptyLines(markdown);
   if (lines.length === 0) return null;
   const pairs: Array<[string, string]> = [];
   for (const line of lines) {
-    const m = /^>\s*\*\*(.+?)\*\*\s*[—–-]+\s*[“"](.+)[”"]\s*$/.exec(line);
+    const m = /^>\s*\*\*(.+?)\*\*\s*[\u2014\u2013-]+\s*[“"](.+)[”"]\s*$/.exec(line);
     if (!m) return null;
     pairs.push([m[1].trim(), m[2].trim()]);
   }

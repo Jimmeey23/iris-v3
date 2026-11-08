@@ -270,6 +270,6 @@ describe("Knowledge Base reader helpers", () => {
   });
 
   it("formats steps as a numbered checklist", () => {
-    expect(stepsAsText({ id: "KB-1", title: "T", steps: ["a", "b"] })).toBe("KB-1 — T\n\n1. a\n2. b");
+    expect(stepsAsText({ id: "KB-1", title: "T", steps: ["a", "b"] })).toBe("KB-1 - T\n\n1. a\n2. b");
   });
 });

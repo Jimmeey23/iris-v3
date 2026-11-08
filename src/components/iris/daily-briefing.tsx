@@ -11,7 +11,7 @@ import {
 import { RelativeTime } from "./relative-time";
 
 /**
- * Smart Daily Briefing widget — a personalized morning summary shown on the
+ * Smart Daily Briefing widget - a personalized morning summary shown on the
  * Overview page. Generates a one-line headline plus sections for:
  *   - Top priorities (P0 tickets, SLA breach risks)
  *   - SLA at-risk tickets in your queue
@@ -57,7 +57,7 @@ export function DailyBriefing() {
         </button>
       </div>
 
-      {/* Stats row — always visible */}
+      {/* Stats row - always visible */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
         <BriefingStat
           label="Your Queue"

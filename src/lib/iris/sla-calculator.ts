@@ -2,7 +2,7 @@
  * SLA target calculator honoring `sla_definitions.business_hours_only` and
  * `app_settings['sla.business_hours']` in Indian Standard Time (IST, UTC+05:30).
  *
- * Pure TypeScript — safe to import in server routes, client previews, and unit tests.
+ * Pure TypeScript - safe to import in server routes, client previews, and unit tests.
  */
 
 export type DayName = "Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat";

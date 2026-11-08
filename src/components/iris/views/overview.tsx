@@ -120,7 +120,32 @@ export function OverviewView() {
     live.overdue.value ? `${live.overdue.value} past SLA` : "none past SLA",
     live.unassignedOpen ? `${live.unassignedOpen} waiting for an owner` : null,
   ].filter(Boolean).join(" · ");
-  const hours = (h: number | null) => (h === null ? "—" : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`);
+  const hours = (h: number | null) => (h === null ? "-" : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`);
+
+  const marqueeItems = React.useMemo(() => {
+    void dataVersion;
+    const open = ALL_TICKETS.filter((t) => !DONE.has(t.status));
+    const busiest = STUDIOS.map((s) => ({ s, n: open.filter((t) => t.studioCode === s.code).length })).sort((a, b) => b.n - a.n)[0];
+    const catCount = new Map<string, number>();
+    for (const t of open) { const k = t.subcategory || t.category; if (k) catCount.set(k, (catCount.get(k) ?? 0) + 1); }
+    const topCat = [...catCount.entries()].sort((a, b) => b[1] - a[1])[0];
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const raisedToday = ALL_TICKETS.filter((t) => new Date(t.createdAt) >= today).length;
+    const resolvedToday = ALL_TICKETS.filter((t) => t.resolvedAt && new Date(t.resolvedAt) >= today).length;
+    const items: { label: string; value: string; emphasize?: boolean }[] = [
+      { label: "Open now", value: String(live.open.value), emphasize: true },
+      { label: "Raised today", value: String(raisedToday) },
+      { label: "Resolved today", value: String(resolvedToday) },
+      { label: "Past SLA", value: String(live.overdue.value), emphasize: live.overdue.value > 0 },
+      { label: "Critical open", value: String(live.critical.value), emphasize: live.critical.value > 0 },
+      { label: "Unassigned", value: String(live.unassignedOpen) },
+      { label: "SLA compliance", value: live.sla === null ? "-" : `${live.sla}%` },
+      { label: "Avg resolution", value: hours(live.avgResolveH) },
+    ];
+    if (busiest?.n) items.splice(1, 0, { label: "Busiest studio", value: `${busiest.s.name.split(",")[0]} (${busiest.n})` });
+    if (topCat) items.splice(2, 0, { label: "Top issue", value: `${topCat[0]} (${topCat[1]})` });
+    return items;
+  }, [dataVersion, live]);
 
   const nav = [
     { icon: Sparkles, label: "Ask IRIS", view: "ai_assistant" as const },
@@ -142,13 +167,11 @@ export function OverviewView() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">
       {/* === HERO === */}
-      <section className="relative overflow-hidden rounded-3xl border border-border iris-fade-in-up">
-        <div className="absolute inset-0 iris-hero-tint" />
-        <div className="absolute -top-32 -right-24 w-[460px] h-[460px] rounded-full opacity-25" style={{ background: "radial-gradient(circle, var(--iris-hero-from), transparent 62%)", animation: "hero-orb-a 14s ease-in-out infinite" }} />
-        <div className="absolute -bottom-40 left-10 w-[380px] h-[380px] rounded-full opacity-[.14]" style={{ background: "radial-gradient(circle, var(--iris-hero-to), transparent 62%)", animation: "hero-orb-b 16s ease-in-out infinite" }} />
-        <div className="absolute inset-0 iris-grid-bg opacity-30 [mask-image:radial-gradient(ellipse_at_top_left,black,transparent_70%)]" />
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-white dark:bg-card iris-fade-in-up">
+        {/* White base with a single faint accent wash (~12% at the corner, fading to white). */}
+        <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(120deg, color-mix(in srgb, var(--primary) 12%, transparent) 0%, color-mix(in srgb, var(--primary) 4%, transparent) 45%, transparent 75%)" }} />
 
-        <div className="relative grid gap-8 p-7 sm:p-9 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-center min-h-[340px]">
+        <div className="relative grid gap-5 px-6 py-5 sm:px-7 sm:py-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-center">
           {/* Left */}
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
@@ -157,32 +180,32 @@ export function OverviewView() {
               <span className="text-border">/</span>
               <span>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
             </div>
-            <h1 className="mt-4 text-[34px] sm:text-[40px] font-semibold tracking-[-0.02em] leading-[1.08]">
+            <h1 className="mt-2.5 text-[28px] sm:text-[32px] font-semibold tracking-[-0.02em] leading-[1.1]">
               {greeting}, <span className="text-primary">{firstName}</span>.
             </h1>
-            <p className="mt-3 text-[14px] text-muted-foreground max-w-xl leading-relaxed">
+            <p className="mt-1.5 text-[13px] text-muted-foreground max-w-xl leading-relaxed">
               Across every Physique 57 India studio right now: <span className="text-foreground font-medium">{narrative}</span>.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
               {nav.map((n, i) => (
                 <button key={n.label} onClick={() => setCurrentView(n.view)}
-                  className={cn("inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12px] font-medium transition-all",
+                  className={cn("inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium transition-all",
                     i === 0 ? "bg-primary text-primary-foreground shadow-[0_6px_20px_-8px_var(--primary)] hover:brightness-110" : "border border-border bg-card/70 backdrop-blur hover:bg-card")}>
                   <n.icon className="w-3.5 h-3.5" />{n.label}
                 </button>
               ))}
             </div>
 
-            <dl className="mt-8 grid grid-cols-3 gap-3 max-w-xl">
+            <dl className="mt-4 grid grid-cols-3 gap-2 max-w-xl">
               {[
                 { k: "Raised · 7 days", v: live.created7, sub: live.total.trend ? `${live.total.trend} vs prior week` : "" },
                 { k: "Resolved · 7 days", v: live.resolved7, sub: live.resolved.trend ? `${live.resolved.trend} vs prior week` : "" },
                 { k: "First response", v: hours(live.avgFirstResponseH), sub: "average · 30 days" },
               ].map((s) => (
-                <div key={s.k} className="rounded-2xl border border-border/70 bg-card/60 backdrop-blur px-4 py-3">
+                <div key={s.k} className="rounded-xl border border-border/70 bg-card/60 backdrop-blur px-3.5 py-2.5">
                   <dt className="text-[10px] uppercase tracking-[.14em] text-muted-foreground">{s.k}</dt>
-                  <dd className="mt-1 text-[22px] font-semibold tabular-nums leading-none">{s.v}</dd>
+                  <dd className="mt-1 text-[20px] font-semibold tabular-nums leading-none">{s.v}</dd>
                   {s.sub && <dd className="mt-1 text-[10px] text-muted-foreground">{s.sub}</dd>}
                 </div>
               ))}
@@ -190,10 +213,10 @@ export function OverviewView() {
           </div>
 
           {/* Right: SLA panel */}
-          <div className="rounded-3xl border border-border/70 bg-card/55 backdrop-blur-md p-6 shadow-[0_20px_60px_-30px_rgba(0,0,0,.35)]">
-            <div className="flex items-center gap-6">
-              <div className="relative shrink-0" style={{ width: 148, height: 148 }}>
-                <svg width="148" height="148" viewBox="0 0 148 148" aria-hidden>
+          <div className="rounded-2xl border border-border/70 bg-card/55 backdrop-blur-md p-4 sm:p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,.35)]">
+            <div className="flex items-center gap-5">
+              <div className="relative shrink-0" style={{ width: 120, height: 120 }}>
+                <svg width="120" height="120" viewBox="0 0 148 148" aria-hidden>
                   <circle cx="74" cy="74" r="62" fill="none" stroke="var(--border)" strokeWidth="8" />
                   <circle cx="74" cy="74" r="62" fill="none" stroke="var(--primary)" strokeWidth="8" strokeLinecap="round"
                     strokeDasharray={`${(slaCompliance / 100) * 389.6} 389.6`} transform="rotate(-90 74 74)"
@@ -202,7 +225,7 @@ export function OverviewView() {
                     style={{ animation: "hero-rotate 40s linear infinite", transformOrigin: "74px 74px" }} />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-[28px] font-semibold tabular-nums tracking-tight">{live.sla === null ? "—" : `${live.sla}%`}</span>
+                  <span className="text-[24px] font-semibold tabular-nums tracking-tight">{live.sla === null ? "-" : `${live.sla}%`}</span>
                   <span className="text-[9px] uppercase tracking-[.16em] text-muted-foreground">within SLA</span>
                 </div>
               </div>
@@ -219,11 +242,16 @@ export function OverviewView() {
                 </div>
               </div>
             </div>
-            <button onClick={() => setDrill("overdue")} className="mt-5 w-full inline-flex items-center justify-between rounded-xl border border-border/70 px-3.5 py-2.5 text-[12px] hover:bg-muted/50 transition-colors">
+            <button onClick={() => setDrill("overdue")} className="mt-3.5 w-full inline-flex items-center justify-between rounded-xl border border-border/70 px-3.5 py-2.5 text-[12px] hover:bg-muted/50 transition-colors">
               <span className="text-muted-foreground">See what&apos;s at risk</span>
               <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
           </div>
+        </div>
+
+        {/* Live ticker, flush with the bottom of the hero */}
+        <div className="relative">
+          <MarqueeStrip icon={Zap} variant="hero" items={marqueeItems} />
         </div>
 
         <style>{`
@@ -234,7 +262,7 @@ export function OverviewView() {
         `}</style>
       </section>
 
-      {/* === METRIC CARDS — click for drill-down === */}
+      {/* === METRIC CARDS - click for drill-down === */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
         {cards.map((c) => {
           const m = live[c.id];
@@ -255,7 +283,7 @@ export function OverviewView() {
         </div>
       </div>
 
-      {/* === Charts Row — polished with smooth bezier curves + accent-color strokes === */}
+      {/* === Charts Row - polished with smooth bezier curves + accent-color strokes === */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Ticket Activity" subtitle="Daily creation vs resolution" icon={TrendingUp} />
@@ -360,7 +388,7 @@ export function OverviewView() {
         </Card>
       </div>
 
-      {/* === Studio + Department — polished bars with rounded corners + accent gradient === */}
+      {/* === Studio + Department - polished bars with rounded corners + accent gradient === */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Studio Performance" subtitle="Tickets by studio" icon={Building2} />
@@ -471,7 +499,7 @@ export function OverviewView() {
         </Card>
       </div>
 
-      {/* AI Insights — only one marquee strip remains (under the hero).
+      {/* AI Insights - only one marquee strip remains (under the hero).
           Previously there were 3 marquee strips; per user request, only the
           hero strip is kept so the page feels less cluttered. */}
       <Card className="iris-ai-border">
