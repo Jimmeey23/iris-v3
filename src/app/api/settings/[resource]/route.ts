@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { withUser } from "@/lib/server/db";
-import { dbError, requireSession } from "@/lib/server/auth";
+import { clearSessionCache, dbError, requireSession } from "@/lib/server/auth";
 import { RESOURCES, coerce } from "@/lib/server/settings-resources";
 
 type Ctx = RouteContext<"/api/settings/[resource]">;
@@ -94,6 +94,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
         if ("employee_id" in ch) set("employee_id", ch.employee_id ? String(ch.employee_id) : null);
         if ("studios" in ch) set("studios", Array.isArray(ch.studios) ? ch.studios.map(String).filter(Boolean) : []);
         if (ch.unlock === true) sets.push("locked_until = null", "failed_login_count = 0");
+        clearSessionCache();
         if (sets.length) { vals.push(body.key); await c.query(`update users set ${sets.join(",")}, updated_at = now() where id = $${vals.length}`, vals); }
         // Deactivating or "sign out everywhere" ends every live session at once.
         if (ch.revoke_sessions === true || ch.is_active === false) {

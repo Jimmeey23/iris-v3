@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSharedClock } from "@/lib/iris/use-visible-interval";
 import { formatRelativeTime } from "@/lib/iris/utils";
 
 /**
@@ -25,24 +26,17 @@ import { formatRelativeTime } from "@/lib/iris/utils";
 export function RelativeTime({
   date,
   fallback = "-",
-  refreshMs = 30_000,
   className,
 }: {
   date: string | Date;
   fallback?: string;
+  /** Kept for compatibility; all timestamps now share one 30s clock. */
   refreshMs?: number;
   className?: string;
 }) {
-  const [mounted, setMounted] = React.useState(false);
-  const [, setTick] = React.useState(0);
-
-  React.useEffect(() => {
-    setMounted(true);
-    const id = setInterval(() => setTick((t) => t + 1), refreshMs);
-    return () => clearInterval(id);
-  }, [refreshMs]);
-
-  if (!mounted) {
+  // 0 on the server and during hydration, so the first client render matches.
+  const now = useSharedClock();
+  if (!now) {
     return <span className={className}>{fallback}</span>;
   }
   return <span className={className}>{formatRelativeTime(date)}</span>;

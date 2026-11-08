@@ -41,11 +41,42 @@ export async function getSessionToken() {
   return (await cookies()).get(SESSION_COOKIE)?.value ?? null;
 }
 
+/*
+ * validate_session is a write (it slides last_seen_at / expires_at), and every API call
+ * needs it. A warm instance remembers a validated token for SESSION_CACHE_MS, so a
+ * page that fires several requests, or a polling tab, costs one round trip and one
+ * write per window instead of one per request. Logout evicts immediately; a revoked
+ * or deactivated account is refused within the window on other instances.
+ */
+const SESSION_CACHE_MS = 30_000;
+const SESSION_CACHE_MAX = 1000;
+const g = globalThis as unknown as { irisSessionCache?: Map<string, { at: number; user: SessionUser }> };
+const sessionCache = (g.irisSessionCache ??= new Map());
+
+export function forgetSession(token: string | null | undefined) {
+  if (token) sessionCache.delete(token);
+}
+
+/** After an admin edits users (role, active, password reset), drop this instance's cache. */
+export function clearSessionCache() {
+  sessionCache.clear();
+}
+
 export async function getSession(): Promise<SessionUser | null> {
   const token = await getSessionToken();
   if (!token) return null;
+  const hit = sessionCache.get(token);
+  if (hit && Date.now() - hit.at < SESSION_CACHE_MS) return hit.user;
   const rows = await asSystem(async (c) => (await c.query("select * from iris.validate_session($1)", [token])).rows);
-  return (rows[0] as SessionUser) ?? null;
+  const user = (rows[0] as SessionUser) ?? null;
+  // Never cache an account mid password change: the flag must clear the moment it changes.
+  if (user && !user.must_change_password) {
+    if (sessionCache.size >= SESSION_CACHE_MAX) sessionCache.delete(sessionCache.keys().next().value!);
+    sessionCache.set(token, { at: Date.now(), user });
+  } else {
+    sessionCache.delete(token);
+  }
+  return user;
 }
 
 /**

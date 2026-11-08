@@ -188,6 +188,11 @@ export async function loadAll() {
   hydrateTickets(tk.tickets);
 }
 
+/** Tickets only: for background refreshes where reference data hasn't changed. */
+export async function loadTickets() {
+  hydrateTickets((await api<{ tickets: any[] }>("/api/tickets")).tickets);
+}
+
 export async function reloadReference() {
   hydrateReference(await api("/api/reference"));
 }

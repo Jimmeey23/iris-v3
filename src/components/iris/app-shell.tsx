@@ -65,6 +65,7 @@ import { ALL_TICKETS, isOwner } from "@/lib/iris/sample-tickets";
 import { RelativeTime } from "./relative-time";
 import { CommandPalette } from "./command-palette";
 import { SlaBreachBanner } from "./sla-breach-banner";
+import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
 import { Member360Lookup } from "./member-360";
 
 interface NavItem {
@@ -198,11 +199,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, []);
   React.useEffect(() => {
-    if (!inAppAlertsActive) return;
-    void loadNotifications();
-    const timer = window.setInterval(loadNotifications, 60_000);
-    return () => window.clearInterval(timer);
+    if (inAppAlertsActive) void loadNotifications();
   }, [loadNotifications, inAppAlertsActive]);
+  // Polls only while the tab is visible; catches up on return.
+  useVisibleInterval(() => void loadNotifications(), 60_000, inAppAlertsActive);
   const markRead = React.useCallback(async (body: { ids?: string[]; all?: boolean }) => {
     setNotifications((list) => list.map((n) => (body.all || body.ids?.includes(n.id) ? { ...n, isRead: true } : n)));
     setUnreadCount((c) => (body.all ? 0 : Math.max(0, c - (body.ids?.length ?? 0))));
@@ -236,18 +236,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Logo */}
         <button
           onClick={() => setCurrentView("overview")}
-          className="flex items-center gap-2.5 px-4 h-14 border-b border-sidebar-border shrink-0 hover:bg-sidebar-accent/50 transition-colors"
+          className="flex items-center gap-3 px-4 h-14 border-b border-sidebar-border shrink-0 hover:bg-sidebar-accent/50 transition-colors"
         >
-          <div className="shrink-0 transition-transform hover:scale-105">
-            <IrisLogo size={28} />
+          <div className="shrink-0 flex transition-transform hover:scale-105">
+            <IrisLogo size={sidebarCollapsed ? 30 : 36} />
           </div>
           {!sidebarCollapsed && (
-            <div className="overflow-hidden text-left">
-              <div className="text-[14px] font-semibold tracking-tight text-sidebar-foreground leading-none">
-                IRIS
+            <div className="overflow-hidden text-left min-w-0 h-9 flex flex-col justify-between">
+              <div className="flex items-baseline gap-[3px] leading-[18px] h-[18px] text-sidebar-foreground">
+                <span className="text-[16px] font-semibold tracking-[-0.01em]">IRIS</span>
+                <span className="iris-wordmark-ai text-[17px] text-primary">Ai</span>
               </div>
-              <div className="text-[8.5px] text-muted-foreground font-medium tracking-wide mt-0.5 truncate">
-                {workspaceName || "Physique 57 India"}
+              <div className="pt-[3px] border-t border-sidebar-border/80 leading-[11px] text-[8.5px] text-muted-foreground font-medium tracking-[0.04em] truncate">
+                A product of {workspaceName || "Physique 57, India"}
               </div>
             </div>
           )}

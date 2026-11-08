@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronRight, Clock, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/iris/live-data";
 import { useAppStore } from "@/lib/iris/store";
+import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -87,23 +88,17 @@ export function SlaBreachBanner() {
     };
   }, [tick]);
 
-  React.useEffect(() => {
-    const refresh = () => {
-      setNow(Date.now());
-      setTick((t) => t + 1);
-    };
-    const iv = window.setInterval(refresh, POLL_MS);
-    const clock = window.setInterval(() => setNow(Date.now()), 30_000);
-    const onFocus = () => document.visibilityState === "visible" && refresh();
-    document.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("iris:sla-refresh", refresh);
-    return () => {
-      window.clearInterval(iv);
-      window.clearInterval(clock);
-      document.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("iris:sla-refresh", refresh);
-    };
+  const refresh = React.useCallback(() => {
+    setNow(Date.now());
+    setTick((t) => t + 1);
   }, []);
+  // Server poll only while visible (catches up on return); the "late by" clock is local.
+  useVisibleInterval(refresh, POLL_MS);
+  useVisibleInterval(() => setNow(Date.now()), 30_000);
+  React.useEffect(() => {
+    window.addEventListener("iris:sla-refresh", refresh);
+    return () => window.removeEventListener("iris:sla-refresh", refresh);
+  }, [refresh]);
 
   // A dismissal is tied to the SLA target, so a ticket that breaches again shows again.
   const keyOf = (b: Breach) => `${b.id}:${b.slaResolutionTarget ?? ""}`;

@@ -1373,3 +1373,11 @@ html[data-reduce-motion="true"] *::after {
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
 }
+
+/* Wordmark: "Ai" set in a serif italic beside the sans "IRIS". System serifs only, no font download. */
+.iris-wordmark-ai {
+  font-family: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+}

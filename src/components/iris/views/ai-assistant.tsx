@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { TrainerAvatar } from "@/components/iris/trainer-photo";
+import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
 import { useAppStore, AIMessage } from "@/lib/iris/store";
 import {
   processUserInput,
@@ -1501,15 +1502,8 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
       window.clearTimeout(timeout);
     };
   }, [refreshKey, tick]);
-  React.useEffect(() => {
-    const bump = () => setTick((t) => t + 1);
-    const id = window.setInterval(bump, 30_000);
-    window.addEventListener("focus", bump);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener("focus", bump);
-    };
-  }, []);
+  // Refresh every 30s while visible; a hidden tab makes no requests and catches up on return.
+  useVisibleInterval(() => setTick((t) => t + 1), 30_000);
 
   const dayPct = u?.limits.dailyTokens ? Math.min(100, (u.today.tokens / u.limits.dailyTokens) * 100) : null;
   const monthPct = u?.limits.monthlyBudgetUsd ? Math.min(100, (u.month.costUsd / u.limits.monthlyBudgetUsd) * 100) : null;

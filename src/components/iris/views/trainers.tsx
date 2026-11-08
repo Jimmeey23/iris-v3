@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
-import { api, loadAll } from "@/lib/iris/live-data";
+import { api, loadAll, loadTickets } from "@/lib/iris/live-data";
+import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
 import { useAppStore } from "@/lib/iris/store";
 import {
   applyCorrection, buildTrainerProfiles, loadOverrides, orgAverage, saveOverrides,
@@ -77,7 +78,8 @@ export function TrainersView() {
   const refresh = React.useCallback(async (quiet: boolean) => {
     if (!quiet) setRefreshing(true);
     try {
-      await Promise.all([loadAll(), loadAssessments()]);
+      // Background ticks reload tickets only; the manual button also refreshes reference data.
+      await Promise.all([quiet ? loadTickets() : loadAll(), loadAssessments()]);
       bumpData();
       setLastSync(new Date().toISOString());
       setError("");
@@ -105,13 +107,7 @@ export function TrainersView() {
   }, [trainers]);
 
   // Pauses while the tab is hidden and catches up as soon as it is visible again.
-  React.useEffect(() => {
-    if (!listening) return;
-    const tick = () => { if (!document.hidden) void refresh(true); };
-    const timer = setInterval(tick, POLL_MS);
-    document.addEventListener("visibilitychange", tick);
-    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
-  }, [listening, refresh]);
+  useVisibleInterval(() => void refresh(true), POLL_MS, listening);
 
   const filtered = React.useMemo(() => {
     const lower = q.toLowerCase();
