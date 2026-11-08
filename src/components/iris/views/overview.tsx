@@ -171,9 +171,9 @@ export function OverviewView() {
         {/* White base with a single faint accent wash (~12% at the corner, fading to white). */}
         <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(120deg, color-mix(in srgb, var(--primary) 12%, transparent) 0%, color-mix(in srgb, var(--primary) 4%, transparent) 45%, transparent 75%)" }} />
 
-        <div className="relative grid gap-5 px-6 py-5 sm:px-7 sm:py-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-center">
+        <div className="relative grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-stretch">
           {/* Left */}
-          <div className="min-w-0">
+          <div className="min-w-0 px-6 py-5 sm:px-7 sm:py-6">
             <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
               <span className="iris-live-dot" />
               <span>Live</span>
@@ -213,7 +213,7 @@ export function OverviewView() {
           </div>
 
           {/* Right: SLA panel */}
-          <div className="rounded-2xl border border-border/70 bg-card/55 backdrop-blur-md p-4 sm:p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,.35)]">
+          <div className="flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-border/70 bg-white/70 dark:bg-card/60 backdrop-blur-md px-6 py-5 sm:px-7">
             <div className="flex items-center gap-5">
               <div className="relative shrink-0" style={{ width: 120, height: 120 }}>
                 <svg width="120" height="120" viewBox="0 0 148 148" aria-hidden>
