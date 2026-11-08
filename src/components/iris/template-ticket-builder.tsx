@@ -731,7 +731,7 @@ function TemplateFieldControl({
           type="checkbox"
           checked={value === true}
           onChange={(e) => onChange(e.target.checked)}
-          className="mt-0.5 accent-[var(--primary)] w-3.5 h-3.5"
+          className="mt-0.5 accent-primary w-3.5 h-3.5"
         />
         <span>
           <span className="font-medium">{f.label}</span>

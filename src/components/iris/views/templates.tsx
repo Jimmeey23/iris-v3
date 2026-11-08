@@ -295,7 +295,7 @@ export function TemplatesView() {
       </div>
 
       <Stepper
-        step={q ? 0 : step}
+        step={q && step < 4 ? 0 : step}
         labels={[
           catGroup ? templateCategoryLabel(catGroup.category) : "Category",
           subGroup ? subGroup.subcategory : "Sub-category",
