@@ -57,7 +57,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
-  const { setCurrentView, selectTicket } = useAppStore();
+  const { setCurrentView, selectTicket, openTemplate, openKnowledgeArticle } = useAppStore();
   const [query, setQuery] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -159,8 +159,15 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   const handleSelect = (item: CommandItem) => {
     if (item.navigate) {
-      if (item.navigate.ticketId) selectTicket(item.navigate.ticketId);
-      setCurrentView(item.navigate.view as ViewName);
+      if (item.navigate.templateCode) {
+        openTemplate(item.navigate.templateCode);
+      } else if (item.navigate.articleId) {
+        openKnowledgeArticle(item.navigate.articleId);
+      } else {
+        setCurrentView(item.navigate.view as ViewName);
+        // setCurrentView clears the selected ticket, so select afterwards.
+        if (item.navigate.ticketId) selectTicket(item.navigate.ticketId);
+      }
     }
     recordRecent(item);
     onOpenChange(false);

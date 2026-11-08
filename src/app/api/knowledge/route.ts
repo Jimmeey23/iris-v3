@@ -2,11 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { docColumns, docFromRow, insertSql, nextId, validId } from "@/lib/server/library";
+import { ensureLibrarySynced } from "@/lib/server/library-sync";
 
 /** All knowledge documents (any signed-in user). */
 export async function GET() {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
+  // Bring newly shipped built-ins into Neon first (fast no-op once current; never throws).
+  await ensureLibrarySynced();
   try {
     const rows = await withUser(auth.session.user_id, async (c) =>
       (await c.query("select * from knowledge_docs order by sort_order, id")).rows,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { TICKET_TEMPLATES } from "../../src/lib/iris/templates";
+import { TEMPLATE_TAXONOMY } from "../../src/lib/iris/template-taxonomy";
 import {
   GENERAL_SUBCATEGORY,
   groupTemplatesByCategoryAndSubcategory,
@@ -63,5 +64,15 @@ describe("Templates Category & Sub-category Grouping", () => {
 
     const sortedCats = sortTemplateCategories(["Zeta", "Facilities", "Membership"]);
     expect(sortedCats).toEqual(["Membership", "Facilities", "Zeta"]);
+  });
+
+  it("orders built-in categories and their sub-categories as the taxonomy defines them", () => {
+    const groups = groupTemplatesByCategoryAndSubcategory(TICKET_TEMPLATES);
+    expect(groups.map((g) => g.category)).toEqual(TEMPLATE_TAXONOMY.map((c) => c.key));
+    for (const cat of TEMPLATE_TAXONOMY) {
+      const names = cat.subcategories.map((s) => s.name);
+      expect(templateSubcategories(TICKET_TEMPLATES, cat.key)).toEqual(names);
+      expect(groups.find((g) => g.category === cat.key)!.subcategories.map((s) => s.subcategory)).toEqual(names);
+    }
   });
 });

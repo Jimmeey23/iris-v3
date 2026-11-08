@@ -3,52 +3,72 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/iris/store";
-import {
-  TICKET_TEMPLATES,
-  templateCategories,
-  type TicketTemplate,
-  type TemplateField,
-  type TemplateFieldType,
-} from "@/lib/iris/templates";
+import { TICKET_TEMPLATES, type TicketTemplate, type TemplateField, type TemplateFieldType } from "@/lib/iris/templates";
 import { resolveTemplateForm } from "@/lib/iris/template-form";
 import {
   GENERAL_SUBCATEGORY,
   groupTemplatesByCategoryAndSubcategory,
   normalizeTemplateCategory,
   normalizeTemplateSubcategory,
-  sortTemplateCategories,
   templateSubcategories,
   type TemplateCategoryGroup,
+  type TemplateSubcategoryGroup,
 } from "@/lib/iris/template-groups";
+import {
+  TEMPLATE_CATEGORY_ORDER,
+  TEMPLATE_TAXONOMY,
+  subcategoryDescription,
+  templateCategoryLabel,
+  templateCategoryMeta,
+  type TemplateCategoryMeta,
+} from "@/lib/iris/template-taxonomy";
+import { REQUESTED_OUTCOMES } from "@/lib/iris/template-types";
 import { templatesApi } from "@/lib/iris/library-api";
-import { CATEGORIES, CATEGORY_MAP, IRIS_STUDIOS } from "@/lib/iris/iris-constants";
+import {
+  CATEGORIES,
+  CATEGORY_MAP,
+  IRIS_STUDIOS,
+  OCCURRED_OPTIONS,
+  REPORTED_BY_OPTIONS,
+  SYSTEMS,
+} from "@/lib/iris/iris-constants";
 import { DEPARTMENTS, DEPT_MAP, PRIORITY_CONFIG, Priority } from "@/lib/iris/types";
-import { DynamicFormIntake } from "@/components/iris/dynamic-form-intake";
+import { TemplateTicketBuilder } from "@/components/iris/template-ticket-builder";
 import { cn } from "@/lib/utils";
 import {
-  Search,
-  Filter,
-  Plus,
-  Clock,
-  Building2,
-  Eye,
-  Wand2,
-  Sparkles,
-  Tag,
-  X,
-  Save,
-  Edit2,
-  Trash2,
-  Copy,
-  ArrowUp,
+  Activity,
   ArrowDown,
-  ChevronDown,
+  ArrowLeft,
+  ArrowUp,
+  BadgeCheck,
+  Bike,
+  Building2,
+  CalendarClock,
   ChevronRight,
+  ClipboardList,
+  Clock,
+  Copy,
+  CreditCard,
+  Edit2,
+  Eye,
+  Filter,
   FolderTree,
+  HeartHandshake,
   Layers,
-  LayoutGrid,
-  ChevronsDownUp,
-  ChevronsUpDown,
+  ListChecks,
+  Megaphone,
+  MonitorSmartphone,
+  Plus,
+  Save,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+  Users,
+  Wand2,
+  Wrench,
+  X,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,73 +87,60 @@ const FIELD_TYPES: { value: TemplateFieldType; label: string }[] = [
   { value: "checkbox", label: "Checkbox" },
 ];
 
-const CATEGORY_ACCENTS: Record<string, { dot: string; pill: string; border: string }> = {
-  Membership: {
-    dot: "bg-violet-500",
-    pill: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
-    border: "border-l-violet-500",
-  },
-  Payment: {
-    dot: "bg-emerald-500",
-    pill: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    border: "border-l-emerald-500",
-  },
-  Scheduling: {
-    dot: "bg-sky-500",
-    pill: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
-    border: "border-l-sky-500",
-  },
-  "Client Experience": {
-    dot: "bg-pink-500",
-    pill: "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20",
-    border: "border-l-pink-500",
-  },
-  Facilities: {
-    dot: "bg-amber-500",
-    pill: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-    border: "border-l-amber-500",
-  },
-  IT: {
-    dot: "bg-indigo-500",
-    pill: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
-    border: "border-l-indigo-500",
-  },
-  Operations: {
-    dot: "bg-cyan-500",
-    pill: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-    border: "border-l-cyan-500",
-  },
-  HR: {
-    dot: "bg-rose-500",
-    pill: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
-    border: "border-l-rose-500",
-  },
-  Marketing: {
-    dot: "bg-orange-500",
-    pill: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
-    border: "border-l-orange-500",
-  },
+type Accent = TemplateCategoryMeta["accent"] | "slate";
+
+/** Literal class strings per accent so Tailwind can see them. */
+const ACCENT_STYLES: Record<Accent, { icon: string; bar: string; hover: string; text: string }> = {
+  violet: { icon: "bg-violet-500/10 text-violet-600 dark:text-violet-400", bar: "bg-violet-500", hover: "hover:border-violet-500/50", text: "text-violet-600 dark:text-violet-400" },
+  emerald: { icon: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", hover: "hover:border-emerald-500/50", text: "text-emerald-600 dark:text-emerald-400" },
+  sky: { icon: "bg-sky-500/10 text-sky-600 dark:text-sky-400", bar: "bg-sky-500", hover: "hover:border-sky-500/50", text: "text-sky-600 dark:text-sky-400" },
+  amber: { icon: "bg-amber-500/10 text-amber-600 dark:text-amber-400", bar: "bg-amber-500", hover: "hover:border-amber-500/50", text: "text-amber-600 dark:text-amber-400" },
+  pink: { icon: "bg-pink-500/10 text-pink-600 dark:text-pink-400", bar: "bg-pink-500", hover: "hover:border-pink-500/50", text: "text-pink-600 dark:text-pink-400" },
+  orange: { icon: "bg-orange-500/10 text-orange-600 dark:text-orange-400", bar: "bg-orange-500", hover: "hover:border-orange-500/50", text: "text-orange-600 dark:text-orange-400" },
+  rose: { icon: "bg-rose-500/10 text-rose-600 dark:text-rose-400", bar: "bg-rose-500", hover: "hover:border-rose-500/50", text: "text-rose-600 dark:text-rose-400" },
+  indigo: { icon: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400", bar: "bg-indigo-500", hover: "hover:border-indigo-500/50", text: "text-indigo-600 dark:text-indigo-400" },
+  red: { icon: "bg-red-500/10 text-red-600 dark:text-red-400", bar: "bg-red-500", hover: "hover:border-red-500/50", text: "text-red-600 dark:text-red-400" },
+  cyan: { icon: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400", bar: "bg-cyan-500", hover: "hover:border-cyan-500/50", text: "text-cyan-600 dark:text-cyan-400" },
+  teal: { icon: "bg-teal-500/10 text-teal-600 dark:text-teal-400", bar: "bg-teal-500", hover: "hover:border-teal-500/50", text: "text-teal-600 dark:text-teal-400" },
+  purple: { icon: "bg-purple-500/10 text-purple-600 dark:text-purple-400", bar: "bg-purple-500", hover: "hover:border-purple-500/50", text: "text-purple-600 dark:text-purple-400" },
+  slate: { icon: "bg-slate-500/10 text-slate-600 dark:text-slate-400", bar: "bg-slate-500", hover: "hover:border-slate-500/50", text: "text-slate-600 dark:text-slate-400" },
 };
 
-function categoryAccent(cat: string) {
-  return (
-    CATEGORY_ACCENTS[cat] ?? {
-      dot: "bg-primary",
-      pill: "bg-primary/10 text-primary border-primary/20",
-      border: "border-l-primary",
-    }
-  );
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  Membership: BadgeCheck,
+  Payment: CreditCard,
+  Scheduling: CalendarClock,
+  "Class & Trainer Experience": Activity,
+  "Client Experience": HeartHandshake,
+  Facilities: Wrench,
+  "Equipment & Studio Assets": Bike,
+  IT: MonitorSmartphone,
+  "Safety & Security": ShieldAlert,
+  Operations: ClipboardList,
+  HR: Users,
+  Marketing: Megaphone,
+};
+
+function categoryVisual(category: string): { Icon: LucideIcon; accent: (typeof ACCENT_STYLES)[Accent] } {
+  const meta = templateCategoryMeta(category);
+  return { Icon: CATEGORY_ICONS[category] ?? Layers, accent: ACCENT_STYLES[meta?.accent ?? "slate"] };
 }
 
+const PRIORITY_ORDER: Priority[] = ["P0", "P1", "P2", "P3"];
+
 /**
- * Templates library grouped hierarchically by Category -> Sub-category.
- * Templates live in Neon (/api/templates) and are editable by managers/admins
- * (or roles granted `templates.edit`). "Use This Template" opens the dynamic
- * form builder pre-populated from the template.
+ * Ticket Templates — a three-step drill-down: Category → Sub-category → Template.
+ *
+ * Nothing is listed until a category and sub-category are chosen; picking a
+ * template opens its Preset Ticket Builder, which files a real ticket. Templates
+ * live in Neon (/api/templates) and are editable by managers/admins (or roles
+ * granted `templates.edit`).
  */
 export function TemplatesView() {
   const dataVersion = useAppStore((s) => s.dataVersion);
   const currentUser = useAppStore((s) => s.currentUser);
+  const nav = useAppStore((s) => s.templateNav);
+  const setNav = useAppStore((s) => s.setTemplateNav);
   const tier = currentUser?.tier;
   const hasPerm = currentUser?.permissions?.includes("templates.edit");
   const canEdit = tier === "admin" || tier === "manager" || Boolean(hasPerm);
@@ -143,110 +150,61 @@ export function TemplatesView() {
     void dataVersion;
     return [...TICKET_TEMPLATES];
   }, [dataVersion]);
-  const categories = React.useMemo(() => {
-    void dataVersion;
-    return sortTemplateCategories(templateCategories());
-  }, [dataVersion]);
+  const groups = React.useMemo<TemplateCategoryGroup[]>(() => groupTemplatesByCategoryAndSubcategory(templates), [templates]);
+  const categories = React.useMemo(() => groups.map((g) => g.category), [groups]);
+  const subcategoryTotal = React.useMemo(() => groups.reduce((n, g) => n + g.subcategoryCount, 0), [groups]);
 
   const [search, setSearch] = React.useState("");
-  const [category, setCategory] = React.useState("all");
-  const [rawSubcategory, setSubcategory] = React.useState("all");
-  const [department, setDepartment] = React.useState("all");
-  const [priority, setPriority] = React.useState("all");
-  const [viewMode, setViewMode] = React.useState<"grouped" | "flat">("grouped");
-  const [collapsedCategories, setCollapsedCategories] = React.useState<Record<string, boolean>>({});
-  const [collapsedSubcategories, setCollapsedSubcategories] = React.useState<Record<string, boolean>>({});
-  const [selectedCode, setSelectedCode] = React.useState<string | null>(null);
+  const [detailCode, setDetailCode] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState<{ template: TicketTemplate; isNew: boolean } | null>(null);
-  const [using, setUsing] = React.useState<TicketTemplate | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const topRef = React.useRef<HTMLDivElement>(null);
 
-  // Derive valid subcategory filter if selected category no longer contains it
-  const availableSubcategories = React.useMemo(
-    () => templateSubcategories(templates, category),
-    [templates, category],
-  );
-  const subcategory =
-    rawSubcategory !== "all" && !availableSubcategories.includes(rawSubcategory) ? "all" : rawSubcategory;
+  // Where we are in the drill-down (a deep-linked template implies its category / sub-category).
+  const activeTemplate = nav.templateCode ? (templates.find((t) => t.code === nav.templateCode) ?? null) : null;
+  const category = nav.category ?? (activeTemplate ? normalizeTemplateCategory(activeTemplate.category) : null);
+  const subcategory = nav.subcategory ?? (activeTemplate ? normalizeTemplateSubcategory(activeTemplate.subcategory) : null);
+  const catGroup = category ? (groups.find((g) => g.category === category) ?? null) : null;
+  const subGroup = catGroup && subcategory ? (catGroup.subcategories.find((s) => s.subcategory === subcategory) ?? null) : null;
+  const step: 1 | 2 | 3 | 4 = activeTemplate ? 4 : subGroup ? 3 : catGroup ? 2 : 1;
+  const detailTemplate = detailCode ? (templates.find((t) => t.code === detailCode) ?? null) : null;
 
-  const allSubcategoryCount = React.useMemo(() => {
-    const pairs = new Set(
-      templates.map((t) => `${normalizeTemplateCategory(t.category)}::${normalizeTemplateSubcategory(t.subcategory)}`),
-    );
-    return pairs.size;
-  }, [templates]);
-
-  const categoryTotals = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const t of templates) {
-      const cat = normalizeTemplateCategory(t.category);
-      map.set(cat, (map.get(cat) ?? 0) + 1);
-    }
-    return map;
-  }, [templates]);
-
-  const selectedTemplate = React.useMemo(
-    () => templates.find((t) => t.code === selectedCode) ?? null,
-    [templates, selectedCode],
-  );
-
-  const filtered = React.useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return templates.filter((t) => {
-      const cat = normalizeTemplateCategory(t.category);
-      const sub = normalizeTemplateSubcategory(t.subcategory);
-      if (q) {
-        const deptName = DEPT_MAP[t.departmentCode]?.name?.toLowerCase() ?? "";
-        const hit =
-          t.title.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q) ||
-          t.code.toLowerCase().includes(q) ||
-          cat.toLowerCase().includes(q) ||
-          sub.toLowerCase().includes(q) ||
-          t.departmentCode.toLowerCase().includes(q) ||
-          deptName.includes(q);
-        if (!hit) return false;
-      }
-      if (category !== "all" && cat !== category) return false;
-      if (subcategory !== "all" && sub !== subcategory) return false;
-      if (department !== "all" && t.departmentCode !== department) return false;
-      if (priority !== "all" && t.defaultPriority !== priority) return false;
-      return true;
+  const scrollTop = () => requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  const go = (next: { category?: string | null; subcategory?: string | null; templateCode?: string | null }) => {
+    setNav({ category: next.category ?? null, subcategory: next.subcategory ?? null, templateCode: next.templateCode ?? null });
+    setSearch("");
+    scrollTop();
+  };
+  const goHome = () => go({});
+  const goCategory = (c: string) => go({ category: c });
+  const goSubcategory = (c: string, s: string) => go({ category: c, subcategory: s });
+  const openBuilder = (t: TicketTemplate) =>
+    go({
+      category: normalizeTemplateCategory(t.category),
+      subcategory: normalizeTemplateSubcategory(t.subcategory),
+      templateCode: t.code,
     });
-  }, [templates, search, category, subcategory, department, priority]);
 
-  const grouped = React.useMemo<TemplateCategoryGroup[]>(
-    () => groupTemplatesByCategoryAndSubcategory(filtered),
-    [filtered],
-  );
-
-  const filteredSubcategoryCount = React.useMemo(
-    () => grouped.reduce((acc, g) => acc + g.subcategoryCount, 0),
-    [grouped],
-  );
-
-  const isFiltering = Boolean(
-    search.trim() || category !== "all" || subcategory !== "all" || department !== "all" || priority !== "all",
-  );
-
-  const toggleCategoryCollapse = (cat: string) => {
-    setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
-  };
-
-  const toggleSubcategoryCollapse = (key: string) => {
-    setCollapsedSubcategories((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const expandAll = () => {
-    setCollapsedCategories({});
-    setCollapsedSubcategories({});
-  };
-
-  const collapseAll = () => {
-    const nextCat: Record<string, boolean> = {};
-    for (const g of grouped) nextCat[g.category] = true;
-    setCollapsedCategories(nextCat);
-  };
+  const q = search.trim().toLowerCase();
+  const results = React.useMemo(() => {
+    if (!q) return [];
+    const terms = q.split(/\s+/);
+    return templates.filter((t) => {
+      const hay = [
+        t.code,
+        t.title,
+        t.description,
+        t.category,
+        templateCategoryLabel(t.category),
+        t.subcategory ?? "",
+        t.form?.subcategory ?? "",
+        DEPT_MAP[t.departmentCode]?.name ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return terms.every((term) => hay.includes(term));
+    });
+  }, [q, templates]);
 
   const run = async (fn: () => Promise<unknown>, okMsg: string) => {
     setBusy(true);
@@ -276,31 +234,30 @@ export function TemplatesView() {
     const ok = await run(() => templatesApi.remove(code), "Template deleted");
     if (ok) {
       setEditing(null);
-      setSelectedCode(null);
+      setDetailCode(null);
+      if (nav.templateCode === code) setNav({ category, subcategory, templateCode: null });
     }
   };
 
   const handleDuplicate = async (t: TicketTemplate) => {
     const ok = await run(() => templatesApi.duplicate(t), "Template duplicated");
-    if (ok) setSelectedCode(null);
+    if (ok) setDetailCode(null);
   };
 
-  const handleNew = (presetCategory?: string, presetSubcategory?: string) => {
+  const handleNew = (presetCategory?: string | null, presetSubcategory?: string | null) => {
+    const cat = presetCategory || category || TEMPLATE_CATEGORY_ORDER[0];
+    const sub = presetSubcategory ?? subcategory;
+    const meta = templateCategoryMeta(cat);
     setEditing({
       isNew: true,
       template: {
         code: "",
         title: "",
         description: "",
-        category: presetCategory || (category !== "all" ? category : categories[0] || "Operations"),
-        subcategory:
-          presetSubcategory && presetSubcategory !== GENERAL_SUBCATEGORY
-            ? presetSubcategory
-            : subcategory !== "all" && subcategory !== GENERAL_SUBCATEGORY
-              ? subcategory
-              : "",
-        departmentCode: DEPARTMENTS[0]?.code || "MGT",
-        defaultPriority: "P3",
+        category: cat,
+        subcategory: sub && sub !== GENERAL_SUBCATEGORY ? sub : "",
+        departmentCode: meta?.defaultDept && DEPT_MAP[meta.defaultDept] ? meta.defaultDept : DEPARTMENTS[0]?.code || "OPS",
+        defaultPriority: "P2",
         defaultSeverity: "Medium",
         suggestedAssigneeRole: "",
         requiredFields: [],
@@ -311,17 +268,22 @@ export function TemplatesView() {
     });
   };
 
+  const avgHours = templates.length
+    ? Math.round(templates.reduce((n, t) => n + t.estimatedResolutionHours, 0) / templates.length)
+    : 0;
+
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-4">
+    <div ref={topRef} className="p-6 max-w-[1600px] mx-auto space-y-4 scroll-mt-4">
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground mb-1">
             <Wand2 className="w-3 h-3 text-violet-500" />
-            {templates.length} Templates · {categories.length} Categories · {allSubcategoryCount} Sub-categories
+            {templates.length} Templates · {categories.length} Categories · {subcategoryTotal} Sub-categories
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Ticket Templates Library</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Organized by category and sub-category. Choosing a template opens the ticket form pre-filled with its taxonomy, priority, department and field set.
+          <h1 className="text-xl font-semibold tracking-tight">Ticket Templates</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-3xl">
+            Pick a category, then a sub-category, then the exact scenario. Each template is a preset ticket form — answer
+            a few questions and submit a real ticket, already categorised, prioritised and routed.
           </p>
         </div>
         {canEdit && (
@@ -332,444 +294,127 @@ export function TemplatesView() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total Templates" value={templates.length} icon={Wand2} color="violet" />
-        <StatCard label="Categories" value={categories.length} icon={Layers} color="sky" />
-        <StatCard label="Sub-categories" value={allSubcategoryCount} icon={FolderTree} color="emerald" />
-        <StatCard
-          label="Avg Resolution"
-          value={
-            templates.length
-              ? `${Math.round(templates.reduce((n, t) => n + t.estimatedResolutionHours, 0) / templates.length)}h`
-              : "—"
-          }
-          icon={Clock}
-          color="amber"
-        />
-      </div>
+      <Stepper
+        step={q && step < 4 ? 0 : step}
+        labels={[
+          catGroup ? templateCategoryLabel(catGroup.category) : "Category",
+          subGroup ? subGroup.subcategory : "Sub-category",
+          activeTemplate ? activeTemplate.code : "Template",
+          "Build ticket",
+        ]}
+        onStep={(n) => {
+          if (n === 1) goHome();
+          else if (n === 2 && catGroup) goCategory(catGroup.category);
+          else if (n === 3 && catGroup && subGroup) goSubcategory(catGroup.category, subGroup.subcategory);
+        }}
+      />
 
-      {/* Category quick-selector strip */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 iris-scrollbar">
-        <button
-          type="button"
-          onClick={() => {
-            setCategory("all");
-            setSubcategory("all");
-          }}
-          className={cn(
-            "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors shrink-0",
-            category === "all"
-              ? "bg-primary text-primary-foreground border-primary shadow-xs"
-              : "bg-card hover:bg-muted/60 text-muted-foreground border-border",
-          )}
-        >
-          All Categories <span className="opacity-75 tabular-nums ml-1">({templates.length})</span>
-        </button>
-        {categories.map((cat) => {
-          const active = category === cat;
-          const accent = categoryAccent(cat);
-          return (
+      {step < 4 && (
+        <div className="relative max-w-xl">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search all templates by scenario, code, sub-category or team…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 pl-8 pr-8 text-[12px]"
+          />
+          {search && (
             <button
-              key={cat}
               type="button"
-              onClick={() => {
-                setCategory(active ? "all" : cat);
-                setSubcategory("all");
-              }}
-              className={cn(
-                "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors shrink-0 flex items-center gap-1.5",
-                active
-                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                  : "bg-card hover:bg-muted/60 text-foreground border-border",
-              )}
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
             >
-              <span className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-primary-foreground" : accent.dot)} />
-              {cat}
-              <span className={cn("text-[10px] tabular-nums", active ? "opacity-80" : "text-muted-foreground")}>
-                {categoryTotals.get(cat) ?? 0}
-              </span>
+              <X className="w-3.5 h-3.5" />
             </button>
-          );
-        })}
-      </div>
-
-      {/* Sub-category quick chips when a specific category is active */}
-      {category !== "all" && availableSubcategories.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap pl-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1 flex items-center gap-1">
-            <FolderTree className="w-3 h-3" />
-            {category} Sub-categories:
-          </span>
-          <button
-            type="button"
-            onClick={() => setSubcategory("all")}
-            className={cn(
-              "px-2 py-0.5 rounded-md text-[11px] border transition-colors",
-              subcategory === "all"
-                ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium"
-                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50",
-            )}
-          >
-            All ({categoryTotals.get(category) ?? 0})
-          </button>
-          {availableSubcategories.map((sub) => {
-            const count = templates.filter(
-              (t) =>
-                normalizeTemplateCategory(t.category) === category &&
-                normalizeTemplateSubcategory(t.subcategory) === sub,
-            ).length;
-            const active = subcategory === sub;
-            return (
-              <button
-                key={sub}
-                type="button"
-                onClick={() => setSubcategory(active ? "all" : sub)}
-                className={cn(
-                  "px-2 py-0.5 rounded-md text-[11px] border transition-colors",
-                  active
-                    ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium"
-                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                )}
-              >
-                {sub} <span className="opacity-70 tabular-nums">({count})</span>
-              </button>
-            );
-          })}
+          )}
         </div>
       )}
 
-      {/* Search + Filters + View Mode */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[220px] max-w-md">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search by title, code, category, sub-category, description..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 pl-8 text-[12px]"
+      {q && step < 4 ? (
+        <SearchResults results={results} query={search.trim()} onOpen={openBuilder} onDetails={(t) => setDetailCode(t.code)} />
+      ) : step === 1 ? (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard label="Templates" value={templates.length} icon={Wand2} color="violet" />
+            <StatCard label="Categories" value={categories.length} icon={Layers} color="sky" />
+            <StatCard label="Sub-categories" value={subcategoryTotal} icon={FolderTree} color="emerald" />
+            <StatCard label="Avg target resolution" value={templates.length ? `${avgHours}h` : "—"} icon={Clock} color="amber" />
+          </div>
+          <StepHeading
+            n={1}
+            title="Choose a category"
+            subtitle="What area is the issue or request about?"
           />
-        </div>
-        <Select
-          value={category}
-          onValueChange={(v) => {
-            setCategory(v);
-            setSubcategory("all");
-          }}
-        >
-          <SelectTrigger className="h-8 w-[165px] text-[12px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={subcategory} onValueChange={setSubcategory}>
-          <SelectTrigger className="h-8 w-[180px] text-[12px]">
-            <SelectValue placeholder="Sub-category" />
-          </SelectTrigger>
-          <SelectContent className="max-h-72">
-            <SelectItem value="all">All Sub-categories</SelectItem>
-            {availableSubcategories.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={department} onValueChange={setDepartment}>
-          <SelectTrigger className="h-8 w-[175px] text-[12px]">
-            <SelectValue placeholder="Department" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
-            {DEPARTMENTS.map((d) => (
-              <SelectItem key={d.code} value={d.code}>
-                {d.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={priority} onValueChange={setPriority}>
-          <SelectTrigger className="h-8 w-[130px] text-[12px]">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priorities</SelectItem>
-            <SelectItem value="P0">P0 - Critical</SelectItem>
-            <SelectItem value="P1">P1 - High</SelectItem>
-            <SelectItem value="P2">P2 - Medium</SelectItem>
-            <SelectItem value="P3">P3 - Low</SelectItem>
-          </SelectContent>
-        </Select>
-        {isFiltering && (
+          {groups.length === 0 ? (
+            <div className="text-center py-20 iris-card">
+              <Wand2 className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <div className="text-[13px] font-medium">No templates yet</div>
+              {canEdit && <div className="text-[11px] text-muted-foreground mt-1">Use “New Template” to create the first one.</div>}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
+              {groups.map((g, i) => (
+                <CategoryCard key={g.category} group={g} index={i} onSelect={() => goCategory(g.category)} />
+              ))}
+            </div>
+          )}
+        </>
+      ) : step === 2 && catGroup ? (
+        <SubcategoryStep
+          group={catGroup}
+          canEdit={canEdit}
+          onBack={goHome}
+          onSelect={(s) => goSubcategory(catGroup.category, s)}
+          onNew={(s) => handleNew(catGroup.category, s)}
+        />
+      ) : step === 3 && catGroup && subGroup ? (
+        <TemplateStep
+          category={catGroup}
+          group={subGroup}
+          canEdit={canEdit}
+          onBack={() => goCategory(catGroup.category)}
+          onOpen={openBuilder}
+          onDetails={(t) => setDetailCode(t.code)}
+          onNew={() => handleNew(catGroup.category, subGroup.subcategory)}
+        />
+      ) : activeTemplate ? (
+        <div className="space-y-3">
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-[12px]"
-            onClick={() => {
-              setSearch("");
-              setCategory("all");
-              setSubcategory("all");
-              setDepartment("all");
-              setPriority("all");
-            }}
+            className="h-7 px-2 text-[12px] -ml-2"
+            onClick={() => (catGroup && subcategory ? goSubcategory(catGroup.category, subcategory) : goHome())}
           >
-            <X className="w-3 h-3 mr-1" />
-            Clear
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+            Back to {subcategory ?? "templates"}
           </Button>
-        )}
-
-        <div className="ml-auto flex items-center gap-1.5">
-          {viewMode === "grouped" && grouped.length > 1 && (
-            <>
-              <Button variant="outline" size="sm" className="h-8 text-[11px] px-2.5" onClick={expandAll} title="Expand all categories">
-                <ChevronsUpDown className="w-3.5 h-3.5 mr-1" />
-                Expand all
-              </Button>
-              <Button variant="outline" size="sm" className="h-8 text-[11px] px-2.5" onClick={collapseAll} title="Collapse all categories">
-                <ChevronsDownUp className="w-3.5 h-3.5 mr-1" />
-                Collapse all
-              </Button>
-            </>
-          )}
-          <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode("grouped")}
-              className={cn(
-                "px-2 py-1 rounded text-[11px] font-medium flex items-center gap-1 transition-colors",
-                viewMode === "grouped" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <FolderTree className="w-3 h-3" />
-              Grouped
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("flat")}
-              className={cn(
-                "px-2 py-1 rounded text-[11px] font-medium flex items-center gap-1 transition-colors",
-                viewMode === "flat" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <LayoutGrid className="w-3 h-3" />
-              Grid
-            </button>
-          </div>
+          <TemplateTicketBuilder
+            template={activeTemplate}
+            onBack={() => (catGroup && subcategory ? goSubcategory(catGroup.category, subcategory) : goHome())}
+            onShowDetails={() => setDetailCode(activeTemplate.code)}
+          />
         </div>
-      </div>
-
-      <div className="text-[11px] text-muted-foreground flex items-center justify-between flex-wrap gap-2">
-        <div>
-          Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {templates.length} templates
-          {grouped.length > 0 && (
-            <>
-              {" "}across <span className="font-semibold text-foreground">{grouped.length}</span>{" "}
-              {grouped.length === 1 ? "category" : "categories"} and{" "}
-              <span className="font-semibold text-foreground">{filteredSubcategoryCount}</span>{" "}
-              {filteredSubcategoryCount === 1 ? "sub-category" : "sub-categories"}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Grouped View: Category -> Sub-category -> Template Cards */}
-      {viewMode === "grouped" ? (
-        <div className="space-y-4">
-          {grouped.map((catGroup) => {
-            const accent = categoryAccent(catGroup.category);
-            // Auto-expand while actively searching so matches are never hidden
-            const isCatCollapsed = !search.trim() && Boolean(collapsedCategories[catGroup.category]);
-
-            return (
-              <section
-                key={catGroup.category}
-                className={cn("iris-card overflow-hidden border-l-4", accent.border)}
-              >
-                {/* Category Header */}
-                <div className="flex items-center gap-3 px-4 py-3 bg-muted/20 border-b border-border/60 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => toggleCategoryCollapse(catGroup.category)}
-                    className="flex items-center gap-2.5 text-left flex-1 min-w-[200px] group"
-                    aria-expanded={!isCatCollapsed}
-                  >
-                    {isCatCollapsed ? (
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-                    )}
-                    <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", accent.dot)} />
-                    <h2 className="text-[15px] font-semibold tracking-tight">{catGroup.category}</h2>
-                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border tabular-nums", accent.pill)}>
-                      {catGroup.count} {catGroup.count === 1 ? "template" : "templates"}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground tabular-nums">
-                      · {catGroup.subcategoryCount} {catGroup.subcategoryCount === 1 ? "sub-category" : "sub-categories"}
-                    </span>
-                  </button>
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {catGroup.priorityCounts.P0 > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 tabular-nums">
-                        {catGroup.priorityCounts.P0} P0
-                      </span>
-                    )}
-                    {catGroup.priorityCounts.P1 > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 tabular-nums">
-                        {catGroup.priorityCounts.P1} P1
-                      </span>
-                    )}
-                    <span className="text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1 tabular-nums">
-                      <Clock className="w-3 h-3" />~{catGroup.avgResolutionHours}h avg
-                    </span>
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-[11px]"
-                        onClick={() => handleNew(catGroup.category)}
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Nested Sub-category Groups */}
-                {!isCatCollapsed && (
-                  <div className="divide-y divide-border/50">
-                    {catGroup.subcategories.map((subGroup) => {
-                      const isSubCollapsed = !search.trim() && Boolean(collapsedSubcategories[subGroup.key]);
-                      return (
-                        <div key={subGroup.key} className="p-4 space-y-3">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => toggleSubcategoryCollapse(subGroup.key)}
-                              className="flex items-center gap-2 text-left group"
-                              aria-expanded={!isSubCollapsed}
-                            >
-                              {isSubCollapsed ? (
-                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
-                              ) : (
-                                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
-                              )}
-                              <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                              <h3 className="text-[13px] font-semibold text-foreground/95 group-hover:text-primary transition-colors">
-                                {subGroup.subcategory}
-                              </h3>
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground tabular-nums">
-                                {subGroup.count}
-                              </span>
-                            </button>
-
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {subGroup.departments.map((deptCode) => {
-                                const d = DEPT_MAP[deptCode];
-                                return (
-                                  <span
-                                    key={deptCode}
-                                    className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground flex items-center gap-1"
-                                  >
-                                    <Building2 className="w-2.5 h-2.5" />
-                                    {d ? d.name.split(" ")[0] : deptCode}
-                                  </span>
-                                );
-                              })}
-                              {canEdit && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleNew(catGroup.category, subGroup.subcategory)}
-                                  className="text-[10px] px-1.5 py-0.5 rounded border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 flex items-center gap-0.5 transition-colors"
-                                  title={`New template in ${catGroup.category} › ${subGroup.subcategory}`}
-                                >
-                                  <Plus className="w-2.5 h-2.5" />
-                                  New
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {!isSubCollapsed && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pl-1">
-                              {subGroup.templates.map((t, i) => (
-                                <TemplateCard
-                                  key={t.code}
-                                  template={t}
-                                  index={i}
-                                  showTaxonomy={false}
-                                  onSelect={() => setSelectedCode(t.code)}
-                                  onQuickUse={(e) => {
-                                    e.stopPropagation();
-                                    setUsing(t);
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            );
-          })}
-        </div>
-      ) : (
-        /* Flat Grid Fallback */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((t, i) => (
-            <TemplateCard
-              key={t.code}
-              template={t}
-              index={i}
-              showTaxonomy
-              onSelect={() => setSelectedCode(t.code)}
-              onQuickUse={(e) => {
-                e.stopPropagation();
-                setUsing(t);
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {filtered.length === 0 && (
-        <div className="text-center py-20 iris-card">
-          <Wand2 className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <div className="text-[13px] font-medium">No templates match your filters</div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Try clearing your search or selecting a different category / sub-category.
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* Detail */}
-      <Dialog open={!!selectedTemplate} onOpenChange={(open) => !open && setSelectedCode(null)}>
-        {selectedTemplate && (
+      <Dialog open={!!detailTemplate} onOpenChange={(open) => !open && setDetailCode(null)}>
+        {detailTemplate && (
           <TemplateDetail
-            t={selectedTemplate}
+            t={detailTemplate}
             canEdit={canEdit}
             busy={busy}
+            isOpenInBuilder={activeTemplate?.code === detailTemplate.code}
             onUse={() => {
-              setUsing(selectedTemplate);
-              setSelectedCode(null);
+              openBuilder(detailTemplate);
+              setDetailCode(null);
             }}
             onEdit={() => {
-              setEditing({ template: selectedTemplate, isNew: false });
-              setSelectedCode(null);
+              setEditing({ template: detailTemplate, isNew: false });
+              setDetailCode(null);
             }}
-            onDuplicate={() => handleDuplicate(selectedTemplate)}
-            onDelete={() => handleDelete(selectedTemplate.code)}
+            onDuplicate={() => handleDuplicate(detailTemplate)}
+            onDelete={() => handleDelete(detailTemplate.code)}
           />
         )}
       </Dialog>
@@ -790,9 +435,300 @@ export function TemplatesView() {
           />
         )}
       </Dialog>
+    </div>
+  );
+}
 
-      {/* Form builder, pre-populated from the chosen template */}
-      {using && <DynamicFormIntake template={using} onClose={() => setUsing(null)} />}
+/* === Drill-down chrome === */
+
+function Stepper({ step, labels, onStep }: { step: 0 | 1 | 2 | 3 | 4; labels: string[]; onStep: (n: number) => void }) {
+  return (
+    <nav aria-label="Template steps" className="flex items-center gap-1 flex-wrap text-[12px]">
+      {labels.map((label, i) => {
+        const n = i + 1;
+        const done = step > n;
+        const current = step === n;
+        const clickable = done && n < 4;
+        return (
+          <React.Fragment key={n}>
+            {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />}
+            <button
+              type="button"
+              disabled={!clickable}
+              onClick={() => onStep(n)}
+              aria-current={current ? "step" : undefined}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors max-w-[260px]",
+                current && "bg-primary/10 text-primary font-semibold",
+                done && "text-foreground hover:bg-muted/60",
+                !current && !done && "text-muted-foreground",
+                !clickable && "cursor-default",
+              )}
+            >
+              <span
+                className={cn(
+                  "w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0",
+                  current ? "bg-primary text-primary-foreground" : done ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted",
+                )}
+              >
+                {n}
+              </span>
+              <span className="truncate">{label}</span>
+            </button>
+          </React.Fragment>
+        );
+      })}
+    </nav>
+  );
+}
+
+function StepHeading({ n, title, subtitle, children }: { n: number; title: string; subtitle?: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-end justify-between gap-3 flex-wrap pt-1">
+      <div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Step {n} of 3</div>
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        {subtitle && <p className="text-[12px] text-muted-foreground">{subtitle}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function PriorityMix({ counts }: { counts: Record<Priority, number> }) {
+  return (
+    <div className="flex items-center gap-1">
+      {PRIORITY_ORDER.filter((p) => counts[p] > 0).map((p) => (
+        <span
+          key={p}
+          className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums", PRIORITY_CONFIG[p].bg, PRIORITY_CONFIG[p].text)}
+          title={`${counts[p]} × ${PRIORITY_CONFIG[p].label}`}
+        >
+          {p}·{counts[p]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function CategoryCard({ group: g, index, onSelect }: { group: TemplateCategoryGroup; index: number; onSelect: () => void }) {
+  const meta = templateCategoryMeta(g.category);
+  const { Icon, accent } = categoryVisual(g.category);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "text-left iris-card p-4 transition-all hover:shadow-md group iris-fade-in-up relative overflow-hidden flex flex-col",
+        accent.hover,
+      )}
+      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+    >
+      <span className={cn("absolute inset-x-0 top-0 h-0.5 opacity-70", accent.bar)} />
+      <div className="flex items-start gap-3">
+        <span className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", accent.icon)}>
+          <Icon className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-semibold leading-snug group-hover:text-primary transition-colors">
+            {meta?.label ?? g.category}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+            {meta?.tagline ?? "Custom category"}
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+      </div>
+      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50 text-[11px] text-muted-foreground">
+        <span className="tabular-nums">
+          <span className="font-semibold text-foreground">{g.count}</span> templates
+        </span>
+        <span>·</span>
+        <span className="tabular-nums">
+          <span className="font-semibold text-foreground">{g.subcategoryCount}</span> sub-categories
+        </span>
+        <span className="ml-auto">
+          <PriorityMix counts={{ P0: g.priorityCounts.P0, P1: g.priorityCounts.P1, P2: 0, P3: 0 }} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function SubcategoryStep({
+  group,
+  canEdit,
+  onBack,
+  onSelect,
+  onNew,
+}: {
+  group: TemplateCategoryGroup;
+  canEdit: boolean;
+  onBack: () => void;
+  onSelect: (subcategory: string) => void;
+  onNew: (subcategory: string | null) => void;
+}) {
+  const meta = templateCategoryMeta(group.category);
+  const { Icon, accent } = categoryVisual(group.category);
+  const present = new Set(group.subcategories.map((s) => s.subcategory));
+  const emptyTaxonomySubs = canEdit ? (meta?.subcategories ?? []).filter((s) => !present.has(s.name)) : [];
+
+  return (
+    <div className="space-y-4">
+      <div className="iris-card p-4 flex items-start gap-3 flex-wrap">
+        <span className={cn("w-11 h-11 rounded-lg flex items-center justify-center shrink-0", accent.icon)}>
+          <Icon className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[16px] font-semibold">{meta?.label ?? group.category}</div>
+          <p className="text-[12px] text-muted-foreground mt-0.5 max-w-3xl leading-relaxed">
+            {meta?.description ?? "Templates in a custom category."}
+          </p>
+          <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground flex-wrap">
+            <span>
+              <span className="font-semibold text-foreground tabular-nums">{group.count}</span> templates
+            </span>
+            <span>
+              <span className="font-semibold text-foreground tabular-nums">{group.subcategoryCount}</span> sub-categories
+            </span>
+            {meta?.defaultDept && (
+              <span className="flex items-center gap-1">
+                <Building2 className="w-3 h-3" />
+                Usually {DEPT_MAP[meta.defaultDept]?.name ?? meta.defaultDept}
+              </span>
+            )}
+          </div>
+        </div>
+        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={onBack}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          All categories
+        </Button>
+      </div>
+
+      <StepHeading n={2} title="Choose a sub-category" subtitle={`Narrow down the ${meta?.label ?? group.category} issue.`}>
+        {canEdit && (
+          <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={() => onNew(null)}>
+            <Plus className="w-3 h-3 mr-1" />
+            New template in {meta?.label ?? group.category}
+          </Button>
+        )}
+      </StepHeading>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {group.subcategories.map((s, i) => (
+          <SubcategoryCard key={s.key} group={s} index={i} accent={accent} onSelect={() => onSelect(s.subcategory)} />
+        ))}
+        {emptyTaxonomySubs.map((s) => (
+          <button
+            key={s.name}
+            type="button"
+            onClick={() => onNew(s.name)}
+            className="text-left rounded-xl border border-dashed border-border p-4 hover:bg-muted/30 transition-colors"
+          >
+            <div className="text-[13px] font-semibold text-muted-foreground">{s.name}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">No templates yet — add the first one.</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SubcategoryCard({
+  group: s,
+  index,
+  accent,
+  onSelect,
+}: {
+  group: TemplateSubcategoryGroup;
+  index: number;
+  accent: (typeof ACCENT_STYLES)[Accent];
+  onSelect: () => void;
+}) {
+  const description = subcategoryDescription(s.category, s.subcategory);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn("text-left iris-card p-4 transition-all hover:shadow-md group iris-fade-in-up flex flex-col", accent.hover)}
+      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+    >
+      <div className="flex items-start gap-2">
+        <FolderTree className={cn("w-4 h-4 mt-0.5 shrink-0", accent.text)} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-semibold leading-snug group-hover:text-primary transition-colors">{s.subcategory}</div>
+          <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-3">
+            {description ?? (s.subcategory === GENERAL_SUBCATEGORY ? "Templates without a sub-category." : "Custom sub-category.")}
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+      </div>
+      <div className="flex items-center gap-2 mt-auto pt-3 text-[11px] text-muted-foreground">
+        <span className="tabular-nums">
+          <span className="font-semibold text-foreground">{s.count}</span> {s.count === 1 ? "template" : "templates"}
+        </span>
+        <span className="ml-auto">
+          <PriorityMix counts={s.priorityCounts} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function TemplateStep({
+  category,
+  group,
+  canEdit,
+  onBack,
+  onOpen,
+  onDetails,
+  onNew,
+}: {
+  category: TemplateCategoryGroup;
+  group: TemplateSubcategoryGroup;
+  canEdit: boolean;
+  onBack: () => void;
+  onOpen: (t: TicketTemplate) => void;
+  onDetails: (t: TicketTemplate) => void;
+  onNew: () => void;
+}) {
+  const { Icon, accent } = categoryVisual(category.category);
+  const description = subcategoryDescription(group.category, group.subcategory);
+  return (
+    <div className="space-y-4">
+      <div className="iris-card p-4 flex items-start gap-3 flex-wrap">
+        <span className={cn("w-11 h-11 rounded-lg flex items-center justify-center shrink-0", accent.icon)}>
+          <Icon className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] text-muted-foreground">{templateCategoryLabel(category.category)}</div>
+          <div className="text-[16px] font-semibold">{group.subcategory}</div>
+          {description && <p className="text-[12px] text-muted-foreground mt-0.5 max-w-3xl leading-relaxed">{description}</p>}
+        </div>
+        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={onBack}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          {templateCategoryLabel(category.category)} sub-categories
+        </Button>
+      </div>
+
+      <StepHeading
+        n={3}
+        title="Choose the template"
+        subtitle={`${group.count} preset ${group.count === 1 ? "form" : "forms"} — pick the one that matches the situation.`}
+      >
+        {canEdit && (
+          <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={onNew}>
+            <Plus className="w-3 h-3 mr-1" />
+            New template here
+          </Button>
+        )}
+      </StepHeading>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {group.templates.map((t, i) => (
+          <TemplateCard key={t.code} template={t} index={i} onOpen={() => onOpen(t)} onDetails={() => onDetails(t)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -801,85 +737,119 @@ function TemplateCard({
   template: t,
   index,
   showTaxonomy,
-  onSelect,
-  onQuickUse,
+  onOpen,
+  onDetails,
 }: {
   template: TicketTemplate;
   index: number;
-  showTaxonomy: boolean;
-  onSelect: () => void;
-  onQuickUse: (e: React.MouseEvent) => void;
+  showTaxonomy?: boolean;
+  onOpen: () => void;
+  onDetails: () => void;
 }) {
   const dept = DEPT_MAP[t.departmentCode];
   const pc = PRIORITY_CONFIG[t.defaultPriority];
-  const nFields = resolveTemplateForm(t).fields.length;
-  const sub = normalizeTemplateSubcategory(t.subcategory);
+  const form = resolveTemplateForm(t);
+  const nFields = form.fields.length;
+  const nRequired = form.fields.filter((f) => f.required).length;
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className="text-left iris-card p-3.5 hover:border-primary/40 hover:shadow-sm transition-all iris-fade-in-up group cursor-pointer flex flex-col justify-between"
-      style={{ animationDelay: `${Math.min(index * 15, 240)}ms` }}
+      onClick={onOpen}
+      className="text-left iris-card p-4 hover:border-primary/40 hover:shadow-md transition-all iris-fade-in-up group cursor-pointer flex flex-col"
+      style={{ animationDelay: `${Math.min(index * 20, 240)}ms` }}
     >
-      <div>
-        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md tabular-nums", pc.bg, pc.text)}>
-            {t.defaultPriority}
+      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+        <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md tabular-nums", pc.bg, pc.text)}>{t.defaultPriority}</span>
+        <span className="text-[10px] font-mono text-muted-foreground">{t.code}</span>
+        {showTaxonomy && (
+          <span className="text-[10px] text-muted-foreground ml-auto truncate max-w-[220px]">
+            {templateCategoryLabel(t.category)} › {normalizeTemplateSubcategory(t.subcategory)}
           </span>
-          <span className="text-[10px] font-mono text-muted-foreground">{t.code}</span>
-          {showTaxonomy ? (
-            <span className="text-[10px] text-muted-foreground ml-auto truncate max-w-[180px]">
-              {t.category} › {sub}
-            </span>
-          ) : (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground ml-auto truncate max-w-[140px]">
-              {sub}
-            </span>
-          )}
-        </div>
-        <div className="text-[13px] font-semibold leading-snug mb-1.5 group-hover:text-primary transition-colors line-clamp-2">
-          {t.title}
-        </div>
-        <div className="text-[11px] text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
-          {t.description || <span className="italic">No description</span>}
-        </div>
+        )}
       </div>
-
-      <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-2 border-t border-border/50">
+      <div className="text-[14px] font-semibold leading-snug mb-1.5 group-hover:text-primary transition-colors">{t.title}</div>
+      <div className="text-[12px] text-muted-foreground line-clamp-3 mb-3 leading-relaxed">
+        {t.description || <span className="italic">No description</span>}
+      </div>
+      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-[11px] text-muted-foreground mt-auto">
         {dept && (
           <span className="flex items-center gap-1">
-            <Building2 className="w-2.5 h-2.5" />
-            {dept.name.split(" ")[0]}
+            <Building2 className="w-3 h-3" />
+            {dept.name}
           </span>
         )}
         <span className="flex items-center gap-1 tabular-nums">
-          <Clock className="w-2.5 h-2.5" />
-          {t.estimatedResolutionHours}h
+          <Clock className="w-3 h-3" />
+          {t.estimatedResolutionHours}h target
         </span>
-        {nFields > 0 && (
-          <span className="flex items-center gap-1 tabular-nums">
-            <Filter className="w-2.5 h-2.5" />
-            {nFields} {nFields === 1 ? "field" : "fields"}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={onQuickUse}
-          className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium text-primary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:underline"
-        >
-          <Sparkles className="w-2.5 h-2.5" />
-          Use
-        </button>
-        <Eye className="w-3 h-3 opacity-40 group-hover:opacity-100 transition-opacity" />
+        <span className="flex items-center gap-1 tabular-nums">
+          <ListChecks className="w-3 h-3" />
+          {nFields} {nFields === 1 ? "question" : "questions"}
+          {nRequired > 0 && <span className="opacity-75">({nRequired} required)</span>}
+        </span>
       </div>
+      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-border/50">
+        <Button
+          size="sm"
+          className="h-8 text-[12px] flex-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+        >
+          <Sparkles className="w-3 h-3 mr-1.5" />
+          Use template
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 text-[12px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDetails();
+          }}
+        >
+          <Eye className="w-3 h-3 mr-1.5" />
+          Details
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SearchResults({
+  results,
+  query,
+  onOpen,
+  onDetails,
+}: {
+  results: TicketTemplate[];
+  query: string;
+  onOpen: (t: TicketTemplate) => void;
+  onDetails: (t: TicketTemplate) => void;
+}) {
+  if (!results.length) {
+    return (
+      <div className="text-center py-16 iris-card">
+        <Search className="w-7 h-7 mx-auto text-muted-foreground mb-2" />
+        <div className="text-[13px] font-medium">No templates match “{query}”</div>
+        <div className="text-[11px] text-muted-foreground mt-1">Try fewer words, or browse by category.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <div className="text-[12px] text-muted-foreground">
+        {results.length} {results.length === 1 ? "template matches" : "templates match"} “{query}”
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {results.slice(0, 60).map((t, i) => (
+          <TemplateCard key={t.code} template={t} index={i} showTaxonomy onOpen={() => onOpen(t)} onDetails={() => onDetails(t)} />
+        ))}
+      </div>
+      {results.length > 60 && (
+        <div className="text-[11px] text-muted-foreground text-center">Showing the first 60 — refine the search to see more.</div>
+      )}
     </div>
   );
 }
@@ -888,6 +858,7 @@ function TemplateDetail({
   t,
   canEdit,
   busy,
+  isOpenInBuilder,
   onUse,
   onEdit,
   onDuplicate,
@@ -896,6 +867,7 @@ function TemplateDetail({
   t: TicketTemplate;
   canEdit: boolean;
   busy: boolean;
+  isOpenInBuilder: boolean;
   onUse: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -917,7 +889,7 @@ function TemplateDetail({
           </span>
           <span className="text-[10px] font-mono text-muted-foreground">{t.code}</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-foreground/80 font-medium">
-            {normalizeTemplateCategory(t.category)} › {normalizeTemplateSubcategory(t.subcategory)}
+            {templateCategoryLabel(normalizeTemplateCategory(t.category))} › {normalizeTemplateSubcategory(t.subcategory)}
           </span>
         </div>
         <DialogTitle className="text-[16px] leading-tight">{t.title}</DialogTitle>
@@ -928,14 +900,15 @@ function TemplateDetail({
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <InfoBox label="Category" value={normalizeTemplateCategory(t.category)} />
-          <InfoBox label="Sub-category" value={normalizeTemplateSubcategory(t.subcategory)} />
+          <InfoBox label="Library category" value={templateCategoryLabel(normalizeTemplateCategory(t.category))} />
+          <InfoBox label="Library sub-category" value={normalizeTemplateSubcategory(t.subcategory)} />
           <InfoBox label="Department" value={DEPT_MAP[t.departmentCode]?.name || t.departmentCode || "—"} />
           <InfoBox label="Default Priority" value={t.defaultPriority} />
           <InfoBox label="Default Severity" value={t.defaultSeverity || "—"} />
           <InfoBox label="Estimated Resolution" value={`${t.estimatedResolutionHours} hours`} />
-          <InfoBox label="Form Category" value={form.category || "—"} />
-          <InfoBox label="Form Sub-category" value={form.subcategory || "—"} />
+          <InfoBox label="Ticket category" value={form.category || "—"} />
+          <InfoBox label="Ticket sub-category" value={form.subcategory || "—"} />
+          <InfoBox label="Requested outcome" value={form.requestedOutcome || "—"} />
           <InfoBox label="Suggested Assignee" value={t.suggestedAssigneeRole || "Auto-routed"} />
           {form.studioOptions && (
             <InfoBox label="Studios" value={form.studioOptions.map((s) => s.split(",")[0]).join(", ")} />
@@ -945,7 +918,7 @@ function TemplateDetail({
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
             <Filter className="w-3 h-3" />
-            Form fields ({form.fields.length})
+            Scenario questions ({form.fields.length})
           </div>
           {form.fields.length === 0 ? (
             <div className="text-[11px] italic text-muted-foreground">
@@ -970,7 +943,7 @@ function TemplateDetail({
 
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Recommended Actions
+            Handling playbook (filed as the recommended resolution)
           </div>
           <div className="p-3 rounded-md bg-muted/30 border border-border text-[12px] whitespace-pre-line leading-relaxed">
             {t.recommendedActions || <span className="italic text-muted-foreground">No recommended actions defined</span>}
@@ -980,7 +953,7 @@ function TemplateDetail({
         <div className="flex items-center gap-2 pt-2 border-t border-border flex-wrap">
           <Button className="h-8 flex-1 min-w-[160px] text-[12px]" onClick={onUse}>
             <Sparkles className="w-3 h-3 mr-1.5" />
-            Use This Template
+            {isOpenInBuilder ? "Back to the ticket form" : "Build a ticket from this template"}
           </Button>
           {canEdit && (
             <>
@@ -1042,11 +1015,17 @@ function EditTemplateModal({
   const [formStudio, setFormStudio] = React.useState(initial.studio ?? "");
   const [formArea, setFormArea] = React.useState(initial.area ?? "");
   const [requestedOutcome, setRequestedOutcome] = React.useState(initial.requestedOutcome ?? "");
+  const [occurred, setOccurred] = React.useState(initial.occurred ?? "");
+  const [reportedBy, setReportedBy] = React.useState(initial.reportedBy ?? "");
+  const [system, setSystem] = React.useState(initial.system ?? "");
+  const [titlePrefill, setTitlePrefill] = React.useState(initial.titlePrefill ?? "");
+  const [summaryPrefill, setSummaryPrefill] = React.useState(initial.summaryPrefill ?? "");
 
-  const subSuggestions = React.useMemo(
-    () => templateSubcategories(allTemplates, draft.category || "all").filter((s) => s !== GENERAL_SUBCATEGORY),
-    [allTemplates, draft.category],
-  );
+  const subSuggestions = React.useMemo(() => {
+    const fromTaxonomy = templateCategoryMeta(draft.category)?.subcategories.map((s) => s.name) ?? [];
+    const inUse = templateSubcategories(allTemplates, draft.category || "all").filter((s) => s !== GENERAL_SUBCATEGORY);
+    return [...new Set([...fromTaxonomy, ...inUse])];
+  }, [allTemplates, draft.category]);
 
   const update = <K extends keyof TicketTemplate>(key: K, value: TicketTemplate[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -1111,9 +1090,11 @@ function EditTemplateModal({
           .map((s) => s.trim())
           .filter(Boolean),
         requestedOutcome: requestedOutcome.trim() || undefined,
-        occurred: initial.occurred,
-        reportedBy: initial.reportedBy,
-        system: initial.system,
+        occurred: occurred || undefined,
+        reportedBy: reportedBy || undefined,
+        system: system || undefined,
+        titlePrefill: titlePrefill.trim() || undefined,
+        summaryPrefill: summaryPrefill.trim() || undefined,
       },
     });
   };
@@ -1174,7 +1155,7 @@ function EditTemplateModal({
               placeholder="e.g. Membership"
             />
             <datalist id="iris-tpl-categories">
-              {[...new Set([...categories, draft.category])].filter(Boolean).map((c) => (
+              {[...new Set([...TEMPLATE_CATEGORY_ORDER, ...categories, draft.category])].filter(Boolean).map((c) => (
                 <option key={c} value={c} />
               ))}
             </datalist>
@@ -1186,7 +1167,7 @@ function EditTemplateModal({
               value={draft.subcategory || ""}
               onChange={(e) => update("subcategory", e.target.value)}
               className="text-[12px] h-9"
-              placeholder="e.g. Freeze Issue"
+              placeholder="e.g. Freezes & Pauses"
             />
             <datalist id="iris-tpl-subcategories">
               {subSuggestions.map((s) => (
@@ -1266,11 +1247,11 @@ function EditTemplateModal({
         <div className="rounded-lg border border-border p-3 space-y-3">
           <div className="text-[12px] font-semibold flex items-center gap-1.5">
             <Wand2 className="w-3.5 h-3.5 text-violet-500" />
-            Form builder pre-fill
+            Ticket form pre-fill
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className={row}>
-              <label className={lbl}>Form category</label>
+              <label className={lbl}>Ticket category</label>
               <Select
                 value={fCategory || "none"}
                 onValueChange={(v) => {
@@ -1292,7 +1273,7 @@ function EditTemplateModal({
               </Select>
             </div>
             <div className={row}>
-              <label className={lbl}>Form subcategory</label>
+              <label className={lbl}>Ticket sub-category</label>
               <Select value={fSub || "none"} onValueChange={(v) => setFSub(v === "none" ? "" : v)} disabled={!fCategory}>
                 <SelectTrigger className="h-9 text-[12px]">
                   <SelectValue />
@@ -1358,6 +1339,74 @@ function EditTemplateModal({
               <Input value={formArea} onChange={(e) => setFormArea(e.target.value)} className="text-[12px] h-9" />
             </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className={row}>
+              <label className={lbl}>Ticket title prefill</label>
+              <Input
+                value={titlePrefill}
+                onChange={(e) => setTitlePrefill(e.target.value)}
+                className="text-[12px] h-9"
+                placeholder={draft.title || "Defaults to the template title"}
+              />
+            </div>
+            <div className={row}>
+              <label className={lbl}>System involved (pre-selected)</label>
+              <Select value={system || "none"} onValueChange={(v) => setSystem(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-9 text-[12px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="none">None</SelectItem>
+                  {SYSTEMS.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={row}>
+              <label className={lbl}>When it happened (pre-selected)</label>
+              <Select value={occurred || "none"} onValueChange={(v) => setOccurred(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-9 text-[12px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Ask the user</SelectItem>
+                  {OCCURRED_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={row}>
+              <label className={lbl}>How it was reported (pre-selected)</label>
+              <Select value={reportedBy || "none"} onValueChange={(v) => setReportedBy(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-9 text-[12px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Ask the user</SelectItem>
+                  {REPORTED_BY_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className={row}>
+            <label className={lbl}>Summary prefill</label>
+            <Textarea
+              value={summaryPrefill}
+              onChange={(e) => setSummaryPrefill(e.target.value)}
+              className="text-[12px] min-h-[56px]"
+              placeholder="Defaults to the template description"
+            />
+          </div>
           <div className={row}>
             <label className={lbl}>Requested outcome (pre-selected)</label>
             <Select value={requestedOutcome || "none"} onValueChange={(v) => setRequestedOutcome(v === "none" ? "" : v)}>
@@ -1366,13 +1415,11 @@ function EditTemplateModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
-                {["Fix the issue", "Refund / credit", "Information only", "Process change", "Escalate to management"].map(
-                  (s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ),
-                )}
+                {REQUESTED_OUTCOMES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -1381,7 +1428,7 @@ function EditTemplateModal({
         {/* Field editor */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className={lbl}>Template fields ({fields.length})</label>
+            <label className={lbl}>Scenario questions ({fields.length})</label>
             <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" onClick={addField}>
               <Plus className="w-3 h-3 mr-1" />
               Add field
@@ -1389,7 +1436,7 @@ function EditTemplateModal({
           </div>
           {fields.length === 0 && (
             <div className="text-[11px] italic text-muted-foreground">
-              No custom fields — the form will only ask the standard questions.
+              No scenario questions — the ticket form will only ask the basics.
             </div>
           )}
           {fields.map((f, i) => {
