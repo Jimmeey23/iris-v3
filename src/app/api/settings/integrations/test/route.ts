@@ -4,6 +4,8 @@ import { dbError, requireSession } from "@/lib/server/auth";
 import { configuredRegions, searchSessions } from "@/lib/server/momence";
 import { fromAddress, mailConfigured, mailTransportMode } from "@/lib/server/mailer";
 import { loadEffectiveAiConfig } from "@/lib/server/ai-config";
+import { catalogueIdFor, loadCredentials } from "@/lib/server/integration-vault";
+import { probe } from "@/lib/server/integration-probes";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +23,7 @@ export async function POST(req: NextRequest) {
   let detail = "";
 
   try {
-    if (id.includes("momence")) {
+    if (id === "momence") {
       const regions = configuredRegions();
       if (regions.length === 0) {
         ok = false;
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
           detail = err instanceof Error ? err.message : "Momence API probe failed";
         }
       }
-    } else if (id.includes("mail") || id.includes("email") || id.includes("smtp")) {
+    } else if (id === "mailtrap" || id === "email") {
       const mode = mailTransportMode();
       const configured = mailConfigured();
       const from = fromAddress();
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
         status = "disconnected";
         detail = "MAILTRAP_FROM_EMAIL + MAILTRAP_API_KEY (or SMTP credentials) not set.";
       }
-    } else if (id.includes("anthropic") || id.includes("claude") || id.includes("openai") || id === "ai") {
+    } else if (id === "anthropic" || id === "claude" || id === "ai") {
       const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
       const cfg = await loadEffectiveAiConfig();
       if (hasKey && cfg.enabled) {
@@ -69,24 +71,16 @@ export async function POST(req: NextRequest) {
         detail = cfg.disabledReason || "AI disabled in workspace settings.";
       }
     } else {
-      // Generic integration (Slack, WhatsApp, Webhook, etc.) — inspect saved config/credentials
-      const row = await withUser(auth.session.user_id, async (c) => {
-        const res = await c.query(
-          "select id, config, is_enabled, (credentials_enc is not null) as has_credentials from integrations where id = $1",
-          [body.id],
-        );
-        return res.rows[0];
-      });
-      if (!row) return NextResponse.json({ error: "Integration not found" }, { status: 404 });
-      const cfg = (row.config ?? {}) as Record<string, unknown>;
-      const hasEndpoint = Boolean(cfg.webhook_url || cfg.endpoint || cfg.channel || row.has_credentials);
-      ok = Boolean(row.is_enabled && hasEndpoint);
-      status = ok ? "connected" : hasEndpoint ? "paused" : "disconnected";
-      detail = ok
-        ? "Configuration & credentials verified in encrypted store."
-        : hasEndpoint
-          ? "Integration is currently toggled off."
-          : "Add webhook URL or credentials via Configure to activate.";
+      // Every other service: a real read-only call with the resolved credentials.
+      const exists = await withUser(auth.session.user_id, async (c) =>
+        (await c.query("select 1 from integrations where id = $1", [id])).rowCount,
+      );
+      if (!exists) return NextResponse.json({ error: "Integration not found" }, { status: 404 });
+      const { values, decryptError } = await withUser(auth.session.user_id, (c) => loadCredentials(c, id));
+      const r = await probe(catalogueIdFor(id), values);
+      ok = r.ok;
+      status = r.status;
+      detail = decryptError && !r.ok ? `${decryptError} ${r.detail}` : r.detail;
     }
 
     const latencyMs = Date.now() - started;
@@ -100,7 +94,7 @@ export async function POST(req: NextRequest) {
                 updated_at = now()
           where id = $1
           returning id, name, category, description, type, config, is_enabled, status, last_synced_at, last_sync_status, sync_interval_mins, (credentials_enc is not null) as has_credentials`,
-        [body.id, status, detail.slice(0, 240)],
+        [id, status, detail.slice(0, 240)],
       );
       return res.rows[0] ?? null;
     });

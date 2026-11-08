@@ -46,6 +46,7 @@ import { MultiSelect } from "@/components/iris/multi-select";
 import { useAppStore, type ViewName } from "@/lib/iris/store";
 import { ACCENT_PALETTE, useSettingsStore, type AccentPreference } from "@/lib/iris/settings-store";
 import { HealthSettings, UsersAccessSettings } from "./settings-access";
+import { IntegrationCredentials } from "./integration-credentials";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data + saving
@@ -2544,6 +2545,14 @@ function IntegrationsSettings() {
   const { data, setData, isAdmin, patch } = useS();
   const [testingId, setTestingId] = React.useState<string | null>(null);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [query, setQuery] = React.useState("");
+  const [category, setCategory] = React.useState("all");
+  const categories = [...new Set(data.integrations.map((x) => x.category).filter(Boolean))].sort() as string[];
+  const shown = data.integrations
+    .filter((x) => category === "all" || x.category === category)
+    .filter((x) => !query.trim() || `${x.name} ${x.description ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()))
+    // Connected and enabled first, then alphabetical.
+    .sort((a, b) => Number(b.is_enabled) - Number(a.is_enabled) || String(a.name).localeCompare(String(b.name)));
 
   const testConnection = async (id: string, name: string) => {
     setTestingId(id);
@@ -2574,12 +2583,26 @@ function IntegrationsSettings() {
   return (
     <SettingsCard
       title="Integrations"
-      description="Enable/disable integrations, configure endpoints, and run live connectivity checks. Disabling Momence, Email, or AI here immediately pauses calls to that provider."
+      description="Enable services, store their credentials encrypted, and test them with a real read-only call. Server environment variables always win over values saved here. Disabling Momence, Email, or AI pauses calls to that provider immediately."
     >
       <ReadOnlyNote show={!isAdmin} />
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search integrations" aria-label="Search integrations" className="h-8 pl-9 text-[12px]" />
+        </div>
+        <NativeSelect
+          className="h-8"
+          value={category}
+          onChange={setCategory}
+          options={[{ value: "all", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}
+        />
+        <span className="text-[11px] text-muted-foreground ml-auto">
+          {data.integrations.filter((x) => x.status === "connected").length} verified · {data.integrations.filter((x) => x.is_enabled).length} enabled · {data.integrations.length} available
+        </span>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {data.integrations.map((i) => {
-          const cfg = (i.config ?? {}) as Record<string, string>;
+        {shown.map((i) => {
           const isExpanded = expandedId === i.id;
           return (
             <div key={i.id} className="p-3.5 rounded-xl border border-border space-y-2.5">
@@ -2599,6 +2622,8 @@ function IntegrationsSettings() {
                         "text-[9px] h-4 px-1.5",
                         i.status === "connected" || i.status === "enabled"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                          : i.status === "configured"
+                            ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
                           : i.status === "error"
                             ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
                             : "text-muted-foreground",
@@ -2657,7 +2682,7 @@ function IntegrationsSettings() {
                       className="h-6 px-2 text-[10px]"
                       onClick={() => setExpandedId(isExpanded ? null : i.id)}
                     >
-                      {isExpanded ? "Hide Config" : "Configure"}
+                      {isExpanded ? "Hide credentials" : i.has_credentials ? "Credentials ✓" : "Credentials"}
                     </Button>
                   </>
                 )}
@@ -2667,22 +2692,14 @@ function IntegrationsSettings() {
               </div>
 
               {isExpanded && isAdmin && (
-                <div className="pt-2 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Field label="Webhook / Endpoint URL (optional)">
-                    <AutoInput
-                      placeholder="https://..."
-                      value={cfg.webhook_url ?? ""}
-                      onSave={(v) => patch("integrations", i.id, { config: { ...cfg, webhook_url: v } })}
-                    />
-                  </Field>
-                  <Field label="Channel / Identifier">
-                    <AutoInput
-                      placeholder="#ops-alerts or host id"
-                      value={cfg.channel ?? ""}
-                      onSave={(v) => patch("integrations", i.id, { config: { ...cfg, channel: v } })}
-                    />
-                  </Field>
-                </div>
+                <IntegrationCredentials
+                  id={i.id}
+                  onSaved={() =>
+                    setData((prev) =>
+                      prev ? { ...prev, integrations: prev.integrations.map((x) => (x.id === i.id ? { ...x, has_credentials: true } : x)) } : prev,
+                    )
+                  }
+                />
               )}
             </div>
           );
