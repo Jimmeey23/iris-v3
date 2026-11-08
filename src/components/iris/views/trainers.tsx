@@ -6,19 +6,21 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
-import { loadAll } from "@/lib/iris/live-data";
+import { api, loadAll } from "@/lib/iris/live-data";
 import { useAppStore } from "@/lib/iris/store";
 import { TRAINER_IMAGES } from "@/lib/iris/constants";
 import {
   applyCorrection, buildTrainerProfiles, loadOverrides, orgAverage, saveOverrides,
   CITY_ORDER,
-  type Trainer, type TrainerCorrection, type TrainerOverrides,
+  type Assessment, type Trainer, type TrainerCorrection, type TrainerOverrides,
 } from "@/lib/iris/trainer-directory";
 import { TrainerReport } from "../trainer-report";
 import { TrainerPhoto } from "../trainer-photo";
 import { ImageStreamHero } from "../image-stream-hero";
 import { RelativeTime } from "../relative-time";
 import "./trainers.css";
+
+type AssessmentWithTrainer = Assessment & { trainerName: string };
 
 /**
  * Trainers tab, structured like the reference iris-ai-v2 `app/trainers/page.tsx`:
@@ -54,17 +56,28 @@ export function TrainersView() {
   const [error, setError] = React.useState("");
   const seen = React.useRef<Set<string> | null>(null);
 
+  // Scored assessments (Fillout + imported). Managers/admins only — the API returns [] otherwise.
+  const [assessments, setAssessments] = React.useState<AssessmentWithTrainer[]>([]);
+  const loadAssessments = React.useCallback(async () => {
+    try {
+      setAssessments((await api<{ assessments: AssessmentWithTrainer[] }>("/api/trainers/assessments")).assessments);
+    } catch {
+      // Not fatal: profiles still build from tickets.
+    }
+  }, []);
+  React.useEffect(() => { void Promise.resolve().then(loadAssessments); }, [loadAssessments]);
+
   const build = React.useMemo(
     // dataVersion is bumped whenever ALL_TICKETS changes in place.
-    () => buildTrainerProfiles(ALL_TICKETS, overrides),
-    [overrides, dataVersion],
+    () => buildTrainerProfiles(ALL_TICKETS, overrides, assessments),
+    [overrides, dataVersion, assessments],
   );
   const { trainers, hidden, roster, sources } = build;
 
   const refresh = React.useCallback(async (quiet: boolean) => {
     if (!quiet) setRefreshing(true);
     try {
-      await loadAll();
+      await Promise.all([loadAll(), loadAssessments()]);
       bumpData();
       setLastSync(new Date().toISOString());
       setError("");

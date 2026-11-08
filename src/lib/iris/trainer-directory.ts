@@ -11,8 +11,9 @@
  *    title or description names someone on the roster;
  *  - Trainer Feedback and Class Experience tickets are the member feedback; those whose
  *    subcategory, title or tags read as praise are compliments, the rest are flagged concerns;
- *  - assessments (weighted evaluation scores) are not recorded anywhere in IRIS, so they are
- *    empty and scores stay null. Nothing is invented to fill the gap.
+ *  - assessments (weighted evaluation scores) come from iris.trainer_assessments — imported
+ *    from v2 and fed live by the Fillout webhook — via /api/trainers/assessments. Only
+ *    managers and admins can read them (RLS); for everyone else scores stay null.
  *
  * Grouping is by city, not studio. Bengaluru is a named list; everybody else is Mumbai.
  */
@@ -291,8 +292,18 @@ export type TrainerBuild = {
 export function buildTrainerProfiles(
   tickets: readonly Ticket[],
   overrides: TrainerOverrides = EMPTY_OVERRIDES,
+  assessments: readonly (Assessment & { trainerName: string })[] = [],
 ): TrainerBuild {
   const byTrainer = new Map<string, Ticket[]>(knownTrainerNames().map((n) => [n, []]));
+  // Assessments by resolved trainer, newest first. A trainer with assessments but no
+  // tickets still gets a profile.
+  const assessedBy = new Map<string, Assessment[]>();
+  for (const a of [...assessments].sort((x, y) => y.submittedAt.localeCompare(x.submittedAt))) {
+    const name = resolveTrainer(a.trainerName, overrides).name ?? a.trainerName;
+    if (!assessedBy.has(name)) assessedBy.set(name, []);
+    assessedBy.get(name)!.push(a);
+    if (!byTrainer.has(name)) byTrainer.set(name, []);
+  }
   const spellings = new Map<string, Set<string>>();
   const ambiguous = new Map<string, string[]>();
   const newestFirst = [...tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -324,6 +335,9 @@ export function buildTrainerProfiles(
     const studioSummary = [...studioCounts.entries()]
       .map(([studio, count]) => ({ studio, count }))
       .sort((a, b) => b.count - a.count || a.studio.localeCompare(b.studio));
+    const scored = assessedBy.get(name) ?? [];
+    const avgScore = scored.length ? Math.round(scored.reduce((n, a) => n + a.score, 0) / scored.length) : null;
+    const trainerBand = avgScore === null ? null : performanceBand(avgScore);
     return {
       name,
       displayName: displayNameFor(name, overrides),
@@ -331,18 +345,18 @@ export function buildTrainerProfiles(
       mergedFrom: [...(spellings.get(name) ?? [])].sort(),
       ambiguousWith: ambiguous.get(name) ?? null,
       totalTickets: related.length,
-      assessmentCount: 0,
+      assessmentCount: scored.length,
       feedbackCount: feedbackTickets.length,
       complimentCount: compliments.length,
       issueCount: feedbackTickets.length - compliments.length,
-      avgScore: null,
-      band: null,
-      bandTone: "",
+      avgScore,
+      band: trainerBand,
+      bandTone: trainerBand ? bandTone(trainerBand) : "",
       primaryStudio: studioSummary[0]?.studio ?? "Studio not assigned",
       city: cityFor(name, overrides),
       studioSummary,
-      latestAssessment: null,
-      assessments: [],
+      latestAssessment: scored[0] ?? null,
+      assessments: scored,
       recentFeedback: feedbackTickets.slice(0, 8).map((t) => ({
         id: t.id,
         ticketNumber: t.ticketId,
