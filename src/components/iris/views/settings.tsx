@@ -1285,6 +1285,39 @@ function OrganizationSettings() {
           </label>
         </div>
       </SettingsCard>
+
+      <SettingsCard
+        title="Repair Recurrence Checks"
+        description="When a PowerCycle bike or microphone ticket is marked resolved, IRIS raises a check on each of these days after the resolution. A check appears in the queue only on its day; “Fault returned” reopens the original ticket."
+      >
+        <ReadOnlyNote show={!isAdmin} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+          <label className="flex items-center justify-between p-3 rounded-xl border border-border/70">
+            <div>
+              <div className="text-[12px] font-semibold">Raise recurrence checks</div>
+              <div className="text-[11px] text-muted-foreground">Bikes and microphones only. AC and other repairs never trigger checks.</div>
+            </div>
+            <Switch
+              checked={setting("recurrence.enabled") !== false}
+              disabled={!isAdmin}
+              onCheckedChange={(v) => saveSetting("recurrence.enabled", v)}
+            />
+          </label>
+          <Field label="Check on these days after resolution">
+            <AutoInput
+              value={(Array.isArray(setting("recurrence.days")) ? setting("recurrence.days") : [5, 10]).join(", ")}
+              disabled={!isAdmin}
+              onSave={(v) => {
+                const days = String(v).split(/[\s,]+/).filter(Boolean).map(Number);
+                const ok = days.length >= 1 && days.length <= 4 && days.every((d, i) => Number.isInteger(d) && d >= 1 && d <= 60 && (i === 0 || d > days[i - 1]));
+                if (ok) void saveSetting("recurrence.days", days);
+                else toast.error("Enter 1–4 increasing whole days between 1 and 60, e.g. 5, 10");
+              }}
+              className="h-8 max-w-[180px]"
+            />
+          </Field>
+        </div>
+      </SettingsCard>
     </>
   );
 }

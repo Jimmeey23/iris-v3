@@ -47,6 +47,8 @@ export const SWEEP_WINDOWS = {
   outbox: 120,
   /** SLA transitions and escalation: a 5-minute resolution is finer than the targets are. */
   sla: 300,
+  /** Bike/mic recurrence checks fall due by the day; every 15 minutes is plenty. */
+  recurrence: 900,
 } as const;
 
 export type SweepJob = keyof typeof SWEEP_WINDOWS;

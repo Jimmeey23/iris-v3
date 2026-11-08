@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authorisedCron } from "@/lib/server/cron-auth";
+import { pool } from "@/lib/server/db";
 import { runSlaSweep } from "@/lib/server/sweeps";
 
 /**
@@ -25,7 +26,11 @@ async function sweep(req: NextRequest) {
   const dry = req.nextUrl.searchParams.get("dry") === "1";
   try {
     const result = await runSlaSweep({ dry });
-    return NextResponse.json({ dry, breached: result.breached.length, atRisk: result.atRisk.length });
+    // Backstop for bike/mic recurrence checks on days nobody signs in to drive the sweep.
+    const raised = dry
+      ? 0
+      : Number((await pool.query("select iris.materialize_recurrence_checks() as n")).rows[0]?.n ?? 0);
+    return NextResponse.json({ dry, breached: result.breached.length, atRisk: result.atRisk.length, recurrenceChecksRaised: raised });
   } catch (err) {
     console.error("[cron/sla]", err);
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });

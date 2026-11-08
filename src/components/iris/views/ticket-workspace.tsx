@@ -12,6 +12,7 @@ import { SmartBadges } from "../smart-badges";
 import { MomenceContextPanel } from "../momence-member-panel";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { AdminTicketControls } from "../admin-ticket-controls";
+import { RecurrencePanel } from "../recurrence-panel";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -288,6 +289,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                 {/* Resolution Center Tab */}
                 <TabsContent value="resolution" className="mt-3 space-y-3">
+                  {/* Bike / microphone recurrence check: outcome buttons, or the schedule on the original */}
+                  <RecurrencePanel key={`${ticket.id}:${ticket.status}`} ticketId={ticket.id} readOnly={readOnly} />
+
                   {/* AI Resolution Suggestions — auto-matched KB articles, similar tickets, template */}
                   <AIResolutionSuggestions ticket={ticket} />
 

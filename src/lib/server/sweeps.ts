@@ -113,6 +113,13 @@ export async function runDueWork(): Promise<{ ran: SweepJob[] }> {
   )
     ran.push("sla");
   if (
+    await run("recurrence", async () => {
+      // Raises the bike/mic re-check tickets whose day has come (iris.recurrence_checks).
+      await pool.query("select iris.materialize_recurrence_checks()");
+    })
+  )
+    ran.push("recurrence");
+  if (
     await run("outbox", async () => {
       // A small batch: this is riding on a user's request. The cron route clears a
       // genuine backlog with a larger limit.
