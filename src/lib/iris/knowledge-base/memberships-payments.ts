@@ -6,6 +6,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-007",
     title: "Membership Freeze Request - Injury or Medical",
     category: "Pricing and Memberships",
+    subcategory: "Freezes, Upgrades & Transfers",
     summary:
       "Processing a freeze for injury, illness, pregnancy or another medical reason: check eligibility, collect the right documentation, set an automatic unfreeze, and extend validity correctly.",
     glance: {
@@ -68,6 +69,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-017",
     title: "Payment Dispute - Member Claims Double Charge",
     category: "Pricing and Memberships",
+    subcategory: "Payments & Billing",
     summary:
       "Working out whether a 'double charge' is a real duplicate, an authorisation hold, or two different purchases - and refunding genuine duplicates quickly with a reference the member can track.",
     glance: {
@@ -127,6 +129,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-018",
     title: "Membership Refund Processing - Full Workflow",
     category: "Pricing and Memberships",
+    subcategory: "Refunds",
     summary:
       "The end-to-end refund workflow: eligibility, refund type, the approval matrix by amount, processing through the original gateway, GST credit notes, and confirming the member actually received the money.",
     glance: {
@@ -187,6 +190,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-029",
     title: "Payment Deducted but Not Reflecting - UPI Pending or Failed",
     category: "Pricing and Memberships",
+    subcategory: "Payments & Billing",
     summary:
       "A member says money left their account but the membership or class pack isn't active. Match the payment in the gateway, activate if it was captured, and explain auto-reversal if it wasn't.",
     glance: {
@@ -246,6 +250,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-031",
     title: "Chargeback or Bank Dispute Received",
     category: "Pricing and Memberships",
+    subcategory: "Payments & Billing",
     summary:
       "When a member disputes a charge with their bank: respond with evidence before the gateway deadline, talk to the member directly, and decide whether to refund, defend or settle.",
     glance: {
@@ -304,6 +309,7 @@ export const MEMBERSHIPS_PAYMENTS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-048",
     title: "Promo Code Misuse or Unauthorised Discount",
     category: "Pricing and Memberships",
+    subcategory: "Offers, Invoices & Corporate",
     summary:
       "When a promo code is being used outside its terms, leaked publicly, or discounts were given without approval: stop the leak, decide fairly on existing purchases, and tighten controls.",
     glance: {

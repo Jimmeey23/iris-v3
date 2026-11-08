@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
-import { docColumns, docFromRow, insertSql, nextId, validId } from "@/lib/server/library";
+import { docColumns, docFromRow, insertSql, nextId, storableDocColumns, validId } from "@/lib/server/library";
 import { ensureLibrarySynced } from "@/lib/server/library-sync";
 
 /** All knowledge documents (any signed-in user). */
@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
     const row = await withUser(auth.session.user_id, async (c) => {
       const id = b.id ? String(b.id).toUpperCase() : await nextId(c, "knowledge_docs");
       const top = (await c.query("select coalesce(min(sort_order), 0) - 1 as s from knowledge_docs")).rows[0].s;
-      const q = insertSql("knowledge_docs", { ...cols, id, sort_order: top, author_user_id: auth.session.user_id });
+      const storable = await storableDocColumns(c, cols);
+      const q = insertSql("knowledge_docs", { ...storable, id, sort_order: top, author_user_id: auth.session.user_id });
       return (await c.query(q.text, q.values)).rows[0];
     });
     return NextResponse.json({ doc: docFromRow(row) }, { status: 201 });

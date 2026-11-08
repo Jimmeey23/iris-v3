@@ -76,11 +76,19 @@ interface AppState {
   /** Jump straight to a template's ticket builder (e.g. from search or a KB article). */
   openTemplate: (code: string) => void;
 
+  // Knowledge Base drill-down: Category → Sub-category → Guide (an open guide implies its own place)
+  kbNav: KnowledgeNav;
+  setKbNav: (nav: KnowledgeNav) => void;
   // Knowledge base article to show when the Knowledge Base view is open
   kbArticleId: string | null;
   setKbArticleId: (id: string | null) => void;
   /** Navigate to the Knowledge Base with an article open. */
   openKnowledgeArticle: (id: string) => void;
+}
+
+export interface KnowledgeNav {
+  category: string | null;
+  subcategory: string | null;
 }
 
 export interface TemplateNav {
@@ -227,6 +235,7 @@ export const useAppStore = create<AppState>()(
           currentView: view,
           selectedTicketId: null,
           kbArticleId: null,
+          kbNav: { category: null, subcategory: null },
           templateNav: { category: null, subcategory: null, templateCode: null },
         }),
       selectTicket: (ticketId) => set({ selectedTicketId: ticketId }),
@@ -297,9 +306,12 @@ export const useAppStore = create<AppState>()(
       openTemplate: (code) =>
         set({ currentView: "templates", selectedTicketId: null, templateNav: { category: null, subcategory: null, templateCode: code } }),
 
+      kbNav: { category: null, subcategory: null },
+      setKbNav: (nav) => set({ kbNav: nav }),
       kbArticleId: null,
       setKbArticleId: (id) => set({ kbArticleId: id }),
-      openKnowledgeArticle: (id) => set({ currentView: "knowledge_base", selectedTicketId: null, kbArticleId: id }),
+      openKnowledgeArticle: (id) =>
+        set({ currentView: "knowledge_base", selectedTicketId: null, kbArticleId: id, kbNav: { category: null, subcategory: null } }),
     }),
     {
       name: "iris-app-state-v2",

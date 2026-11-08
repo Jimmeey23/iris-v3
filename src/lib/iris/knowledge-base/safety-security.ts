@@ -6,6 +6,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-009",
     title: "Studio Emergency Protocol",
     category: "Safety and Security",
+    subcategory: "Fire & Emergency Preparedness",
     summary:
       "The first-response protocol for any studio emergency - medical, fire, security threat or electrical - with the numbers to call, who does what, and the reporting that must follow.",
     glance: {
@@ -71,6 +72,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-012",
     title: "Valet Car Damage Incident",
     category: "Theft and Lost Items",
+    subcategory: "Valet & Parking",
     summary:
       "When a member reports damage to (or items missing from) their car after valet parking: document properly, involve the valet company and their insurance, and look after the member throughout.",
     glance: {
@@ -131,6 +133,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-015",
     title: "Lost Item - Member's Personal Belonging",
     category: "Theft and Lost Items",
+    subcategory: "Lost & Found",
     summary:
       "Finding and returning lost items: a quick search of likely spots, a proper lost-and-found log, CCTV checks for valuables, and clear updates to the member.",
     glance: {
@@ -189,6 +192,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-020",
     title: "First Aid Incident - Member Injury During Class",
     category: "Safety and Security",
+    subcategory: "Medical & First Aid",
     summary:
       "Responding when a member is hurt in class: stop, assess, give the right first aid or call an ambulance, document properly, and follow up with care.",
     glance: {
@@ -252,6 +256,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-024",
     title: "Studio Closing - Emergency or Maintenance",
     category: "Safety and Security",
+    subcategory: "Fire & Emergency Preparedness",
     summary:
       "Closing a studio safely for an emergency, maintenance or an external event: who decides, how to cancel classes so credits return, how to tell members, and the checks before reopening.",
     glance: {
@@ -314,6 +319,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-036",
     title: "Locker Jammed, Lost Key or Locker Theft",
     category: "Theft and Lost Items",
+    subcategory: "Theft & Lockers",
     summary:
       "Opening a jammed or locked locker safely, handling lost keys and forgotten codes with ownership checks, and responding properly when a member reports theft from a locker.",
     glance: {
@@ -373,6 +379,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-037",
     title: "Harassment or Inappropriate Behaviour Report",
     category: "Safety and Security",
+    subcategory: "Personal Safety & Conduct",
     summary:
       "What to do when a member or staff member reports harassment, unwanted contact or inappropriate behaviour: make them safe, listen and record their words, escalate immediately, and protect confidentiality.",
     glance: {
@@ -435,6 +442,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-038",
     title: "Medical Emergency - Fainting, Dizziness or Chest Pain",
     category: "Safety and Security",
+    subcategory: "Medical & First Aid",
     summary:
       "Recognising and responding to fainting, dizziness, breathlessness or chest pain in class: stop, position, call 108 / 112 early, use the AED if needed, and hand over clearly to paramedics.",
     glance: {
@@ -498,6 +506,7 @@ export const SAFETY_SECURITY_ARTICLES: KnowledgeArticle[] = [
     id: "KB-039",
     title: "Suspected Phishing, Account Compromise or Data Breach",
     category: "Safety and Security",
+    subcategory: "CCTV, Access & Data Security",
     summary:
       "If someone clicked a suspicious link, shared a password or OTP, or member data may have leaked: contain it in the first hour (passwords, sessions, access), preserve evidence, and escalate for the breach decision.",
     glance: {

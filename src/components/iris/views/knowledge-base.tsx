@@ -18,12 +18,28 @@ import {
   searchArticles,
   splitCodes,
   stepsAsText,
+  type ScoredArticle,
 } from "@/lib/iris/knowledge-base/reader";
+import {
+  KB_GENERAL_SUBCATEGORY,
+  groupKnowledgeArticles,
+  withResolvedTaxonomy,
+  type KnowledgeCategoryGroup,
+  type KnowledgeSubcategoryGroup,
+} from "@/lib/iris/knowledge-base/groups";
+import {
+  KB_CATEGORY_ORDER,
+  KB_TAXONOMY,
+  kbCategoryLabel,
+  kbCategoryMeta,
+  kbSubcategoryDescription,
+  kbSubcategoryNames,
+} from "@/lib/iris/knowledge-base/taxonomy";
 import { TEMPLATE_MAP } from "@/lib/iris/templates";
-import { GENERAL_SUBCATEGORY, normalizeTemplateSubcategory } from "@/lib/iris/template-groups";
 import { PRIORITY_CONFIG, type Priority } from "@/lib/iris/types";
 import { knowledgeApi } from "@/lib/iris/library-api";
 import { cn } from "@/lib/utils";
+import { ACCENT_STYLES, PriorityMix, StepHeading, Stepper, type AccentStyle } from "@/components/iris/drilldown";
 import {
   ArrowLeft,
   ArrowRight,
@@ -42,6 +58,7 @@ import {
   Edit2,
   Eye,
   FileText,
+  FolderTree,
   Gauge,
   Layers,
   ListChecks,
@@ -218,20 +235,78 @@ function Md({ text, inline = false }: { text: string; inline?: boolean }) {
 /* View                                                                */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Knowledge Base - a three-step drill-down: Category → Sub-category → Guide.
+ *
+ * Nothing is listed until a category and sub-category are chosen (search covers
+ * every guide at any step). Opening a guide shows the reader: a working
+ * checklist, what to say, when to escalate and the ticket forms to raise.
+ */
 export function KnowledgeBaseView() {
   const dataVersion = useAppStore((st) => st.dataVersion);
   const tier = useAppStore((st) => st.currentUser?.tier);
   const kbArticleId = useAppStore((st) => st.kbArticleId);
   const setKbArticleId = useAppStore((st) => st.setKbArticleId);
+  const nav = useAppStore((st) => st.kbNav);
+  const setKbNav = useAppStore((st) => st.setKbNav);
   const openTemplate = useAppStore((st) => st.openTemplate);
   const canEdit = tier === "admin" || tier === "manager";
 
   // KNOWLEDGE_ARTICLES / TEMPLATE_MAP are hydrated in place from Neon; dataVersion re-reads them.
   const articles = React.useMemo(() => {
     void dataVersion;
-    return [...KNOWLEDGE_ARTICLES];
+    return KNOWLEDGE_ARTICLES.map(withResolvedTaxonomy);
   }, [dataVersion]);
-  const categories = React.useMemo(() => Array.from(new Set(articles.map((a) => a.category))).sort(), [articles]);
+  const groups = React.useMemo(() => groupKnowledgeArticles(articles), [articles]);
+  const subcategoryTotal = groups.reduce((n, g) => n + g.subcategoryCount, 0);
+
+  const [search, setSearch] = React.useState("");
+  const [editing, setEditing] = React.useState<{ article: KnowledgeArticle; isNew: boolean } | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const topRef = React.useRef<HTMLDivElement>(null);
+
+  // Where we are in the drill-down. An open guide always sits in its own category / sub-category,
+  // however it was reached (drill-down, search, a link in another guide, or a deep link).
+  const activeArticle = kbArticleId ? (articles.find((a) => a.id === kbArticleId) ?? null) : null;
+  const category = activeArticle ? activeArticle.category : nav.category;
+  const subcategory = activeArticle ? (activeArticle.subcategory ?? null) : nav.subcategory;
+  const catGroup = category ? (groups.find((g) => g.category === category) ?? null) : null;
+  const subGroup = catGroup && subcategory ? (catGroup.subcategories.find((s) => s.subcategory === subcategory) ?? null) : null;
+  const step: 1 | 2 | 3 | 4 = activeArticle ? 4 : subGroup ? 3 : catGroup ? 2 : 1;
+
+  const q = search.trim();
+  const results = React.useMemo(() => (q ? searchArticles(articles, q) : []), [articles, q]);
+
+  // A newly opened guide starts at the top of the page.
+  React.useEffect(() => {
+    if (kbArticleId) topRef.current?.scrollIntoView({ block: "start" });
+  }, [kbArticleId]);
+  const scrollTop = () => requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+
+  const go = (next: { category?: string | null; subcategory?: string | null }) => {
+    setKbNav({ category: next.category ?? null, subcategory: next.subcategory ?? null });
+    setKbArticleId(null);
+    setSearch("");
+    scrollTop();
+  };
+  const goHome = () => go({});
+  const goCategory = (c: string) => go({ category: c });
+  const goSubcategory = (c: string, s: string) => go({ category: c, subcategory: s });
+
+  const openArticle = React.useCallback(
+    (id: string) => {
+      const a = articles.find((x) => x.id === id);
+      if (a) setKbNav({ category: a.category, subcategory: a.subcategory ?? null });
+      setKbArticleId(id);
+    },
+    [articles, setKbNav, setKbArticleId],
+  );
+  // Back goes to the search results when there is a query, otherwise to the guide's sub-category.
+  const closeArticle = () => {
+    if (activeArticle) setKbNav({ category: activeArticle.category, subcategory: activeArticle.subcategory ?? null });
+    setKbArticleId(null);
+    scrollTop();
+  };
 
   const codeLinks = React.useMemo<CodeLinks>(() => {
     void dataVersion;
@@ -239,18 +314,21 @@ export function KnowledgeBaseView() {
     return {
       isKnown: (code) => (code.startsWith("TPL-") ? Boolean(TEMPLATE_MAP[code]) : titles.has(code)),
       describe: (code) => (code.startsWith("TPL-") ? TEMPLATE_MAP[code]?.title : titles.get(code)),
-      open: (code) => (code.startsWith("TPL-") ? openTemplate(code) : setKbArticleId(code)),
+      open: (code) => (code.startsWith("TPL-") ? openTemplate(code) : openArticle(code)),
     };
-  }, [articles, dataVersion, openTemplate, setKbArticleId]);
+  }, [articles, dataVersion, openTemplate, openArticle]);
 
-  // List state lives here so it survives opening an article and coming back.
-  const [search, setSearch] = React.useState("");
-  const [category, setCategory] = React.useState("all");
-  const [subcategory, setSubcategory] = React.useState<string | null>(null);
-  const [editing, setEditing] = React.useState<{ article: KnowledgeArticle; isNew: boolean } | null>(null);
-  const [busy, setBusy] = React.useState(false);
-
-  const activeArticle = kbArticleId ? (articles.find((a) => a.id === kbArticleId) ?? null) : null;
+  const categoryOptions = React.useMemo(
+    () => [...KB_CATEGORY_ORDER, ...groups.map((g) => g.category).filter((c) => !KB_CATEGORY_ORDER.includes(c))],
+    [groups],
+  );
+  const subcategoriesFor = React.useCallback(
+    (c: string) => {
+      const inUse = groups.find((g) => g.category === c)?.subcategories.map((s) => s.subcategory) ?? [];
+      return Array.from(new Set([...kbSubcategoryNames(c), ...inUse]));
+    },
+    [groups],
+  );
 
   const run = async <T,>(fn: () => Promise<T>, okMsg: string): Promise<{ ok: true; value: T } | { ok: false }> => {
     setBusy(true);
@@ -274,16 +352,23 @@ export function KnowledgeBaseView() {
     );
     if (!res.ok) return;
     setEditing(null);
-    if (isNew) setKbArticleId(res.value.id);
+    if (isNew) openArticle(res.value.id);
   };
 
-  const handleNewArticle = () => {
+  const handleNewArticle = (cat?: string, sub?: string) => {
+    const categoryKey = cat ?? catGroup?.category ?? KB_TAXONOMY[0].key;
+    const subcategoryName =
+      sub ??
+      (categoryKey === catGroup?.category ? subGroup?.subcategory : undefined) ??
+      kbSubcategoryNames(categoryKey)[0] ??
+      KB_GENERAL_SUBCATEGORY;
     setEditing({
       isNew: true,
       article: {
         id: "",
         title: "",
-        category: categories[0] || "Repair and Maintenance",
+        category: categoryKey,
+        subcategory: subcategoryName,
         summary: "",
         steps: [""],
         prevention: "",
@@ -297,58 +382,130 @@ export function KnowledgeBaseView() {
 
   const handleDeleteArticle = async (id: string) => {
     if (!window.confirm(`Delete document ${id}? This cannot be undone.`)) return;
+    const doc = articles.find((a) => a.id === id);
     const res = await run(() => knowledgeApi.remove(id), "Document deleted");
     if (!res.ok) return;
     setEditing(null);
-    if (useAppStore.getState().kbArticleId === id) setKbArticleId(null);
+    if (useAppStore.getState().kbArticleId === id) {
+      // Land on the sub-category the deleted guide lived in.
+      if (doc) setKbNav({ category: doc.category, subcategory: doc.subcategory ?? null });
+      setKbArticleId(null);
+    }
   };
 
   const handleDuplicate = async (a: KnowledgeArticle) => {
     const res = await run(() => knowledgeApi.duplicate(a), "Document duplicated");
-    if (res.ok) setKbArticleId(res.value.id);
+    if (res.ok) openArticle(res.value.id);
   };
 
   const showTag = (tag: string) => {
     setSearch(tag);
-    setCategory("all");
     setKbArticleId(null);
+    scrollTop();
   };
 
   return (
     <CodeLinkContext.Provider value={codeLinks}>
-      {kbArticleId ? (
-        activeArticle ? (
+      <div ref={topRef} className="p-8 max-w-[1400px] mx-auto space-y-5">
+        <div className="flex items-end justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-1">
+              <BookOpen className="w-3 h-3" />
+              {articles.length} guides · {groups.length} categories · {subcategoryTotal} sub-categories
+            </div>
+            <h1 className="text-[22px] font-semibold tracking-tight">Knowledge Base</h1>
+            <p className="text-[13px] text-muted-foreground mt-1 max-w-3xl">
+              Pick a category, then a sub-category, then the guide that matches the situation. Every guide is a step-by-step checklist with
+              what to say, when to escalate and the ticket form to raise.{canEdit ? " Managers can create, edit, duplicate and delete guides." : ""}
+            </p>
+          </div>
+          {canEdit && (
+            <Button className="h-8 text-[12px]" onClick={() => handleNewArticle()}>
+              <Plus className="w-3 h-3 mr-1.5" />
+              New Article
+            </Button>
+          )}
+        </div>
+
+        <Stepper
+          ariaLabel="Knowledge base steps"
+          step={q && step < 4 ? 0 : step}
+          labels={[
+            catGroup ? kbCategoryLabel(catGroup.category) : "Category",
+            subGroup ? subGroup.subcategory : "Sub-category",
+            activeArticle ? activeArticle.id : "Guide",
+            "Work through it",
+          ]}
+          onStep={(n) => {
+            if (n === 1) goHome();
+            else if (n === 2 && catGroup) goCategory(catGroup.category);
+            else if (n === 3 && catGroup && subGroup) goSubcategory(catGroup.category, subGroup.subcategory);
+          }}
+        />
+
+        {step < 4 && (
+          <div className="relative max-w-xl">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search every guide - a symptom, situation or code, e.g. “AC red light”, “refund”, “TPL-034”"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 pl-8 pr-8 text-[12px]"
+              aria-label="Search the knowledge base"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {q && step < 4 ? (
+          <SearchResults results={results} query={q} onOpen={openArticle} onClear={() => setSearch("")} />
+        ) : kbArticleId && !activeArticle ? (
+          <MissingArticle id={kbArticleId} onBack={goHome} />
+        ) : step === 1 ? (
+          <CategoryStep groups={groups} articles={articles} onSelect={goCategory} />
+        ) : step === 2 && catGroup ? (
+          <SubcategoryStep
+            group={catGroup}
+            canEdit={canEdit}
+            onBack={goHome}
+            onSelect={(s) => goSubcategory(catGroup.category, s)}
+            onNew={(s) => handleNewArticle(catGroup.category, s ?? undefined)}
+          />
+        ) : step === 3 && catGroup && subGroup ? (
+          <GuideStep
+            category={catGroup}
+            group={subGroup}
+            canEdit={canEdit}
+            onBack={() => goCategory(catGroup.category)}
+            onOpen={openArticle}
+            onNew={() => handleNewArticle(catGroup.category, subGroup.subcategory)}
+          />
+        ) : activeArticle ? (
           <ArticleReader
             key={activeArticle.id}
             article={activeArticle}
             articles={articles}
             canEdit={canEdit}
             busy={busy}
-            onBack={() => setKbArticleId(null)}
-            onOpenArticle={setKbArticleId}
+            backLabel={q ? "Back to search results" : `Back to ${activeArticle.subcategory ?? kbCategoryLabel(activeArticle.category)}`}
+            onBack={closeArticle}
+            onOpenArticle={openArticle}
             onTag={showTag}
             onEdit={() => setEditing({ article: activeArticle, isNew: false })}
             onDuplicate={() => handleDuplicate(activeArticle)}
             onDelete={() => handleDeleteArticle(activeArticle.id)}
           />
-        ) : (
-          <MissingArticle id={kbArticleId} onBack={() => setKbArticleId(null)} />
-        )
-      ) : (
-        <ArticleList
-          articles={articles}
-          categories={categories}
-          search={search}
-          onSearch={setSearch}
-          category={category}
-          onCategory={(c) => { setCategory(c); setSubcategory(null); }}
-          subcategory={subcategory}
-          onSubcategory={setSubcategory}
-          canEdit={canEdit}
-          onNew={handleNewArticle}
-          onOpen={setKbArticleId}
-        />
-      )}
+        ) : null}
+      </div>
 
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
         {editing && (
@@ -356,7 +513,8 @@ export function KnowledgeBaseView() {
             key={editing.article.id || "new"}
             article={editing.article}
             isNew={editing.isNew}
-            categories={categories}
+            categories={categoryOptions}
+            subcategoriesFor={subcategoriesFor}
             busy={busy}
             onSave={(d) => handleSaveArticle(d, editing.isNew)}
             onCancel={() => setEditing(null)}
@@ -369,308 +527,297 @@ export function KnowledgeBaseView() {
 }
 
 /* ------------------------------------------------------------------ */
-/* List                                                                */
+/* Drill-down steps                                                    */
 /* ------------------------------------------------------------------ */
 
-function ArticleList({
+const categoryAccent = (category: string): AccentStyle => ACCENT_STYLES[kbCategoryMeta(category)?.accent ?? "slate"];
+
+function CategoryStep({
+  groups,
   articles,
-  categories,
-  search,
-  onSearch,
-  category,
-  onCategory,
-  subcategory,
-  onSubcategory,
-  canEdit,
-  onNew,
-  onOpen,
+  onSelect,
 }: {
+  groups: KnowledgeCategoryGroup[];
   articles: KnowledgeArticle[];
-  categories: string[];
-  search: string;
-  onSearch: (q: string) => void;
-  category: string;
-  onCategory: (c: string) => void;
-  subcategory: string | null;
-  onSubcategory: (s: string | null) => void;
-  canEdit: boolean;
-  onNew: () => void;
-  onOpen: (id: string) => void;
+  onSelect: (category: string) => void;
 }) {
-  const query = search.trim();
-  const results = React.useMemo(() => searchArticles(articles, query), [articles, query]);
-  const counts = React.useMemo(() => {
-    const m = new Map<string, number>();
-    for (const r of results) m.set(r.article.category, (m.get(r.article.category) ?? 0) + 1);
-    return m;
-  }, [results]);
-  const visible = category === "all" ? results : results.filter((r) => r.article.category === category);
-
-  const stats = React.useMemo(() => {
-    const linked = new Set(articles.flatMap((a) => a.relatedTemplates ?? []));
-    return {
-      steps: articles.reduce((n, a) => n + a.steps.length, 0),
-      linked: linked.size,
-      urgent: articles.filter((a) => {
-        const p = articlePriority(a);
-        return p === "P0" || p === "P1";
-      }).length,
-    };
-  }, [articles]);
-
+  const stats = React.useMemo(
+    () => ({
+      subcategories: groups.reduce((n, g) => n + g.subcategoryCount, 0),
+      urgent: groups.reduce((n, g) => n + g.priorityCounts.P0 + g.priorityCounts.P1, 0),
+      linked: new Set(articles.flatMap((a) => a.relatedTemplates ?? [])).size,
+    }),
+    [groups, articles],
+  );
   return (
-    <div className="p-8 max-w-[1400px] mx-auto space-y-6">
-      <div className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-1">
-            <BookOpen className="w-3 h-3" />
-            {articles.length} guides · {categories.length} categories
-          </div>
-          <h1 className="text-[22px] font-semibold tracking-tight">Knowledge Base</h1>
-          <p className="text-[13px] text-muted-foreground mt-1 max-w-3xl">
-            Step-by-step troubleshooting, what to say, and when to escalate for every studio situation. Open a guide to work through it as
-            a checklist, then raise the ticket straight from it.{canEdit ? " Managers can create, edit, duplicate and delete guides." : ""}
-          </p>
-        </div>
-        {canEdit && (
-          <Button className="h-8 text-[12px]" onClick={onNew}>
-            <Plus className="w-3 h-3 mr-1.5" />
-            New Article
-          </Button>
-        )}
-      </div>
-
+    <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <StatCard label="Guides" value={articles.length} icon={BookOpen} />
-        <StatCard label="Action steps" value={stats.steps} icon={ListChecks} />
+        <StatCard label="Sub-categories" value={stats.subcategories} icon={FolderTree} />
         <StatCard label="Urgent (P0/P1) guides" value={stats.urgent} icon={ShieldAlert} />
         <StatCard label="Linked ticket forms" value={stats.linked} icon={Ticket} />
       </div>
-
-      <div className="space-y-3">
-        <div className="relative max-w-xl">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search a symptom, situation or code - e.g. “AC red light”, “refund”, “TPL-034”"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            className="h-9 pl-8 pr-8 text-[12px]"
-            aria-label="Search the knowledge base"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => onSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Clear search"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-        <div className={cn("flex items-center gap-1 flex-wrap", !query && "hidden")} role="group" aria-label="Filter by category">
-          <CategoryChip active={category === "all"} onClick={() => onCategory("all")} label="All" count={results.length} />
-          {categories.map((c) => (
-            <CategoryChip
-              key={c}
-              active={category === c}
-              onClick={() => onCategory(c)}
-              label={c}
-              count={counts.get(c) ?? 0}
-              icon={categoryIcon(c)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="text-[11px] text-muted-foreground">
-        {query ? (
-          <>
-            <span className="font-semibold text-foreground">{visible.length}</span> guide{visible.length === 1 ? "" : "s"} match “{query}”
-            {category !== "all" ? ` in ${category}` : ""}, best match first
-          </>
-        ) : (
-          <>
-            Showing <span className="font-semibold text-foreground">{visible.length}</span> of {articles.length} guides
-          </>
-        )}
-      </div>
-
-      {!query ? (
-        <KbDrilldown
-          articles={articles}
-          categories={categories}
-          category={category}
-          subcategory={subcategory}
-          onCategory={onCategory}
-          onSubcategory={onSubcategory}
-          onOpen={onOpen}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {visible.map((r) => (
-            <ArticleCard key={r.article.id} article={r.article} onOpen={onOpen} showCategory />
-          ))}
-        </div>
-      )}
-
-      {query && visible.length === 0 && (
-        <div className="text-center py-20">
+      <StepHeading n={1} title="Choose a category" subtitle="What is the situation about?" />
+      {groups.length === 0 ? (
+        <div className="text-center py-20 iris-card">
           <BookOpen className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-          <div className="text-[13px] text-muted-foreground">No guides match your search</div>
-          {(query || category !== "all") && (
-            <Button
-              variant="outline"
-              className="h-8 text-[12px] mt-3"
-              onClick={() => {
-                onSearch("");
-                onCategory("all");
-              }}
-            >
-              Clear filters
-            </Button>
-          )}
+          <div className="text-[13px] font-medium">No guides yet</div>
         </div>
-      )}
-    </div>
-  );
-}
-
-/** Sub-category of a guide: from the ticket form it links to, else "General". */
-export function articleSubcategory(a: KnowledgeArticle): string {
-  for (const code of a.relatedTemplates ?? []) {
-    const t = TEMPLATE_MAP[code];
-    if (t?.subcategory) return normalizeTemplateSubcategory(t.subcategory);
-  }
-  return GENERAL_SUBCATEGORY;
-}
-
-function KbDrilldown({
-  articles, categories, category, subcategory, onCategory, onSubcategory, onOpen,
-}: {
-  articles: KnowledgeArticle[];
-  categories: string[];
-  category: string;
-  subcategory: string | null;
-  onCategory: (c: string) => void;
-  onSubcategory: (s: string | null) => void;
-  onOpen: (id: string) => void;
-}) {
-  const inCat = category === "all" ? [] : articles.filter((a) => a.category === category);
-  const subs = React.useMemo(() => {
-    const m = new Map<string, KnowledgeArticle[]>();
-    for (const a of inCat) {
-      const k = articleSubcategory(a);
-      m.set(k, [...(m.get(k) ?? []), a]);
-    }
-    return [...m.entries()].sort(([a], [b]) => (a === GENERAL_SUBCATEGORY ? 1 : b === GENERAL_SUBCATEGORY ? -1 : a.localeCompare(b)));
-  }, [inCat]);
-  // A category with a single sub-category goes straight to its guides.
-  const effectiveSub = subcategory ?? (subs.length === 1 ? subs[0][0] : null);
-  const step = category === "all" ? 1 : effectiveSub ? 3 : 2;
-  const urgent = (list: KnowledgeArticle[]) => list.filter((a) => { const p = articlePriority(a); return p === "P0" || p === "P1"; }).length;
-
-  return (
-    <div className="space-y-4">
-      <nav aria-label="Knowledge base path" className="flex items-center gap-1.5 text-[12px] flex-wrap">
-        <button onClick={() => onCategory("all")} className={cn("px-2 py-1 rounded-md", step === 1 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
-          1 · Category
-        </button>
-        <ChevronRight className="w-3 h-3 text-muted-foreground" />
-        <button disabled={step === 1} onClick={() => onSubcategory(null)} className={cn("px-2 py-1 rounded-md disabled:opacity-40", step === 2 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
-          2 · {category !== "all" ? category : "Sub-category"}
-        </button>
-        <ChevronRight className="w-3 h-3 text-muted-foreground" />
-        <span className={cn("px-2 py-1 rounded-md", step === 3 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground opacity-40")}>
-          3 · {effectiveSub ?? "Guides"}
-        </span>
-      </nav>
-
-      {step === 1 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {categories.map((c) => {
-            const list = articles.filter((a) => a.category === c);
-            const subCount = new Set(list.map(articleSubcategory)).size;
-            const u = urgent(list);
-            return (
-              <button key={c} onClick={() => onCategory(c)} className="text-left iris-card-elevated p-4 hover:border-primary/40 hover:shadow-md transition-all group">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <IconOf icon={categoryIcon(c)} className="w-4.5 h-4.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-semibold leading-tight group-hover:text-primary transition-colors">{c}</div>
-                    <div className="text-[11px] text-muted-foreground mt-1">
-                      {list.length} guide{list.length === 1 ? "" : "s"} · {subCount} sub-categor{subCount === 1 ? "y" : "ies"}
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                {u > 0 && <div className="mt-3 text-[10px] font-medium text-rose-600 dark:text-rose-400">{u} urgent (P0/P1) guide{u === 1 ? "" : "s"}</div>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {subs.map(([sub, list]) => (
-            <button key={sub} onClick={() => onSubcategory(sub)} className="text-left iris-card-elevated p-4 hover:border-primary/40 hover:shadow-md transition-all group">
-              <div className="flex items-center gap-2">
-                <div className="text-[13px] font-semibold group-hover:text-primary transition-colors flex-1">{sub}</div>
-                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] tabular-nums">{list.length}</Badge>
-              </div>
-              <ul className="mt-2 space-y-1">
-                {list.slice(0, 3).map((a) => (
-                  <li key={a.id} className="text-[11px] text-muted-foreground truncate">· {a.title}</li>
-                ))}
-                {list.length > 3 && <li className="text-[11px] text-muted-foreground">+{list.length - 3} more</li>}
-              </ul>
-            </button>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
+          {groups.map((g, i) => (
+            <CategoryCard key={g.category} group={g} index={i} onSelect={() => onSelect(g.category)} />
           ))}
         </div>
       )}
-
-      {step === 3 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(subs.find(([k]) => k === effectiveSub)?.[1] ?? []).map((a) => (
-            <ArticleCard key={a.id} article={a} onOpen={onOpen} showCategory={false} />
-          ))}
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
-function CategoryChip({
-  active,
-  onClick,
-  label,
-  count,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-  icon?: IconType;
-}) {
+function CategoryCard({ group: g, index, onSelect }: { group: KnowledgeCategoryGroup; index: number; onSelect: () => void }) {
+  const meta = kbCategoryMeta(g.category);
+  const accent = categoryAccent(g.category);
   return (
     <button
       type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors flex items-center gap-1",
-        active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:text-foreground",
-        !active && count === 0 && "opacity-50",
-      )}
+      onClick={onSelect}
+      className={cn("text-left iris-card p-4 transition-all hover:shadow-md group iris-fade-in-up relative overflow-hidden flex flex-col", accent.hover)}
+      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
     >
-      {icon && <IconOf icon={icon} className="w-2.5 h-2.5" />}
-      {label}
-      <span className="tabular-nums opacity-70">{count}</span>
+      <span className={cn("absolute inset-x-0 top-0 h-0.5 opacity-70", accent.bar)} />
+      <div className="flex items-start gap-3">
+        <span className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", accent.icon)}>
+          <IconOf icon={categoryIcon(g.category)} className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-semibold leading-snug group-hover:text-primary transition-colors">{meta?.label ?? g.category}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{meta?.tagline ?? "Custom category"}</div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+      </div>
+      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50 text-[11px] text-muted-foreground">
+        <span className="tabular-nums">
+          <span className="font-semibold text-foreground">{g.count}</span> {g.count === 1 ? "guide" : "guides"}
+        </span>
+        <span>·</span>
+        <span className="tabular-nums">
+          <span className="font-semibold text-foreground">{g.subcategoryCount}</span> sub-categories
+        </span>
+        <span className="ml-auto">
+          <PriorityMix counts={{ P0: g.priorityCounts.P0, P1: g.priorityCounts.P1, P2: 0, P3: 0 }} />
+        </span>
+      </div>
     </button>
+  );
+}
+
+function SubcategoryStep({
+  group,
+  canEdit,
+  onBack,
+  onSelect,
+  onNew,
+}: {
+  group: KnowledgeCategoryGroup;
+  canEdit: boolean;
+  onBack: () => void;
+  onSelect: (subcategory: string) => void;
+  onNew: (subcategory: string | null) => void;
+}) {
+  const meta = kbCategoryMeta(group.category);
+  const accent = categoryAccent(group.category);
+  const label = meta?.label ?? group.category;
+  const present = new Set(group.subcategories.map((s) => s.subcategory));
+  const emptyTaxonomySubs = canEdit ? (meta?.subcategories ?? []).filter((s) => !present.has(s.name)) : [];
+
+  return (
+    <div className="space-y-4">
+      <div className="iris-card p-4 flex items-start gap-3 flex-wrap">
+        <span className={cn("w-11 h-11 rounded-lg flex items-center justify-center shrink-0", accent.icon)}>
+          <IconOf icon={categoryIcon(group.category)} className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[16px] font-semibold">{label}</div>
+          <p className="text-[12px] text-muted-foreground mt-0.5 max-w-3xl leading-relaxed">{meta?.description ?? "Guides in a custom category."}</p>
+          <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground flex-wrap">
+            <span>
+              <span className="font-semibold text-foreground tabular-nums">{group.count}</span> guides
+            </span>
+            <span>
+              <span className="font-semibold text-foreground tabular-nums">{group.subcategoryCount}</span> sub-categories
+            </span>
+            <span>
+              <span className="font-semibold text-foreground tabular-nums">{group.steps}</span> action steps
+            </span>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={onBack}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          All categories
+        </Button>
+      </div>
+
+      <StepHeading n={2} title="Choose a sub-category" subtitle={`Narrow down the ${label} situation.`}>
+        {canEdit && (
+          <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={() => onNew(null)}>
+            <Plus className="w-3 h-3 mr-1" />
+            New guide in {label}
+          </Button>
+        )}
+      </StepHeading>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {group.subcategories.map((s, i) => (
+          <SubcategoryCard key={s.key} group={s} index={i} accent={accent} onSelect={() => onSelect(s.subcategory)} />
+        ))}
+        {emptyTaxonomySubs.map((s) => (
+          <button
+            key={s.name}
+            type="button"
+            onClick={() => onNew(s.name)}
+            className="text-left rounded-xl border border-dashed border-border p-4 hover:bg-muted/30 transition-colors"
+          >
+            <div className="text-[13px] font-semibold text-muted-foreground">{s.name}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">No guides yet - add the first one.</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SubcategoryCard({
+  group: s,
+  index,
+  accent,
+  onSelect,
+}: {
+  group: KnowledgeSubcategoryGroup;
+  index: number;
+  accent: AccentStyle;
+  onSelect: () => void;
+}) {
+  const description = kbSubcategoryDescription(s.category, s.subcategory);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn("text-left iris-card p-4 transition-all hover:shadow-md group iris-fade-in-up flex flex-col", accent.hover)}
+      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+    >
+      <div className="flex items-start gap-2">
+        <FolderTree className={cn("w-4 h-4 mt-0.5 shrink-0", accent.text)} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-semibold leading-snug group-hover:text-primary transition-colors">{s.subcategory}</div>
+          <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-3">
+            {description ?? (s.subcategory === KB_GENERAL_SUBCATEGORY ? "Guides without a sub-category." : "Custom sub-category.")}
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+      </div>
+      <div className="flex items-center gap-2 mt-auto pt-3 text-[11px] text-muted-foreground">
+        <span className="tabular-nums">
+          <span className="font-semibold text-foreground">{s.count}</span> {s.count === 1 ? "guide" : "guides"}
+        </span>
+        <span className="ml-auto">
+          <PriorityMix counts={s.priorityCounts} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function GuideStep({
+  category,
+  group,
+  canEdit,
+  onBack,
+  onOpen,
+  onNew,
+}: {
+  category: KnowledgeCategoryGroup;
+  group: KnowledgeSubcategoryGroup;
+  canEdit: boolean;
+  onBack: () => void;
+  onOpen: (id: string) => void;
+  onNew: () => void;
+}) {
+  const accent = categoryAccent(category.category);
+  const description = kbSubcategoryDescription(group.category, group.subcategory);
+  const label = kbCategoryLabel(category.category);
+  return (
+    <div className="space-y-4">
+      <div className="iris-card p-4 flex items-start gap-3 flex-wrap">
+        <span className={cn("w-11 h-11 rounded-lg flex items-center justify-center shrink-0", accent.icon)}>
+          <IconOf icon={categoryIcon(category.category)} className="w-5 h-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] text-muted-foreground">{label}</div>
+          <div className="text-[16px] font-semibold">{group.subcategory}</div>
+          {description && <p className="text-[12px] text-muted-foreground mt-0.5 max-w-3xl leading-relaxed">{description}</p>}
+        </div>
+        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={onBack}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          {label} sub-categories
+        </Button>
+      </div>
+
+      <StepHeading
+        n={3}
+        title="Choose the guide"
+        subtitle={`${group.count} ${group.count === 1 ? "guide" : "guides"}, most urgent first - open one to work through it.`}
+      >
+        {canEdit && (
+          <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={onNew}>
+            <Plus className="w-3 h-3 mr-1" />
+            New guide here
+          </Button>
+        )}
+      </StepHeading>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {group.articles.map((a) => (
+          <ArticleCard key={a.id} article={a} onOpen={onOpen} showTaxonomy={false} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SearchResults({
+  results,
+  query,
+  onOpen,
+  onClear,
+}: {
+  results: ScoredArticle[];
+  query: string;
+  onOpen: (id: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground">{results.length}</span> guide{results.length === 1 ? "" : "s"} match “{query}” across all
+        categories, best match first
+      </div>
+      {results.length === 0 ? (
+        <div className="text-center py-16 iris-card">
+          <BookOpen className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+          <div className="text-[13px] text-muted-foreground">No guides match your search</div>
+          <div className="text-[11px] text-muted-foreground mt-1">Try a symptom (“no hot water”), a template code (“TPL-034”) or browse the categories.</div>
+          <Button variant="outline" className="h-8 text-[12px] mt-3" onClick={onClear}>
+            Clear search
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {results.map((r) => (
+            <ArticleCard key={r.article.id} article={r.article} onOpen={onOpen} showTaxonomy />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -683,7 +830,7 @@ function PriorityPill({ priority, title }: { priority: Priority; title?: string 
   );
 }
 
-function ArticleCard({ article: a, onOpen, showCategory }: { article: KnowledgeArticle; onOpen: (id: string) => void; showCategory: boolean }) {
+function ArticleCard({ article: a, onOpen, showTaxonomy }: { article: KnowledgeArticle; onOpen: (id: string) => void; showTaxonomy: boolean }) {
   const priority = articlePriority(a);
   const linked = (a.relatedTemplates ?? []).length;
   return (
@@ -709,9 +856,9 @@ function ArticleCard({ article: a, onOpen, showCategory }: { article: KnowledgeA
         {a.summary || <span className="italic">No summary</span>}
       </div>
       <div className="mt-auto flex items-center gap-x-3 gap-y-1 flex-wrap text-[10px] text-muted-foreground">
-        {showCategory && (
-          <Badge variant="outline" className="text-[10px] h-4 px-1">
-            {a.category}
+        {showTaxonomy && (
+          <Badge variant="outline" className="text-[10px] h-auto min-h-4 px-1 py-0 font-normal whitespace-normal text-left">
+            {kbCategoryLabel(a.category)} › {a.subcategory ?? KB_GENERAL_SUBCATEGORY}
           </Badge>
         )}
         <span className="flex items-center gap-0.5">
@@ -752,6 +899,7 @@ function ArticleReader({
   articles,
   canEdit,
   busy,
+  backLabel,
   onBack,
   onOpenArticle,
   onTag,
@@ -763,6 +911,7 @@ function ArticleReader({
   articles: KnowledgeArticle[];
   canEdit: boolean;
   busy: boolean;
+  backLabel: string;
   onBack: () => void;
   onOpenArticle: (id: string) => void;
   onTag: (tag: string) => void;
@@ -770,11 +919,6 @@ function ArticleReader({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const topRef = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    topRef.current?.scrollIntoView({ block: "start" });
-  }, []);
-
   const sections = React.useMemo(() => splitArticleBody(article.body), [article.body]);
   const glance = React.useMemo(() => articleGlance(article), [article]);
   const priority = React.useMemo(() => articlePriority(article), [article]);
@@ -789,18 +933,12 @@ function ArticleReader({
   const pairAnchor = dos && donts ? (rest.indexOf(dos) < rest.indexOf(donts) ? dos : donts) : (dos ?? donts);
 
   return (
-    <div ref={topRef} className="p-8 max-w-[1400px] mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[12px] text-muted-foreground min-w-0">
-          <button type="button" onClick={onBack} className="inline-flex items-center gap-1 font-medium hover:text-foreground transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Knowledge Base
-          </button>
-          <ChevronRight className="w-3 h-3 shrink-0" />
-          <span className="truncate">{article.category}</span>
-          <ChevronRight className="w-3 h-3 shrink-0" />
-          <span className="font-mono text-foreground">{article.id}</span>
-        </nav>
+        <Button variant="ghost" size="sm" className="h-7 px-2 -ml-2 text-[12px]" onClick={onBack}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          {backLabel}
+        </Button>
         {canEdit && (
           <div className="flex items-center gap-1.5">
             <Button variant="outline" className="h-8 text-[12px]" onClick={onEdit}>
@@ -829,7 +967,9 @@ function ArticleReader({
           <span className="font-mono">{article.id}</span>
           <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1">
             <IconOf icon={categoryIcon(article.category)} className="w-2.5 h-2.5" />
-            {article.category}
+            {kbCategoryLabel(article.category)}
+            <ChevronRight className="w-2.5 h-2.5 opacity-60" />
+            {article.subcategory ?? KB_GENERAL_SUBCATEGORY}
           </Badge>
           {priority && <PriorityPill priority={priority} title={`Typical priority: ${priority}`} />}
           <span className="flex items-center gap-1">
@@ -954,13 +1094,13 @@ function ArticleReader({
 
 function MissingArticle({ id, onBack }: { id: string; onBack: () => void }) {
   return (
-    <div className="p-8 max-w-[720px] mx-auto text-center py-24">
+    <div className="iris-card max-w-[720px] mx-auto text-center py-16 px-6">
       <BookOpen className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-      <h1 className="text-[16px] font-semibold">Guide {id} isn’t available</h1>
+      <h2 className="text-[16px] font-semibold">Guide {id} isn’t available</h2>
       <p className="text-[13px] text-muted-foreground mt-1">It may have been deleted or renamed by a manager.</p>
       <Button variant="outline" className="h-8 text-[12px] mt-4" onClick={onBack}>
         <ArrowLeft className="w-3 h-3 mr-1.5" />
-        Back to Knowledge Base
+        Browse all categories
       </Button>
     </div>
   );
@@ -1335,6 +1475,7 @@ function EditArticleModal({
   article,
   isNew,
   categories,
+  subcategoriesFor,
   busy,
   onSave,
   onCancel,
@@ -1343,6 +1484,8 @@ function EditArticleModal({
   article: KnowledgeArticle;
   isNew: boolean;
   categories: string[];
+  /** Suggested sub-categories for a category (taxonomy + ones already in use). */
+  subcategoriesFor: (category: string) => string[];
   busy: boolean;
   onSave: (updated: KnowledgeArticle) => void;
   onCancel: () => void;
@@ -1360,6 +1503,17 @@ function EditArticleModal({
   const update = <K extends keyof KnowledgeArticle>(key: K, value: KnowledgeArticle[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
   };
+
+  // Moving a guide to another category picks that category's first sub-category,
+  // unless the current one also exists there.
+  const changeCategory = (category: string) => {
+    setDraft((d) => {
+      const options = subcategoriesFor(category);
+      const keep = d.subcategory && options.includes(d.subcategory);
+      return { ...d, category, subcategory: keep ? d.subcategory : (options[0] ?? KB_GENERAL_SUBCATEGORY) };
+    });
+  };
+  const subcategoryOptions = subcategoriesFor(draft.category);
 
   const updateStep = (index: number, value: string) => {
     const next = [...draft.steps];
@@ -1418,6 +1572,7 @@ function EditArticleModal({
       ...draft,
       id: draft.id.trim().toUpperCase(),
       title: draft.title.trim(),
+      subcategory: draft.subcategory?.trim() || KB_GENERAL_SUBCATEGORY,
       body: draft.body ?? "",
       tags: tagText
         .split(",")
@@ -1469,18 +1624,58 @@ function EditArticleModal({
             <label className="iris-edit-form-label">Category</label>
             <select
               value={draft.category}
-              onChange={(e) => update("category", e.target.value)}
+              onChange={(e) => changeCategory(e.target.value)}
               className="h-9 text-[12px] rounded-md border border-border bg-background px-2 w-full"
             >
               {categories.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {kbCategoryLabel(c)}
                 </option>
               ))}
               {/* Allow custom categories the user might add via a brand-new article */}
               {!categories.includes(draft.category) && <option value={draft.category}>{draft.category}</option>}
             </select>
           </div>
+        </div>
+
+        {/* Sub-category - the second step of the Knowledge Base drill-down */}
+        <div className="iris-edit-form-row">
+          <label className="iris-edit-form-label" htmlFor="iris-kb-subcategory">
+            Sub-category <span className="font-normal">(pick one or type a new one)</span>
+          </label>
+          <Input
+            id="iris-kb-subcategory"
+            list="iris-kb-subcategories"
+            value={draft.subcategory ?? ""}
+            onChange={(e) => update("subcategory", e.target.value)}
+            className="text-[12px] h-9"
+            placeholder={subcategoryOptions[0] ?? KB_GENERAL_SUBCATEGORY}
+          />
+          <datalist id="iris-kb-subcategories">
+            {subcategoryOptions.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+          {subcategoryOptions.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {subcategoryOptions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => update("subcategory", s)}
+                  aria-pressed={draft.subcategory === s}
+                  className={cn(
+                    "px-2 py-0.5 text-[10px] rounded-full border transition-colors",
+                    draft.subcategory === s
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Summary */}

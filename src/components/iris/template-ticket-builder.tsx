@@ -39,6 +39,8 @@ import { ticketsApi } from "@/lib/iris/live-data";
 import { DEPARTMENTS, DEPT_MAP, PRIORITY_CONFIG, STUDIOS, type Priority } from "@/lib/iris/types";
 import { IRIS_STUDIOS, OCCURRED_OPTIONS, REPORTED_BY_OPTIONS, SYSTEMS, studioAreasFor } from "@/lib/iris/iris-constants";
 import { KNOWLEDGE_ARTICLES } from "@/lib/iris/knowledge-base-data";
+import { articleSubcategory } from "@/lib/iris/knowledge-base/groups";
+import { kbCategoryLabel } from "@/lib/iris/knowledge-base/taxonomy";
 import { REQUESTED_OUTCOMES, type TemplateField, type TicketTemplate } from "@/lib/iris/template-types";
 import { initialFieldValues, isFieldFilled, resolveTemplateForm } from "@/lib/iris/template-form";
 import { templateCategoryLabel } from "@/lib/iris/template-taxonomy";
@@ -598,7 +600,7 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
                 >
                   <div className="text-[12px] font-medium leading-snug">{a.title}</div>
                   <div className="text-[10px] text-muted-foreground">
-                    {a.id} · {a.category}
+                    {a.id} · {kbCategoryLabel(a.category)} › {articleSubcategory(a)}
                   </div>
                 </button>
               ))}

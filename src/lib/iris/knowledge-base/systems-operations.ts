@@ -6,6 +6,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-026",
     title: "Momence Down - Running the Front Desk Offline",
     category: "Operating Systems",
+    subcategory: "Momence Outages, Search & Reports",
     summary:
       "When Momence is unreachable or very slow: confirm whether it's us or Momence, switch to the offline check-in sheet, keep classes running, and reconcile every attendance and payment once it's back.",
     glance: {
@@ -70,6 +71,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-027",
     title: "Member Can't Check In or Booking Not Showing",
     category: "Operating Systems",
+    subcategory: "Momence Bookings & Schedule",
     summary:
       "Sorting out check-in failures at the desk: find the booking (or the reason there isn't one), let the member into class, and fix the underlying credit, membership or sync issue afterwards.",
     glance: {
@@ -130,6 +132,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-028",
     title: "Studio Internet or Wi-Fi Down - Failover & Recovery",
     category: "Tech Issues",
+    subcategory: "Network & Wi-Fi",
     summary:
       "Restoring connectivity for the front desk, POS and trainer devices: find whether it's the router, the ISP or the Wi-Fi, fail over to the backup line or hotspot, and get the ISP to commit to a fix.",
     glance: {
@@ -191,6 +194,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-030",
     title: "POS or Card Machine Failure & Settlement Mismatch",
     category: "Operating Systems",
+    subcategory: "POS & Payment Systems",
     summary:
       "Keeping payments flowing when the POS or card terminal fails, and reconciling settlements that don't match the day's sales.",
     glance: {
@@ -248,6 +252,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-032",
     title: "Daily Cash Closing Shortage or Excess",
     category: "Internal Operations & Admin",
+    subcategory: "Cash, Payroll & Vendor Payments",
     summary:
       "When the cash drawer doesn't match the day's cash sales: recount properly, trace the difference transaction by transaction, record it honestly, and fix the process gap.",
     glance: {
@@ -307,6 +312,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-042",
     title: "Wrong Information Sent to Members - Correction Protocol",
     category: "Brand Feedback",
+    subcategory: "Member Communications",
     summary:
       "When a broadcast, email or automated message went out with a wrong time, price, offer or studio: stop further sends, correct quickly and clearly, honour reasonable commitments, and fix the approval gap.",
     glance: {
@@ -366,6 +372,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-043",
     title: "Trainer Payout or Payroll Discrepancy",
     category: "Internal Operations & Admin",
+    subcategory: "Cash, Payroll & Vendor Payments",
     summary:
       "Resolving pay disputes for trainers and staff: compare the claim with attendance, classes taught, cover records and rates, correct genuine errors quickly, and explain the rest transparently.",
     glance: {
@@ -425,6 +432,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-044",
     title: "Monsoon Waterlogging & Unplanned Disruptions",
     category: "Internal Operations & Admin",
+    subcategory: "Daily Operations & Continuity",
     summary:
       "Running the studio through heavy rain, waterlogging, building service failures or city disruptions: decide early, protect members' and staff's safety, communicate clearly, and waive fees fairly.",
     glance: {
@@ -485,6 +493,7 @@ export const SYSTEMS_OPERATIONS_ARTICLES: KnowledgeArticle[] = [
     id: "KB-046",
     title: "Staff Departure - Same-Day Access Revocation",
     category: "Tech Issues",
+    subcategory: "Staff Accounts & Access",
     summary:
       "Removing every system and physical access for a departing employee or trainer on their last day: Momence, email, WhatsApp groups, payment dashboards, shared passwords, keys and door codes.",
     glance: {

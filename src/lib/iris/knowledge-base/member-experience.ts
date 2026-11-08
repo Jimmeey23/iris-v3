@@ -6,6 +6,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-001",
     title: "Hosted Class Feedback - Handling Member Proposals",
     category: "Class Experience",
+    subcategory: "Feedback & Hosted Classes",
     summary:
       "How to handle feedback on hosted / private class proposals (corporate groups, birthdays, bridal and community sessions): acknowledge fast, fix the proposal, and get the booking back on track within 3 business days.",
     glance: {
@@ -68,6 +69,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-002",
     title: "Instructor Late for Class - Logging & Response",
     category: "Trainer Feedback",
+    subcategory: "Punctuality & Timing",
     summary:
       "What to do the moment a trainer is running late: keep members informed, start the class on time where possible, log it accurately, and route repeat lateness to the Training Manager.",
     glance: {
@@ -130,6 +132,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-003",
     title: "Instructor Late Causing Class Cancellation",
     category: "Trainer Feedback",
+    subcategory: "Punctuality & Timing",
     summary:
       "When trainer lateness or a no-show forces a class to be cancelled: notify everyone, restore credits, recover the members' goodwill, and complete the incident and performance follow-up.",
     glance: {
@@ -194,6 +197,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-004",
     title: "Member Arrived Late & Denied Entry",
     category: "Class Experience",
+    subcategory: "Arrivals, Etiquette & Privacy",
     summary:
       "Applying the Late Entry Policy kindly and consistently: 10-minute grace for regular classes, no entry once express classes start, 5 minutes for PowerCycle (experienced riders only) - and how to recover the member's day.",
     glance: {
@@ -254,6 +258,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-008",
     title: "Member Change/Addition of Class Time or Instructor",
     category: "Scheduling",
+    subcategory: "Schedule Changes & Cover",
     summary:
       "Moving a member to a different class time, format or trainer: check capacity and the 12-hour window, rebook without losing their credit, and record preferences so the next booking is easier.",
     glance: {
@@ -315,6 +320,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-011",
     title: "Late Cancellation Policy Dispute - Member Pushback",
     category: "Customer Service and Communication",
+    subcategory: "Policies, Retention & VIPs",
     summary:
       "Resolving disputes about late-cancellation fees and booking blocks: verify the facts in Momence first, correct genuine errors immediately, and explain correct charges calmly with a fair goodwill option.",
     glance: {
@@ -377,6 +383,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-014",
     title: "Member Complaint - Class Too Crowded",
     category: "Class Experience",
+    subcategory: "Room, Music & Comfort",
     summary:
       "Handling complaints that a class was overcrowded: verify bookings against capacity, find how the oversell happened, recover the member, and fix the capacity setting or schedule.",
     glance: {
@@ -436,6 +443,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-016",
     title: "Class Cancellation - Instructor Unavailable",
     category: "Scheduling",
+    subcategory: "Schedule Changes & Cover",
     summary:
       "When a trainer becomes unavailable at short notice: find a substitute in the right order, communicate the change, and only cancel as a last resort - with credits and recovery handled properly.",
     glance: {
@@ -497,6 +505,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-021",
     title: "Front Desk - Handling Walk-In Inquiries",
     category: "Customer Service and Communication",
+    subcategory: "Front Desk & Enquiries",
     summary:
       "Turning walk-ins into first classes: a warm greeting, a quick needs check, the right offer (newcomer 2-for-1), a short tour, and a same-day follow-up - while verifying who is entering the studio.",
     glance: {
@@ -557,6 +566,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-022",
     title: "Trainer Performance Concern - Member Feedback",
     category: "Trainer Feedback",
+    subcategory: "Coaching Quality & Cueing",
     summary:
       "Capturing member feedback about a trainer properly, separating safety and conduct issues (escalate now) from coaching issues (pattern review), and closing the loop with the member.",
     glance: {
@@ -620,6 +630,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-023",
     title: "PowerCycle Class - Bike Setup & Member Onboarding",
     category: "Class Experience",
+    subcategory: "Beginners & Modifications",
     summary:
       "Setting up a new rider on a Stages SC3 bike safely and quickly: saddle height and fore/aft, handlebar, FitLoc check, pedals and cleats, console basics, and the safety brief.",
     glance: {
@@ -680,6 +691,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-025",
     title: "Member Cancellation - Retention Conversation",
     category: "Customer Service and Communication",
+    subcategory: "Policies, Retention & VIPs",
     summary:
       "A respectful retention conversation when a member asks to cancel: find the real reason, offer the one option that fits (freeze, downgrade, transfer, schedule fix), and process the cancellation gracefully if they still want to leave.",
     glance: {
@@ -743,6 +755,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-040",
     title: "Negative Online Review or Social Media Complaint",
     category: "Customer Service and Communication",
+    subcategory: "Complaints & De-escalation",
     summary:
       "Responding to a negative Google review, Instagram comment or DM: reply publicly within hours with empathy, move the details offline, fix the underlying issue, and only then ask whether they'd update their review.",
     glance: {
@@ -805,6 +818,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-041",
     title: "Waitlist & Overbooking - Fair Handling",
     category: "Scheduling",
+    subcategory: "Waitlists & Capacity",
     summary:
       "Keeping waitlists fair and classes within safe capacity: how auto-promotion works, what to do when a promotion wasn't notified or a class is overbooked on the day, and when to add capacity.",
     glance: {
@@ -863,6 +877,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-047",
     title: "Pre/Post-Natal & Injury Modifications - Safe Participation",
     category: "Class Experience",
+    subcategory: "Beginners & Modifications",
     summary:
       "Helping pregnant, post-natal and injured members train safely: medical clearance, trainer briefing, the right classes and modifications, and how to record it so every trainer knows.",
     glance: {
@@ -923,6 +938,7 @@ export const MEMBER_EXPERIENCE_ARTICLES: KnowledgeArticle[] = [
     id: "KB-050",
     title: "At-Risk Member & NPS Detractor Recovery",
     category: "Customer Service and Communication",
+    subcategory: "Policies, Retention & VIPs",
     summary:
       "Spotting members likely to churn (falling attendance, detractor scores, recent complaints) and running a short, personal recovery outreach before they cancel.",
     glance: {
