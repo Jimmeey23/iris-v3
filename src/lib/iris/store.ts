@@ -210,6 +210,8 @@ export interface AIMessage {
   source?: "ai" | "rules";
   /** Name of the rule that answered (when source is "rules"). */
   rule?: string;
+  /** The question a data answer replied to, so "Ask AI instead" can re-send it to the agent. */
+  askAi?: string;
 }
 
 export const useAppStore = create<AppState>()(

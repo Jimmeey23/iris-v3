@@ -32,7 +32,18 @@ export async function GET() {
           (r) => [r.key, r.value],
         ),
       );
-      return { ...rows[0], settings };
+      // Which path answered each assistant turn (org-wide for admins via RLS, otherwise your own).
+      const turns = (
+        await c.query(
+          `select count(*) filter (where created_at >= date_trunc('day', now() at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata')::int as today_total,
+                  count(*) filter (where route <> 'ai' and created_at >= date_trunc('day', now() at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata')::int as today_free,
+                  count(*)::int as month_total,
+                  count(*) filter (where route <> 'ai')::int as month_free
+             from assistant_turns
+            where created_at >= date_trunc('month', now() at time zone 'Asia/Kolkata') at time zone 'Asia/Kolkata'`,
+        )
+      ).rows[0];
+      return { ...rows[0], settings, turns };
     });
     const aiCfg = await loadEffectiveAiConfig();
     return NextResponse.json({
@@ -48,6 +59,10 @@ export async function GET() {
         myCostUsd: data.today_cost_mine,
       },
       month: { tokens: Number(data.month_tokens), costUsd: data.month_cost },
+      withoutAi: {
+        today: { answered: data.turns.today_free, total: data.turns.today_total },
+        month: { answered: data.turns.month_free, total: data.turns.month_total },
+      },
       limits: {
         dailyTokens: Number(data.settings["ai.daily_token_limit"]) || null,
         monthlyBudgetUsd: Number(data.settings["ai.monthly_budget_usd"]) || null,

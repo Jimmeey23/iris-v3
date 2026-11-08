@@ -80,6 +80,11 @@ type ClassifyResponse = {
 };
 
 /** Questions and investigation requests go to the full agent; reports go to the intake form. */
+/** Records which path answered a turn (for the "answered without AI" figure). Never blocks the chat. */
+function logTurn(route: "rules" | "intake" | "ai", rule: string | null, escalated = false) {
+  void api("/api/ai/answer", { method: "POST", json: { log: route, rule, escalated } }).catch(() => {});
+}
+
 function looksLikeQuestion(text: string) {
   const t = text.trim().toLowerCase();
   return (
@@ -174,6 +179,32 @@ export function AIAssistantView() {
     }
   }, [aiMessages, isProcessing]);
 
+  /** Questions IRIS can answer from its own data, without spending AI tokens. */
+  const answerFromData = async (message: string): Promise<boolean> => {
+    const r = await api<{ answered: boolean; content?: string; rule?: string }>("/api/ai/answer", {
+      method: "POST",
+      json: { message },
+    }).catch(() => ({ answered: false }) as { answered: boolean; content?: string; rule?: string });
+    if (!r.answered || !r.content) return false;
+    addAIMessage({
+      id: generateId("msg"),
+      role: "assistant",
+      content: r.content,
+      timestamp: new Date().toISOString(),
+      variant: "default",
+      source: "rules",
+      rule: r.rule,
+      askAi: message,
+    });
+    const { aiTranscript, setAiTranscript } = useAppStore.getState();
+    setAiTranscript([
+      ...aiTranscript,
+      { role: "user", content: message },
+      { role: "assistant", content: [{ type: "text", text: `[Answered from IRIS data] ${r.content}` }] },
+    ]);
+    return true;
+  };
+
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
     // Use BOTH the ref (synchronous, prevents race) AND state (for UI feedback)
@@ -219,6 +250,7 @@ export function AIAssistantView() {
         { role: "user", content: trimmed },
         { role: "assistant", content: [{ type: "text", text: `[Answered automatically] ${ruled.content}` }] },
       ]);
+      logTurn("rules", ruled.rule);
       setIsProcessing(false);
       isProcessingRef.current = false;
       return;
@@ -229,12 +261,16 @@ export function AIAssistantView() {
       const openIntake = [...useAppStore.getState().aiMessages].reverse().find((m) => m.intake && !m.intake.done);
       if (openIntake?.intake && !looksLikeQuestion(trimmed) && (await addDetailsToIntake(openIntake.id, openIntake.intake, trimmed))) {
         // folded into the open form
+      } else if (await answerFromData(trimmed)) {
+        // Answered from IRIS data (equipment, counts, history, trainers, knowledge) — no AI.
       } else if (looksLikeQuestion(trimmed)) {
-        // Investigation / open question → full agent.
+        // Investigation / open question the data path couldn't answer → full agent.
         await runAgent(trimmed);
+        logTurn("ai", null);
       } else {
         // New report → classify (rules + history; AI only if unsure) → structured form.
         await startIntake(trimmed);
+        logTurn("intake", null);
       }
     } catch (e) {
       addAIMessage({
@@ -275,6 +311,27 @@ export function AIAssistantView() {
       addAIMessage({ id: generateId("msg"), role: "assistant", content: "", timestamp: new Date().toISOString(), variant: "draft", ticketDraft: out.draft, source: "ai" });
     }
   };
+
+  /** "Ask AI instead" on a data answer: same question, full agent. */
+  React.useEffect(() => {
+    const onAsk = (e: Event) => {
+      const question = (e as CustomEvent<string>).detail;
+      if (!question || isProcessingRef.current) return;
+      isProcessingRef.current = true;
+      setIsProcessing(true);
+      runAgent(question)
+        .then(() => logTurn("ai", "Asked AI instead", true))
+        .catch((err) =>
+          addAIMessage({ id: generateId("msg"), role: "assistant", content: err instanceof Error ? err.message : "Something went wrong.", timestamp: new Date().toISOString(), variant: "error" }),
+        )
+        .finally(() => {
+          setIsProcessing(false);
+          isProcessingRef.current = false;
+        });
+    };
+    window.addEventListener("iris:ask-ai", onAsk);
+    return () => window.removeEventListener("iris:ask-ai", onAsk);
+  });
 
   /** Classify a new report and open the structured intake form. */
   const startIntake = async (text: string) => {
@@ -873,6 +930,16 @@ function MessageBubble({
         <div className="flex items-baseline gap-2 mb-1">
           <span className="text-[11px] font-semibold">{isUser ? "You" : "IRIS"}</span>
           {!isUser && message.variant !== "error" && <SourceBadge source={message.source ?? "rules"} rule={message.rule} />}
+          {!isUser && message.askAi && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("iris:ask-ai", { detail: message.askAi }))}
+              className="inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[9px] font-medium text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+              title="Not what you needed? Ask the AI agent the same question (uses tokens)"
+            >
+              <Sparkles className="w-2.5 h-2.5" />Ask AI instead
+            </button>
+          )}
           <span className="text-[9px] text-muted-foreground tabular-nums">
             {new Date(message.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
           </span>
@@ -1344,6 +1411,7 @@ type UsageSummary = {
   today: { tokens: number; inputTokens: number; outputTokens: number; cachedTokens: number; costUsd: number; calls: number; myCostUsd: number };
   month: { tokens: number; costUsd: number };
   limits: { dailyTokens: number | null; monthlyBudgetUsd: number | null; alertPct: number };
+  withoutAi?: { today: { answered: number; total: number }; month: { answered: number; total: number } };
 };
 
 const fmtUsd = (n: number) => (n === 0 ? "$0.00" : n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
@@ -1420,6 +1488,14 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
               <div className="text-[9px] text-muted-foreground mt-1 tabular-nums">
                 {dayPct < 1 && u.today.tokens > 0 ? "<1" : Math.round(dayPct)}% of {fmtTokens(u.limits.dailyTokens!)} daily token limit
               </div>
+            </div>
+          )}
+          {u.withoutAi && u.withoutAi.month.total > 0 && (
+            <div className="flex items-center justify-between text-[9px] text-emerald-600 dark:text-emerald-400 tabular-nums" title="Turns answered by rules, IRIS data or a form — no tokens spent">
+              <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5" />Answered without AI</span>
+              <span>
+                {Math.round((100 * u.withoutAi.month.answered) / u.withoutAi.month.total)}% this month ({u.withoutAi.month.answered}/{u.withoutAi.month.total})
+              </span>
             </div>
           )}
           <div className="pt-1.5 border-t border-border text-[9px] text-muted-foreground tabular-nums space-y-0.5">
