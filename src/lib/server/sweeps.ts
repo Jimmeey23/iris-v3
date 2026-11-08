@@ -208,6 +208,7 @@ type EscalationRow = {
   manager_id: string | null;
   manager_name: string | null;
   dept_head_id: string | null;
+  policy_l2_id: string | null;
 };
 
 /** What the ticket activity says, naming the tier the ticket actually went to. */
@@ -249,8 +250,10 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
       await client.query<EscalationRow>(
         `select t.id, t.title, t.status, t.escalation_level, t.sla_resolution_target, t.assignee_id,
                 m.id  as manager_id, m.name as manager_name,
-                h.id as dept_head_id
+                h.id as dept_head_id,
+                l2.id as policy_l2_id
            from tickets t
+           left join employees l2 on l2.id = t.collected_info->>'_escalation_l2' and l2.is_active
            left join employees m on m.name = (select e.reporting_manager from employees e where e.id = t.assignee_id)
                                 and m.is_active and not m.exclude_from_escalation
            left join departments d on d.code = t.department_code
@@ -282,7 +285,8 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
       }
 
       const nextLevel = decision.nextLevel;
-      const targetId = nextLevel === 1 ? t.manager_id : nextLevel === 2 ? t.dept_head_id : null;
+      // Ownership policy can name the level-1 escalation (e.g. facilities: Zahur → Saachi).
+      const targetId = nextLevel === 1 ? (t.policy_l2_id ?? t.manager_id) : nextLevel === 2 ? t.dept_head_id : null;
       const targetRole = nextLevel === 1 ? "manager" : nextLevel === 2 ? "department_head" : "admin";
       const reason = escalationReason(nextLevel, s.afterBreachHours);
 

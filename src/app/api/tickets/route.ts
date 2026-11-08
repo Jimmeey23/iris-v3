@@ -8,6 +8,8 @@ import { sweepAfterResponse } from "@/lib/server/sweeps";
 import { TICKET_LIST_SELECT, attachThreads, fetchTicket, toClientTicket } from "@/lib/server/tickets";
 import { evaluateRoutingRules, selectBestAssignee, type AssignableEmployee, type RoutingRuleRow } from "@/lib/iris/routing-engine";
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
+import { decideOwnership } from "@/lib/iris/ownership-policy";
+import { pool } from "@/lib/server/db";
 
 export async function GET() {
   const auth = await requireSession();
@@ -110,7 +112,7 @@ export async function POST(request: Request) {
         description,
       });
 
-      const effectiveDepartmentCode = str(b.departmentCode, 10)
+      let effectiveDepartmentCode = str(b.departmentCode, 10)
         ? b.applyRoutingRules === false
           ? str(b.departmentCode, 10)
           : routed.matchedRule?.department_code && routed.matchedRule.department_code !== "Any"
@@ -125,9 +127,45 @@ export async function POST(request: Request) {
             ? routed.priority
             : requestedPriority;
 
-      // 2. Smart Employee Auto-Assignment honoring Settings -> Routing toggles
+      // 2. Ownership policy (Physique 57's standing rules) — wins over form/agent suggestions
+      //    unless an admin explicitly overrides. See lib/iris/ownership-policy.ts.
       let effectiveAssigneeId = str(b.assigneeId, 64);
-      const explicitAssigneeIds = strList(b.assigneeIds);
+      let explicitAssigneeIds = strList(b.assigneeIds);
+      let departmentCodes = strList(b.departmentCodes);
+      let ownershipRule: string | null = null;
+      let escalationL2: string | null = null;
+      const overrideOwners = b.overrideOwners === true && session.role === "admin";
+      if (!overrideOwners) {
+        const policyInput = {
+          category, subcategory, title, description, studioCode, studioCity,
+          reporterEmployeeId: session.employee_id ?? null,
+        };
+        let policy = decideOwnership(policyInput, () => 0);
+        if (policy?.roundRobinKey) {
+          // Atomic per-studio counter (owner connection: app_settings is admin-write under RLS).
+          const n = Number(
+            (
+              await pool.query(
+                `insert into iris.app_settings (key, value, category) values ($1, '0'::jsonb, 'routing')
+                 on conflict (key) do update set value = to_jsonb(coalesce((iris.app_settings.value #>> '{}')::int, -1) + 1), updated_at = now()
+                 returning value #>> '{}' as n`,
+                [`roundrobin:${policy.roundRobinKey}`],
+              )
+            ).rows[0]?.n ?? 0,
+          );
+          policy = decideOwnership(policyInput, () => n);
+        }
+        if (policy) {
+          effectiveAssigneeId = policy.assigneeId;
+          explicitAssigneeIds = policy.ownerIds;
+          if (policy.departmentCodes.length) {
+            departmentCodes = [...new Set([...policy.departmentCodes, ...(effectiveDepartmentCode ? [effectiveDepartmentCode] : []), ...departmentCodes])];
+            effectiveDepartmentCode = policy.departmentCodes[0];
+          }
+          ownershipRule = policy.label;
+          escalationL2 = policy.escalationL2;
+        }
+      }
       if (!effectiveAssigneeId && explicitAssigneeIds.length === 0) {
         const flags = {
           autoAssign: settings["routing.auto_assign"] !== false,
@@ -157,6 +195,8 @@ export async function POST(request: Request) {
       if (routed.matchedRule) {
         collectedInfo._routed_by_rule = routed.matchedRule.name;
       }
+      if (ownershipRule) collectedInfo._ownership_rule = ownershipRule;
+      if (escalationL2) collectedInfo._escalation_l2 = escalationL2;
       if (settings["routing.require_acknowledgment"] === true && (effectiveAssigneeId || explicitAssigneeIds.length > 0)) {
         collectedInfo._requires_acknowledgment = true;
       }
@@ -196,7 +236,7 @@ export async function POST(request: Request) {
           source,
           JSON.stringify(collectedInfo),
           session.user_id,
-          strList(b.departmentCodes),
+          departmentCodes,
           explicitAssigneeIds,
           idempotencyKey,
         ],
