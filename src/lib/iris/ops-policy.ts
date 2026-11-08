@@ -153,6 +153,7 @@ export type Limit = { max: number; windowSeconds: number };
 export const RATE_LIMITS = {
   /** AI assistant conversation turns. */
   "ai-chat": { max: 30, windowSeconds: 60 },
+  feedback: { max: 10, windowSeconds: 600 },
   /** Intake classification (may fall through to one AI call). */
   "intake-classify": { max: 20, windowSeconds: 60 },
   /** Filing a ticket. A person raising several in a row is normal; a script is not. */

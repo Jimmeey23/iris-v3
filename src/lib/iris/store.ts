@@ -13,6 +13,7 @@ export type ViewName =
   | "escalations"
   | "trainers"
   | "equipment"
+  | "radar"
   | "analytics"
   | "knowledge_base"
   | "templates"

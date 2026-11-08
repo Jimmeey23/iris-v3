@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { FeedbackButton } from "./feedback-dialog";
 import { useAppStore, ViewName } from "@/lib/iris/store";
 import { useSettingsStore } from "@/lib/iris/settings-store";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ import {
   UserSearch,
   LogOut,
   Wrench,
+  Radar as RadarIcon,
 } from "lucide-react";
 import { useAuth } from "./auth-gate";
 import { getInitials } from "@/lib/iris/utils";
@@ -78,6 +80,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "escalations", label: "Escalations", icon: AlertTriangle, group: "main", badge: () => ALL_TICKETS.filter(t => t.status === "escalated" || t.slaStatus === "breached").length },
   { id: "trainers", label: "Trainers", icon: Users, group: "main" },
   { id: "equipment", label: "Equipment", icon: Wrench, group: "main" },
+  { id: "radar", label: "Radar", icon: RadarIcon, group: "main" },
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "intelligence" },
   { id: "templates", label: "Templates", icon: LayoutTemplate, group: "intelligence" },
   { id: "reports", label: "Reports", icon: FileBarChart, group: "intelligence" },
@@ -410,6 +413,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </TooltipTrigger>
             <TooltipContent side="bottom">Toggle theme</TooltipContent>
           </Tooltip>
+
+          <FeedbackButton />
 
           <Popover>
             <PopoverTrigger asChild>
