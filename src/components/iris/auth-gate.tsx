@@ -146,18 +146,37 @@ function FormError({ message }: { message: string | null }) {
   );
 }
 
+const GOOGLE_ERRORS: Record<string, string> = {
+  oauth_failed: "Google sign-in didn't complete. Please try again.",
+  not_authorised: "Your account is not authorised for this workspace. Ask an administrator for an invite.",
+  inactive: "This account is not active in the workspace. Ask an administrator to restore it.",
+  google_not_configured: "Google sign-in isn't set up yet. Use your email and password.",
+  profile_unavailable: "We couldn't load your workspace profile. Please try again in a moment.",
+};
+
 function LoginForm({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  // Google sign-in returns here with ?auth_error=<code>; show it once, then tidy the URL.
+  const [error, setError] = React.useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const code = new URL(window.location.href).searchParams.get("auth_error");
+    return code ? (GOOGLE_ERRORS[code] ?? GOOGLE_ERRORS.oauth_failed) : null;
+  });
+  React.useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("auth_error")) return;
+    url.searchParams.delete("auth_error");
+    window.history.replaceState(null, "", url.toString());
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await api("/api/auth/login", { method: "POST", json: { email, password } });
+      await api("/api/auth/login", { method: "POST", json: { email: email.trim(), password } });
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
@@ -170,8 +189,8 @@ function LoginForm({ onDone }: { onDone: () => void }) {
     <form onSubmit={submit} className="space-y-3">
       <div className="mb-5"><div className="text-[10px] font-bold tracking-[.18em] uppercase text-primary mb-2">Your workspace awaits</div><div className="text-xl font-semibold tracking-tight">Welcome back</div><p className="text-xs text-muted-foreground mt-2">Sign in to continue to your workspace.</p></div>
       <label className="block space-y-1">
-        <span className="text-[11px] font-medium text-muted-foreground">Work email</span>
-        <Input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+        <span className="text-[11px] font-medium text-muted-foreground">Work email or username</span>
+        <Input type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
       </label>
       <label className="block space-y-1">
         <span className="text-[11px] font-medium text-muted-foreground">Password</span>
@@ -180,6 +199,20 @@ function LoginForm({ onDone }: { onDone: () => void }) {
       <FormError message={error} />
       <Button type="submit" className="w-full" disabled={busy}>
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
+      </Button>
+      <div className="flex items-center gap-3 py-1 text-[10px] uppercase tracking-[.16em] text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" />
+      </div>
+      <Button asChild type="button" variant="outline" className="w-full">
+        <a href="/api/auth/google">
+          <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 mr-2">
+            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.2-2.1 3.5-5.1 3.5-8.7z" />
+            <path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z" />
+            <path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1z" />
+            <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z" />
+          </svg>
+          Continue with Google
+        </a>
       </Button>
       <p className="text-[11px] text-muted-foreground text-center">No account? Ask an IRIS admin to add you.</p>
     </form>
