@@ -1384,13 +1384,13 @@ html[data-reduce-motion="true"] *::after {
 
 /* Logo motion: petals breathe continuously, the aperture makes a smooth quarter turn
  * every 6s, and the core pulses. Transform/opacity only, GPU-cheap; off for reduced motion. */
-.iris-logo-aperture { animation: iris-aperture-live 8s cubic-bezier(.65,0,.35,1) infinite; }
+.iris-logo-aperture { animation: iris-aperture-live 4.5s cubic-bezier(.65,0,.35,1) infinite; }
 .iris-logo-aperture path { transform-origin: 32px 32px; animation: iris-petal 3s ease-in-out infinite; }
 .iris-logo-aperture path:nth-child(2) { animation-delay: -.75s; }
 .iris-logo-aperture path:nth-child(3) { animation-delay: -1.5s; }
 .iris-logo-aperture path:nth-child(4) { animation-delay: -2.25s; }
 .iris-logo-core { animation: iris-core 3s ease-in-out infinite; }
-@keyframes iris-aperture-live { 0%, 55% { transform: rotate(0deg); } 85%, 100% { transform: rotate(1080deg); } }
+@keyframes iris-aperture-live { 0%, 55% { transform: rotate(0deg); } 100% { transform: rotate(1080deg); } }
 @keyframes iris-petal { 0%, 100% { transform: scale(1); } 50% { transform: scale(.86); } }
 @keyframes iris-core { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.45); opacity: .85; } }
 @media (prefers-reduced-motion: reduce) { .iris-logo-aperture, .iris-logo-aperture path, .iris-logo-core { animation: none !important; } }
