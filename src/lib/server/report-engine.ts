@@ -53,7 +53,22 @@ const BREACHED = "(t.sla_resolution_target is not null and coalesce(t.resolved_a
 const RES_H = "extract(epoch from (t.resolved_at - t.created_at)) / 3600";
 const IN_SLA_PCT = `round(100.0 * count(*) filter (where t.resolved_at is not null and t.resolved_at <= t.sla_resolution_target)
   / nullif(count(*) filter (where t.resolved_at is not null and t.sla_resolution_target is not null), 0), 1)`;
+const FR_H = "extract(epoch from (t.first_response_at - t.created_at)) / 3600";
+const FR_ON_TIME = "(t.first_response_at <= t.sla_response_target)";
+/** Response-time breakdown by any dimension; only tickets with a recorded first response count. */
+const responseBy = (dim: string, label: string, order = "avg_h desc nulls last"): CustomSpec =>
+  table(
+    `select coalesce((${dim})::text, '—') as label, count(*)::int as responded,
+            round(avg(${FR_H})::numeric, 1) as avg_h,
+            round(percentile_cont(0.5) within group (order by ${FR_H})::numeric, 1) as median_h,
+            round(100.0 * count(*) filter (where ${FR_ON_TIME}) / nullif(count(*) filter (where t.sla_response_target is not null), 0), 1) as on_time_pct
+       from v_tickets_full t where ${RANGE_SQL} and t.first_response_at is not null
+      group by 1 order by ${order}`,
+    [label, "Responded", "Avg first response (h)", "Median (h)", "Within response target %"],
+    { chart: "bar" },
+  );
 const RANGE = "($1::int is null or t.created_at >= now() - make_interval(days => $1::int))";
+const RANGE_SQL = RANGE;
 const kw = (...words: string[]) =>
   "(" + words.map((w) => `(t.category || ' ' || coalesce(t.subcategory,'') || ' ' || t.title) ilike '%${w}%'`).join(" or ") + ")";
 
@@ -69,7 +84,6 @@ type CustomSpec = { kind: "custom"; run: (c: PoolClient, days: number | null) =>
 type Unavailable = { kind: "unavailable"; reason: string };
 type Spec = ListSpec | GroupSpec | TrendSpec | CustomSpec | Unavailable;
 
-const NO_FIRST_RESPONSE = "First-response times aren't recorded on tickets yet, so this can't be measured honestly. It will fill in once replies are timestamped.";
 const NOT_TRACKED = (what: string) => `IRIS doesn't record ${what} yet, so there's nothing real to report.`;
 
 async function runList(c: PoolClient, days: number | null, s: ListSpec) {
@@ -217,7 +231,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
   "RPT-006": { kind: "trend", bucket: "week" },
   "RPT-007": { kind: "trend", bucket: "month" },
   "RPT-008": { kind: "group", dim: "t.priority || ' · ' || t.category", label: "Priority · Category", where: "t.resolved_at is not null", order: "avg_res_h desc nulls last" },
-  "RPT-009": { kind: "unavailable", reason: NO_FIRST_RESPONSE },
+  "RPT-009": responseBy("t.priority", "Priority", "label"),
   "RPT-010": { kind: "unavailable", reason: NOT_TRACKED("ticket reopens") },
   "RPT-011": { kind: "list", where: "t.escalation_level > 0", order: "t.escalation_level desc, t.created_at desc" },
   "RPT-012": { kind: "group", dim: "t.category", label: "Category" },
@@ -241,7 +255,14 @@ export const REPORT_SPECS: Record<string, Spec> = {
   "RPT-023": { kind: "list", where: BREACHED },
   "RPT-024": { kind: "list", where: `${OPEN} and t.sla_resolution_target between now() and now() + interval '4 hours'`, order: "t.sla_resolution_target asc" },
   "RPT-025": { kind: "trend", bucket: "month", where: "t.resolved_at is not null" },
-  "RPT-026": { kind: "unavailable", reason: NO_FIRST_RESPONSE },
+  "RPT-026": table(
+    `select to_char(date_trunc('month', t.created_at), 'Mon YYYY') as month, count(*)::int as responded,
+            round(avg(${FR_H})::numeric, 1) as avg_h
+       from v_tickets_full t where ${RANGE} and t.first_response_at is not null
+      group by date_trunc('month', t.created_at) order by date_trunc('month', t.created_at)`,
+    ["Month", "Responded", "Avg first response (h)"],
+    { chart: "line" },
+  ),
   "RPT-027": { kind: "group", dim: "t.department_name", label: "Department" },
   "RPT-028": { kind: "group", dim: "t.studio_name", label: "Studio" },
   "RPT-029": { kind: "group", dim: "coalesce(t.assignee_name, 'Unassigned')", label: "Employee" },
@@ -253,7 +274,15 @@ export const REPORT_SPECS: Record<string, Spec> = {
     ["Month", "Tickets", "Escalated", "Escalation rate %"],
     { chart: "line" },
   ),
-  "RPT-031": { kind: "unavailable", reason: NO_FIRST_RESPONSE },
+  "RPT-031": table(
+    `select bucket, count(*)::int as tickets from (
+       select case when h < 0.25 then '1. Under 15 min' when h < 1 then '2. 15–60 min' when h < 4 then '3. 1–4h'
+                   when h < 24 then '4. 4–24h' else '5. Over a day' end as bucket
+         from (select ${FR_H} as h from v_tickets_full t where ${RANGE} and t.first_response_at is not null) x) y
+      group by 1 order by 1`,
+    ["First response", "Tickets"],
+    { chart: "bar" },
+  ),
   "RPT-032": table(
     `select bucket, count(*)::int as tickets from (
        select case when h < 4 then '1. Under 4h' when h < 24 then '2. 4–24h' when h < 72 then '3. 1–3 days'
@@ -280,7 +309,7 @@ export const REPORT_SPECS: Record<string, Spec> = {
   ),
   "RPT-038": { kind: "group", dim: "coalesce(t.assignee_name, 'Unassigned')", label: "Employee" },
   "RPT-039": { kind: "group", dim: "t.assignee_name", label: "Employee", where: "t.assignee_name is not null", having: "count(*) filter (where t.resolved_at is not null) >= 5", order: "sla_pct desc nulls last, avg_res_h asc" },
-  "RPT-040": { kind: "unavailable", reason: NO_FIRST_RESPONSE },
+  "RPT-040": responseBy("t.department_name", "Department"),
   "RPT-041": { kind: "group", dim: "t.department_name", label: "Department", where: "t.resolved_at is not null", order: "avg_res_h desc nulls last" },
   "RPT-042": table(
     `select e.name, e.title, d.name, e.availability, e.location from employees e left join departments d on d.code = e.department_code
