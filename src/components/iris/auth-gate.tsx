@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, ApiError, loadAll } from "@/lib/iris/live-data";
 import { loadLibrary } from "@/lib/iris/library-api";
-import { useAppStore, type CurrentUser } from "@/lib/iris/store";
+import { useAppStore, type CurrentUser, type ViewName } from "@/lib/iris/store";
+import { useSettingsStore } from "@/lib/iris/settings-store";
 
 type Me = {
   userId: string;
@@ -71,6 +72,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         loadAll(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 45000)),
       ]);
+      // Apply user's persisted landing view & sidebar state unless deep-linking to a ticket
+      const hasTicketLink = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("ticket");
+      const prefs = useSettingsStore.getState();
+      if (!hasTicketLink && prefs.defaultLandingView) {
+        useAppStore.getState().setCurrentView(prefs.defaultLandingView as ViewName);
+      }
+      if (prefs.sidebarCollapsed !== useAppStore.getState().sidebarCollapsed) {
+        useAppStore.setState({ sidebarCollapsed: prefs.sidebarCollapsed });
+      }
       void loadLibrary(); // templates + knowledge docs; non-blocking, falls back to built-in defaults
       setPhase("ready");
     } catch (e) {

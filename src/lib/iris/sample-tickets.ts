@@ -49,6 +49,10 @@ export interface Ticket {
   /** Imported from the legacy system: closed, read-only, SLA-exempt. */
   legacy?: boolean;
   assignmentLocked?: boolean;
+  requiresAcknowledgment?: boolean;
+  acknowledgedAt?: string;
+  routedByRule?: string;
+  collectedInfo?: Record<string, unknown>;
   activities: { type: string; description: string; actor?: string; timestamp: string }[];
   comments: { id?: string; author: string; content: string; isInternal: boolean; timestamp: string }[];
 }

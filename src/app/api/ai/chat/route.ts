@@ -4,6 +4,7 @@ import { withUser } from "@/lib/server/db";
 import { requireSession } from "@/lib/server/auth";
 import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import { runTurn } from "@/lib/server/agent";
+import { loadEffectiveAiConfig } from "@/lib/server/ai-config";
 
 export const maxDuration = 120;
 
@@ -39,10 +40,20 @@ export async function POST(request: Request) {
   }
 
   try {
+    const aiCfg = await loadEffectiveAiConfig();
+    if (!aiCfg.enabled) {
+      return NextResponse.json(
+        { error: aiCfg.disabledReason || "AI assistant is disabled in workspace settings." },
+        { status: aiCfg.budgetExceeded ? 429 : 503 },
+      );
+    }
     const out = await withUser(auth.session.user_id, async (c) => {
       const name =
         (await c.query("select name from employees where id = $1", [auth.session.employee_id])).rows[0]?.name ?? auth.session.email;
-      return runTurn(c, history, message, name, auth.session.user_id);
+      return runTurn(c, history, message, name, auth.session.user_id, {
+        primaryModel: aiCfg.primaryModel,
+        fallbackModel: aiCfg.fallbackModel,
+      });
     });
     return NextResponse.json(out);
   } catch (err) {

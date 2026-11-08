@@ -393,10 +393,19 @@ async function runTool(name: string, input: any, ctx: Ctx): Promise<{ result: un
  * Run one user turn. `history` is the full Anthropic transcript so far (the
  * client stores it and sends it back unchanged, including thinking blocks).
  */
-export async function runTurn(db: PoolClient, history: Anthropic.MessageParam[], userText: string, userName: string, userId: string) {
+export async function runTurn(
+  db: PoolClient,
+  history: Anthropic.MessageParam[],
+  userText: string,
+  userName: string,
+  userId: string,
+  modelOpts?: { primaryModel?: string; fallbackModel?: string | null },
+) {
   const ref = await loadReference(db);
   const ctx: Ctx = { db, ref, draft: null };
   const trace: ToolTrace[] = [];
+  const activeModel = modelOpts?.primaryModel || MODEL;
+  const fallbackModel = modelOpts?.fallbackModel ?? null;
   const messages: Anthropic.MessageParam[] = [
     ...history,
     { role: "user", content: `${userText}\n\n(Reported by ${userName}, ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST)` },
@@ -405,14 +414,27 @@ export async function runTurn(db: PoolClient, history: Anthropic.MessageParam[],
   let reply = "";
   const turnUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const response = await anthropic().messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      system: [{ type: "text", text: systemPrompt(ref), cache_control: { type: "ephemeral" } }],
-      tools: TOOLS,
-      messages,
-      output_config: { effort: "low" },
-    } as Anthropic.MessageCreateParamsNonStreaming);
+    let response: Anthropic.Message;
+    try {
+      response = await anthropic().messages.create({
+        model: activeModel,
+        max_tokens: 16000,
+        system: [{ type: "text", text: systemPrompt(ref), cache_control: { type: "ephemeral" } }],
+        tools: TOOLS,
+        messages,
+        output_config: { effort: "low" },
+      } as Anthropic.MessageCreateParamsNonStreaming);
+    } catch (primaryErr) {
+      if (!fallbackModel || fallbackModel === activeModel) throw primaryErr;
+      response = await anthropic().messages.create({
+        model: fallbackModel,
+        max_tokens: 16000,
+        system: [{ type: "text", text: systemPrompt(ref), cache_control: { type: "ephemeral" } }],
+        tools: TOOLS,
+        messages,
+        output_config: { effort: "low" },
+      } as Anthropic.MessageCreateParamsNonStreaming);
+    }
 
     messages.push({ role: "assistant", content: response.content });
 

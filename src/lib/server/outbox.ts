@@ -28,7 +28,15 @@ import {
  * the signed-in user, exactly like notify.ts.
  */
 
-export type OutboxMail = { to: string; subject: string; html: string; text: string };
+export type OutboxMail = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  fromName?: string;
+  replyTo?: string;
+  category?: string;
+};
 
 export type EnqueueOptions = {
   /** email_log.dedupe_key of the notification this delivery belongs to (audit link). */
@@ -60,8 +68,8 @@ async function releaseStuck(now: Date): Promise<number> {
   try {
     await client.query("set search_path = iris, public");
     await client.query("begin");
-    const stuck = await client.query<{ id: string; attempts: number; updated_at: Date }>(
-      `select id, attempts, updated_at from outbox
+    const stuck = await client.query<{ id: string; attempts: number; updated_at: Date; email_log_id: string | null }>(
+      `select id, attempts, updated_at, email_log_id from outbox
         where status = 'sending' and updated_at < now() - interval '1 second' * $1
         for update skip locked`,
       [Math.ceil(OUTBOX_STUCK_MS / 1000)],
@@ -75,10 +83,12 @@ async function releaseStuck(now: Date): Promise<number> {
              next_attempt_at = null, updated_at = now() where id = $1`,
           [row.id],
         );
-        await client.query(
-          `update email_log set status = 'failed', error = 'Delivery was interrupted and did not complete.' where id = email_log_id`,
-          [],
-        ).catch(() => {});
+        if (row.email_log_id) {
+          await client.query(
+            `update email_log set status = 'failed', error = 'Delivery was interrupted and did not complete.' where id = $1`,
+            [row.email_log_id],
+          );
+        }
       } else {
         await client.query(
           `update outbox set status = 'pending', next_attempt_at = now(), updated_at = now() where id = $1`,

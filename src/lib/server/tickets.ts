@@ -93,6 +93,10 @@ export function toClientTicket(r: Record<string, any>) {
     updatedAt: iso(r.updated_at)!,
     legacy: Boolean(r.metadata?.legacy_import),
     assignmentLocked: Boolean(r.metadata?.lock_assignment),
+    requiresAcknowledgment: Boolean(r.collected_info?._requires_acknowledgment),
+    acknowledgedAt: r.collected_info?._acknowledged_at ?? undefined,
+    routedByRule: r.collected_info?._routed_by_rule ?? undefined,
+    collectedInfo: r.collected_info ?? undefined,
     activities: r.activities_json ?? [],
     comments: r.comments_json ?? [],
   };

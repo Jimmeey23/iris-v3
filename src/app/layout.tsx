@@ -58,10 +58,14 @@ export default function RootLayout({
             __html: `(function(){
               try {
                 var accents = ["blue","indigo","purple","pink","red","orange","green","mint","teal","cyan","violet","emerald","rose","amber"];
+                var pinned = "";
+                try { pinned = localStorage.getItem("__irisAccentPinned") || ""; } catch (e) {}
+                if (pinned && accents.indexOf(pinned) !== -1) {
+                  document.documentElement.setAttribute("data-accent", pinned);
+                  return;
+                }
                 var prev = "";
                 try { prev = localStorage.getItem("__irisAccentPrev") || ""; } catch (e) {}
-                // Pool = all accents EXCEPT the previous one. With 14 colors,
-                // this gives 13 fresh options every load - guaranteed change.
                 var pool = accents.filter(function(a){ return a !== prev; });
                 var chosen = pool[Math.floor(Math.random() * pool.length)];
                 try { localStorage.setItem("__irisAccentPrev", chosen); } catch (e) {}
