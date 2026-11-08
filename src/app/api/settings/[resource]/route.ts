@@ -72,16 +72,38 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     if ("users" in s) {
       if (s.session.role !== "admin") return NextResponse.json({ error: "Admins only" }, { status: 403 });
       const ch = body.changes;
+      // An admin must never be able to remove their own access, from the UI or the API.
+      if (body.key === s.session.user_id && (ch.is_active === false || (ch.role !== undefined && ch.role !== "admin") || ch.revoke_sessions === true)) {
+        return NextResponse.json({ error: "You can't remove your own admin access or sign yourself out here" }, { status: 400 });
+      }
       const row = await withUser(s.session.user_id, async (c) => {
         if (typeof ch.password === "string") {
           await c.query("select change_password($1, '', $2)", [body.key, ch.password]);
           await c.query("update users set must_change_password = true where id = $1", [body.key]);
         }
         const sets: string[] = []; const vals: unknown[] = [];
-        if (["admin", "manager", "executive"].includes(String(ch.role))) { vals.push(ch.role); sets.push(`role = $${vals.length}`); }
-        if (typeof ch.is_active === "boolean") { vals.push(ch.is_active); sets.push(`is_active = $${vals.length}`); }
-        if (sets.length) { vals.push(body.key); await c.query(`update users set ${sets.join(",")} where id = $${vals.length}`, vals); }
-        return (await c.query("select id, email, role, employee_id, is_active, must_change_password from users where id = $1", [body.key])).rows[0];
+        const set = (col: string, v: unknown) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+        if (["admin", "manager", "executive"].includes(String(ch.role))) set("role", ch.role);
+        if (typeof ch.is_active === "boolean") set("is_active", ch.is_active);
+        if ("name" in ch) set("name", String(ch.name ?? "").trim().slice(0, 120) || null);
+        if ("username" in ch) {
+          const u = String(ch.username ?? "").trim().toLowerCase();
+          if (u && !/^[a-z0-9._-]{3,40}$/.test(u)) throw Object.assign(new Error("Username: 3-40 letters, numbers, dots, dashes or underscores"), { code: "P0001" });
+          set("username", u || null);
+        }
+        if ("employee_id" in ch) set("employee_id", ch.employee_id ? String(ch.employee_id) : null);
+        if ("studios" in ch) set("studios", Array.isArray(ch.studios) ? ch.studios.map(String).filter(Boolean) : []);
+        if (ch.unlock === true) sets.push("locked_until = null", "failed_login_count = 0");
+        if (sets.length) { vals.push(body.key); await c.query(`update users set ${sets.join(",")}, updated_at = now() where id = $${vals.length}`, vals); }
+        // Deactivating or "sign out everywhere" ends every live session at once.
+        if (ch.revoke_sessions === true || ch.is_active === false) {
+          await c.query("update sessions set revoked_at = now() where user_id = $1 and revoked_at is null", [body.key]);
+        }
+        return (await c.query(
+          `select u.id, u.email, u.role, u.employee_id, u.is_active, u.must_change_password,
+                  u.username::text as username, u.studios, (u.locked_until > now()) as is_locked,
+                  (select count(*)::int from sessions s where s.user_id = u.id and s.revoked_at is null and s.expires_at > now()) as active_sessions
+             from users u where u.id = $1`, [body.key])).rows[0];
       });
       return NextResponse.json({ row });
     }

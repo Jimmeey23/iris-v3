@@ -32,6 +32,8 @@ import {
   Send,
   Play,
   Sparkles,
+  Activity,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,7 @@ import { CATEGORY_MAP } from "@/lib/iris/iris-constants";
 import { MultiSelect } from "@/components/iris/multi-select";
 import { useAppStore, type ViewName } from "@/lib/iris/store";
 import { ACCENT_PALETTE, useSettingsStore, type AccentPreference } from "@/lib/iris/settings-store";
+import { HealthSettings, UsersAccessSettings } from "./settings-access";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data + saving
@@ -650,6 +653,7 @@ function ConditionBuilder({
 
 const SETTINGS_SECTIONS = [
   { id: "preferences", label: "My Preferences", icon: Palette },
+  { id: "health", label: "Health Check", icon: Activity },
   { id: "organization", label: "Organization & Limits", icon: Sliders },
   { id: "departments", label: "Departments", icon: Building2 },
   { id: "employees", label: "Employees", icon: Users },
@@ -659,7 +663,8 @@ const SETTINGS_SECTIONS = [
   { id: "ai", label: "AI Models", icon: Brain },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "permissions", label: "Users & Roles", icon: Shield },
+  { id: "users", label: "Users & Access", icon: UserCog },
+  { id: "permissions", label: "Roles & Permissions", icon: Shield },
   { id: "audit", label: "Audit Logs", icon: Database },
 ] as const;
 
@@ -676,7 +681,9 @@ const SECTION_DESCRIPTIONS: Record<SectionId, string> = {
   ai: "Configure Claude/OpenAI models, triage thresholds, and token/spend guardrails.",
   notifications: "Control workspace channels, sender identity, and event-level delivery rules.",
   integrations: "Enable, configure, and test live external service connections.",
-  permissions: "Control user sign-in accounts and role-based permissions.",
+  users: "Accounts, sign-in methods, studio cover and the Google sign-in policy.",
+  permissions: "Job roles and the permissions each access tier carries.",
+  health: "Find routing, escalation, SLA and access problems before they strand a ticket.",
   audit: "Inspect, export, and manage retention of immutable workspace audit logs.",
 };
 
@@ -767,9 +774,10 @@ export function SettingsView() {
             <nav aria-label="Settings sections" className="p-2.5">
               {[
                 { label: "Personal", ids: ["preferences"] },
+                ...(ctx.canEdit ? [{ label: "Overview", ids: ["health"] }] : []),
                 { label: "Workspace", ids: ["organization", "departments", "employees", "studios"] },
                 { label: "Operations", ids: ["sla", "routing", "ai", "notifications"] },
-                { label: "Administration", ids: ["integrations", "permissions", "audit"] },
+                { label: "Administration", ids: [...(ctx.isAdmin ? ["users"] : []), "permissions", "integrations", "audit"] },
               ].map((group) => {
                 const sections = SETTINGS_SECTIONS.filter(
                   (sec) =>
@@ -845,6 +853,16 @@ export function SettingsView() {
             {activeSection === "ai" && <AIModelSettings />}
             {activeSection === "notifications" && <NotificationsSettings />}
             {activeSection === "integrations" && <IntegrationsSettings />}
+            {activeSection === "health" && <HealthSettings onNavigate={(id) => setActiveSection(id as SectionId)} />}
+            {activeSection === "users" && (
+              <UsersAccessSettings
+                data={ctx.data}
+                patch={(r, key, changes) => ctx.patch(r, key, changes)}
+                create={(r, row) => ctx.create(r, row)}
+                setting={ctx.setting}
+                saveSetting={ctx.saveSetting}
+              />
+            )}
             {activeSection === "permissions" && <PermissionsSettings />}
             {activeSection === "audit" && <AuditLogsSettings />}
           </div>
@@ -2649,176 +2667,14 @@ const TIERS = [
 
 function PermissionsSettings() {
   const { data, isAdmin, patch, create, remove } = useS();
-  const [addingUser, setAddingUser] = React.useState(false);
-  const [u, setU] = React.useState({ employee_id: "", email: "", password: "", role: "executive" });
   const [addingRole, setAddingRole] = React.useState(false);
   const [r, setR] = React.useState({ name: "", access_tier: "executive", permissions: [] as string[] });
   const permOptions = [...new Set([...KNOWN_PERMISSIONS, ...data.roles.flatMap((x) => x.permissions ?? [])])]
     .sort()
     .map((v) => ({ value: v, label: v }));
-  const withLogin = new Set(data.users.map((x) => x.employee_id).filter(Boolean));
-  const empOptions = data.employees.filter((e) => e.is_active && !withLogin.has(e.id));
-
-  const tempPassword = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-    const a = new Uint32Array(14);
-    crypto.getRandomValues(a);
-    return Array.from(a, (x) => chars[x % chars.length]).join("");
-  };
-
-  const resetPassword = async (user: Row) => {
-    const pw = tempPassword();
-    if (!window.confirm(`Reset the password for ${user.email}? They'll be signed out everywhere.`)) return;
-    if (await patch("users", user.id, { password: pw })) {
-      window.prompt(
-        `Temporary password for ${user.email} (copy it now, it won't be shown again). They must change it on next sign-in.`,
-        pw,
-      );
-    }
-  };
 
   return (
     <>
-      <SettingsCard
-        title="User Accounts"
-        description="Who can sign in to IRIS, and with what access"
-        action={
-          <AddButton
-            label="Add Login"
-            onClick={() => {
-              setU({ employee_id: "", email: "", password: tempPassword(), role: "executive" });
-              setAddingUser(true);
-            }}
-            disabled={!isAdmin}
-          />
-        }
-      >
-        {!isAdmin ? (
-          <ReadOnlyNote show text="Only admins can see and manage user accounts." />
-        ) : (
-          <>
-            <AddForm
-              open={addingUser}
-              onCancel={() => setAddingUser(false)}
-              onSubmit={async () => {
-                const ok = await create("users", u);
-                if (ok) {
-                  window.prompt(
-                    `Account created. Temporary password for ${u.email} (copy it now). They must change it on first sign-in.`,
-                    u.password,
-                  );
-                }
-                return ok;
-              }}
-            >
-              <Field label="Employee">
-                <NativeSelect
-                  className="w-full"
-                  value={u.employee_id}
-                  onChange={(v) =>
-                    setU({
-                      ...u,
-                      employee_id: v,
-                      email: data.employees.find((e) => e.id === v)?.email ?? u.email,
-                    })
-                  }
-                  options={[{ value: "", label: "Not linked" }, ...empOptions.map((e) => ({ value: e.id, label: e.name }))]}
-                />
-              </Field>
-              <Field label="Sign-in email">
-                <Input
-                  type="email"
-                  required
-                  className="h-7 text-[12px]"
-                  value={u.email}
-                  onChange={(e) => setU({ ...u, email: e.target.value })}
-                />
-              </Field>
-              <Field label="Access">
-                <NativeSelect
-                  className="w-full"
-                  value={u.role}
-                  onChange={(v) => setU({ ...u, role: v })}
-                  options={TIERS}
-                />
-              </Field>
-              <Field label="Temporary password (10+ chars)" className="md:col-span-3">
-                <Input
-                  required
-                  minLength={10}
-                  className="h-7 text-[12px] font-mono"
-                  value={u.password}
-                  onChange={(e) => setU({ ...u, password: e.target.value })}
-                />
-              </Field>
-            </AddForm>
-            <div className="overflow-x-auto iris-scrollbar">
-              <table className="w-full text-[12px] min-w-[720px]">
-                <thead>
-                  <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <th className="text-left py-2 px-1.5 font-semibold">User</th>
-                    <th className="text-left py-2 px-1.5 font-semibold">Access</th>
-                    <th className="text-left py-2 px-1.5 font-semibold">Last sign-in</th>
-                    <th className="text-left py-2 px-1.5 font-semibold">Active</th>
-                    <th className="py-2 px-1.5" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {data.users.map((x) => {
-                    const self = x.id === data.me.userId;
-                    return (
-                      <tr key={x.id} className={cn(!x.is_active && "opacity-50")}>
-                        <td className="py-1.5 px-1.5">
-                          <div className="font-medium">
-                            {x.name ?? x.email}
-                            {self && <span className="text-muted-foreground"> (you)</span>}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {x.email}
-                            {x.must_change_password && " · must set password"}
-                          </div>
-                        </td>
-                        <td className="py-1.5 px-1.5">
-                          <NativeSelect
-                            value={x.role}
-                            disabled={self}
-                            onChange={(v) => patch("users", x.id, { role: v })}
-                            options={TIERS}
-                          />
-                        </td>
-                        <td className="py-1.5 px-1.5 text-[11px] text-muted-foreground">
-                          {x.last_login_at ? new Date(x.last_login_at).toLocaleString() : "Never"}
-                        </td>
-                        <td className="py-1.5 px-1.5">
-                          <Switch
-                            checked={x.is_active}
-                            disabled={self}
-                            onCheckedChange={(v) => patch("users", x.id, { is_active: v })}
-                            aria-label="Active"
-                          />
-                        </td>
-                        <td className="py-1.5 px-1.5 text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 text-[10px]"
-                            disabled={self}
-                            onClick={() => resetPassword(x)}
-                          >
-                            <KeyRound className="w-3 h-3 mr-1" />
-                            Reset password
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </SettingsCard>
-
       <SettingsCard
         title="Role Catalogue"
         description="Job roles and permissions synced to active user sessions in real time."

@@ -35,13 +35,23 @@ export async function GET(request: NextRequest) {
 
   const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
   try {
-    const rows = await asSystem(async (c) =>
-      (await c.query(
+    const rows = await asSystem(async (c) => {
+      // Sign-in policy edited in Settings → Users & Access wins; env is the fallback.
+      const policy = new Map<string, unknown>(
+        (await c.query(
+          "select key, value from iris.app_settings where key in ('auth.allowed_domains', 'auth.allowed_emails')",
+        )).rows.map((r) => [r.key, r.value]),
+      );
+      const list = (v: unknown, fallback: string[]) =>
+        Array.isArray(v) ? v.map((x) => String(x).trim().toLowerCase().replace(/^@/, "")).filter(Boolean) : fallback;
+      return (await c.query(
         "select * from iris.login_google($1, $2, $3, $4, $5::text[], $6::text[], $7::inet, $8)",
         [profile.email, profile.sub, profile.name, profile.picture,
-         allowedEmailDomains(), allowedEmails(), ip, request.headers.get("user-agent")],
-      )).rows,
-    );
+         list(policy.get("auth.allowed_domains"), allowedEmailDomains()),
+         list(policy.get("auth.allowed_emails"), allowedEmails()),
+         ip, request.headers.get("user-agent")],
+      )).rows;
+    });
     if (!rows[0]) return fail("not_authorised");
     await setSessionCookie(rows[0].session_token);
     const res = NextResponse.redirect(new URL("/", request.url));

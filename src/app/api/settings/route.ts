@@ -48,8 +48,14 @@ export async function GET() {
         session.role === "admin"
           ? (
               await c.query(
-                `select u.id, u.email, u.role, u.employee_id, u.is_active, u.must_change_password, u.last_login_at, e.name
-                   from users u left join employees e on e.id = u.employee_id order by e.name nulls last, u.email`,
+                `select u.id, u.email, u.role, u.employee_id, u.is_active, u.must_change_password, u.last_login_at,
+                        coalesce(e.name, u.name) as name, u.username::text as username, u.avatar_url, u.studio,
+                        u.studios, u.department, u.auth_provider, (u.google_sub is not null) as has_google,
+                        (u.locked_until > now()) as is_locked, u.failed_login_count, u.created_at,
+                        (select count(*)::int from sessions s
+                          where s.user_id = u.id and s.revoked_at is null and s.expires_at > now()) as active_sessions
+                   from users u left join employees e on e.id = u.employee_id
+                  order by coalesce(e.name, u.name) nulls last, u.email`,
               )
             ).rows
           : [];
