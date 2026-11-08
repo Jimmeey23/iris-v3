@@ -173,21 +173,21 @@ export function OverviewView() {
 
         <div className="relative grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-stretch">
           {/* Left */}
-          <div className="min-w-0 px-6 py-5 sm:px-7 sm:py-6">
+          <div className="min-w-0 px-6 py-4 sm:px-7 sm:py-4">
             <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
               <span className="iris-live-dot" />
               <span>Live</span>
               <span className="text-border">/</span>
               <span>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
             </div>
-            <h1 className="mt-2.5 text-[28px] sm:text-[32px] font-semibold tracking-[-0.02em] leading-[1.1]">
+            <h1 className="mt-1.5 text-[26px] sm:text-[28px] font-semibold tracking-[-0.02em] leading-[1.1]">
               {greeting}, <span className="text-primary">{firstName}</span>.
             </h1>
-            <p className="mt-1.5 text-[13px] text-muted-foreground max-w-xl leading-relaxed">
+            <p className="mt-1 text-[13px] text-muted-foreground max-w-xl leading-relaxed">
               Across every Physique 57 India studio right now: <span className="text-foreground font-medium">{narrative}</span>.
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-1.5">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
               {nav.map((n, i) => (
                 <button key={n.label} onClick={() => setCurrentView(n.view)}
                   className={cn("inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium transition-all",
@@ -197,13 +197,13 @@ export function OverviewView() {
               ))}
             </div>
 
-            <dl className="mt-4 grid grid-cols-3 gap-2 max-w-xl">
+            <dl className="mt-3 grid grid-cols-3 gap-2 max-w-xl">
               {[
                 { k: "Raised · 7 days", v: live.created7, sub: live.total.trend ? `${live.total.trend} vs prior week` : "" },
                 { k: "Resolved · 7 days", v: live.resolved7, sub: live.resolved.trend ? `${live.resolved.trend} vs prior week` : "" },
                 { k: "First response", v: hours(live.avgFirstResponseH), sub: "average · 30 days" },
               ].map((s) => (
-                <div key={s.k} className="rounded-xl border border-border/70 bg-card/60 backdrop-blur px-3.5 py-2.5">
+                <div key={s.k} className="rounded-xl border border-border/70 bg-card/60 backdrop-blur px-3.5 py-2">
                   <dt className="text-[10px] uppercase tracking-[.14em] text-muted-foreground">{s.k}</dt>
                   <dd className="mt-1 text-[20px] font-semibold tabular-nums leading-none">{s.v}</dd>
                   {s.sub && <dd className="mt-1 text-[10px] text-muted-foreground">{s.sub}</dd>}
@@ -213,7 +213,7 @@ export function OverviewView() {
           </div>
 
           {/* Right: SLA panel */}
-          <div className="flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-border/70 bg-white/70 dark:bg-card/60 backdrop-blur-md px-6 py-5 sm:px-7">
+          <div className="flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-border/70 bg-white/70 dark:bg-card/60 backdrop-blur-md px-6 py-4 sm:px-7">
             <div className="flex items-center gap-5">
               <div className="relative shrink-0" style={{ width: 120, height: 120 }}>
                 <svg width="120" height="120" viewBox="0 0 148 148" aria-hidden>
@@ -242,7 +242,7 @@ export function OverviewView() {
                 </div>
               </div>
             </div>
-            <button onClick={() => setDrill("overdue")} className="mt-3.5 w-full inline-flex items-center justify-between rounded-xl border border-border/70 px-3.5 py-2.5 text-[12px] hover:bg-muted/50 transition-colors">
+            <button onClick={() => setDrill("overdue")} className="mt-3 w-full inline-flex items-center justify-between rounded-xl border border-border/70 px-3.5 py-2 text-[12px] hover:bg-muted/50 transition-colors">
               <span className="text-muted-foreground">See what&apos;s at risk</span>
               <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
