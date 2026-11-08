@@ -16,7 +16,7 @@ export function IrisLoadingScreen({ label = "Preparing your workspace" }: { labe
           <div className="iris-loading-logo"><IrisLogo size={88} /></div>
           <span className="iris-loading-satellite" />
         </div>
-        <div className="iris-loading-kicker">IRIS · ISSUE RESOLUTION &amp; INTELLIGENT SYSTEMS</div>
+        <div className="iris-loading-kicker">ISSUE RESOLUTION &amp; INTELLIGENT SYSTEMS</div>
         <h1>Everything in its place.</h1>
         <p>Your workspace for thoughtful, connected resolution.</p>
         <div className="iris-loading-progress"><span /></div>
