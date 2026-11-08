@@ -216,7 +216,15 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       currentView: "overview",
       selectedTicketId: null,
-      setCurrentView: (view) => set({ currentView: view, selectedTicketId: null }),
+      // Navigating to a view always lands on its root: no open ticket, article or template step.
+      // (openTemplate / openKnowledgeArticle deep-link instead.)
+      setCurrentView: (view) =>
+        set({
+          currentView: view,
+          selectedTicketId: null,
+          kbArticleId: null,
+          templateNav: { category: null, subcategory: null, templateCode: null },
+        }),
       selectTicket: (ticketId) => set({ selectedTicketId: ticketId }),
 
       sidebarCollapsed: false,

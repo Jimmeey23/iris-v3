@@ -23,8 +23,9 @@ import {
  * keyword + category + subcategory heuristics on the static ticket data.
  */
 export function AIResolutionSuggestions({ ticket }: { ticket: Ticket }) {
-  const { setCurrentView, selectTicket } = useAppStore();
+  const { selectTicket, openTemplate, openKnowledgeArticle } = useAppStore();
   const suggestion = React.useMemo(() => suggestResolution(ticket), [ticket]);
+  const matchedTemplate = suggestion.template;
 
   const hasAnything =
     suggestion.knowledgeArticles.length > 0 ||
@@ -74,16 +75,16 @@ export function AIResolutionSuggestions({ ticket }: { ticket: Ticket }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Matching template */}
-        {suggestion.template && (
+        {matchedTemplate && (
           <SuggestionCard
             icon={Wand2}
             iconColor="text-amber-500"
             title="Matching Template"
-            subtitle={`${suggestion.template.code} · ${suggestion.template.matchScore}% match`}
-            body={suggestion.template.title}
+            subtitle={`${matchedTemplate.code} · ${matchedTemplate.matchScore}% match`}
+            body={matchedTemplate.title}
             action={
               <button
-                onClick={() => setCurrentView("templates")}
+                onClick={() => openTemplate(matchedTemplate.code)}
                 className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5 mt-2"
               >
                 Open template <ChevronRight className="w-3 h-3" />
@@ -104,7 +105,7 @@ export function AIResolutionSuggestions({ ticket }: { ticket: Ticket }) {
                 {suggestion.knowledgeArticles.slice(0, 2).map(({ article, score, matchReason }) => (
                   <button
                     key={article.id}
-                    onClick={() => setCurrentView("knowledge_base")}
+                    onClick={() => openKnowledgeArticle(article.id)}
                     className="block w-full text-left p-1.5 rounded-md border border-border hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-colors"
                   >
                     <div className="text-[11px] font-semibold leading-tight truncate">{article.title}</div>
