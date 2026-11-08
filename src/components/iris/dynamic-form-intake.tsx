@@ -33,6 +33,7 @@ import {
   PRIORITY_SLA_HOURS,
 } from "@/lib/iris/iris-constants";
 import { cn } from "@/lib/utils";
+import { TrainerSelect } from "@/components/iris/trainer-select";
 import { MomenceSearchField, MomenceEntity } from "@/components/iris/momence-search-field";
 import {
   X,
@@ -498,14 +499,7 @@ export function DynamicFormIntake({ onClose, template }: { onClose: () => void; 
                 </FormField>
               )}
               <FormField label="Trainer (if relevant)" hint="Select from trainer directory">
-                <select
-                  value={form.trainer}
-                  onChange={(e) => updateForm("trainer", e.target.value)}
-                  className="w-full h-10 px-3 text-[12px] rounded-lg border border-border bg-card focus:outline-none focus:border-violet-500"
-                >
-                  <option value="">Select trainer...</option>
-                  {TRAINERS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <TrainerSelect value={form.trainer} onChange={(v) => updateForm("trainer", v)} options={TRAINERS} />
               </FormField>
               <FormField label="Class Format (if relevant)" hint="What type of class">
                 <select

@@ -99,6 +99,14 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
   if (typeof b.resolution === "string") set("resolution", b.resolution.slice(0, 5000));
   if (typeof b.investigationNotes === "string") set("investigation_notes", b.investigationNotes.slice(0, 10000));
   if (Number.isInteger(b.escalationLevel)) set("escalation_level", Math.max(0, Math.min(5, b.escalationLevel)));
+  // Non-admins can't add SLA time directly; they request it from their reporting manager
+  // via /api/sla-extensions and it's added only on approval.
+  if (b.slaStatus !== undefined && auth.session.role !== "admin") {
+    return NextResponse.json({ error: "Only admins can pause or change the SLA" }, { status: 403 });
+  }
+  if (b.extendSlaHours !== undefined && auth.session.role !== "admin") {
+    return NextResponse.json({ error: "Ask your reporting manager for more time instead" }, { status: 403 });
+  }
   if (Number.isFinite(b.extendSlaHours) && b.extendSlaHours > 0) {
     vals.push(Math.min(168, b.extendSlaHours));
     sets.push(`sla_resolution_target = coalesce(sla_resolution_target, now()) + make_interval(hours => $${vals.length}::int)`);

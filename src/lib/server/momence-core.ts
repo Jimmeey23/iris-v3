@@ -214,7 +214,7 @@ export async function listMembers(opts: {
         page,
         pageSize,
         query: q || undefined,
-        sortBy: q ? undefined : "lastSeen",
+        sortBy: q ? undefined : "lastSeenAt",
         sortOrder: q ? undefined : "DESC",
       });
       const rows = (j.payload ?? []).map((m: any) => toMember(r, m));

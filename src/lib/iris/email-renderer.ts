@@ -67,6 +67,14 @@ export interface RenderNotificationInput {
   previousOwnerName?: string | null;
   addedDepartmentNames?: string[];
   comment?: { author?: string | null; content: string; isInternal?: boolean } | null;
+  extension?: {
+    hours: number;
+    reason: string;
+    requesterName?: string | null;
+    approverName?: string | null;
+    decision?: "approved" | "rejected" | null;
+    decisionNote?: string | null;
+  } | null;
   appUrl?: string;
   override?: EmailTemplateOverride;
   testBadge?: boolean;
@@ -173,6 +181,24 @@ export const NOTIFICATION_EMAIL_CATALOG: EmailTemplateCatalogEntry[] = [
     accentColor: "rose",
   },
   {
+    code: "EML_SLA_EXTENSION_REQUEST",
+    event: "sla_extension_requested",
+    ruleName: RULE_EVENT.sla_extension_requested,
+    name: "SLA Extension Request",
+    description: "Sent to the owner's reporting manager when more time is requested on a breached ticket. The time is only added once the manager approves.",
+    recipientSummary: "Reporting Manager",
+    accentColor: "amber",
+  },
+  {
+    code: "EML_SLA_EXTENSION_DECIDED",
+    event: "sla_extension_decided",
+    ruleName: RULE_EVENT.sla_extension_decided,
+    name: "SLA Extension Decision",
+    description: "Tells the requesting owner whether their reporting manager approved or declined the extra time.",
+    recipientSummary: "Requesting Owner",
+    accentColor: "emerald",
+  },
+  {
     code: "EML_ESCALATED",
     event: "escalated",
     ruleName: RULE_EVENT.escalated,
@@ -233,6 +259,9 @@ function cleanOrigin(appUrl?: string): string {
 
 export function renderNotificationEmail(input: RenderNotificationInput): RenderedEmail {
   const { event, ticket: t, recipient, actorName, previousStatus, previousOwnerName, addedDepartmentNames, comment, override, testBadge } = input;
+  const ext = input.extension ?? { hours: 4, reason: "Waiting on a vendor visit to complete the fix.", requesterName: t.assigneeName ?? "The owner" };
+  const extRequester = ext.requesterName || t.assigneeName || "The ticket owner";
+  const extApproved = ext.decision === "approved";
   const role: RecipientRole = recipient?.role ?? "owner";
   const ref = t.ticketId || t.id;
   const labelRef = `${ref}: ${t.title}`;
@@ -453,7 +482,7 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
       }),
       steps: [
         "Confirm active ownership or reassign immediately if the current owner is blocked.",
-        "Ensure the affected studio or member has received a direct status update.",
+        "Ensure the studio team has an internal status update on the ticket.",
         "Record the recovery action plan on the ticket.",
       ],
       cta: "Take Action on Escalation",
@@ -491,11 +520,40 @@ export function renderNotificationEmail(input: RenderNotificationInput): Rendere
       }),
       steps: [
         "Post an immediate status update explaining current blocker and ETA.",
-        "Notify the studio manager or affected client.",
+        "Update the studio manager internally, or request more time from your reporting manager in IRIS.",
       ],
       cta: "Resolve Breached Ticket",
       why: "a ticket in your scope breached its SLA target",
       inApp: "SLA breached",
+    },
+    sla_extension_requested: {
+      subject: `[Approval Needed] ${ref} - ${extRequester} requests +${ext.hours}h SLA: ${t.title}`,
+      context: "SLA Extension Request",
+      accent: "#d97706",
+      heading: `${firstName(extRequester) ?? extRequester} is asking for ${ext.hours} more hour${ext.hours === 1 ? "" : "s"}`,
+      lede: `${t.title} is past its SLA${dueDisplay ? ` (target ${dueDisplay})` : ""}. The extra time is only added once you approve it.`,
+      calloutBlock: callout({ title: "Reason given", body: ext.reason, tone: "warning" }),
+      steps: [
+        "Open the ticket and review the latest activity.",
+        "Approve to add the time to the SLA, or decline so the owner resolves it now.",
+      ],
+      cta: "Review Extension Request",
+      why: "you are the reporting manager of the person who asked for more time",
+      inApp: `Approve +${ext.hours}h for ${ref}?`,
+    },
+    sla_extension_decided: {
+      subject: `[${ref}] SLA extension ${extApproved ? "approved" : "declined"}: ${t.title}`,
+      context: extApproved ? "Extension Approved" : "Extension Declined",
+      accent: extApproved ? BRAND.green : BRAND.red,
+      heading: extApproved ? `Your +${ext.hours}h extension was approved` : "Your extension request was declined",
+      lede: extApproved
+        ? `${ext.approverName || "Your reporting manager"} approved the extra time on ${t.title}.${dueDisplay ? ` New target: ${dueDisplay}.` : ""}`
+        : `${ext.approverName || "Your reporting manager"} declined more time on ${t.title}. Please resolve it now.`,
+      calloutBlock: ext.decisionNote ? callout({ title: "Manager's note", body: ext.decisionNote, tone: extApproved ? "success" : "danger" }) : undefined,
+      steps: [],
+      cta: "Open Ticket",
+      why: "you asked for more time on this ticket",
+      inApp: extApproved ? `Extension approved on ${ref}` : `Extension declined on ${ref}`,
     },
   };
 

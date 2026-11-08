@@ -64,6 +64,7 @@ import {
 import { ALL_TICKETS, isOwner } from "@/lib/iris/sample-tickets";
 import { RelativeTime } from "./relative-time";
 import { CommandPalette } from "./command-palette";
+import { SlaBreachBanner } from "./sla-breach-banner";
 import { Member360Lookup } from "./member-360";
 
 interface NavItem {
@@ -639,6 +640,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Popover>
           </div>
         </header>
+
+        <SlaBreachBanner />
 
         {/* Content */}
         <main className="iris-app-main flex-1 overflow-hidden">

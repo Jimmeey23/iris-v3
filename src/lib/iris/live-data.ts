@@ -203,10 +203,14 @@ export const ticketsApi = {
         typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : cryptoIdempotencyKey(),
       ...body,
     };
-    const saved = (
-      await api("/api/tickets", { method: "POST", json: keyed, headers: { "Idempotency-Key": keyed.idempotencyKey } })
-    ).ticket;
-    return upsertTicket(saved);
+    const res = await api<{ ticket: any; locked?: boolean }>("/api/tickets", {
+      method: "POST",
+      json: keyed,
+      headers: { "Idempotency-Key": keyed.idempotencyKey },
+    });
+    // Admin-only categories: the filer gets a receipt but the ticket never enters their store.
+    if (res.locked) return res.ticket;
+    return upsertTicket(res.ticket);
   },
   update: async (id: string, body: Record<string, unknown>) =>
     upsertTicket((await api(`/api/tickets/${encodeURIComponent(id)}`, { method: "PATCH", json: body })).ticket),

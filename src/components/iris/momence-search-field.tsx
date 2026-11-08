@@ -2,6 +2,7 @@
 import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
+import { TrainerAvatar } from "./trainer-photo";
 import { cn } from "@/lib/utils";
 import { Search, User, Calendar, Users, Check, Loader2, X } from "lucide-react";
 
@@ -158,12 +159,16 @@ export function MomenceSearchField({
     return (
       <div className="iris-card-elevated p-3 iris-scale-in">
         <div className="flex items-center gap-3">
-          <div className={cn(
-            "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center shrink-0",
-            COLOR_MAP[selected.avatarColor || "violet"]
-          )}>
-            <Icon className="w-5 h-5 text-white" />
-          </div>
+          {type === "momence_trainer" ? (
+            <TrainerAvatar name={selected.name} size={40} />
+          ) : (
+            <div className={cn(
+              "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center shrink-0",
+              COLOR_MAP[selected.avatarColor || "violet"]
+            )}>
+              <Icon className="w-5 h-5 text-white" />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-semibold truncate">{selected.name}</span>
@@ -270,12 +275,16 @@ export function MomenceSearchField({
                   onClick={() => handleSelect(entity)}
                   className="w-full flex items-center gap-3 p-2.5 hover:bg-violet-500/5 transition-colors text-left border-b border-border last:border-0 group"
                 >
-                  <div className={cn(
-                    "w-9 h-9 rounded-lg bg-gradient-to-br flex items-center justify-center shrink-0",
-                    COLOR_MAP[entity.avatarColor || "violet"]
-                  )}>
-                    <Icon className="w-4 h-4 text-white" />
-                  </div>
+                  {type === "momence_trainer" ? (
+                    <TrainerAvatar name={entity.name} size={36} />
+                  ) : (
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg bg-gradient-to-br flex items-center justify-center shrink-0",
+                      COLOR_MAP[entity.avatarColor || "violet"]
+                    )}>
+                      <Icon className="w-4 h-4 text-white" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[12px] font-medium truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">

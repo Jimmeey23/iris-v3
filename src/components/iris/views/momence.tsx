@@ -2,6 +2,7 @@
 import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
+import { TrainerAvatar } from "@/components/iris/trainer-photo";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
@@ -1108,7 +1109,8 @@ function LiveTrainersSection({ region, configured }: { region: RegionFilter; con
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {trainers.map((t) => (
             <div key={t.id} className="iris-card p-3.5 flex items-center justify-between gap-3">
-              <div className="min-w-0">
+              <TrainerAvatar name={t.name} size={40} />
+              <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-semibold truncate">{t.name}</div>
                 <div className="text-[11px] text-muted-foreground truncate">
                   {t.locations.join(", ") || REGION_NAME[t.region]}

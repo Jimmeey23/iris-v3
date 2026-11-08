@@ -72,7 +72,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const ticket = await withUser(session.user_id, async (c) => {
+    // Trainer Feedback is admin-only under RLS. Anyone may still file one: the insert runs
+    // as the system (values are all server-built) and the filer gets a receipt, not the record.
+    const adminOnly = category === "Trainer Feedback" && session.role !== "admin";
+    const run = <T,>(fn: Parameters<typeof asSystem<T>>[0]) => (adminOnly ? asSystem(fn) : withUser(session.user_id, fn));
+    const ticket = await run(async (c) => {
       const studioCode = str(b.studioCode, 10);
       const subcategory = str(b.subcategory, 120);
       const description = str(b.description) ?? "";
@@ -282,6 +286,12 @@ export async function POST(request: Request) {
       return fetchTicket(c, id);
     });
     if (ticket) notifyTicketEvent("ticket_created", ticket, session);
+    if (adminOnly && ticket) {
+      return NextResponse.json(
+        { ticket: { id: ticket.id, ticketId: ticket.ticketId, title: ticket.title, category: ticket.category, status: ticket.status }, locked: true },
+        { status: 201 },
+      );
+    }
     return NextResponse.json({ ticket }, { status: 201 });
   } catch (err) {
     return dbError(err);

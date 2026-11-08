@@ -16,7 +16,9 @@ export type NotifyEvent =
   | "comment_added"
   | "escalated"
   | "sla_at_risk"
-  | "sla_breached";
+  | "sla_breached"
+  | "sla_extension_requested"
+  | "sla_extension_decided";
 
 /** Event -> notification_rules.event (the names shown in Settings > Notifications). */
 export const RULE_EVENT: Record<NotifyEvent, string> = {
@@ -33,6 +35,8 @@ export const RULE_EVENT: Record<NotifyEvent, string> = {
   escalated: "Ticket escalated",
   sla_at_risk: "SLA approaching",
   sla_breached: "SLA breached",
+  sla_extension_requested: "SLA extension requested",
+  sla_extension_decided: "SLA extension decided",
 };
 
 /** Map a PATCH status change onto an event, or null if the move isn't a notifying stage. */

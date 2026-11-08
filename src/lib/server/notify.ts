@@ -35,6 +35,17 @@ export type NotifyExtra = {
   watcherEmployeeIds?: string[];
   /** Overrides the dedupe discriminator (default: minute bucket). */
   dedupe?: string;
+  /** SLA extension request context (requested / decided events). */
+  extension?: {
+    hours: number;
+    reason: string;
+    requesterEmployeeId?: string | null;
+    requesterName?: string | null;
+    approverEmployeeId?: string | null;
+    approverName?: string | null;
+    decision?: "approved" | "rejected" | null;
+    decisionNote?: string | null;
+  } | null;
   /** Don't send mail, log as dry_run. Also enabled globally with NOTIFY_DRY_RUN=1. */
   dryRun?: boolean;
 };
@@ -47,6 +58,7 @@ type Recipient = {
   userId: string | null;
   wantsEmail: boolean;
   wantsInApp: boolean;
+  isAdmin: boolean;
 };
 
 const IN_APP_TYPE: Record<NotifyEvent, "critical" | "sla" | "escalated" | "assignment" | "comment" | "info"> = {
@@ -63,6 +75,8 @@ const IN_APP_TYPE: Record<NotifyEvent, "critical" | "sla" | "escalated" | "assig
   escalated: "escalated",
   sla_at_risk: "sla",
   sla_breached: "sla",
+  sla_extension_requested: "sla",
+  sla_extension_decided: "sla",
 };
 
 const appOrigin = () => (process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000").replace(/\/+$/, "");
@@ -132,7 +146,7 @@ async function deliver(
       )
     ).rows[0];
     // For newly added events that haven't been saved in notification_rules yet, default to enabled.
-    const rule = ruleRow ?? (event === "owner_added" || event === "department_added" ? { in_app: true, email: true } : null);
+    const rule = ruleRow ?? (event === "owner_added" || event === "department_added" || event.startsWith("sla_extension_") ? { in_app: true, email: true } : null);
     if (!rule) return null;
 
     const settings = Object.fromEntries(
@@ -166,9 +180,11 @@ async function deliver(
         )
       : undefined;
 
-    const recipients = (await resolveRecipients(client, event, t, actor, extra)).filter(
-      (r) => r.employeeId !== actor?.employee_id || event === "escalated" || event.startsWith("sla_"),
+    let recipients = (await resolveRecipients(client, event, t, actor, extra)).filter(
+      (r) => r.employeeId !== actor?.employee_id || event === "escalated" || (event.startsWith("sla_") && !event.startsWith("sla_extension_")),
     );
+    // Trainer Feedback tickets are admin-only: never notify anyone else about them.
+    if (t.category === "Trainer Feedback") recipients = recipients.filter((r) => r.isAdmin);
 
     const overrides = (settings["email.template_overrides"] ?? {}) as EmailTemplateOverridesMap;
     const senderName = typeof settings["notifications.sender_name"] === "string" ? settings["notifications.sender_name"] : undefined;
@@ -191,6 +207,7 @@ async function deliver(
         previousOwnerName,
         addedDepartmentNames,
         comment: extra.comment,
+        extension: extra.extension ?? null,
         appUrl: origin,
         override: overrides[event],
       });
@@ -459,6 +476,13 @@ async function resolveRecipients(
       addOwners("owner");
       add(await managerOf(t.assigneeId), "manager");
       break;
+    case "sla_extension_requested":
+      // Internal only: the requester's reporting manager (or the resolved approver).
+      add(extra.extension?.approverEmployeeId ?? (await managerOf(extra.extension?.requesterEmployeeId ?? t.assigneeId)), "manager");
+      break;
+    case "sla_extension_decided":
+      add(extra.extension?.requesterEmployeeId ?? t.assigneeId, "owner");
+      break;
     case "sla_breached":
       addOwners("owner");
       add(await managerOf(t.assigneeId), "manager");
@@ -473,7 +497,7 @@ async function resolveRecipients(
 
   const ids = [...roles.keys()];
   const { rows } = await c.query(
-    `select e.id, e.name, e.email, u.id as user_id, u.is_active as user_active,
+    `select e.id, e.name, e.email, u.id as user_id, u.is_active as user_active, u.role as user_role,
             coalesce(p.email_notifications, true) as email_pref, coalesce(p.push_notifications, true) as push_pref
        from employees e
        left join users u on u.employee_id = e.id
@@ -489,5 +513,6 @@ async function resolveRecipients(
     userId: r.user_id && r.user_active !== false ? r.user_id : null,
     wantsEmail: r.email_pref,
     wantsInApp: r.push_pref,
+    isAdmin: r.user_role === "admin",
   }));
 }

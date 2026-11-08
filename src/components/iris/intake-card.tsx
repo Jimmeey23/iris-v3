@@ -5,6 +5,7 @@ import { CheckCircle2, ClipboardList, Sparkles, User, Calendar, Users, X, AlertT
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MomenceSearchField } from "@/components/iris/momence-search-field";
+import { TrainerAvatar } from "@/components/iris/trainer-photo";
 import { useAppStore, type AgentTicketDraft, type IntakeState } from "@/lib/iris/store";
 import { STUDIOS, STUDIO_MAP, DEPT_MAP, PRIORITY_CONFIG } from "@/lib/iris/types";
 import { roomsFor } from "@/lib/iris/aliases";
@@ -77,10 +78,10 @@ function Row({ label, need, done, children }: { label: string; need?: Need; done
   );
 }
 
-function Picked({ icon: Icon, text, sub, onClear }: { icon: React.ComponentType<{ className?: string }>; text: string; sub?: string; onClear: () => void }) {
+function Picked({ icon: Icon, text, sub, onClear, avatar }: { icon: React.ComponentType<{ className?: string }>; text: string; sub?: string; onClear: () => void; avatar?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/5 text-[12px]">
-      <Icon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+      {avatar ?? <Icon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
       <span className="font-medium truncate">{text}</span>
       {sub && <span className="text-[10px] text-muted-foreground truncate">{sub}</span>}
       <button onClick={onClear} aria-label={`Change ${text}`} className="ml-auto text-muted-foreground hover:text-foreground shrink-0">
@@ -252,7 +253,7 @@ export function IntakeCard({
         {needs.trainer && (
           <Row label="Trainer" need={needs.trainer} done={!!state.trainer}>
             {state.trainer ? (
-              <Picked icon={Users} text={state.trainer.name} onClear={() => set({ trainer: null })} />
+              <Picked icon={Users} avatar={<TrainerAvatar name={state.trainer.name} size={22} />} text={state.trainer.name} onClear={() => set({ trainer: null })} />
             ) : (
               <>
                 {state.trainerNameHint && (

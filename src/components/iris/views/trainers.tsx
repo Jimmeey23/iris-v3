@@ -2,13 +2,12 @@
 
 import * as React from "react";
 import {
-  GraduationCap, Star, Heart, TriangleAlert, ChevronRight, Radio, Search, RefreshCw, Loader2, Settings2,
+  GraduationCap, Star, Heart, TriangleAlert, ChevronRight, Search, RefreshCw, Loader2, Settings2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
 import { api, loadAll } from "@/lib/iris/live-data";
 import { useAppStore } from "@/lib/iris/store";
-import { TRAINER_IMAGES } from "@/lib/iris/constants";
 import {
   applyCorrection, buildTrainerProfiles, loadOverrides, orgAverage, saveOverrides,
   CITY_ORDER,
@@ -16,8 +15,8 @@ import {
 } from "@/lib/iris/trainer-directory";
 import { TrainerReport } from "../trainer-report";
 import { TrainerPhoto } from "../trainer-photo";
-import { ImageStreamHero } from "../image-stream-hero";
-import { RelativeTime } from "../relative-time";
+import { TrainerSelect } from "../trainer-select";
+import { TrainersHero } from "../trainers-hero";
 import "./trainers.css";
 
 type AssessmentWithTrainer = Assessment & { trainerName: string };
@@ -148,65 +147,32 @@ export function TrainersView() {
     }
   }
 
-  const portraits = React.useMemo(
-    () => Object.values(TRAINER_IMAGES).map((src) => ({ src, alt: "Trainer portrait" })),
-    [],
-  );
-
   return (
     <div className="trainers-view p-8 max-w-[1400px] mx-auto">
-      <div className="tv-head">
-        <div>
-          <span className="eyebrow">Training &amp; Quality</span>
-          <h1>Trainer reviews</h1>
+      <TrainersHero
+        trainers={trainers}
+        orgAvg={orgAvg}
+        listening={listening}
+        onToggleListening={() => setListening((v) => !v)}
+        lastSync={lastSync}
+        sources={sources}
+        pollSeconds={POLL_MS / 1000}
+      />
+
+      {ping && <div className="info-box">✦ {ping}</div>}
+
+      <div className="flex-row wrap" style={{ justifyContent: "space-between", marginBottom: 20, gap: 12 }}>
+        <div className="tv-search" style={{ marginBottom: 0, flex: "1 1 280px" }}>
+          <Search size={14} />
+          <input placeholder="Find a trainer, studio or city..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="flex-row">
+          <span className="badge blue"><GraduationCap size={12} />{trainers.length} trainers tracked</span>
           <button className="btn" disabled={refreshing} onClick={() => void refresh(false)}>
             {refreshing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={14} />}
             {refreshing ? "Refreshing..." : "Refresh feedback"}
           </button>
-          <span className="badge blue"><GraduationCap size={12} />{trainers.length} trainers tracked</span>
         </div>
-      </div>
-
-      {/* The corridor: every trainer portrait on file rides the two rails that open outward
-          from the centred copy. */}
-      <ImageStreamHero
-        images={portraits}
-        cards={9}
-        speed={23}
-        axis={50}
-        className="tr-stream-hero"
-        path={{ perspective: 26, railBirth: 15, railExit: 54, fan: 2.2, turnBirth: 10, turnExit: 32 }}
-      >
-        <div className="tr-stream-copy">
-          <span className="eyebrow">Training &amp; Quality</span>
-          <h2>Every assessment and every piece of feedback, in one scorecard.</h2>
-          <p>Weighted evaluation scores, member compliments and logged concerns - combined per trainer so coaching conversations start from evidence.</p>
-          <div className="tr-stream-facts">
-            <button
-              type="button"
-              className="badge"
-              onClick={() => setListening((v) => !v)}
-              title={listening ? `Checking every ${POLL_MS / 1000} seconds` : "Live updates paused"}
-            >
-              <Radio size={11} style={{ color: listening ? "var(--tv-green)" : "var(--muted-foreground)" }} />
-              {listening ? "Listening for new submissions" : "Live updates paused"}
-            </button>
-            {lastSync && <span className="badge">Last synced <RelativeTime date={lastSync} /></span>}
-            {sources.map((s) => <span key={s.label} className="badge">{s.label} · {s.count}</span>)}
-            {orgAvg !== null && (
-              <span className={`badge ${orgAvg >= 80 ? "green" : orgAvg >= 65 ? "amber" : "red"}`}>Org average {orgAvg}%</span>
-            )}
-          </div>
-        </div>
-      </ImageStreamHero>
-
-      {ping && <div className="info-box">✦ {ping}</div>}
-
-      <div className="tv-search">
-        <Search size={14} />
-        <input placeholder="Find a trainer, studio or city..." value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       {error && <div className="error-box">{error}</div>}
 
@@ -374,10 +340,13 @@ export function TrainersView() {
                     spelling that is the same person, and for a first name the app could not resolve on its own.
                   </p>
                   <div className="flex-row">
-                    <select value={mergeInto} onChange={(e) => setMergeInto(e.target.value)}>
-                      <option value="">Choose a trainer...</option>
-                      {roster.filter((name) => name !== manage.name).map((name) => <option key={name}>{name}</option>)}
-                    </select>
+                    <TrainerSelect
+                      value={mergeInto}
+                      onChange={setMergeInto}
+                      options={roster.filter((name) => name !== manage.name)}
+                      placeholder="Choose a trainer..."
+                      className="h-9 flex-1"
+                    />
                     <button
                       type="button"
                       className="btn"

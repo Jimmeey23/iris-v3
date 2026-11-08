@@ -173,6 +173,17 @@ export function detectLiveContext(text: string): LiveField[] {
     const dept = CATEGORY_DEPT[cat[0]];
     if (dept && DEPT_MAP[dept]) out.push({ key: "department", label: "Department", value: DEPT_MAP[dept].name });
   }
+  const time = /\b(\d{1,2}(?::\d{2})?\s?(?:am|pm)|\d{1,2}:\d{2}|morning|afternoon|evening|night)\b/i.exec(raw)?.[1];
+  if (time) out.push({ key: "time", label: "Time", value: time.toLowerCase() });
+  const equipment = /\b(bike\s?#?\d+|bike|mic(?:rophone)?|speaker|ac|a\/c|aircon|reformer|mat|barre|locker|shower|projector|tv|screen|wifi|pos|card machine)\b/i.exec(raw)?.[1];
+  if (equipment) out.push({ key: "equipment", label: "Equipment", value: equipment.replace(/^\w/, (c) => c.toUpperCase()) });
+  const contact = /(\+?\d[\d\s-]{8,}\d)|([\w.+-]+@[\w-]+\.[\w.]+)/.exec(raw)?.[0];
+  if (contact) out.push({ key: "contact", label: "Contact", value: contact.trim() });
+  const amount = /(?:₹|rs\.?|inr)\s?([\d,]+(?:\.\d+)?)|\b([\d,]+)\s?(?:rs|rupees|inr)\b/i.exec(raw);
+  if (amount) out.push({ key: "amount", label: "Amount", value: `₹${amount[1] ?? amount[2]}` });
+  if (/\b(injur|hurt|sprain|bleed|fell|fainted|pain)/i.test(raw)) out.push({ key: "injury", label: "Injury", value: "Reported" });
+  const ask = /\b(wants?|asking for|requested|requests|would like)\s+(?:a\s+|an\s+|the\s+)?(refund|credit|replacement|call ?back|extension|freeze|apology|transfer|cancellation)\b/i.exec(raw)?.[2];
+  if (ask) out.push({ key: "clientAsk", label: "Client ask", value: ask.toLowerCase() });
   const mood = detailsFromText(raw).sentiment;
   if (mood) out.push({ key: "mood", label: "Mood", value: mood });
   return out;

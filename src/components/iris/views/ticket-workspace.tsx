@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ExtensionRequestDialog } from "@/components/iris/sla-breach-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft,
@@ -125,6 +126,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   };
   const [showResolveDialog, setShowResolveDialog] = React.useState(false);
   const [showExtensionDialog, setShowExtensionDialog] = React.useState(false);
+  const [showRequestDialog, setShowRequestDialog] = React.useState(false);
   const [resolutionNote, setResolutionNote] = React.useState("");
   const [resolutionActions, setResolutionActions] = React.useState("");
   const [extensionHours, setExtensionHours] = React.useState(4);
@@ -343,10 +345,14 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                   )}
 
                   {/* Action Buttons - functional */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className={cn("grid grid-cols-2 gap-2", isAdmin ? "md:grid-cols-4" : "md:grid-cols-3")}>
                     <ActionButton icon={PlayCircle} label="Start Work" color="violet" onClick={startWork} disabled={readOnly || busy || (status !== "open" && status !== "awaiting_response")} />
-                    <ActionButton icon={PauseCircle} label={slaPaused ? "Resume SLA" : "Pause SLA"} color="amber" onClick={toggleSlaPause} disabled={readOnly || busy} />
-                    <ActionButton icon={Clock} label="Extend SLA" color="sky" onClick={() => setShowExtensionDialog(true)} disabled={readOnly || busy} />
+                    {isAdmin && <ActionButton icon={PauseCircle} label={slaPaused ? "Resume SLA" : "Pause SLA"} color="amber" onClick={toggleSlaPause} disabled={readOnly || busy} />}
+                    {isAdmin ? (
+                      <ActionButton icon={Clock} label="Extend SLA" color="sky" onClick={() => setShowExtensionDialog(true)} disabled={readOnly || busy} />
+                    ) : (
+                      <ActionButton icon={Clock} label="Ask for More Time" color="sky" onClick={() => setShowRequestDialog(true)} disabled={readOnly || busy || status === "resolved" || status === "closed"} />
+                    )}
                     <ActionButton icon={CheckCircle2} label="Mark Resolved" color="emerald" onClick={() => setShowResolveDialog(true)} disabled={readOnly || busy || !canResolve || status === "resolved" || status === "closed"} />
                   </div>
 
@@ -525,6 +531,11 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                 )}
 
                 {/* SLA Extension Dialog */}
+                <ExtensionRequestDialog
+                  breach={showRequestDialog ? { id: ticket.id, ticketId: ticket.id, title: ticket.title } : null}
+                  onClose={() => setShowRequestDialog(false)}
+                  onSent={() => setShowRequestDialog(false)}
+                />
                 {showExtensionDialog && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm" onClick={() => setShowExtensionDialog(false)}>
                     <div className="bg-card border border-border rounded-xl max-w-md w-full p-5 iris-scale-in" onClick={(e) => e.stopPropagation()}>

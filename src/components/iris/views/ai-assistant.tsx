@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { TrainerAvatar } from "@/components/iris/trainer-photo";
 import { useAppStore, AIMessage } from "@/lib/iris/store";
 import {
   processUserInput,
@@ -737,13 +738,22 @@ const CONTEXT_SLOTS: Array<{ key: string; label: string; tone: string; core?: bo
   { key: "subcategory", label: "Sub-category", tone: "border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300", core: true },
   { key: "department", label: "Department", tone: "border-indigo-500/50 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300", core: true },
   { key: "studio", label: "Studio", tone: "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300", core: true },
+  { key: "location", label: "Location", tone: "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300", core: true },
   { key: "date", label: "Date", tone: "border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300", core: true },
+  { key: "time", label: "Time", tone: "border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300", core: true },
   { key: "affectedClient", label: "Member", tone: "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300", core: true },
-  { key: "membership", label: "Membership", tone: "border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300" },
-  { key: "trainer", label: "Trainer", tone: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
-  { key: "class", label: "Class", tone: "border-lime-500/50 bg-lime-500/10 text-lime-700 dark:text-lime-300" },
+  { key: "contact", label: "Contact", tone: "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  { key: "membership", label: "Membership", tone: "border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300", core: true },
+  { key: "amount", label: "Amount", tone: "border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300" },
+  { key: "trainer", label: "Trainer", tone: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", core: true },
+  { key: "class", label: "Class", tone: "border-lime-500/50 bg-lime-500/10 text-lime-700 dark:text-lime-300", core: true },
+  { key: "equipment", label: "Equipment", tone: "border-teal-500/50 bg-teal-500/10 text-teal-700 dark:text-teal-300" },
   { key: "priority", label: "Priority", tone: "border-rose-500/50 bg-rose-500/10 text-rose-700 dark:text-rose-300", core: true },
-  { key: "mood", label: "Mood", tone: "border-orange-500/50 bg-orange-500/10 text-orange-700 dark:text-orange-300" },
+  { key: "injury", label: "Injury", tone: "border-rose-500/50 bg-rose-500/10 text-rose-700 dark:text-rose-300" },
+  { key: "mood", label: "Mood", tone: "border-orange-500/50 bg-orange-500/10 text-orange-700 dark:text-orange-300", core: true },
+  { key: "clientAsk", label: "Client ask", tone: "border-violet-500/50 bg-violet-500/10 text-violet-700 dark:text-violet-300" },
+  { key: "impact", label: "Impact", tone: "border-pink-500/50 bg-pink-500/10 text-pink-700 dark:text-pink-300" },
+  { key: "actionsTaken", label: "Action taken", tone: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
   { key: "recurrence", label: "Pattern", tone: "border-orange-500/50 bg-orange-500/10 text-orange-700 dark:text-orange-300" },
 ];
 
@@ -764,6 +774,13 @@ function ContextBar({ state, draft, intake }: { state: ConversationState; draft:
         class: intake.session?.name ?? str(intake.classFormat),
         priority: intake.priority,
         mood: str(intake.details?.sentiment),
+        location: str(intake.area),
+        equipment: str(intake.details?.item),
+        amount: str(intake.details?.itemValue),
+        injury: str(intake.details?.injury),
+        clientAsk: str(intake.details?.clientAsk),
+        impact: str(intake.details?.impact),
+        actionsTaken: str(intake.details?.actionsTaken),
       }
     : {
         category: str(info.category),
@@ -777,26 +794,28 @@ function ContextBar({ state, draft, intake }: { state: ConversationState; draft:
   const liveMap = Object.fromEntries(live.map((f) => [f.key, f.value]));
   const slots = CONTEXT_SLOTS.map((s) => ({ ...s, value: liveMap[s.key] ?? known[s.key], isLive: Boolean(liveMap[s.key]) }));
   const found = slots.filter((s) => s.value).length;
-  const confidence = Math.min(100, Math.max(state.intent.confidenceScore || 0, Math.round((found / 7) * 100)));
+  const confidence = Math.min(100, Math.max(state.intent.confidenceScore || 0, Math.round((found / 9) * 100)));
   const visible = slots.filter((s) => s.value || s.core);
 
   return (
-    <div className="mb-2 flex items-center gap-1.5 flex-wrap" aria-live="polite">
-      <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mr-0.5">Context</span>
+    <div className="mb-2 flex items-center gap-1.5 flex-nowrap" aria-live="polite">
+      <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mr-0.5">Context</span>
+      <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-nowrap overflow-x-auto overflow-y-hidden iris-scrollbar pb-0.5 [scrollbar-width:thin]">
       {visible.map((s) => (
         <span
           key={s.key}
           className={cn(
-            "inline-flex items-center gap-1 h-6 px-2 rounded-full border text-[10.5px] transition-all duration-300",
+            "shrink-0 whitespace-nowrap inline-flex items-center gap-1 h-6 px-2 rounded-full border text-[10.5px] transition-all duration-300",
             s.value ? cn(s.tone, "font-medium") : "border-dashed border-border text-muted-foreground/60",
             s.isLive && "shadow-sm ring-2 ring-offset-0 ring-current/10",
           )}
         >
-          {s.value ? <CheckCircle2 className="w-2.5 h-2.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />}
+          {s.value && s.key === "trainer" ? <TrainerAvatar name={s.value} size={16} className="ring-0 -ml-1" /> : s.value ? <CheckCircle2 className="w-2.5 h-2.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />}
           <span className={cn(s.value && "opacity-70")}>{s.label}</span>
           {s.value && <span className="truncate max-w-[140px] font-semibold" title={s.value}>{s.value}</span>}
         </span>
       ))}
+      </div>
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
         <div className="w-14 h-1 rounded-full bg-muted overflow-hidden">
           <div
@@ -1457,7 +1476,14 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
   React.useEffect(() => {
     let cancelled = false;
     const ac = new AbortController();
-    const timeout = window.setTimeout(() => ac.abort(), 15_000);
+    let settled = false;
+    // Abort defensively: some fetch wrappers (extensions, dev tooling) throw
+    // synchronously from abort(), which React surfaces as a runtime error.
+    const abort = (reason: string) => {
+      if (settled || ac.signal.aborted) return;
+      try { ac.abort(new DOMException(reason, "AbortError")); } catch { /* ignore */ }
+    };
+    const timeout = window.setTimeout(() => abort("usage request timed out"), 15_000);
     api<UsageSummary>("/api/ai/usage", { signal: ac.signal })
       .then((d) => {
         if (cancelled) return;
@@ -1468,10 +1494,10 @@ function AIUsageFooter({ refreshKey }: { refreshKey: number }) {
       .catch(() => {
         if (!cancelled) setError(true);
       })
-      .finally(() => window.clearTimeout(timeout));
+      .finally(() => { settled = true; window.clearTimeout(timeout); });
     return () => {
       cancelled = true;
-      ac.abort();
+      abort("component unmounted");
       window.clearTimeout(timeout);
     };
   }, [refreshKey, tick]);
