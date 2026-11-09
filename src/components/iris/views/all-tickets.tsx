@@ -730,7 +730,7 @@ function SavedViewsMenu({ canSave, onSave, onApply }: {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium border border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+        <button data-tour="saved-views" className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium border border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
           <Bookmark className="w-3 h-3" />Views
           {views.length > 0 && <span className="text-[10px] tabular-nums">{views.length}</span>}
         </button>

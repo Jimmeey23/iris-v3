@@ -64,6 +64,7 @@ import {
 import { ALL_TICKETS, isOwner } from "@/lib/iris/sample-tickets";
 import { RelativeTime } from "./relative-time";
 import { CommandPalette } from "./command-palette";
+import { ProductTour } from "./product-tour";
 import { SlaBreachBanner } from "./sla-breach-banner";
 import { RouteSync } from "./route-sync";
 import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
@@ -280,6 +281,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <Tooltip key={item.id} delayDuration={400}>
                         <TooltipTrigger asChild>
                           <button
+                            data-tour={`nav-${item.id}`}
                             onClick={() => setCurrentView(item.id)}
                             className={cn(
                               "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors",
@@ -433,6 +435,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <button
             type="button"
+            data-tour="new-issue"
             onClick={() => setCurrentView("ai_assistant")}
             className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium shadow-[0_6px_16px_-8px_var(--primary)] hover:brightness-110 transition"
           >
@@ -461,6 +464,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 aria-label="Member 360 Lookup"
+                data-tour="member-360"
                 onClick={() => { setMemberLookupQuery(""); setMemberLookupOpen(true); }}
                 className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors"
               >
@@ -495,6 +499,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 aria-label="Notifications"
+                data-tour="notifications"
                 className="relative inline-flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors cursor-pointer"
               >
                 <Bell className="w-3.5 h-3.5" />
@@ -645,6 +650,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* === GLOBAL OVERLAYS === */}
       {/* ⌘K Command Palette - global smart search across tickets / members / KB / templates */}
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
+      {/* One-time, mandatory V3 tour (remembered per user in preferences) */}
+      <ProductTour paletteOpen={cmdOpen} openPalette={() => setCmdOpen(true)} />
       {/* Member 360 Lookup - full member profile modal */}
       <Member360Lookup
         open={memberLookupOpen}

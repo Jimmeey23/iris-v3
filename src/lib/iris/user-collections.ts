@@ -46,10 +46,15 @@ export const MAX_INTAKE_DRAFTS = 3;
 
 const VIEWS_KEY = "saved_ticket_views";
 const DRAFTS_KEY = "intake_drafts";
+/** Bump the version to show a new tour to everyone again. */
+export const TOUR_KEY = "tour_v3_completed_at";
 
 type Store = {
   views: SavedTicketView[];
   drafts: IntakeDraft[];
+  /** null until preferences have loaded, so the tour never flashes for people who finished it. */
+  tourCompletedAt: string | null | undefined;
+  completeTour: () => Promise<void>;
   hydrate: (extra: unknown) => void;
   saveView: (view: Omit<SavedTicketView, "id" | "createdAt">) => Promise<SavedTicketView>;
   deleteView: (id: string) => Promise<void>;
@@ -80,13 +85,22 @@ async function persist(key: string, value: unknown) {
 export const useUserCollections = create<Store>()((set, get) => ({
   views: [],
   drafts: [],
+  tourCompletedAt: undefined,
 
   hydrate: (extra) => {
     const e = extra && typeof extra === "object" ? (extra as Record<string, unknown>) : {};
     set({
       views: asArray<SavedTicketView>(e[VIEWS_KEY], (x) => x && typeof x.id === "string" && typeof x.name === "string" && x.filters),
       drafts: asArray<IntakeDraft>(e[DRAFTS_KEY], (x) => x && typeof x.id === "string" && x.payload && typeof x.payload === "object"),
+      tourCompletedAt: typeof e[TOUR_KEY] === "string" ? (e[TOUR_KEY] as string) : null,
     });
+  },
+
+  completeTour: async () => {
+    const at = new Date().toISOString();
+    set({ tourCompletedAt: at });
+    // Best effort: if the save fails the tour simply shows again next sign-in.
+    await persist(TOUR_KEY, at).catch(() => {});
   },
 
   saveView: async (view) => {
