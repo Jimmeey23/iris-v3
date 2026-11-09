@@ -131,7 +131,7 @@ const STEPS: Step[] = [
   {
     id: "done",
     title: "You're all set",
-    body: "Spot a problem? Tell AI Assistant. Have an idea? Use the feedback button at the top. Shubh Deepavali!",
+    body: "Spot a problem? Tell AI Assistant. Have an idea? Use the feedback button at the top. Happy Diwali!",
     cta: "Start using IRIS",
   },
 ];
@@ -257,11 +257,9 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
     (missingFor === step.id && !rect && (step.task?.kind === "click" || step.task?.kind === "ticket")) ||
     (emptyList && ALL_TICKETS.length === 0);
 
-  // Little sparkle burst each time a task is completed, and on the last step.
-  // Changes only when a task finishes or the last step opens, so the burst re-fires then.
-  const burst = Object.values(doneTasks).filter(Boolean).length + (index === STEPS.length - 1 ? 1000 : 0);
   const taskPending = Boolean(step.task && !taskDone && !skippable);
   const hidden = paletteOpen && step.task?.kind === "palette";
+  const cardRect = useElementRect(active && !hidden ? cardRef : null, `${index}:${taskDone}:${emptyList}`);
 
   // Keyboard: keep Tab inside the card + the spotlighted element (when it's a task).
   React.useEffect(() => {
@@ -292,20 +290,35 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
     return () => window.cancelAnimationFrame(id);
   }, [active, hidden, index, taskPending]);
 
-  if (!active) return null;
-
   const isFirst = index === 0;
   const isLast = index === STEPS.length - 1;
-  const hole = rect ? { x: rect.left - PAD, y: rect.top - PAD, w: rect.width + PAD * 2, h: rect.height + PAD * 2 } : null;
 
-  const next = () => {
+  const next = React.useCallback(() => {
     if (isLast) {
       void completeTour();
       setCurrentView("overview");
       return;
     }
     setIndex((i) => i + 1);
-  };
+  }, [isLast, completeTour, setCurrentView]);
+
+  // ← / → to move between steps (not while typing, and Next stays locked on pending tasks).
+  React.useEffect(() => {
+    if (!active || hidden) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (e.key === "ArrowRight" && !taskPending) { e.preventDefault(); next(); }
+      else if (e.key === "ArrowLeft" && index > 0 && !isLast) { e.preventDefault(); setIndex((i) => Math.max(0, i - 1)); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [active, hidden, taskPending, index, isLast, next]);
+
+  if (!active) return null;
+
+  const hole = rect ? { x: rect.left - PAD, y: rect.top - PAD, w: rect.width + PAD * 2, h: rect.height + PAD * 2 } : null;
+  const callout = step.task?.kind === "palette" ? "Press ⌘K" : step.task?.kind === "ticket" ? "Click a ticket" : "Click here";
 
   return (
     // The wrapper never takes clicks; only the dimmed blockers and the card do.
@@ -319,10 +332,8 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
           <Blocker style={{ left: hole.x + hole.w, top: hole.y, right: 0, height: hole.h }} />
           {/* Info steps: the highlighted element is for looking at, not clicking. */}
           {!taskPending && <Blocker clear style={{ left: hole.x, top: hole.y, width: hole.w, height: hole.h }} />}
-          <div
-            className={cn("absolute rounded-xl ring-2 ring-amber-400 iris-tour-glow transition-all duration-300 ease-out", taskPending && "iris-tour-pulse")}
-            style={{ left: hole.x, top: hole.y, width: hole.w, height: hole.h }}
-          />
+          <Spotlight key={step.id} hole={hole} active={taskPending} callout={taskPending ? callout : null} />
+          {cardRect && <Arrow key={`a-${step.id}`} from={cardRect} to={hole} />}
         </>
       ) : (
         <Blocker style={{ inset: 0 }} />
@@ -340,7 +351,6 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
         isLast={isLast}
         targetMissing={!hole}
         emptyList={emptyList && ALL_TICKETS.length > 0}
-        burst={burst}
         onDoTask={() => {
           if (step.task?.kind === "view") setCurrentView(step.task.view);
           else if (step.task?.kind === "palette") openPalette();
@@ -356,8 +366,101 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
   );
 }
 
+function useElementRect(ref: React.RefObject<HTMLElement | null> | null, tick: string) {
+  const [rect, setRect] = React.useState<DOMRect | null>(null);
+  React.useEffect(() => {
+    if (!ref) return;
+    let raf = 0;
+    const measure = () => {
+      const r = ref.current?.getBoundingClientRect() ?? null;
+      setRect((prev) =>
+        r && prev && Math.abs(prev.x - r.x) < 0.5 && Math.abs(prev.y - r.y) < 0.5 && Math.abs(prev.width - r.width) < 0.5 && Math.abs(prev.height - r.height) < 0.5
+          ? prev
+          : r,
+      );
+      raf = window.requestAnimationFrame(measure);
+    };
+    raf = window.requestAnimationFrame(measure);
+    return () => window.cancelAnimationFrame(raf);
+  }, [ref, tick]);
+  return ref ? rect : null;
+}
+
 function Blocker({ style, clear }: { style: React.CSSProperties; clear?: boolean }) {
-  return <div className={cn("absolute pointer-events-auto", !clear && "bg-black/45")} style={style} />;
+  return <div className={cn("absolute pointer-events-auto", !clear && "bg-slate-950/55 backdrop-blur-[1.5px]")} style={style} />;
+}
+
+type Box = { x: number; y: number; w: number; h: number };
+
+/** Marching-ants outline, corner brackets and (on "Try it" steps) a click ripple + label. */
+function Spotlight({ hole, active, callout }: { hole: Box; active: boolean; callout: string | null }) {
+  const b = 12; // bracket length
+  const o = 4; // bracket offset outside the outline
+  const { x, y, w, h } = hole;
+  const corners = [
+    `M${x - o} ${y - o + b}V${y - o}H${x - o + b}`,
+    `M${x + w + o - b} ${y - o}H${x + w + o}V${y - o + b}`,
+    `M${x + w + o} ${y + h + o - b}V${y + h + o}H${x + w + o - b}`,
+    `M${x - o + b} ${y + h + o}H${x - o}V${y + h + o - b}`,
+  ];
+  const labelAbove = y > 56;
+  return (
+    <>
+      <svg className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+        <rect x={x} y={y} width={w} height={h} rx={12} className="iris-tour-outline" />
+        {corners.map((d) => (
+          <path key={d} d={d} className="iris-tour-bracket" />
+        ))}
+      </svg>
+      {active && (
+        <>
+          <span className="iris-tour-ripple absolute block rounded-full" style={{ left: x + w / 2 - 10, top: y + h / 2 - 10 }} aria-hidden />
+          {callout && (
+            <span
+              className="iris-tour-callout absolute whitespace-nowrap rounded-md px-2 py-1 text-[11.5px] font-semibold text-white"
+              style={{ left: Math.max(8, x + w / 2), top: labelAbove ? y - 34 : y + h + 10, translate: "-50% 0" }}
+            >
+              {callout}
+            </span>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+/** Curved, self-drawing arrow from the card's nearest edge to the spotlight. */
+function Arrow({ from, to }: { from: DOMRect; to: Box }) {
+  const card = { x: from.left, y: from.top, w: from.width, h: from.height };
+  const cx = card.x + card.w / 2;
+  const cy = card.y + card.h / 2;
+  const tx = to.x + to.w / 2;
+  const ty = to.y + to.h / 2;
+  // Skip when the card sits on top of / right next to the target.
+  const gapX = Math.max(to.x - (card.x + card.w), card.x - (to.x + to.w), 0);
+  const gapY = Math.max(to.y - (card.y + card.h), card.y - (to.y + to.h), 0);
+  if (gapX < 28 && gapY < 28) return null;
+
+  const horizontal = gapX >= gapY;
+  const sx = horizontal ? (tx > cx ? card.x + card.w : card.x) : Math.min(Math.max(tx, card.x + 24), card.x + card.w - 24);
+  const sy = horizontal ? Math.min(Math.max(ty, card.y + 24), card.y + card.h - 24) : ty > cy ? card.y + card.h : card.y;
+  const ex = horizontal ? (tx > cx ? to.x - 6 : to.x + to.w + 6) : Math.min(Math.max(sx, to.x + 16), to.x + to.w - 16);
+  const ey = horizontal ? Math.min(Math.max(sy, to.y + 10), to.y + to.h - 10) : ty > cy ? to.y - 6 : to.y + to.h + 6;
+  const mx = (sx + ex) / 2;
+  const my = (sy + ey) / 2;
+  const bend = Math.min(60, Math.hypot(ex - sx, ey - sy) * 0.25);
+  const qx = horizontal ? mx : mx + bend;
+  const qy = horizontal ? my - bend : my;
+  const d = `M${sx} ${sy} Q${qx} ${qy} ${ex} ${ey}`;
+  const ang = Math.atan2(ey - qy, ex - qx);
+  const head = (a: number) => `${ex - 10 * Math.cos(ang - a)} ${ey - 10 * Math.sin(ang - a)}`;
+  return (
+    <svg className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+      <path d={d} className="iris-tour-arrow" pathLength={1} />
+      <path d={`M${head(0.45)} L${ex} ${ey} L${head(-0.45)}`} className="iris-tour-arrowhead" />
+      <circle cx={sx} cy={sy} r={3.5} className="iris-tour-arrowdot" />
+    </svg>
+  );
 }
 
 function TourCard({
@@ -372,7 +475,6 @@ function TourCard({
   isLast,
   targetMissing,
   emptyList,
-  burst,
   onDoTask,
   onBack,
   onNext,
@@ -380,7 +482,7 @@ function TourCard({
   cardRef: React.RefObject<HTMLDivElement | null>;
   step: Step;
   index: number;
-  hole: { x: number; y: number; w: number; h: number } | null;
+  hole: Box | null;
   taskPending: boolean;
   taskDone: boolean;
   skippable: boolean;
@@ -388,7 +490,6 @@ function TourCard({
   isLast: boolean;
   targetMissing: boolean;
   emptyList: boolean;
-  burst: number;
   onDoTask: () => void;
   onBack: () => void;
   onNext: () => void;
@@ -408,7 +509,7 @@ function TourCard({
     const vh = window.innerHeight;
     const cw = el.offsetWidth;
     const ch = el.offsetHeight;
-    const gap = 14;
+    const gap = 56; // room for the arrow
     if (!hole || vw < 640) {
       set(vw < 640 && hole ? { left: "12px", right: "12px", bottom: "12px" } : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" });
       return;
@@ -435,37 +536,26 @@ function TourCard({
       aria-labelledby="iris-tour-title"
       aria-describedby="iris-tour-body"
       className={cn(
-        "iris-tour-card absolute pointer-events-auto flex flex-col rounded-2xl text-card-foreground",
-        "transition-[left,top] duration-300 ease-out max-h-[calc(100vh-24px)] overflow-y-auto overflow-x-hidden",
-        centred ? "w-[min(420px,calc(100vw-24px))]" : "w-[min(352px,calc(100vw-24px))]",
+        "iris-tour-card absolute pointer-events-auto flex flex-col rounded-2xl text-card-foreground overflow-x-hidden",
+        "transition-[left,top] duration-300 ease-out max-h-[calc(100vh-24px)] overflow-y-auto",
+        centred ? "w-[min(400px,calc(100vw-24px))]" : "w-[min(348px,calc(100vw-24px))]",
       )}
       style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
     >
-      <Toran />
-      <Sparkles burst={burst} />
-
-      {centred && (
-        <div className="relative mx-auto mt-3 h-[92px] w-[92px]" aria-hidden>
-          <Rangoli className="absolute inset-0 h-full w-full iris-tour-spin" />
-          <Diya lit size={34} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[60%]" />
-        </div>
-      )}
-
-      <div className={cn("px-5", centred ? "pt-2 text-center" : "pt-3")}>
-        <div className={cn("flex items-center gap-2 text-[11px] tabular-nums", centred && "justify-center")}>
-          <span className="rounded-full bg-[var(--tour-soft)] px-2 py-0.5 font-medium text-[var(--tour-deep)]">
-            Step {index + 1} of {total}
+      {centred ? <FestiveBanner /> : <span className="iris-tour-goldline" aria-hidden />}
+      {!centred && <RangoliMotif />}
+      <div className={cn("relative px-5", centred ? "pt-4 text-center" : "pt-5")}>
+        <div className={cn("flex items-center gap-2 text-[11px] font-medium tabular-nums text-muted-foreground", centred && "justify-center")}>
+          <span>
+            {String(index + 1).padStart(2, "0")} <span className="opacity-50">/ {total}</span>
           </span>
           {t && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tour-gold-soft)] px-2 py-0.5 font-semibold text-[var(--tour-gold-deep)]">
-              ✨ Try it
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-px text-[10.5px] font-semibold uppercase tracking-wide text-primary">
+              Try it
             </span>
           )}
         </div>
-        <h2
-          id="iris-tour-title"
-          className={cn("mt-2 font-semibold leading-snug tracking-tight", centred ? "text-[19px] iris-tour-shimmer" : "text-[15.5px]")}
-        >
+        <h2 id="iris-tour-title" className={cn("mt-2 font-semibold leading-snug tracking-tight", centred ? "text-[18px]" : "text-[15.5px]")}>
           {step.title}
         </h2>
         <p id="iris-tour-body" className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
@@ -476,24 +566,25 @@ function TourCard({
           <div
             role="status"
             className={cn(
-              "mt-3 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-[12.5px] font-medium text-left transition-colors",
-              taskDone
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                : "border-[var(--tour-line)] bg-[var(--tour-soft)] text-foreground",
+              "mt-3.5 flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-[12.5px] font-medium text-left transition-colors",
+              taskDone ? "border-emerald-500/30 bg-emerald-500/[.08] text-emerald-700 dark:text-emerald-300" : "border-border bg-muted/50 text-foreground",
             )}
           >
-            {taskDone ? (
-              <Check className="w-4 h-4 shrink-0" />
-            ) : (
-              <Diya lit size={18} className="shrink-0" />
-            )}
+            <span
+              className={cn(
+                "mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors",
+                taskDone ? "border-emerald-500 bg-emerald-500 text-white" : "border-primary/60",
+              )}
+            >
+              {taskDone ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : <span className="h-1.5 w-1.5 rounded-full bg-primary iris-tour-pulse" />}
+            </span>
             <span>
               {taskDone
-                ? "Shabaash! Done — on to the next one."
+                ? "Done. Continue when you're ready."
                 : skippable
-                  ? "Not available here — you can skip this one."
+                  ? "Not available here. You can skip this step."
                   : emptyList
-                    ? "Your list is empty right now, so let's open a recent ticket instead."
+                    ? "Your list is empty right now. Open a recent ticket instead."
                     : t.hint}
             </span>
           </div>
@@ -501,7 +592,7 @@ function TourCard({
         {showHelper && (
           <button
             onClick={onDoTask}
-            className="mt-2 inline-flex items-center gap-1 rounded-full border border-[var(--tour-line)] px-3 py-1 text-[12px] font-semibold text-[var(--tour-deep)] hover:bg-[var(--tour-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
           >
             {t?.kind === "palette" ? "Open search for me" : t?.kind === "ticket" ? "Open a recent ticket for me" : "Take me there"}
             <ArrowRight className="w-3 h-3" />
@@ -509,10 +600,10 @@ function TourCard({
         )}
       </div>
 
-      {/* Progress: one diya per step, lit as you go. */}
-      <div className={cn("mt-4 flex items-end gap-[3px] px-5", centred && "justify-center")} aria-hidden>
+      {/* Segmented progress */}
+      <div className="mt-4 flex gap-1 px-5" aria-hidden>
         {STEPS.map((s, i) => (
-          <Diya key={s.id} lit={i <= index} size={i === index ? 17 : 13} className="transition-all duration-300" />
+          <span key={s.id} className={cn("h-1 flex-1 rounded-full transition-all duration-300", i < index ? "iris-tour-seg-done" : i === index ? "iris-tour-seg-now" : "bg-muted")} />
         ))}
       </div>
 
@@ -520,127 +611,93 @@ function TourCard({
         {index > 0 && !isLast ? (
           <button
             onClick={onBack}
-            className="h-9 px-3 -ml-3 rounded-full text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 px-2.5 -ml-2.5 rounded-lg text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft className="w-3.5 h-3.5 mr-1" />Back
           </button>
         ) : (
-          <span />
+          <span className="hidden sm:inline text-[11px] text-muted-foreground">
+            Use <kbd className="iris-tour-kbd">←</kbd> <kbd className="iris-tour-kbd">→</kbd> to move
+          </span>
         )}
         <button
           data-tour-primary
           onClick={onNext}
           disabled={taskPending}
           className={cn(
-            "h-9 px-4 rounded-full text-[13px] font-semibold inline-flex items-center justify-center whitespace-nowrap transition-all",
+            "h-8 px-3.5 rounded-lg text-[12.5px] font-semibold inline-flex items-center justify-center whitespace-nowrap transition-all",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:ring-ring",
             taskPending
               ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "iris-tour-cta text-white shadow-[0_6px_18px_-6px_rgba(234,88,12,.7)] hover:brightness-110 active:scale-[.97]",
+              : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[.98] shadow-sm",
           )}
         >
-          {step.cta ?? (taskPending ? "Your turn…" : skippable && !taskDone ? "Skip" : "Next")}
+          {step.cta ?? (taskPending ? "Waiting for you" : skippable && !taskDone ? "Skip" : "Next")}
           {!isLast && !taskPending && (step.cta || !skippable || taskDone) ? <ArrowRight className="w-3.5 h-3.5 ml-1" /> : null}
           {skippable && !taskDone && !step.cta ? <X className="w-3.5 h-3.5 ml-1" /> : null}
-          {isLast ? <span className="ml-1.5" aria-hidden>🪔</span> : null}
         </button>
       </div>
     </div>
   );
 }
 
-/** Clay diya with a flickering flame. */
-function Diya({ lit, size = 16, className }: { lit?: boolean; size?: number; className?: string }) {
+/** Night-sky header for the welcome and closing cards: hanging lanterns, a row of diyas, drifting embers. */
+function FestiveBanner() {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" className={className} aria-hidden>
-      {lit && (
-        <g className="iris-tour-flame" style={{ transformOrigin: "16px 15px" }}>
-          <ellipse cx="16" cy="10" rx="7" ry="8" fill="#fbbf24" opacity=".25" />
-          <path d="M16 3c3 4 4 7 0 12-4-5-3-8 0-12z" fill="#f59e0b" />
-          <path d="M16 7c1.6 2.4 2 4.2 0 7-2-2.8-1.6-4.6 0-7z" fill="#fde68a" />
-        </g>
-      )}
-      <path d="M3 17h26c-1 6.5-6.5 10.5-13 10.5S4 23.5 3 17z" fill={lit ? "#c2410c" : "#a8a29e"} />
-      <path d="M3 17h26" stroke={lit ? "#7c2d12" : "#78716c"} strokeWidth="2" strokeLinecap="round" />
-      <path d="M9 21.5q7 3 14 0" stroke={lit ? "#fdba74" : "#d6d3d1"} strokeWidth="1.3" fill="none" strokeLinecap="round" />
-      <circle cx="11" cy="22.8" r=".9" fill={lit ? "#fde68a" : "#e7e5e4"} />
-      <circle cx="16" cy="23.8" r=".9" fill={lit ? "#fde68a" : "#e7e5e4"} />
-      <circle cx="21" cy="22.8" r=".9" fill={lit ? "#fde68a" : "#e7e5e4"} />
-    </svg>
-  );
-}
-
-/** Marigold-and-mango-leaf garland (toran) across the top of the card. */
-function Toran() {
-  const n = 13;
-  return (
-    <svg className="block w-full h-[30px] shrink-0" viewBox="0 0 260 30" preserveAspectRatio="none" aria-hidden>
-      <path d="M0 4 Q130 16 260 4" stroke="#a16207" strokeWidth="1.2" fill="none" />
-      {Array.from({ length: n }, (_, i) => {
-        const x = 10 + i * (240 / (n - 1));
-        const y = 4 + 12 * (1 - Math.pow((x - 130) / 130, 2)) * 0.95;
-        return i % 2 ? (
-          <path key={i} d={`M${x} ${y} q5 8 0 17 q-5 -9 0 -17z`} fill="#15803d" />
-        ) : (
-          <g key={i}>
-            <circle cx={x} cy={y + 2} r="4.6" fill={i % 4 ? "#f59e0b" : "#ea580c"} />
-            <circle cx={x} cy={y + 2} r="2" fill={i % 4 ? "#fde047" : "#fb923c"} />
-            <circle cx={x} cy={y + 9} r="3" fill="#ea580c" />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-/** Simple rangoli: petals in brand-friendly festive colours. */
-function Rangoli({ className }: { className?: string }) {
-  const ring = (count: number, r: number, len: number, w: number, fill: string, rot = 0) =>
-    Array.from({ length: count }, (_, i) => (
-      <ellipse key={`${r}-${i}`} cx="50" cy={50 - r} rx={w} ry={len} fill={fill} transform={`rotate(${(360 / count) * i + rot} 50 50)`} />
-    ));
-  return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden>
-      <circle cx="50" cy="50" r="48" fill="#fff7ed" stroke="#fdba74" strokeDasharray="2 3" />
-      {ring(12, 34, 9, 4.5, "#db2777")}
-      {ring(12, 34, 6, 2.6, "#f9a8d4")}
-      {ring(8, 22, 9, 5, "#f59e0b", 22.5)}
-      {ring(8, 22, 5, 2.4, "#fde68a", 22.5)}
-      {ring(16, 44, 2.2, 2.2, "#0d9488")}
-      <circle cx="50" cy="50" r="11" fill="#ea580c" />
-      <circle cx="50" cy="50" r="6" fill="#fde047" />
-    </svg>
-  );
-}
-
-/** Phuljhadi-style sparkle burst; re-fires whenever `burst` changes. */
-function Sparkles({ burst }: { burst: number }) {
-  // The card remounts per step, so only fire on a change after mount (or on mount for the finale).
-  const [initial] = React.useState(burst >= 1000 ? -1 : burst);
-  if (burst === initial) return null;
-  const show = burst; // new value -> new key -> sparks replay; their animation ends invisible
-  const colors = ["#f59e0b", "#ea580c", "#fde047", "#db2777", "#22c55e"];
-  return (
-    <div key={show} className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {Array.from({ length: 22 }, (_, i) => {
-        const a = (i / 22) * Math.PI * 2;
-        const d = 70 + (i % 5) * 18;
-        return (
-          <span
-            key={i}
-            className="iris-tour-spark absolute left-1/2 top-1/2 block rounded-full"
-            style={{
-              width: i % 3 ? 5 : 7,
-              height: i % 3 ? 5 : 7,
-              background: colors[i % colors.length],
-              ["--dx" as string]: `${Math.cos(a) * d}px`,
-              ["--dy" as string]: `${Math.sin(a) * d}px`,
-              animationDelay: `${(i % 4) * 30}ms`,
-            }}
-          />
-        );
-      })}
+    <div className="iris-tour-banner relative h-[112px] overflow-hidden rounded-t-2xl" aria-hidden>
+      {/* embers */}
+      {[12, 26, 41, 58, 72, 87].map((l, i) => (
+        <span key={l} className="iris-tour-ember absolute bottom-6 block h-1 w-1 rounded-full" style={{ left: `${l}%`, animationDelay: `${i * 0.55}s` }} />
+      ))}
+      {/* lanterns */}
+      <Lantern className="absolute left-[14%] top-0" drop={30} delay="0s" />
+      <Lantern className="absolute right-[14%] top-0" drop={18} delay=".7s" />
+      {/* diyas */}
+      <div className="absolute inset-x-0 bottom-3 flex items-end justify-center gap-4">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span key={i} className="iris-tour-diya-glow" style={{ animationDelay: `${i * 0.25}s` }}>
+            <Diya size={i === 2 ? 28 : 20} />
+          </span>
+        ))}
+      </div>
     </div>
+  );
+}
+
+/** Line-art akash kandil (hanging lantern) that sways gently. */
+function Lantern({ className, drop, delay }: { className?: string; drop: number; delay: string }) {
+  return (
+    <svg className={cn("iris-tour-lantern", className)} style={{ animationDelay: delay, transformOrigin: "12px 0" }} width="24" height={drop + 40} viewBox={`0 0 24 ${drop + 40}`} fill="none">
+      <line x1="12" y1="0" x2="12" y2={drop} stroke="#fcd34d" strokeOpacity=".6" />
+      <path d={`M6 ${drop + 4}h12l3 9-9 13-9-13z`} fill="#f59e0b" fillOpacity=".18" stroke="#fbbf24" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d={`M3 ${drop + 13}h18M12 ${drop + 4}v22`} stroke="#fbbf24" strokeOpacity=".6" />
+      <rect x="8" y={drop} width="8" height="4" rx="1" fill="#fbbf24" />
+      <path d={`M10 ${drop + 27}l-1 9M12 ${drop + 27}v11M14 ${drop + 27}l1 9`} stroke="#fb923c" strokeOpacity=".8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Faint geometric rangoli in the card corner. */
+function RangoliMotif() {
+  return (
+    <svg className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 text-primary opacity-[.07]" viewBox="0 0 100 100" aria-hidden>
+      {Array.from({ length: 8 }, (_, i) => (
+        <ellipse key={i} cx="50" cy="24" rx="7" ry="20" fill="none" stroke="currentColor" strokeWidth="3" transform={`rotate(${i * 45} 50 50)`} />
+      ))}
+      <circle cx="50" cy="50" r="9" fill="currentColor" />
+      <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2 6" />
+    </svg>
+  );
+}
+
+/** Minimal line-art diya: the one festive accent, used on the welcome and closing cards. */
+function Diya({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path className="iris-tour-flame" style={{ transformOrigin: "12px 11px" }} d="M12 2.5c2 2.7 2.6 4.6 0 8-2.6-3.4-2-5.3 0-8z" fill="#fbbf24" />
+      <path d="M12 5.5c.9 1.3 1.1 2.3 0 4-1.1-1.7-.9-2.7 0-4z" fill="#fef3c7" />
+      <path d="M3 13h18c-.8 4.6-4.4 7.5-9 7.5S3.8 17.6 3 13z" fill="#ea580c" fillOpacity=".25" stroke="#fb923c" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -652,43 +709,55 @@ function TourStyles() {
         --sidebar-primary: #ea580c; --sidebar-accent-foreground: #ea580c; --sidebar-ring: #ea580c;
       }
       .iris-tour-card {
-        --tour-soft: #fff7ed; --tour-line: #fed7aa; --tour-deep: #c2410c;
-        --tour-gold-soft: #fef3c7; --tour-gold-deep: #a16207;
+        background: var(--card);
+        border: 1px solid color-mix(in oklab, var(--border) 80%, #ea580c 20%);
+        box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 20px 50px -18px rgba(15,23,42,.45), 0 4px 12px -6px rgba(15,23,42,.18);
+      }
+      .iris-tour-banner {
         background:
-          radial-gradient(120% 60% at 100% 0%, rgba(251,191,36,.16), transparent 60%),
-          radial-gradient(100% 60% at 0% 100%, rgba(219,39,119,.08), transparent 60%),
-          var(--card);
-        border: 1px solid #fdba74;
-        box-shadow: 0 24px 60px -20px rgba(194,65,12,.45), 0 0 0 4px rgba(251,191,36,.12);
+          radial-gradient(60% 90% at 50% 110%, rgba(251,146,60,.45), transparent 70%),
+          radial-gradient(40% 60% at 20% 0%, rgba(251,191,36,.12), transparent 70%),
+          linear-gradient(180deg, #0b1023 0%, #1a1433 100%);
       }
-      .dark .iris-tour-card {
-        --tour-soft: rgba(234,88,12,.12); --tour-line: rgba(251,146,60,.35); --tour-deep: #fdba74;
-        --tour-gold-soft: rgba(245,158,11,.15); --tour-gold-deep: #fcd34d;
-        border-color: rgba(251,146,60,.45);
-      }
-      .iris-tour-cta { background: linear-gradient(135deg, #f59e0b, #ea580c 55%, #db2777); }
-      .iris-tour-glow { box-shadow: 0 0 0 4px rgba(251,191,36,.25), 0 0 28px 6px rgba(245,158,11,.45); }
-      .iris-tour-shimmer {
-        background: linear-gradient(90deg, #c2410c, #f59e0b, #db2777, #c2410c);
-        background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
-      }
-      @keyframes iris-tour-in { from { opacity: 0; translate: 0 8px; scale: .97 } to { opacity: 1; translate: 0 0; scale: 1 } }
-      @keyframes iris-tour-pulse { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
-      @keyframes iris-tour-flicker { 0%,100% { transform: scale(1) rotate(-2deg) } 30% { transform: scale(1.08,.94) rotate(2deg) } 60% { transform: scale(.95,1.06) rotate(-1deg) } }
-      @keyframes iris-tour-spin { to { rotate: 360deg } }
-      @keyframes iris-tour-shine { to { background-position: 200% center } }
-      @keyframes iris-tour-spark {
-        0% { transform: translate(-50%,-50%) scale(1); opacity: 1 }
-        100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.2); opacity: 0 }
-      }
-      .iris-tour-spark { opacity: 0 }
+      .iris-tour-goldline { position: absolute; inset: 0 0 auto 0; height: 3px; border-radius: 16px 16px 0 0; background: linear-gradient(90deg, #fbbf24, #ea580c 50%, #db2777); }
+      .iris-tour-seg-done { background: linear-gradient(90deg, #fbbf24, #ea580c); opacity: .75; }
+      .iris-tour-seg-now { background: linear-gradient(90deg, #f59e0b, #ea580c); box-shadow: 0 0 8px rgba(245,158,11,.7); }
+      .iris-tour-diya-glow { display: inline-flex; filter: drop-shadow(0 0 6px rgba(251,191,36,.75)); }
+      .iris-tour-ember { background: #fcd34d; box-shadow: 0 0 6px 1px rgba(252,211,77,.8); opacity: 0; }
+      .iris-tour-badge { color: #ea580c; background: color-mix(in oklab, #ea580c 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, #ea580c 25%, transparent); }
+      .iris-tour-kbd { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid var(--border); font-size: 10px; padding: 0 4px; background: var(--muted); }
+      .iris-tour-outline { fill: none; stroke: #fbbf24; stroke-width: 2; stroke-dasharray: 6 5; filter: drop-shadow(0 0 6px rgba(251,146,60,.55)); }
+      .iris-tour-bracket { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; opacity: .95; }
+      .iris-tour-arrow { fill: none; stroke: #fdba74; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+      .iris-tour-arrowhead { fill: none; stroke: #fdba74; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      .iris-tour-arrowdot { fill: #fdba74; }
+      .iris-tour-ripple { width: 20px; height: 20px; background: rgba(251,146,60,.9); box-shadow: 0 0 0 0 rgba(251,146,60,.6); }
+      .iris-tour-callout { background: #0f172a; box-shadow: 0 6px 16px -6px rgba(0,0,0,.5); }
+      .iris-tour-callout::after { content: ""; position: absolute; left: 50%; translate: -50% 0; border: 5px solid transparent; }
+      @keyframes iris-tour-in { from { opacity: 0; translate: 0 6px; scale: .98 } to { opacity: 1; translate: 0 0; scale: 1 } }
+      @keyframes iris-tour-pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+      @keyframes iris-tour-march { to { stroke-dashoffset: -22 } }
+      @keyframes iris-tour-draw { from { stroke-dashoffset: 1 } to { stroke-dashoffset: 0 } }
+      @keyframes iris-tour-fade { from { opacity: 0 } to { opacity: 1 } }
+      @keyframes iris-tour-ripple { 0% { box-shadow: 0 0 0 0 rgba(251,146,60,.55); scale: .9 } 70% { box-shadow: 0 0 0 18px rgba(251,146,60,0); scale: 1 } 100% { box-shadow: 0 0 0 0 rgba(251,146,60,0); scale: .9 } }
+      @keyframes iris-tour-bob { 0%,100% { translate: -50% 0 } 50% { translate: -50% -3px } }
+      @keyframes iris-tour-sway { 0%,100% { rotate: -3deg } 50% { rotate: 3deg } }
+      @keyframes iris-tour-rise { 0% { opacity: 0; translate: 0 0 } 20% { opacity: .9 } 100% { opacity: 0; translate: 6px -70px } }
+      @keyframes iris-tour-glow { 0%,100% { filter: drop-shadow(0 0 4px rgba(251,191,36,.55)) } 50% { filter: drop-shadow(0 0 9px rgba(251,191,36,.95)) } }
+      @keyframes iris-tour-flicker { 0%,100% { transform: scale(1) } 50% { transform: scale(1.08,.92) } }
       @media (prefers-reduced-motion: no-preference) {
-        .iris-tour-card { animation: iris-tour-in .28s cubic-bezier(.2,.9,.3,1.2) both }
+        .iris-tour-card { animation: iris-tour-in .24s cubic-bezier(.2,.8,.2,1) both }
         .iris-tour-pulse { animation: iris-tour-pulse 1.6s ease-in-out infinite }
-        .iris-tour-flame { animation: iris-tour-flicker 1.4s ease-in-out infinite }
-        .iris-tour-spin { animation: iris-tour-spin 40s linear infinite }
-        .iris-tour-shimmer { animation: iris-tour-shine 4s linear infinite }
-        .iris-tour-spark { animation: iris-tour-spark .9s ease-out both }
+        .iris-tour-outline { animation: iris-tour-march 1s linear infinite }
+        .iris-tour-bracket { animation: iris-tour-fade .3s ease-out both }
+        .iris-tour-arrow { stroke-dasharray: 1; animation: iris-tour-draw .5s .12s cubic-bezier(.4,0,.2,1) both }
+        .iris-tour-arrowhead, .iris-tour-arrowdot { animation: iris-tour-fade .2s .55s both }
+        .iris-tour-ripple { animation: iris-tour-ripple 1.6s ease-out infinite }
+        .iris-tour-callout { animation: iris-tour-bob 1.6s ease-in-out infinite }
+        .iris-tour-flame { animation: iris-tour-flicker 1.8s ease-in-out infinite }
+        .iris-tour-lantern { animation: iris-tour-sway 4s ease-in-out infinite }
+        .iris-tour-ember { animation: iris-tour-rise 3.2s ease-out infinite }
+        .iris-tour-diya-glow { animation: iris-tour-glow 2.4s ease-in-out infinite }
       }
     `}</style>
   );

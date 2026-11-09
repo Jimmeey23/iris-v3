@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
-  Search, SlidersHorizontal, ArrowUpDown, X, CheckSquare, Square, ChevronRight, Layers, Rows3, Rows4, LayoutGrid,
+  Search, SlidersHorizontal, ArrowUpDown, ArrowUp, ArrowDown, X, CheckSquare, Square, ChevronRight, Layers, Rows3, Rows4, LayoutGrid,
   Columns3, Users, CalendarDays, PanelRight, User, UserX, Flame, AlertTriangle, Siren, Sun, Hourglass, TrendingUp,
 } from "lucide-react";
 import { TicketWorkspace } from "./ticket-workspace";
@@ -58,6 +58,19 @@ type SortKey = keyof typeof SORTS;
 type Scope = "open" | "all" | "done";
 const DONE = new Set(["resolved", "closed"]);
 const isOpen = (t: Ticket) => !DONE.has(t.status);
+
+type ColKey = "ticket" | "priority" | "status" | "studio" | "owner" | "sla" | "created" | "updated";
+const STATUS_RANK: Record<string, number> = { open: 0, in_progress: 1, awaiting_response: 2, escalated: 3, resolved: 4, closed: 5 };
+const COLUMN_SORT: Record<ColKey, (t: Ticket) => string | number> = {
+  ticket: (t) => t.ticketId,
+  priority: (t) => ({ P0: 0, P1: 1, P2: 2, P3: 3 } as Record<string, number>)[t.priority] ?? 9,
+  status: (t) => STATUS_RANK[t.status] ?? 9,
+  studio: (t) => getStudio(t)?.name ?? "~",
+  owner: (t) => getAssignee(t)?.name ?? "~",
+  sla: (t) => ({ breached: 0, at_risk: 1, on_track: 2, paused: 3 } as Record<string, number>)[t.slaStatus] ?? 9,
+  created: (t) => new Date(t.createdAt).getTime(),
+  updated: (t) => new Date(t.updatedAt).getTime(),
+};
 
 const QUICK = [
   { id: "mine", label: "Mine", icon: User, test: (t: Ticket, me: string) => isMine(t, me) },
@@ -137,7 +150,8 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
   const [sortBy, setSortBy] = usePersisted<SortKey>("iris.tickets.sort", "created");
   const [group1, setGroup1] = usePersisted<GroupKey>("iris.tickets.group1", "none");
   const [group2, setGroup2] = usePersisted<GroupKey>("iris.tickets.group2", "none");
-  const [scope, setScope] = React.useState<Scope>("open");
+  // null = not chosen yet: default to Open, or All when nothing is open (so nobody lands on an empty list).
+  const [chosenScope, setScope] = React.useState<Scope | null>(null);
   const [quick, setQuick] = React.useState<Set<QuickId>>(new Set());
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [preview, setPreview] = React.useState<string | null>(null);
@@ -175,6 +189,9 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
     all: base.length,
     done: base.filter((t) => !isOpen(t)).length,
   }), [base]);
+
+  // Executives start on All (resolved rows are dimmed); everyone else on Open unless nothing is open.
+  const scope: Scope = chosenScope ?? (currentUser.tier === "executive" || (counts.open === 0 && counts.all > 0) ? "all" : "open");
 
   const tickets = React.useMemo(() => {
     let r = base;
@@ -424,10 +441,37 @@ function Owner({ t, size = 5 }: { t: Ticket; size?: number }) {
   );
 }
 
+function SortHeader({ k, label, right, col, onSort, className }: {
+  k: ColKey; label: string; right?: boolean; col: { key: ColKey; dir: "asc" | "desc" } | null; onSort: (k: ColKey) => void; className: string;
+}) {
+  const on = col?.key === k;
+  return (
+    <th className={cn(className, right && "text-right")} aria-sort={on ? (col.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button onClick={() => onSort(k)} className={cn("inline-flex items-center gap-1 uppercase tracking-[.12em] hover:text-foreground transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on && "text-foreground")}>
+        {label}
+        {on ? (col.dir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+      </button>
+    </th>
+  );
+}
+
 function Table({ tickets, compact, onSelect, selectedIds, onToggle, onToggleAll, allSelected }: {
   tickets: Ticket[]; compact: boolean; onSelect: (id: string) => void; selectedIds: Set<string>; onToggle: (id: string) => void; onToggleAll?: () => void; allSelected: boolean;
 }) {
   const [limit, setLimit] = React.useState(PAGE);
+  // Column sort: null keeps the list's own order (Sort menu, newest first by default).
+  const [col, setCol] = React.useState<{ key: ColKey; dir: "asc" | "desc" } | null>(null);
+  const rows = React.useMemo(() => {
+    if (!col) return tickets;
+    const get = COLUMN_SORT[col.key];
+    const m = col.dir === "asc" ? 1 : -1;
+    return [...tickets].sort((a, b) => {
+      const x = get(a), y = get(b);
+      return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y))) * m;
+    });
+  }, [tickets, col]);
+  const sortBy = (key: ColKey) =>
+    setCol((c) => (c?.key !== key ? { key, dir: key === "created" || key === "updated" ? "desc" : "asc" } : c.dir === "asc" ? { key, dir: "desc" } : c.dir === "desc" && (key === "created" || key === "updated") ? { key, dir: "asc" } : null));
   const pad = compact ? "px-2.5 py-1.5" : "px-3 py-3";
   const th = "text-left px-3 py-2.5 font-semibold text-[10px] uppercase tracking-[.12em] text-muted-foreground whitespace-nowrap";
   return (
@@ -443,22 +487,22 @@ function Table({ tickets, compact, onSelect, selectedIds, onToggle, onToggleAll,
                   </button>
                 )}
               </th>
-              <th className={th}>Ticket</th>
-              <th className={th}>Priority</th>
-              <th className={th}>Status</th>
-              {!compact && <th className={th}>Studio</th>}
-              <th className={th}>Owner</th>
-              <th className={th}>SLA</th>
-              <th className={th}>Created</th>
-              <th className={cn(th, "text-right")}>Updated</th>
+              <SortHeader k="ticket" label="Ticket" col={col} onSort={sortBy} className={th} />
+              <SortHeader k="priority" label="Priority" col={col} onSort={sortBy} className={th} />
+              <SortHeader k="status" label="Status" col={col} onSort={sortBy} className={th} />
+              {!compact && <SortHeader k="studio" label="Studio" col={col} onSort={sortBy} className={th} />}
+              <SortHeader k="owner" label="Owner" col={col} onSort={sortBy} className={th} />
+              <SortHeader k="sla" label="SLA" col={col} onSort={sortBy} className={th} />
+              <SortHeader k="created" label="Created" col={col} onSort={sortBy} className={th} />
+              <SortHeader k="updated" label="Updated" right col={col} onSort={sortBy} className={th} />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {tickets.slice(0, limit).map((t) => {
+            {rows.slice(0, limit).map((t) => {
               const sel = selectedIds.has(t.id);
               return (
                 <tr key={t.id} onClick={() => onSelect(t.id)}
-                  className={cn("cursor-pointer transition-colors group hover:bg-primary/[.04]", sel && "bg-primary/[.06]",
+                  className={cn("cursor-pointer transition-[background-color,opacity] group hover:bg-primary/[.04]", sel && "bg-primary/[.06]", !isOpen(t) && "opacity-55 hover:opacity-100",
                     t.slaStatus === "breached" && "shadow-[inset_3px_0_0_0_rgb(244_63_94)]", t.slaStatus === "at_risk" && "shadow-[inset_3px_0_0_0_rgb(245_158_11)]")}>
                   <td className={cn(pad, "w-8")} onClick={(e) => { e.stopPropagation(); onToggle(t.id); }}>
                     {sel ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5 text-muted-foreground opacity-40 group-hover:opacity-100" />}
@@ -514,7 +558,7 @@ function TicketCard({ t, onSelect, dense }: { t: Ticket; onSelect: (id: string) 
   const studio = getStudio(t);
   return (
     <button onClick={() => onSelect(t.id)}
-      className={cn("w-full text-left iris-card p-3 hover:border-primary/40 hover:shadow-md transition-all border border-border/70",
+      className={cn("w-full text-left iris-card p-3 hover:border-primary/40 hover:shadow-md transition-all border border-border/70", !isOpen(t) && "opacity-55 hover:opacity-100",
         t.slaStatus === "breached" && "border-l-[3px] border-l-rose-500", t.slaStatus === "at_risk" && "border-l-[3px] border-l-amber-500")}>
       <div className="flex items-center gap-1.5 mb-1.5">
         <PriorityBadge priority={t.priority} />
