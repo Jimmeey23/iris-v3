@@ -167,84 +167,113 @@ export function OverviewView() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">
       {/* === HERO === */}
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-white dark:bg-card iris-fade-in-up">
-        {/* White base with a single faint accent wash (~12% at the corner, fading to white). */}
-        <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(120deg, color-mix(in srgb, var(--primary) 12%, transparent) 0%, color-mix(in srgb, var(--primary) 4%, transparent) 45%, transparent 75%)" }} />
+      <section className="ovh relative overflow-hidden rounded-2xl border border-border bg-white dark:bg-card iris-fade-in-up shadow-[0_1px_0_0_color-mix(in_srgb,var(--foreground)_4%,transparent),0_24px_48px_-32px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+        {/* Hairline accent along the top edge */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--primary) 30%, color-mix(in srgb, var(--primary) 40%, transparent) 70%, transparent)" }} />
+        {/* Faint accent wash + fine grid texture, both fading out to the right */}
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 55%)" }} />
+        <div className="ovh-grid pointer-events-none absolute inset-0" />
 
         <div className="relative grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-stretch">
           {/* Left */}
-          <div className="min-w-0 px-6 py-4 sm:px-7 sm:py-4">
-            <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-              <span className="iris-live-dot" />
-              <span>Live</span>
-              <span className="text-border">/</span>
+          <div className="min-w-0 px-6 py-5 sm:px-8">
+            <div className="flex items-center gap-2.5 text-[10px] font-medium uppercase tracking-[.18em] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 h-5 pl-1.5 pr-2 rounded-full border border-emerald-500/25 bg-emerald-500/[.06] text-emerald-700 dark:text-emerald-400 tracking-[.14em]">
+                <span className="iris-live-dot" />Live
+              </span>
               <span>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
             </div>
-            <h1 className="mt-1.5 text-[26px] sm:text-[28px] font-semibold tracking-[-0.02em] leading-[1.1]">
-              {greeting}, <span className="text-primary">{firstName}</span>.
+            <h1 className="mt-2.5 text-[28px] sm:text-[32px] font-semibold tracking-[-0.025em] leading-[1.05]">
+              {greeting},{" "}
+              <span className="iris-wordmark-ai text-primary text-[1.12em] tracking-[-0.01em]">{firstName}</span>
             </h1>
-            <p className="mt-1 text-[13px] text-muted-foreground max-w-xl leading-relaxed">
-              Across every Physique 57 India studio right now: <span className="text-foreground font-medium">{narrative}</span>.
+            <p className="mt-1.5 text-[13px] text-muted-foreground max-w-xl leading-relaxed">
+              Across every Physique 57 India studio: <span className="text-foreground font-medium">{narrative}</span>.
             </p>
 
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
               {nav.map((n, i) => (
                 <button key={n.label} onClick={() => setCurrentView(n.view)}
-                  className={cn("inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium transition-all",
-                    i === 0 ? "bg-primary text-primary-foreground shadow-[0_6px_20px_-8px_var(--primary)] hover:brightness-110" : "border border-border bg-card/70 backdrop-blur hover:bg-card")}>
-                  <n.icon className="w-3.5 h-3.5" />{n.label}
+                  className={cn("group inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-medium transition-all",
+                    i === 0
+                      ? "bg-foreground text-background hover:bg-primary hover:text-primary-foreground shadow-[0_8px_20px_-10px_var(--foreground)]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
+                  <n.icon className={cn("w-3.5 h-3.5", i === 0 && "text-primary group-hover:text-primary-foreground")} />{n.label}
+                  {i === 0 && <ChevronRight className="w-3 h-3 -mr-1 opacity-60 transition-transform group-hover:translate-x-0.5" />}
                 </button>
               ))}
             </div>
 
-            <dl className="mt-3 grid grid-cols-3 gap-2 max-w-xl">
+            <dl className="mt-4 grid grid-cols-3 max-w-xl border-t border-border/70 pt-3 divide-x divide-border/70">
               {[
-                { k: "Raised · 7 days", v: live.created7, sub: live.total.trend ? `${live.total.trend} vs prior week` : "" },
-                { k: "Resolved · 7 days", v: live.resolved7, sub: live.resolved.trend ? `${live.resolved.trend} vs prior week` : "" },
-                { k: "First response", v: hours(live.avgFirstResponseH), sub: "average · 30 days" },
-              ].map((s) => (
-                <div key={s.k} className="rounded-xl border border-border/70 bg-card/60 backdrop-blur px-3.5 py-2">
-                  <dt className="text-[10px] uppercase tracking-[.14em] text-muted-foreground">{s.k}</dt>
-                  <dd className="mt-1 text-[20px] font-semibold tabular-nums leading-none">{s.v}</dd>
-                  {s.sub && <dd className="mt-1 text-[10px] text-muted-foreground">{s.sub}</dd>}
+                { k: "Raised", sub: "last 7 days", v: live.created7, d: live.total.trend, spark: live.trend.map((t) => t.created) },
+                { k: "Resolved", sub: "last 7 days", v: live.resolved7, d: live.resolved.trend, spark: live.trend.map((t) => t.resolved) },
+                { k: "First response", sub: "average · 30 days", v: hours(live.avgFirstResponseH), d: "", spark: null },
+              ].map((s, i) => (
+                <div key={s.k} className={cn("min-w-0", i === 0 ? "pr-4" : "px-4")}>
+                  <dt className="text-[10px] uppercase tracking-[.16em] text-muted-foreground">{s.k}</dt>
+                  <dd className="mt-1.5 flex items-end gap-2">
+                    <span className="text-[24px] font-semibold tabular-nums leading-none tracking-tight">{s.v}</span>
+                    {s.spark && <Spark values={s.spark} />}
+                  </dd>
+                  <dd className="mt-1 text-[10px] text-muted-foreground truncate">
+                    {s.d ? <span className="text-foreground/80 font-medium tabular-nums">{s.d}</span> : null}{s.d ? " vs prior week" : s.sub}
+                  </dd>
                 </div>
               ))}
             </dl>
           </div>
 
-          {/* Right: SLA panel */}
-          <div className="flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-border/70 bg-white/70 dark:bg-card/60 backdrop-blur-md px-6 py-4 sm:px-7">
-            <div className="flex items-center gap-5">
-              <div className="relative shrink-0" style={{ width: 120, height: 120 }}>
-                <svg width="120" height="120" viewBox="0 0 148 148" aria-hidden>
-                  <circle cx="74" cy="74" r="62" fill="none" stroke="var(--border)" strokeWidth="8" />
-                  <circle cx="74" cy="74" r="62" fill="none" stroke="var(--primary)" strokeWidth="8" strokeLinecap="round"
-                    strokeDasharray={`${(slaCompliance / 100) * 389.6} 389.6`} transform="rotate(-90 74 74)"
+          {/* Right: service level */}
+          <div className="relative flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-border/70 bg-[color-mix(in_srgb,var(--muted)_35%,transparent)] px-6 py-5 sm:px-7">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Service level</div>
+              <div className="text-[10px] text-muted-foreground tabular-nums">{live.slaSample ? `${live.slaSample} resolved · 30d` : "No data · 30d"}</div>
+            </div>
+            <div className="mt-3 flex items-center gap-5">
+              <div className="relative shrink-0" style={{ width: 116, height: 116 }}>
+                <svg width="116" height="116" viewBox="0 0 148 148" aria-hidden>
+                  <defs>
+                    <linearGradient id="ovh-sla" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="var(--primary)" />
+                      <stop offset="100%" stopColor="color-mix(in srgb, var(--primary) 55%, var(--foreground))" />
+                    </linearGradient>
+                  </defs>
+                  {Array.from({ length: 60 }, (_, i) => {
+                    const a = (i / 60) * Math.PI * 2;
+                    const r1 = 71, r2 = i % 5 === 0 ? 66 : 68.5;
+                    return <line key={i} x1={74 + Math.sin(a) * r1} y1={74 - Math.cos(a) * r1} x2={74 + Math.sin(a) * r2} y2={74 - Math.cos(a) * r2}
+                      stroke="var(--foreground)" strokeOpacity={i % 5 === 0 ? 0.22 : 0.1} strokeWidth="1" />;
+                  })}
+                  <circle cx="74" cy="74" r="58" fill="none" stroke="var(--border)" strokeWidth="4" />
+                  <circle cx="74" cy="74" r="58" fill="none" stroke="url(#ovh-sla)" strokeWidth="4" strokeLinecap="round"
+                    strokeDasharray={`${(slaCompliance / 100) * 364.4} 364.4`} transform="rotate(-90 74 74)"
                     style={{ animation: "hero-ring 1.6s cubic-bezier(0.16,1,0.3,1)" }} />
-                  <circle cx="74" cy="74" r="50" fill="none" stroke="var(--primary)" strokeWidth="0.6" opacity="0.25" strokeDasharray="2 5"
-                    style={{ animation: "hero-rotate 40s linear infinite", transformOrigin: "74px 74px" }} />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-[24px] font-semibold tabular-nums tracking-tight">{live.sla === null ? "-" : `${live.sla}%`}</span>
-                  <span className="text-[9px] uppercase tracking-[.16em] text-muted-foreground">within SLA</span>
+                  <span className="text-[26px] font-semibold tabular-nums tracking-[-0.03em] leading-none">
+                    {live.sla === null ? "-" : live.sla}{live.sla !== null && <span className="text-[13px] text-muted-foreground font-medium">%</span>}
+                  </span>
+                  <span className="mt-1 text-[8.5px] uppercase tracking-[.18em] text-muted-foreground">within SLA</span>
                 </div>
               </div>
-              <div className="min-w-0 space-y-3">
-                <div>
-                  <div className="text-[13px] font-semibold">Service level</div>
-                  <div className="text-[11px] text-muted-foreground">{live.slaSample ? `Based on ${live.slaSample} resolved ticket${live.slaSample === 1 ? "" : "s"} with an SLA target · 30 days` : "No resolved tickets with an SLA target in 30 days"}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
-                  <div><div className="text-muted-foreground">Avg resolution</div><div className="font-semibold tabular-nums text-[13px]">{hours(live.avgResolveH)}</div></div>
-                  <div><div className="text-muted-foreground">Past SLA now</div><div className={cn("font-semibold tabular-nums text-[13px]", live.overdue.value && "text-rose-600 dark:text-rose-400")}>{live.overdue.value}</div></div>
-                  <div><div className="text-muted-foreground">Critical open</div><div className={cn("font-semibold tabular-nums text-[13px]", live.critical.value && "text-amber-600 dark:text-amber-400")}>{live.critical.value}</div></div>
-                  <div><div className="text-muted-foreground">Unassigned</div><div className="font-semibold tabular-nums text-[13px]">{live.unassignedOpen}</div></div>
-                </div>
-              </div>
+              <dl className="min-w-0 flex-1 grid grid-cols-2 gap-px rounded-xl overflow-hidden border border-border/70 bg-border/70">
+                {[
+                  { k: "Avg resolution", v: hours(live.avgResolveH), tone: "" },
+                  { k: "Past SLA", v: live.overdue.value, tone: live.overdue.value ? "text-rose-600 dark:text-rose-400" : "" },
+                  { k: "Critical", v: live.critical.value, tone: live.critical.value ? "text-amber-600 dark:text-amber-400" : "" },
+                  { k: "Unassigned", v: live.unassignedOpen, tone: "" },
+                ].map((m) => (
+                  <div key={m.k} className="bg-white/90 dark:bg-card px-2.5 py-2">
+                    <dt className="text-[9.5px] uppercase tracking-[.12em] text-muted-foreground truncate">{m.k}</dt>
+                    <dd className={cn("mt-0.5 text-[15px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            <button onClick={() => setDrill("overdue")} className="mt-3 w-full inline-flex items-center justify-between rounded-xl border border-border/70 px-3.5 py-2 text-[12px] hover:bg-muted/50 transition-colors">
-              <span className="text-muted-foreground">See what&apos;s at risk</span>
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+            <button onClick={() => setDrill("overdue")} className="group mt-3.5 inline-flex items-center gap-1 self-start text-[11.5px] font-medium text-muted-foreground hover:text-primary transition-colors">
+              See what&apos;s at risk
+              <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
         </div>
@@ -255,10 +284,15 @@ export function OverviewView() {
         </div>
 
         <style>{`
-          @keyframes hero-ring { from { stroke-dashoffset: 389.6; } to { stroke-dashoffset: 0; } }
-          @keyframes hero-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-          @keyframes hero-orb-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-20px,20px) scale(1.06); } }
-          @keyframes hero-orb-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(20px,-14px) scale(0.94); } }
+          @keyframes hero-ring { from { stroke-dashoffset: 364.4; } to { stroke-dashoffset: 0; } }
+          .ovh-grid {
+            background-image: linear-gradient(to right, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px),
+                              linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px);
+            background-size: 28px 28px;
+            mask-image: radial-gradient(90% 120% at 0% 0%, #000 0%, transparent 60%);
+            -webkit-mask-image: radial-gradient(90% 120% at 0% 0%, #000 0%, transparent 60%);
+          }
+          @media (prefers-reduced-motion: reduce) { .ovh * { animation: none !important; } }
         `}</style>
       </section>
 
@@ -616,5 +650,17 @@ function InsightCard({ type, title, description, confidence }: { type: "pattern"
         <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">{confidence}%</span>
       </div>
     </div>
+  );
+}
+
+/** Tiny 14-day sparkline for the hero stats. */
+function Spark({ values }: { values: number[] }) {
+  const w = 56, h = 18;
+  const max = Math.max(1, ...values);
+  const pts = values.map((v, i) => `${(i / Math.max(1, values.length - 1)) * w},${h - (v / max) * (h - 2) - 1}`).join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="mb-0.5 overflow-visible" aria-hidden>
+      <polyline points={pts} fill="none" stroke="var(--primary)" strokeWidth="1.25" strokeLinejoin="round" strokeLinecap="round" opacity="0.8" />
+    </svg>
   );
 }
