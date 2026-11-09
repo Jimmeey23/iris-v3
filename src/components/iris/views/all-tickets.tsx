@@ -502,7 +502,7 @@ function Table({ tickets, compact, onSelect, selectedIds, onToggle, onToggleAll,
               const sel = selectedIds.has(t.id);
               return (
                 <tr key={t.id} onClick={() => onSelect(t.id)}
-                  className={cn("cursor-pointer transition-[background-color,opacity] group hover:bg-primary/[.04]", sel && "bg-primary/[.06]", !isOpen(t) && "opacity-55 hover:opacity-100",
+                  className={cn("cursor-pointer transition-[background-color,opacity] group hover:bg-primary/[.04]", sel && "bg-primary/[.06]", !isOpen(t) && "bg-muted/50 dark:bg-muted/30",
                     t.slaStatus === "breached" && "shadow-[inset_3px_0_0_0_rgb(244_63_94)]", t.slaStatus === "at_risk" && "shadow-[inset_3px_0_0_0_rgb(245_158_11)]")}>
                   <td className={cn(pad, "w-8")} onClick={(e) => { e.stopPropagation(); onToggle(t.id); }}>
                     {sel ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5 text-muted-foreground opacity-40 group-hover:opacity-100" />}
@@ -558,7 +558,7 @@ function TicketCard({ t, onSelect, dense }: { t: Ticket; onSelect: (id: string) 
   const studio = getStudio(t);
   return (
     <button onClick={() => onSelect(t.id)}
-      className={cn("w-full text-left iris-card p-3 hover:border-primary/40 hover:shadow-md transition-all border border-border/70", !isOpen(t) && "opacity-55 hover:opacity-100",
+      className={cn("w-full text-left iris-card p-3 hover:border-primary/40 hover:shadow-md transition-all border border-border/70", !isOpen(t) && "bg-muted/50 dark:bg-muted/30",
         t.slaStatus === "breached" && "border-l-[3px] border-l-rose-500", t.slaStatus === "at_risk" && "border-l-[3px] border-l-amber-500")}>
       <div className="flex items-center gap-1.5 mb-1.5">
         <PriorityBadge priority={t.priority} />

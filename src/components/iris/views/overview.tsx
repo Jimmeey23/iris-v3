@@ -75,6 +75,48 @@ export function OverviewView() {
     };
   }, [currentUser.id, dataVersion]);
 
+  // All-time history: used when there's been no activity in the last 30 days (e.g. a studio
+  // whose tickets are all historic), or when the person picks "All time".
+  const hist = React.useMemo(() => {
+    void dataVersion;
+    const list = [...ALL_TICKETS];
+    const ms = (d?: string | Date | null) => (d ? new Date(d).getTime() : NaN);
+    const since30 = Date.now() - 30 * 86400_000;
+    const active30 = list.some((t) => ms(t.createdAt) >= since30 || ms(t.resolvedAt) >= since30) || list.some((t) => !DONE.has(t.status));
+    const resolved = list.filter((t) => t.resolvedAt);
+    const withTarget = resolved.filter((t) => t.slaResolutionTarget);
+    const within = withTarget.filter((t) => ms(t.resolvedAt) <= ms(t.slaResolutionTarget)).length;
+    const responded = list.filter((t) => t.firstResponseAt);
+    const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+    const latest = list.reduce((m, t) => Math.max(m, ms(t.createdAt) || 0, ms(t.resolvedAt) || 0), 0);
+    const first = list.reduce((m, t) => Math.min(m, ms(t.createdAt) || Infinity), Infinity);
+    // 12 monthly buckets ending at the latest activity.
+    const end = new Date(latest || Date.now());
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const from = new Date(end.getFullYear(), end.getMonth() - 11 + i, 1).getTime();
+      const to = new Date(end.getFullYear(), end.getMonth() - 10 + i, 1).getTime();
+      const inM = (d?: string | Date | null) => { const x = ms(d); return x >= from && x < to; };
+      return {
+        day: new Date(from).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+        created: list.filter((t) => inM(t.createdAt)).length,
+        resolved: list.filter((t) => inM(t.resolvedAt)).length,
+      };
+    });
+    return {
+      quiet: list.length > 0 && !active30,
+      total: list.length,
+      resolved: resolved.length,
+      sla: withTarget.length ? Math.round((within / withTarget.length) * 1000) / 10 : null,
+      avgFirstResponseH: avg(responded.map((t) => (ms(t.firstResponseAt) - ms(t.createdAt)) / 3_600_000).filter((h) => h >= 0)),
+      avgResolveH: avg(resolved.map((t) => (ms(t.resolvedAt) - ms(t.createdAt)) / 3_600_000).filter((h) => h >= 0)),
+      months,
+      since: Number.isFinite(first) ? new Date(first).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : null,
+      lastActivity: latest ? new Date(latest).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : null,
+    };
+  }, [dataVersion]);
+  const [range, setRange] = React.useState<"recent" | "all" | null>(null);
+  const allTime = range ? range === "all" : hist.quiet;
+
   const stats = {
     open: live.open.value, critical: live.critical.value, resolved: live.resolved.value, escalated: live.escalated.value,
     overdue: live.overdue.value, myTickets: live.mine.value, total: live.total.value,
@@ -108,7 +150,7 @@ export function OverviewView() {
       .sort((a, b) => b.workload - a.workload).slice(0, 6);
   }, [dataVersion]);
 
-  const slaCompliance = live.sla ?? 0;
+  const slaCompliance = (allTime ? hist.sla : live.sla) ?? 0;
 
   const recentTickets = React.useMemo(() => { void dataVersion; return [...ALL_TICKETS].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6); }, [dataVersion]);
   const criticalTickets = React.useMemo(() => { void dataVersion; return ALL_TICKETS.filter((t) => !DONE.has(t.status) && (t.priority === "P0" || t.slaStatus === "breached")).slice(0, 6); }, [dataVersion]);
@@ -116,7 +158,9 @@ export function OverviewView() {
   const firstName = currentUser.name.split(" ")[0];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const narrative = [
+  const narrative = allTime
+    ? [`${hist.total} ticket${hist.total === 1 ? "" : "s"} on record${hist.since ? ` since ${hist.since}` : ""}`, `${hist.resolved} resolved`, `${live.open.value} open now`].join(" · ")
+    : [
     `${live.open.value} open ticket${live.open.value === 1 ? "" : "s"}`,
     live.overdue.value ? `${live.overdue.value} past SLA` : "none past SLA",
     live.unassignedOpen ? `${live.unassignedOpen} waiting for an owner` : null,
@@ -201,6 +245,15 @@ export function OverviewView() {
                 <span className="iris-live-dot" />Live
               </span>
               <span>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
+              <span className="ml-auto inline-flex items-center rounded-full bg-muted/70 p-0.5 normal-case tracking-normal" role="tablist" aria-label="Time range">
+                {(["recent", "all"] as const).map((r) => (
+                  <button key={r} role="tab" aria-selected={(r === "all") === allTime} onClick={() => setRange(r)}
+                    className={cn("h-5 px-2.5 rounded-full text-[10.5px] font-medium transition-colors",
+                      (r === "all") === allTime ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                    {r === "recent" ? "Recent" : "All time"}
+                  </button>
+                ))}
+              </span>
             </div>
             <h1 className="mt-2.5 text-[28px] sm:text-[32px] font-semibold tracking-[-0.025em] leading-[1.05]">
               {greeting},{" "}
@@ -209,6 +262,11 @@ export function OverviewView() {
             <p className="mt-1.5 text-[13px] text-muted-foreground max-w-xl leading-relaxed">
               Across every Physique 57 India studio: <span className="text-foreground font-medium">{narrative}</span>.
             </p>
+            {allTime && hist.quiet && range === null && (
+              <p className="mt-1 text-[11.5px] text-muted-foreground">
+                No activity in the last 30 days, so you're seeing your all-time history{hist.lastActivity ? ` (last activity ${hist.lastActivity})` : ""}.
+              </p>
+            )}
 
             <div className="mt-4 flex flex-wrap items-center gap-1.5">
               {nav.map((n, i) => (
@@ -225,9 +283,17 @@ export function OverviewView() {
 
             <dl className="mt-4 grid grid-cols-3 max-w-xl border-t border-border/70 pt-3 divide-x divide-border/70">
               {[
-                { k: "Raised", sub: "last 7 days", v: live.created7, d: live.total.trend, spark: live.trend.map((t) => t.created) },
-                { k: "Resolved", sub: "last 7 days", v: live.resolved7, d: live.resolved.trend, spark: live.trend.map((t) => t.resolved) },
-                { k: "First response", sub: "average · 30 days", v: hours(live.avgFirstResponseH), d: "", spark: null },
+                ...(allTime
+                  ? [
+                      { k: "Raised", sub: "all time · by month", v: hist.total, d: "", spark: hist.months.map((t) => t.created) },
+                      { k: "Resolved", sub: "all time · by month", v: hist.resolved, d: "", spark: hist.months.map((t) => t.resolved) },
+                      { k: "Avg resolution", sub: "all time", v: hours(hist.avgResolveH), d: "", spark: null },
+                    ]
+                  : [
+                      { k: "Raised", sub: "last 7 days", v: live.created7, d: live.total.trend, spark: live.trend.map((t) => t.created) },
+                      { k: "Resolved", sub: "last 7 days", v: live.resolved7, d: live.resolved.trend, spark: live.trend.map((t) => t.resolved) },
+                      { k: "First response", sub: "average · 30 days", v: hours(live.avgFirstResponseH), d: "", spark: null },
+                    ]),
               ].map((s, i) => (
                 <div key={s.k} className={cn("min-w-0", i === 0 ? "pr-4" : "px-4")}>
                   <dt className="text-[10px] uppercase tracking-[.16em] text-muted-foreground">{s.k}</dt>
@@ -247,17 +313,17 @@ export function OverviewView() {
           <div className="relative flex flex-col border-t lg:border-t-0 lg:border-l border-border/70 bg-[color-mix(in_srgb,var(--muted)_35%,transparent)] px-6 py-5 sm:px-7">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Service level · 30d</div>
+                <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Service level · {allTime ? "all time" : "30d"}</div>
                 <div className="mt-1.5 flex items-baseline gap-1.5">
-                  <span className="text-[30px] font-semibold tabular-nums tracking-[-0.03em] leading-none">{live.sla === null ? "-" : live.sla}</span>
-                  {live.sla !== null && <span className="text-[14px] text-muted-foreground font-medium">%</span>}
+                  <span className="text-[30px] font-semibold tabular-nums tracking-[-0.03em] leading-none">{(allTime ? hist.sla : live.sla) === null ? "-" : allTime ? hist.sla : live.sla}</span>
+                  {(allTime ? hist.sla : live.sla) !== null && <span className="text-[14px] text-muted-foreground font-medium">%</span>}
                   <span className="ml-1 text-[10.5px] text-muted-foreground">within SLA</span>
                 </div>
                 <div className="mt-2 h-1 w-40 rounded-full bg-border overflow-hidden">
                   <div className="h-full rounded-full bg-primary" style={{ width: `${slaCompliance}%`, transition: "width 1.2s cubic-bezier(.16,1,.3,1)" }} />
                 </div>
               </div>
-              <FlowChart days={live.trend} />
+              <FlowChart days={allTime ? hist.months : live.trend} />
             </div>
 
             <div className="mt-4 flex items-center justify-between">
@@ -326,8 +392,8 @@ export function OverviewView() {
         {cards.map((c) => {
           const m = live[c.id];
           return (
-            <PremiumMetricCard key={c.id} label={METRICS[c.id].label} value={m.value} icon={c.icon} trend={m.trend} trendUp={m.up}
-              tooltip={`${c.tooltip}. Click for details.`} sparkData={m.spark} caption={c.caption} onClick={() => setDrill(c.id)} />
+            <PremiumMetricCard key={c.id} label={METRICS[c.id].label} value={m.value} icon={c.icon} trend={allTime ? undefined : m.trend} trendUp={m.up}
+              tooltip={`${c.tooltip}. Click for details.`} sparkData={m.spark} caption={allTime ? c.caption.replace("7-day trend", "all time") : c.caption} onClick={() => setDrill(c.id)} />
           );
         })}
       </div>
