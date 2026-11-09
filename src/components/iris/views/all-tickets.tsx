@@ -312,7 +312,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
 
       <div data-tour="ticket-list">
       {tickets.length === 0 ? (
-        <div className="iris-card text-center py-20">
+        <div data-tour-empty className="iris-card text-center py-20">
           <div className="text-[13px] text-muted-foreground">No tickets match.{scope === "open" ? " Switch to All to include resolved tickets." : ""}</div>
         </div>
       ) : view === "board" ? (
