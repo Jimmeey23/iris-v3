@@ -737,89 +737,159 @@ export interface ResolutionSuggestion {
   suggestedActions: string[];
 }
 
+/** Words that appear in almost every ticket and say nothing about what it's about. */
+const MATCH_STOPWORDS = new Set(
+  (
+    "a an and are as at be been being but by can could did do does for from had has have he her him his how i if in into is it its " +
+    "me my no not of on or our she so than that the their them then there these they this those to too up us was we were what " +
+    "when where which while who whom why will with would you your yours also just very more most some any all each both other " +
+    "about after again against before below between during over under above same such only own because until once here further " +
+    "inform informed informing please kindly regards thanks thank dear team sir madam mr mrs ms yesterday today tomorrow morning " +
+    "evening night week weeks month months year years day days time times date january february march april may june july august " +
+    "september october november december monday tuesday wednesday thursday friday saturday sunday " +
+    // Domain words that every studio ticket shares.
+    "studio studios member members client clients customer customers staff physique physique57 p57 class classes issue issues problem " +
+    "problems ticket tickets request requested asking asked said told need needs needed want wanted get got make made take taken " +
+    "come came visit visited going went still already soon also aware said says saying regarding concern concerned facing faced " +
+    "hq bandra kemps kwality house supreme mumbai bengaluru"
+  ).split(/\s+/),
+);
+
+/** Short words that still carry meaning in studio tickets. */
+const SHORT_KEEP = new Set(["ac", "mic", "mics", "tv", "ups", "wifi", "pos", "led", "fan", "gym", "app", "bar", "mat", "mats", "spa", "pay", "fee", "tax", "gst"]);
+
+function stem(word: string): string {
+  let w = word;
+  if (w.length > 5) w = w.replace(/(ations?|ions?|ings?|ments?|ness)$/, "");
+  if (w.length > 4) w = w.replace(/ies$/, "y").replace(/(ed|es|er|ly|s)$/, "");
+  if (w.length > 4) w = w.replace(/e$/, "");
+  return w;
+}
+
+/** Lower-cased, de-noised, lightly stemmed content tokens of a text. */
+function contentTokens(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const raw of text.toLowerCase().normalize("NFKD").split(/[^a-z0-9]+/)) {
+    if (SHORT_KEEP.has(raw)) { out.add(raw.replace(/s$/, "")); continue; }
+    if (raw.length < 4 || /^\d+$/.test(raw) || MATCH_STOPWORDS.has(raw)) continue;
+    const st = stem(raw);
+    if (st.length < 3 || MATCH_STOPWORDS.has(st)) continue;
+    out.add(st);
+  }
+  return out;
+}
+
+/**
+ * Rarity weight (IDF) of each word across the template + knowledge-base library.
+ * Words that appear in many documents ("trainer", "replacement") weigh little;
+ * specific ones ("seepage", "licence") weigh a lot. Words that never appear in the
+ * library (people's names, typos) aren't in the map and count for nothing.
+ */
+let idfCache: Map<string, number> | null = null;
+function idf(): Map<string, number> {
+  if (idfCache) return idfCache;
+  const docs = [
+    ...TICKET_TEMPLATES.map((t) => `${t.title} ${t.description} ${t.subcategory ?? ""}`),
+    ...KNOWLEDGE_ARTICLES.map((a) => `${a.title} ${a.summary} ${a.steps.join(" ")}`),
+  ];
+  const df = new Map<string, number>();
+  for (const d of docs) for (const tk of contentTokens(d)) df.set(tk, (df.get(tk) ?? 0) + 1);
+  idfCache = new Map([...df].map(([tk, n]) => [tk, Math.log(docs.length / n)]));
+  return idfCache;
+}
+
+/** Sum of rarity weights of the words two texts share. ~2.5 = one fairly specific word. */
+function evidence(shared: string[]): number {
+  const w = idf();
+  return shared.reduce((sum, tk) => sum + (w.get(tk) ?? 0), 0);
+}
+
+function sharedTokens(a: Set<string>, b: Set<string>): string[] {
+  const shared: string[] = [];
+  for (const t of a) if (b.has(t)) shared.push(t);
+  return shared;
+}
+
+const eq = (a?: string | null, b?: string | null) => Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
+
 /**
  * For a given ticket, surface the most useful resolution resources:
  * matching KB articles, similar resolved tickets, and the matching template.
+ *
+ * Every suggestion needs real evidence: either the same subcategory, or at
+ * least two distinct meaningful words in common with the ticket. Sharing only
+ * a broad category or filler words ("studio", "visited") is not enough, so a
+ * ticket with no good match shows nothing rather than something misleading.
  */
 export function suggestResolution(ticket: Ticket): ResolutionSuggestion {
-  // Match KB articles by category (Repair and Maintenance → tickets with subcategory HVAC, etc.)
-  const knowledgeArticles = KNOWLEDGE_ARTICLES
-    .map((article) => {
-      let score = 0;
-      const reasons: string[] = [];
-      // Category match
-      if (article.title.toLowerCase().includes(ticket.category.toLowerCase())) {
-        score += 30;
-        reasons.push("category match in title");
-      }
-      if (ticket.subcategory && article.title.toLowerCase().includes(ticket.subcategory.toLowerCase())) {
-        score += 40;
-        reasons.push("subcategory match in title");
-      }
-      // Tag/keyword match in steps
-      const ticketKeywords = (ticket.title + " " + ticket.description).toLowerCase().split(/\s+/);
-      const articleText = (article.title + " " + article.summary + " " + article.steps.join(" ")).toLowerCase();
-      const matchedKeywords = ticketKeywords.filter((k) => k.length > 4 && articleText.includes(k));
-      score += Math.min(40, matchedKeywords.length * 8);
-      if (matchedKeywords.length > 0) reasons.push(`${matchedKeywords.length} keyword${matchedKeywords.length === 1 ? "" : "s"} matched`);
+  const ticketTokens = contentTokens(`${ticket.title} ${ticket.description}`);
+  const ticketTitleTokens = contentTokens(ticket.title);
+  const ticketSubTokens = contentTokens(ticket.subcategory ?? "");
+  for (const tk of ticketSubTokens) ticketTokens.add(tk);
+  const mentionsTrainer = /\b(trainer|instructor|coach|teacher)s?\b/i.test(`${ticket.title} ${ticket.description}`);
+  /** Taxonomy names drift ("Plumbing Leaks" vs "Washroom & Plumbing Repairs"): credit a shared specific word. */
+  const nearSub = (...names: (string | null | undefined)[]) =>
+    names.some((n) => evidence(sharedTokens(ticketSubTokens, contentTokens(n ?? ""))) >= 2.5);
+  const reason = (parts: (string | false)[]) => parts.filter(Boolean).join(" · ");
 
-      return { article, matchReason: reasons.join(" · ") || "loose match", score };
-    })
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
-
-  // Similar resolved tickets (same category + subcategory if available)
-  const similarResolvedTickets = ALL_TICKETS
-    .filter(
-      (t) =>
-        t.id !== ticket.id &&
-        (t.status === "resolved" || t.status === "closed") &&
-        t.category === ticket.category,
-    )
-    .map((t) => {
-      let score = 50; // base for same category
-      const reasons: string[] = ["same category"];
-      if (t.subcategory === ticket.subcategory && ticket.subcategory) {
-        score += 30;
-        reasons.push("same subcategory");
-      }
-      if (t.studioCode === ticket.studioCode) {
-        score += 15;
-        reasons.push("same studio");
-      }
-      if (t.priority === ticket.priority) {
-        score += 5;
-        reasons.push("same priority");
-      }
-      return { ticket: t, matchReason: reasons.join(" · "), score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
-
-  // Matching template
+  // 1. Template: the taxonomy the ticket was filed under is the strongest signal;
+  //    wording can confirm it, or (with strong evidence) point elsewhere.
   const template = TICKET_TEMPLATES
     .map((tpl) => {
-      let score = 0;
-      const ticketText = (ticket.title + " " + ticket.description).toLowerCase();
-      const tplText = (tpl.title + " " + tpl.description + " " + (tpl.subcategory || "")).toLowerCase();
-      const ticketKeywords = ticketText.split(/\s+/).filter((k) => k.length > 4);
-      const matched = ticketKeywords.filter((k) => tplText.includes(k));
-      score = Math.min(100, matched.length * 12);
+      const text = contentTokens(`${tpl.title} ${tpl.description} ${tpl.subcategory || ""}`);
+      const title = contentTokens(tpl.title);
+      const e = evidence(sharedTokens(ticketTokens, text)) + 0.5 * evidence(sharedTokens(ticketTokens, title)) + 0.5 * evidence(sharedTokens(ticketTitleTokens, title));
       // Tickets are filed in the CATEGORY_MAP taxonomy; templates carry a library
       // taxonomy plus the ticket pair they pre-fill - match on either.
       const tax = templateTaxonomy(tpl);
-      const ticketCat = ticket.category.toLowerCase();
-      const ticketSub = ticket.subcategory?.toLowerCase();
-      if (tpl.category.toLowerCase() === ticketCat || tax.category.toLowerCase() === ticketCat) score += 20;
-      if (ticketSub && (tpl.subcategory?.toLowerCase() === ticketSub || tax.subcategory.toLowerCase() === ticketSub)) score += 30;
-      return { code: tpl.code, title: tpl.title, recommendedActions: tpl.recommendedActions, matchScore: score, _tpl: tpl };
+      const sameCat = eq(tpl.category, ticket.category) || eq(tax.category, ticket.category);
+      const sameSub = sameCat && (eq(tpl.subcategory, ticket.subcategory) || eq(tax.subcategory, ticket.subcategory));
+      const near = !sameSub && nearSub(tpl.subcategory, tax.subcategory);
+      // A template about a trainer is the wrong one when the ticket never mentions a trainer.
+      const roleMismatch = !mentionsTrainer && /\b(trainer|instructor)\b/i.test(tpl.title);
+      const ev = roleMismatch ? e * 0.4 : e;
+      const score = Math.min(100, Math.round((sameSub ? 45 : near ? (sameCat ? 35 : 20) : sameCat ? 15 : 0) + ev * 5));
+      const ok = sameSub ? ev >= 2 || score >= 45 : near ? ev >= 3 : sameCat ? ev >= 6 : ev >= 10;
+      return { tpl, score, ok };
     })
-    .sort((a, b) => b.matchScore - a.matchScore)[0];
+    .filter((x) => x.ok)
+    .sort((a, b) => b.score - a.score)[0];
 
-  const bestTemplate = template && template.matchScore > 30
-    ? { code: template.code, title: template.title, recommendedActions: template.recommendedActions, matchScore: template.matchScore }
+  const bestTemplate = template && template.score >= 50
+    ? { code: template.tpl.code, title: template.tpl.title, recommendedActions: template.tpl.recommendedActions, matchScore: template.score }
     : null;
+
+  // 2. Knowledge articles: wording, plus a boost when the article is linked to the matched template.
+  const knowledgeArticles = KNOWLEDGE_ARTICLES
+    .map((article) => {
+      const e =
+        evidence(sharedTokens(ticketTokens, contentTokens(`${article.title} ${article.summary} ${article.steps.join(" ")}`))) +
+        0.5 * evidence(sharedTokens(ticketTokens, contentTokens(article.title)));
+      const linked = Boolean(bestTemplate && article.relatedTemplates?.includes(bestTemplate.code));
+      const score = Math.min(100, Math.round((linked ? 40 : 0) + e * 4));
+      const ok = linked ? e >= 2 : e >= 11;
+      return { article, matchReason: reason([linked && `linked to ${bestTemplate!.code}`, `${Math.round(e)} relevance`]), score, ok };
+    })
+    .filter((x) => x.ok && x.score >= 50)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(({ article, matchReason, score }) => ({ article, matchReason, score }));
+
+  // 3. Similar resolved tickets: must share the subcategory, or the category plus
+  //    specific wording. Library-unknown words (names, studios) don't count.
+  const similarResolvedTickets = ALL_TICKETS
+    .filter((t) => t.id !== ticket.id && (t.status === "resolved" || t.status === "closed") && eq(t.category, ticket.category))
+    .map((t) => {
+      const e = evidence(sharedTokens(ticketTokens, contentTokens(`${t.title} ${t.description}`)));
+      const sameSub = eq(t.subcategory, ticket.subcategory);
+      const score = Math.min(100, Math.round((sameSub ? 40 : 10) + e * 4 + (t.studioCode === ticket.studioCode ? 5 : 0)));
+      const ok = sameSub ? e >= 4 : e >= 9;
+      return { ticket: t, matchReason: reason([sameSub ? "same subcategory" : "same category", t.studioCode === ticket.studioCode && "same studio"]), score, ok };
+    })
+    .filter((x) => x.ok && x.score >= 50)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(({ ticket: t, matchReason, score }) => ({ ticket: t, matchReason, score }));
 
   // Synthesize suggested actions
   const suggestedActions: string[] = [];
@@ -836,10 +906,10 @@ export function suggestResolution(ticket: Ticket): ResolutionSuggestion {
   }
   if (similarResolvedTickets.length > 0) {
     const sim = similarResolvedTickets[0].ticket;
-    suggestedActions.push(`Reference ${sim.ticketId} - same ${sim.category}, resolved${sim.resolution ? ` with: "${sim.resolution.slice(0, 80)}${sim.resolution.length > 80 ? "…" : ""}"` : ""}`);
+    suggestedActions.push(`See how ${sim.ticketId} (${sim.title}) was resolved${sim.resolution ? ` with: "${sim.resolution.slice(0, 80)}${sim.resolution.length > 80 ? "…" : ""}"` : ""}`);
   }
   if (suggestedActions.length === 0) {
-    suggestedActions.push("Investigate the issue and document findings in the resolution log.");
+    suggestedActions.push("No close match in templates, the knowledge base or past tickets. Investigate, then record what you did in the resolution note so IRIS can suggest it next time.");
   }
 
   return { knowledgeArticles, similarResolvedTickets, template: bestTemplate, suggestedActions };

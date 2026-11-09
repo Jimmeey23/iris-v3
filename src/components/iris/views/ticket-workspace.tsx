@@ -213,7 +213,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
             </Button>
             <span className="text-[11px] text-muted-foreground font-mono">{ticket.ticketId}</span>
             <span className="text-muted-foreground">·</span>
-            <span className="text-[11px] text-muted-foreground">Created {formatRelativeTime(ticket.createdAt)}</span>
+            <span className="text-[11px] text-muted-foreground">Created {formatDateTime(ticket.createdAt)} ({formatRelativeTime(ticket.createdAt)})</span>
             <div className="ml-auto flex items-center gap-2">
               <PriorityBadge priority={ticket.priority} />
               <StatusBadge status={ticket.status} />

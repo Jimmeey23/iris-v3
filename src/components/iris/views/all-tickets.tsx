@@ -5,7 +5,7 @@ import { useAppStore } from "@/lib/iris/store";
 import { ALL_TICKETS, isMine, getAssignee, getStudio, getDepartment, Ticket } from "@/lib/iris/sample-tickets";
 import { STUDIOS, DEPARTMENTS, EMPLOYEES, EMPLOYEE_MAP, Priority } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge, StudioBadge } from "../badges";
-import { formatRelativeTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
+import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -449,6 +449,7 @@ function Table({ tickets, compact, onSelect, selectedIds, onToggle, onToggleAll,
               {!compact && <th className={th}>Studio</th>}
               <th className={th}>Owner</th>
               <th className={th}>SLA</th>
+              <th className={th}>Created</th>
               <th className={cn(th, "text-right")}>Updated</th>
             </tr>
           </thead>
@@ -482,6 +483,7 @@ function Table({ tickets, compact, onSelect, selectedIds, onToggle, onToggleAll,
                   {!compact && <td className={cn(pad, "whitespace-nowrap")}>{getStudio(t)?.name ?? <span className="text-muted-foreground">-</span>}</td>}
                   <td className={cn(pad, "max-w-[180px]")}><Owner t={t} /></td>
                   <td className={pad}><SLABadge status={t.slaStatus} targetDate={t.slaResolutionTarget} /></td>
+                  <td className={cn(pad, "text-[11px] text-muted-foreground tabular-nums whitespace-nowrap")} title={formatDateTime(t.createdAt)}>{formatDateTime(t.createdAt)}</td>
                   <td className={cn(pad, "text-right text-[11px] text-muted-foreground tabular-nums whitespace-nowrap")}>{formatRelativeTime(t.updatedAt)}</td>
                 </tr>
               );
