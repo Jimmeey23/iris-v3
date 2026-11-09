@@ -34,7 +34,7 @@ type Step = {
   body: string;
   task?: Task;
   /** Illustration shown inside the card. */
-  visual?: "intake" | "chat" | "resolve" | "recurrence";
+  visual?: "intake" | "chat" | "ask" | "resolve" | "recurrence";
   cta?: string;
 };
 
@@ -42,7 +42,7 @@ const STEPS: Step[] = [
   {
     id: "welcome",
     emoji: "🪔",
-    eyebrow: "Festive update",
+    eyebrow: "What's new",
     title: "Happy Diwali, Physiquers! 🪔✨",
     body: "This Diwali, IRIS is lighting things up with some sizzling new updates! 🔥 A little sparkle, a lot of excitement, and plenty of reasons to cheer. Let's unwrap what's new! 🎁",
     cta: "Let's unwrap 🎁",
@@ -52,120 +52,129 @@ const STEPS: Step[] = [
     emoji: "🏠",
     target: "nav-overview",
     view: "overview",
-    eyebrow: "Home base",
-    title: "Your studio at a glance",
-    body: "What's open, what's urgent and what's due next. One look and you're in the know 👀",
+    eyebrow: "Home",
+    title: "This is your home page",
+    body: "See what's open, what's urgent and what's due next at your studio.",
   },
   {
     id: "open-ai",
     emoji: "🤖",
     target: "nav-ai_assistant",
-    eyebrow: "Your turn · 1 of 6",
-    title: "Meet your new sidekick",
-    body: "Just tell IRIS what happened, the way you'd tell a friend. It takes it from there 💬",
-    task: { kind: "view", view: "ai_assistant", hint: "Click AI Assistant to continue" },
+    eyebrow: "Try it",
+    title: "Report issues in AI Assistant",
+    body: "This is where you tell IRIS about a problem.",
+    task: { kind: "view", view: "ai_assistant", hint: "Click AI Assistant" },
   },
   {
     id: "chat",
     emoji: "💬",
     view: "ai_assistant",
-    eyebrow: "Your turn · 2 of 6",
-    title: "Three things you can ask IRIS",
-    body: "Report a problem, ask a question, or ask it to dig deeper. Plain words work best. Tap a bubble to see what IRIS does with it 👇",
+    eyebrow: "Try it",
+    title: "Just describe the problem",
+    body: "Type it like a normal message. No forms, no codes.",
     visual: "chat",
-    task: { kind: "demo", hint: "Tap any example bubble" },
+    task: { kind: "demo", hint: "Tap the sample message to send it" },
   },
   {
     id: "demo",
-    emoji: "🧾",
-    eyebrow: "Your turn · 3 of 6",
-    title: "Watch IRIS do the heavy lifting",
-    body: "Here's a sample report. IRIS sorted it, picked who fixes it and set a deadline, all on its own. It only asks what it still needs. Try answering the glowing question ✨",
+    emoji: "📋",
+    eyebrow: "Try it",
+    title: "IRIS fills in the ticket for you",
+    body: "It picks the type, the owner and the deadline. It only asks what's still missing.",
     visual: "intake",
-    task: { kind: "demo", hint: "Answer “Members complained?”" },
+    task: { kind: "demo", hint: "Answer the glowing question" },
+  },
+  {
+    id: "ask",
+    emoji: "❓",
+    view: "ai_assistant",
+    eyebrow: "Good to know",
+    title: "You can ask questions too",
+    body: "Ask about tickets in plain words and IRIS answers from live data.",
+    visual: "ask",
   },
   {
     id: "open-tickets",
     emoji: "🎟️",
     target: "nav-all_tickets",
-    eyebrow: "Your turn · 4 of 6",
-    title: "Every ticket, one place",
-    body: "Search, filter and sort every ticket. Nothing hides from you here 🔍",
-    task: { kind: "view", view: "all_tickets", hint: "Open All Tickets" },
+    eyebrow: "Try it",
+    title: "See every ticket",
+    body: "All tickets live in one list you can search and filter.",
+    task: { kind: "view", view: "all_tickets", hint: "Click All Tickets" },
   },
   {
     id: "views",
     emoji: "🔖",
     target: "saved-views",
     view: "all_tickets",
-    eyebrow: "Brand new",
-    title: "Saved views",
-    body: "Set your filters once, save them, and open them in one click next time. Less clicking, more doing 🙌",
+    eyebrow: "New",
+    title: "Save your favourite filters",
+    body: "Set filters once, save them here, and open them in one click next time.",
   },
   {
     id: "resolve",
     emoji: "✅",
-    eyebrow: "Your turn · 5 of 6",
-    title: "Closing the loop",
-    body: "Fixed it? Open the ticket and hit Mark Resolved. IRIS asks for a short summary of what you did, so everyone knows how it ended. Give it a go 👇",
+    eyebrow: "Try it",
+    title: "Mark a ticket as resolved",
+    body: "When it's fixed, click Mark Resolved and write one line on what you did.",
     visual: "resolve",
-    task: { kind: "resolve", hint: "Mark the sample ticket resolved" },
+    task: { kind: "resolve", hint: "Click Mark Resolved" },
   },
   {
     id: "recurrence",
     emoji: "🔁",
-    eyebrow: "Fixed means fixed",
-    title: "Recurrence checks",
-    body: "When a PowerCycle bike or a mic is fixed, IRIS doesn't just take our word for it. It sets up two follow-up checks to make sure the fault stays gone.",
+    eyebrow: "Good to know",
+    title: "Bikes and mics get checked again",
+    body: "After a bike or mic is fixed, IRIS checks it again after 5 days and 10 days.",
     visual: "recurrence",
   },
   {
     id: "palette",
     emoji: "⚡",
-    eyebrow: "Your turn · 6 of 6",
-    title: "Find anything, instantly",
-    body: "Looking for a ticket, member or template? One shortcut finds it, from anywhere ⚡",
+    eyebrow: "Try it",
+    title: "Search anything",
+    body: "Find any ticket, member or template from anywhere.",
     task: { kind: "palette", hint: "Press ⌘K (Ctrl K on Windows)" },
   },
   {
     id: "member-360",
     emoji: "👤",
     target: "member-360",
-    eyebrow: "Know your members",
-    title: "Member 360",
-    body: "Everything about a member in one place: visits, memberships and past tickets. Know them before you reply 🤝",
+    eyebrow: "Good to know",
+    title: "Look up any member",
+    body: "See a member's visits, memberships and past tickets in one place.",
   },
   {
     id: "templates",
-    emoji: "📋",
+    emoji: "📝",
     target: "nav-templates",
     view: "templates",
-    eyebrow: "Shortcuts",
-    title: "Templates & drafts",
-    body: "Ready-made forms for common issues. Got interrupted? Save a draft and finish later. IRIS will wait 😌",
+    eyebrow: "Good to know",
+    title: "Ready-made forms",
+    body: "Pick a form for common issues. You can save a draft and finish later.",
   },
   {
     id: "escalations",
     emoji: "🚨",
     target: "nav-escalations",
-    eyebrow: "Nothing slips",
-    title: "Escalations",
-    body: "Overdue tickets land here, and IRIS nudges their owners for you. No chasing needed 🏃",
+    eyebrow: "Good to know",
+    title: "Overdue tickets",
+    body: "Tickets that pass their deadline show up here. IRIS reminds the owner for you.",
   },
   {
     id: "notifications",
     emoji: "🔔",
     target: "notifications",
-    eyebrow: "Stay in the loop",
-    title: "Notifications",
-    body: "New tickets for you, mentions and reminders all ping here. You won't miss a thing 🔔",
+    eyebrow: "Good to know",
+    title: "Your alerts",
+    body: "New tickets, mentions and reminders appear here.",
   },
   {
     id: "done",
     emoji: "🎆",
-    eyebrow: "That's a wrap",
+    eyebrow: "All done",
     title: "Shubh Deepavali! 🎇",
-    body: "You're all set! Spot an issue? Tell IRIS. Have an idea? Hit the feedback button. Wishing you a bright Diwali and very few tickets 💛",
+    body: "You're ready! Spot a problem? Tell IRIS. Have an idea? Use the feedback button at the top.",
     cta: "Start using IRIS 🚀",
   },
 ];
@@ -442,6 +451,7 @@ function TourCard({
   }, [hole, step.id, cardRef, demoAnswer, chatPick, resolved]);
 
   const t = step.task;
+  const total = STEPS.length;
   return (
     <div
       ref={cardRef}
@@ -451,30 +461,36 @@ function TourCard({
       aria-labelledby="iris-tour-title"
       aria-describedby="iris-tour-body"
       className={cn(
-        "iris-tour-card absolute pointer-events-auto overflow-hidden rounded-3xl border border-amber-400/30 bg-card text-card-foreground",
-        "shadow-[0_30px_80px_-20px_rgba(251,146,60,.45),0_0_0_1px_rgba(255,255,255,.04)] transition-[left,top] duration-300 ease-out",
-        step.visual ? "w-[min(540px,calc(100vw-24px))] max-h-[calc(100vh-24px)] overflow-y-auto" : big ? "w-[min(460px,calc(100vw-24px))]" : "w-[min(370px,calc(100vw-24px))]",
+        "iris-tour-card absolute pointer-events-auto flex flex-col overflow-hidden rounded-3xl border border-amber-400/30 bg-card text-card-foreground",
+        "shadow-[0_30px_80px_-20px_rgba(251,146,60,.45)] transition-[left,top] duration-300 ease-out max-h-[calc(100vh-24px)]",
+        step.visual ? "w-[min(480px,calc(100vw-24px))]" : big ? "w-[min(440px,calc(100vw-24px))]" : "w-[min(380px,calc(100vw-24px))]",
       )}
       style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
     >
-      {/* Festive glow */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(120% 70% at 100% 0%, rgba(251,146,60,.18), transparent 60%), radial-gradient(90% 60% at 0% 100%, rgba(236,72,153,.12), transparent 60%)" }}
-      />
       <Toran />
-      <Rangoli className={cn("pointer-events-none absolute opacity-[.16] dark:opacity-[.22] iris-tour-spin", big ? "-right-14 -bottom-14 h-56 w-56" : "-right-10 -bottom-10 h-36 w-36")} />
       {big && (
-        <div aria-hidden className="pointer-events-none absolute top-5 inset-x-0 flex justify-around text-[15px] opacity-90">
-          {["🪔", "✨", "🪔", "✨", "🪔"].map((c, i) => (
-            <span key={i} className="iris-tour-float" style={{ animationDelay: `${i * 0.25}s` }}>{c}</span>
-          ))}
-        </div>
+        <Rangoli className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 opacity-[.14] dark:opacity-[.2] iris-tour-spin" />
       )}
 
-      <div className={cn("relative", big ? "p-6 pt-12" : "p-5 pt-7")}>
-        <div className="flex items-start gap-3">
+      {/* Progress */}
+      <div className="relative px-5 pt-7">
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <span className="font-medium text-muted-foreground tabular-nums">Step {index + 1} of {total}</span>
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 font-semibold text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/25">
+            {step.eyebrow}
+          </span>
+        </div>
+        <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 transition-[width] duration-500"
+            style={{ width: `${((index + 1) / total) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Content (scrolls if the screen is short; footer stays visible) */}
+      <div className="relative flex-1 min-h-0 overflow-y-auto px-5 pt-4 pb-1">
+        <div className="flex items-center gap-3">
           <div
             aria-hidden
             className={cn(
@@ -484,30 +500,31 @@ function TourCard({
           >
             {step.emoji}
           </div>
-          <div className="min-w-0">
-            <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/25">
-              {step.eyebrow}
-            </span>
-            <h2
-              id="iris-tour-title"
-              className={cn(
-                "mt-1.5 font-semibold leading-tight tracking-tight",
-                big ? "text-[22px] bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 bg-clip-text text-transparent" : "text-[17px]",
-              )}
-            >
-              {step.title}
-            </h2>
-          </div>
+          <h2
+            id="iris-tour-title"
+            className={cn(
+              "font-bold leading-tight tracking-tight",
+              big ? "text-[22px] bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 bg-clip-text text-transparent" : "text-[18px]",
+            )}
+          >
+            {step.title}
+          </h2>
         </div>
-        <p id="iris-tour-body" className={cn("mt-3 leading-relaxed text-muted-foreground", big ? "text-[14px]" : "text-[13px]")}>
+        <p id="iris-tour-body" className={cn("mt-3 leading-relaxed text-foreground/80", big ? "text-[14.5px]" : "text-[14px]")}>
           {step.body}
         </p>
+
+        {step.visual === "intake" && <DemoIntake answer={demoAnswer} onAnswer={onDemoAnswer} />}
+        {step.visual === "chat" && <DemoChat sent={chatPick !== null} onSend={() => onChatPick(0)} />}
+        {step.visual === "ask" && <DemoAsk />}
+        {step.visual === "resolve" && <DemoResolve resolved={resolved} onResolve={onResolve} />}
+        {step.visual === "recurrence" && <DemoRecurrence />}
 
         {t && (
           <div
             className={cn(
-              "mt-3.5 flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[12.5px] transition-colors",
-              taskDone ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-amber-400/40 bg-amber-400/10",
+              "mt-4 flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] font-medium transition-colors",
+              taskDone ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-amber-400/50 bg-amber-400/10 text-foreground",
             )}
             role="status"
           >
@@ -518,71 +535,47 @@ function TourCard({
             ) : (
               <MousePointerClick className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-300" />
             )}
-            <span className="font-medium">{taskDone ? "Nailed it! 🎉" : t.hint}</span>
+            <span>{taskDone ? "Done! 🎉" : `Your turn: ${t.hint}`}</span>
           </div>
         )}
         {t && !taskDone && (t.kind === "palette" || (t.kind === "view" && targetMissing)) && (
           <button
             onClick={onDoTask}
-            className="mt-2 h-8 px-3 rounded-lg border border-amber-400/40 text-[12px] font-medium hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            className="mt-2 h-9 px-3 rounded-lg border border-amber-400/50 bg-background text-[12.5px] font-medium hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           >
             {t.kind === "palette" ? "Open search for me" : "Take me there"}
           </button>
         )}
-
-        {step.visual === "intake" && <DemoIntake answer={demoAnswer} onAnswer={onDemoAnswer} />}
-        {step.visual === "chat" && <DemoChat pick={chatPick} onPick={onChatPick} />}
-        {step.visual === "resolve" && <DemoResolve resolved={resolved} onResolve={onResolve} />}
-        {step.visual === "recurrence" && <DemoRecurrence />}
-
-        <div className="mt-5 flex items-center gap-3">
-          <Diyas index={index} total={STEPS.length} />
-          <div className="ml-auto flex items-center gap-1.5">
-            {index > 0 && !isLast && (
-              <button
-                onClick={onBack}
-                className="h-9 px-3 rounded-xl text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-muted/60 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 mr-1" />Back
-              </button>
-            )}
-            <button
-              data-tour-primary
-              onClick={onNext}
-              disabled={taskPending}
-              className={cn(
-                "h-9 px-4 rounded-xl text-[13px] font-semibold inline-flex items-center text-white transition",
-                "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 shadow-[0_10px_24px_-10px_rgba(249,115,22,.9)]",
-                "hover:brightness-110 active:scale-[.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:ring-amber-400",
-                "disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed",
-              )}
-            >
-              {step.cta ?? (taskPending ? "Your turn ☝️" : "Next")}
-              {!isLast && !step.cta && !taskPending && <ArrowRight className="w-3.5 h-3.5 ml-1" />}
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
-  );
-}
 
-/** Progress as a row of diyas that light up. */
-function Diyas({ index, total }: { index: number; total: number }) {
-  return (
-    <div className="flex items-center gap-0.5" aria-label={`Step ${index + 1} of ${total}`} role="img">
-      {Array.from({ length: total }, (_, i) => (
-        <span
-          key={i}
-          aria-hidden
+      {/* Footer: solid, always on top of any decoration */}
+      <div className="relative z-10 mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-5 py-3">
+        {index > 0 && !isLast ? (
+          <button
+            onClick={onBack}
+            className="h-10 px-3 rounded-xl text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />Back
+          </button>
+        ) : (
+          <span />
+        )}
+        <button
+          data-tour-primary
+          onClick={onNext}
+          disabled={taskPending}
           className={cn(
-            "text-[11px] transition-all duration-300",
-            i < index ? "opacity-90" : i === index ? "scale-125 iris-tour-flicker" : "opacity-25 grayscale",
+            "h-10 px-5 rounded-xl text-[13.5px] font-semibold inline-flex items-center justify-center whitespace-nowrap transition",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:ring-amber-400",
+            taskPending
+              ? "bg-muted text-muted-foreground border border-border cursor-not-allowed"
+              : "text-white bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 shadow-[0_10px_24px_-10px_rgba(249,115,22,.9)] hover:brightness-110 active:scale-[.98]",
           )}
         >
-          🪔
-        </span>
-      ))}
+          {step.cta ?? (taskPending ? "Finish the step above" : "Next")}
+          {!isLast && !step.cta && !taskPending && <ArrowRight className="w-4 h-4 ml-1.5" />}
+        </button>
+      </div>
     </div>
   );
 }
@@ -686,30 +679,29 @@ function DemoIntake({ answer, onAnswer }: { answer: string | null; onAnswer: (v:
       "px-2.5 py-1 rounded-full border text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400",
       on ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-medium" : "border-border hover:border-amber-400/60",
     );
-  const captured = 7 + (answer ? 1 : 0);
+  const captured = 2 + (answer ? 1 : 0);
   return (
     <div className="mt-4 space-y-2.5" aria-label="Example report">
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary text-primary-foreground px-3 py-2 text-[12px] leading-relaxed shadow-sm">
-          AC in Studio 1 at Kwality House isn&apos;t cooling since this morning. Front desk moved the 7am class to Studio 2. 🥵
+          AC in Studio 1 at Kwality House isn&apos;t cooling since this morning 🥵
         </div>
       </div>
       <div className="rounded-2xl border border-border bg-background/70 overflow-hidden">
         <div className="px-3 py-2 border-b border-border bg-muted/40 flex items-center gap-2 text-[11px]">
           <span className="font-semibold">AC &amp; Ventilation Repairs</span>
           <span className="ml-auto text-muted-foreground">
-            <b className={cn("tabular-nums", answer ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>{captured}/14</b> captured
+            <b className={cn("tabular-nums", answer ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>{captured}/3</b> answered
           </span>
         </div>
         <div className="p-3 space-y-2">
           <div className="flex flex-wrap gap-1.5 text-[10.5px]">
             <span className="rounded-full bg-muted px-2 py-0.5">🏢 Facilities</span>
             <span className="rounded-full bg-muted px-2 py-0.5">👷 Owner: Facilities lead</span>
-            <span className="rounded-full bg-muted px-2 py-0.5">⏱️ Respond 1h · resolve 1d</span>
+            <span className="rounded-full bg-muted px-2 py-0.5">⏱️ Fix within 1 day</span>
           </div>
           <DemoRow label="Studio · area" done>Kwality House · Studio 1</DemoRow>
           <DemoRow label="Since when" done>Today</DemoRow>
-          <DemoRow label="Steps taken" done>Moved 7am class to Studio 2</DemoRow>
           <div className={cn("rounded-xl -mx-1.5 px-1.5 py-1.5 transition-colors", !answer && "ring-2 ring-amber-400/70 bg-amber-400/10 iris-tour-glow-pulse")}>
             <DemoRow label="Members complained?" done={!!answer}>
               <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Members complained?">
@@ -722,15 +714,12 @@ function DemoIntake({ answer, onAnswer }: { answer: string | null; onAnswer: (v:
             </DemoRow>
           </div>
           {answer === "Yes" && (
-            <div className="space-y-2 iris-tour-card">
-              <DemoRow label="Who complained"><span className="text-muted-foreground italic">asked only because you said Yes ✨</span></DemoRow>
-              <DemoRow label="What they said"><span className="text-muted-foreground italic">their words, as close as possible</span></DemoRow>
+            <div className="iris-tour-card">
+              <DemoRow label="Who complained?"><span className="text-muted-foreground italic">IRIS asks this only because you said Yes ✨</span></DemoRow>
             </div>
           )}
-          <DemoRow label="Vendor contacted?"><span className="text-muted-foreground">Visit scheduled · Awaiting reply · Not yet · Not needed</span></DemoRow>
-          <DemoRow label="Expected fix date"><span className="text-muted-foreground">dd / mm / yyyy</span></DemoRow>
-          <div className="pt-1 text-[11px] text-amber-700 dark:text-amber-300">
-            🔒 The ticket draft unlocks once every * answer is in. &ldquo;Don&apos;t know&rdquo; counts too.
+          <div className="pt-1 text-[11.5px] text-muted-foreground">
+            🔒 The ticket unlocks once every * question is answered. &ldquo;Don&apos;t know&rdquo; is fine too.
           </div>
         </div>
       </div>
@@ -740,120 +729,78 @@ function DemoIntake({ answer, onAnswer }: { answer: string | null; onAnswer: (v:
 
 // ── Illustrations ─────────────────────────────────────────────────────────────
 
-const CHAT_EXAMPLES = [
-  {
-    tag: "Report",
-    you: "Bike 7 at Bandra keeps squeaking 😩",
-    iris: "Logged it! 🛠️ PowerCycle bike repair, sent to Facilities, due in 1 day. I'll ask only for what's missing, like the bike number and whether it's still usable.",
-  },
-  {
-    tag: "Ask",
-    you: "How many tickets are open at Kwality House?",
-    iris: "4 open right now 📊 1 urgent, 2 due today, 1 waiting on a vendor. Want me to list them?",
-  },
-  {
-    tag: "Dig deeper",
-    you: "Why do the mics keep failing at Kemps?",
-    iris: "I checked past tickets 🔎 3 mic faults in 30 days, all the same headset, all after 7pm classes. Likely battery. Shall I raise a ticket to replace it?",
-  },
-];
-
-/** Three example prompts; tapping one shows how IRIS replies. Nothing is sent anywhere. */
-function DemoChat({ pick, onPick }: { pick: number | null; onPick: (i: number) => void }) {
-  const ex = pick === null ? null : CHAT_EXAMPLES[pick];
+/** One sample message; tapping it "sends" it and shows IRIS's reply. Nothing is sent anywhere. */
+function DemoChat({ sent, onSend }: { sent: boolean; onSend: () => void }) {
   return (
-    <div className="mt-4 space-y-3">
-      <div className="grid gap-1.5">
-        {CHAT_EXAMPLES.map((c, i) => (
-          <button
-            key={c.tag}
-            onClick={() => onPick(i)}
-            className={cn(
-              "group flex items-center gap-2 rounded-2xl border px-3 py-2 text-left text-[12.5px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400",
-              pick === i ? "border-amber-500 bg-amber-500/10 shadow-sm" : "border-border hover:border-amber-400/60 hover:-translate-y-px",
-              pick === null && "iris-tour-glow-pulse",
-            )}
-          >
-            <span className="shrink-0 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-white">{c.tag}</span>
-            <span className="truncate">“{c.you}”</span>
-          </button>
-        ))}
+    <div className="mt-4 rounded-2xl border border-border bg-background/70 p-3 space-y-2.5">
+      <div className="flex justify-end">
+        <button
+          onClick={onSend}
+          disabled={sent}
+          className={cn(
+            "max-w-[90%] rounded-2xl rounded-br-md px-3 py-2 text-left text-[13px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400",
+            sent ? "bg-primary text-primary-foreground" : "bg-primary/90 text-primary-foreground ring-2 ring-amber-400 iris-tour-glow-pulse hover:brightness-110",
+          )}
+        >
+          Bike 7 at Bandra keeps squeaking 😩
+          {!sent && <span className="block mt-1 text-[10.5px] opacity-80">Tap to send ➜</span>}
+        </button>
       </div>
-      {ex && (
-        <div key={pick} className="rounded-2xl border border-border bg-background/70 p-3 space-y-2 iris-tour-card">
-          <div className="flex justify-end">
-            <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary text-primary-foreground px-3 py-2 text-[12px]">{ex.you}</div>
-          </div>
-          <div className="flex items-end gap-2">
-            <div className="h-6 w-6 shrink-0 grid place-items-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-[11px] text-white font-bold">I</div>
-            <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-[12px] leading-relaxed">{ex.iris}</div>
+      {sent && (
+        <div className="flex items-end gap-2 iris-tour-card">
+          <div className="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-[11px] text-white font-bold">I</div>
+          <div className="max-w-[88%] rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-[13px] leading-relaxed">
+            Got it! 🛠️ I&apos;ve logged a <b>bike repair</b> for Facilities. Just a few quick questions next.
           </div>
         </div>
       )}
-      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11.5px] text-muted-foreground">
-        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">➕ Keep typing to add details. IRIS updates the report as you go.</li>
-        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">👤 Mention a member and pick them from Momence.</li>
-        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">🔍 &ldquo;Investigate with AI&rdquo; checks past tickets and workload.</li>
-        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">📤 Export the chat whenever you need a record.</li>
-      </ul>
     </div>
   );
 }
 
-/** A make-believe ticket you can resolve. Nothing is saved. */
+/** A static question-and-answer example. */
+function DemoAsk() {
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-background/70 p-3 space-y-2.5">
+      <div className="flex justify-end">
+        <div className="max-w-[90%] rounded-2xl rounded-br-md bg-primary text-primary-foreground px-3 py-2 text-[13px]">How many tickets are open at Kwality House?</div>
+      </div>
+      <div className="flex items-end gap-2">
+        <div className="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-[11px] text-white font-bold">I</div>
+        <div className="max-w-[88%] rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-[13px] leading-relaxed">4 are open: 1 urgent and 2 due today 📊</div>
+      </div>
+    </div>
+  );
+}
+
+/** A make-believe ticket you can resolve with one click. Nothing is saved. */
 function DemoResolve({ resolved, onResolve }: { resolved: boolean; onResolve: () => void }) {
-  const [open, setOpen] = React.useState(false);
-  const [note, setNote] = React.useState("Replaced the headset battery and tested the mic for a full class. Working fine.");
   return (
     <div className="mt-4 rounded-2xl border border-border bg-background/70 overflow-hidden">
       <div className="px-3 py-2.5 border-b border-border flex items-center gap-2">
-        <span className="text-[10.5px] font-mono text-muted-foreground">TKT-1042</span>
-        <span className="text-[12.5px] font-semibold truncate">Headset mic crackling in Studio 2</span>
+        <span className="text-[13px] font-semibold truncate">Mic crackling in Studio 2</span>
         <span
           className={cn(
-            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold transition-colors",
+            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold",
             resolved ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
           )}
         >
           {resolved ? "Resolved ✓" : "In progress"}
         </span>
       </div>
-      <div className="p-3 space-y-2.5">
-        {!resolved && !open && (
+      <div className="p-3">
+        {resolved ? (
+          <div className="space-y-1.5 text-[12.5px] iris-tour-card">
+            <div className="text-[11px] font-medium text-muted-foreground">What you did (required)</div>
+            <div className="rounded-lg bg-emerald-500/10 px-2.5 py-2 text-emerald-900 dark:text-emerald-100">Replaced the mic battery. Tested it, works fine.</div>
+          </div>
+        ) : (
           <button
-            onClick={() => setOpen(true)}
-            className="iris-tour-glow-pulse inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 text-white text-[12px] font-semibold hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            onClick={onResolve}
+            className="iris-tour-glow-pulse inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-emerald-600 text-white text-[13px] font-semibold hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           >
-            <Check className="w-3.5 h-3.5" />Mark Resolved
+            <Check className="w-4 h-4" />Mark Resolved
           </button>
-        )}
-        {!resolved && open && (
-          <div className="space-y-2 iris-tour-card">
-            <label className="block text-[11px] font-medium" htmlFor="iris-tour-resolution">
-              What did you do? <span className="text-rose-500">*</span>
-              <span className="font-normal text-muted-foreground"> (required, everyone involved can see it)</span>
-            </label>
-            <textarea
-              id="iris-tour-resolution"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-amber-400/50"
-            />
-            <button
-              onClick={onResolve}
-              disabled={!note.trim()}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 text-white text-[12px] font-semibold disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-            >
-              <Check className="w-3.5 h-3.5" />Resolve ticket
-            </button>
-          </div>
-        )}
-        {resolved && (
-          <div className="space-y-1.5 text-[12px] iris-tour-card">
-            <div className="rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-emerald-800 dark:text-emerald-200">📝 {note}</div>
-            <div className="text-muted-foreground">🎯 The reporter is notified. It&apos;s a mic, so IRIS has also booked follow-up checks. More on that next 👉</div>
-          </div>
         )}
       </div>
     </div>
@@ -863,9 +810,9 @@ function DemoResolve({ resolved, onResolve }: { resolved: boolean; onResolve: ()
 /** Timeline of the bike / mic recurrence protocol. */
 function DemoRecurrence() {
   const nodes = [
-    { day: "Day 0", label: "Resolved", emoji: "✅", cls: "from-emerald-400 to-emerald-600" },
-    { day: "Day 5", label: "Check #1", emoji: "🔍", cls: "from-amber-400 to-orange-500" },
-    { day: "Day 10", label: "Check #2", emoji: "🔍", cls: "from-orange-400 to-rose-500" },
+    { day: "Day 0", label: "Fixed", emoji: "🛠️", cls: "from-emerald-400 to-emerald-600" },
+    { day: "Day 5", label: "Check 1", emoji: "🔍", cls: "from-amber-400 to-orange-500" },
+    { day: "Day 10", label: "Check 2", emoji: "🔍", cls: "from-orange-400 to-rose-500" },
   ];
   return (
     <div className="mt-4 space-y-3">
@@ -883,19 +830,16 @@ function DemoRecurrence() {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11.5px]">
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5">
-          <div className="font-semibold text-emerald-700 dark:text-emerald-300">✅ No recurrence</div>
-          <div className="mt-0.5 text-muted-foreground">Check closes and the next one is lined up. Two passes and you&apos;re done.</div>
+      <div className="grid grid-cols-2 gap-2 text-[12.5px]">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+          <div className="font-semibold text-emerald-700 dark:text-emerald-300">✅ Still working</div>
+          <div className="text-muted-foreground">All good, nothing to do.</div>
         </div>
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5">
-          <div className="font-semibold text-rose-700 dark:text-rose-300">↩️ Fault returned</div>
-          <div className="mt-0.5 text-muted-foreground">The original ticket reopens and the remaining checks are cancelled.</div>
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2">
+          <div className="font-semibold text-rose-700 dark:text-rose-300">↩️ Broken again</div>
+          <div className="text-muted-foreground">The ticket reopens.</div>
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        📅 Each check turns into a ticket only on its due day, so your queue stays clean. Only bikes and mics get checks; everything else just closes.
-      </p>
     </div>
   );
 }
