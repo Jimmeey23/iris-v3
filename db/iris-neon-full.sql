@@ -2455,7 +2455,7 @@ create table if not exists iris.outbox (
   attempts        integer not null default 0,
   -- Due time for 'pending' rows; while 'sending' it doubles as the lease after
   -- which a crashed worker's claim is released (see releaseStuckOutbox).
-  next_attempt_at timestamptz not null default now(),
+  next_attempt_at timestamptz default now(),
   last_error      text,
   -- Linked idempotency/audit row; updated when delivery settles.
   email_log_id    uuid references iris.email_log(id) on delete set null,
