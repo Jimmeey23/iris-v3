@@ -11,6 +11,7 @@ import {
 } from "./types";
 import { useAppStore } from "./store";
 import { useSettingsStore } from "./settings-store";
+import { useUserCollections } from "./user-collections";
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -152,6 +153,7 @@ export function hydrateReference(data: {
 
   if (data.preferences !== undefined) {
     useSettingsStore.getState().hydrateFromServer(data.preferences);
+    useUserCollections.getState().hydrate(data.preferences?.preferences);
   }
 
   useAppStore.getState().bumpData();

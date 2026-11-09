@@ -11,54 +11,37 @@ import { STUDIOS, STUDIO_MAP, DEPT_MAP, PRIORITY_CONFIG } from "@/lib/iris/types
 import { roomsFor } from "@/lib/iris/aliases";
 import { api } from "@/lib/iris/live-data";
 import {
-  buildRichDraft, detailFieldsFor, missingDetails, memberLines, toMemberSnapshot, WHEN_CHIPS,
+  buildRichDraft, memberLines, toMemberSnapshot, WHEN_CHIPS,
 } from "@/lib/iris/intake-details";
+import { fieldsFor, isSpecial, missingFields, progress, UNKNOWN, type SpecField } from "@/lib/iris/intake-schema";
 
-/** Which extra details each category needs before a ticket can be drafted. */
+/** Which pickers and questions this report needs comes from the intake schema (one spec per subcategory). */
 type Need = "required" | "optional";
-const NEEDS: Record<string, { member?: Need; session?: Need; trainer?: Need; studio?: Need }> = {
-  "Trainer Feedback": { trainer: "required", studio: "required", session: "optional", member: "optional" },
-  "Class Experience": { studio: "required", session: "optional", member: "optional" },
-  "Pricing and Memberships": { member: "required" },
-  "Customer Service and Communication": { member: "optional", studio: "optional" },
-  "Operating Systems": { member: "optional", studio: "optional" },
-  Scheduling: { studio: "required", session: "optional" },
-  "Repair and Maintenance": { studio: "required" },
-  "Studio Amenities and Facilities": { studio: "required" },
-  "Safety and Security": { studio: "required", member: "optional" },
-  "Theft and Lost Items": { studio: "required", member: "optional" },
+export const needsFor = (s: Pick<IntakeState, "category" | "subcategory" | "details" | "studioCode" | "when">) => {
+  const out: { member?: Need; session?: Need; trainer?: Need; studio?: Need; area?: Need; when?: Need } = {};
+  for (const f of fieldsFor(s)) if (isSpecial(f.key)) out[f.key] = f.required ? "required" : "optional";
+  return out;
 };
-/** Subcategories that need more than their category default. */
-const SUB_NEEDS: Record<string, { member?: Need; session?: Need; trainer?: Need; studio?: Need }> = {
-  "Attendance Record Discrepancies": { member: "required", session: "optional" },
-  "Stripe and Razorpay": { member: "required" },
-  "Difficulty Tracking Sessions": { member: "required" },
-  "Handling of Complaints": { member: "required", studio: "optional" },
-  "Follow-up Post Inquiry": { member: "required" },
-  "Front Desk Attitude": { member: "optional", studio: "required" },
-  "Trainer Punctuality Issues": { trainer: "required", studio: "required", session: "required" },
-  "Class Substitutions": { studio: "required", session: "required" },
-  "Waitlist Concerns": { member: "required", session: "required" },
-  "Handling of Medical Emergencies": { studio: "required", member: "required", session: "optional" },
-  "Stolen Personal Items": { studio: "required", member: "optional" },
-};
-export const needsFor = (category: string | null, subcategory?: string | null) => ({
-  ...(category ? NEEDS[category] ?? {} : {}),
-  ...(subcategory ? SUB_NEEDS[subcategory] ?? {} : {}),
-});
 
 export function missingRequired(s: IntakeState) {
-  const n = needsFor(s.category, s.subcategory);
-  const out: string[] = [];
-  if (!s.category) out.push("category");
-  if (n.studio === "required" && !s.studioCode) out.push("studio");
-  if (n.member === "required" && !s.member) out.push("member");
-  if (n.trainer === "required" && !s.trainer) out.push("trainer");
-  if (n.session === "required" && !s.session) out.push("class");
-  return [...out, ...missingDetails(s)];
+  if (!s.category) return ["category"];
+  return missingFields(s).map((f) => f.label.toLowerCase());
 }
 
 /** Build the ticket draft from the form - deterministic, no AI. */
+const OWNER_SOURCE = {
+  policy: "Standing ownership rule",
+  ai: "Suggested by IRIS from skills and studio",
+  workload: "Lightest workload in the department",
+  head: "Department head",
+} as const;
+
+function fmtMins(m: number) {
+  if (m < 60) return `${m}m`;
+  if (m < 1440) return `${Math.round(m / 60)}h`;
+  return `${Math.round(m / 1440)}d`;
+}
+
 export function draftFromIntake(s: IntakeState): AgentTicketDraft {
   return buildRichDraft(s, useAppStore.getState().currentUser).draft;
 }
@@ -120,10 +103,13 @@ export function IntakeCard({
       setLoadingMember(false);
     }
   };
-  const detailFields = detailFieldsFor(state.category);
+  const detailFields = fieldsFor(state).filter((f) => !isSpecial(f.key));
   const cat = state.taxonomy.find((c) => c.category === state.category);
-  const needs = needsFor(state.category, state.subcategory);
+  const needs = needsFor(state);
   const missing = missingRequired(state);
+  const prog = progress(state);
+  // P0 never waits on paperwork: it can be filed with gaps, which are listed in the ticket.
+  const urgentBypass = state.priority === "P0" && !!state.category && missing.length > 0;
   const locked = state.done;
 
   const chooseCategory = (category: string, subcategory: string | null = null) => {
@@ -134,6 +120,7 @@ export function IntakeCard({
       subcategory: sub?.name ?? null,
       department: sub?.department ?? c?.department ?? null,
       priority: state.prioritySuggested ? sub?.priority ?? state.priority : state.priority,
+      routing: null,
     });
   };
 
@@ -143,6 +130,11 @@ export function IntakeCard({
         <ClipboardList className="w-4 h-4 text-primary" />
         <div className="text-[12px] font-semibold">Here's what I picked up</div>
         <span className="ml-auto text-[10px] text-muted-foreground">
+          {state.category && prog.total > 0 && (
+            <b className={cn("mr-1.5 font-semibold", prog.done === prog.total ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
+              {prog.done}/{prog.total} captured ·
+            </b>
+          )}
           {state.detectedBy === "ai" ? "classified with AI" : "detected from your message"} · edit anything
         </span>
       </div>
@@ -207,7 +199,7 @@ export function IntakeCard({
         )}
 
         {state.studioCode && (
-          <Row label="Area" done={!!state.area}>
+          <Row label="Area" need={needs.area} done={!!state.area}>
             <div className="flex flex-wrap gap-1.5">
               {roomsFor(state.studioCode).map((r) => (
                 <button
@@ -284,8 +276,8 @@ export function IntakeCard({
           </Row>
         )}
 
-        {state.category && (
-          <Row label="When" need="required" done={!!state.when}>
+        {needs.when && (
+          <Row label="When" need={needs.when} done={!!state.when}>
             <div className="flex flex-wrap items-center gap-1.5">
               {WHEN_CHIPS.map((w) => (
                 <button
@@ -310,41 +302,9 @@ export function IntakeCard({
           </Row>
         )}
 
-        {state.category && detailFields.map((f) => {
-          const v = state.details?.[f.key] ?? "";
-          return (
-            <Row key={f.key} label={f.label} need={f.need} done={!!v.trim()}>
-              {f.kind === "chips" ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {f.options!.map((o) => (
-                    <button
-                      key={o}
-                      onClick={() => setDetail(f.key, v === o ? "" : o)}
-                      className={cn("px-2.5 py-1 rounded-full border text-[11px]", v === o ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50")}
-                    >
-                      {o}
-                    </button>
-                  ))}
-                </div>
-              ) : f.kind === "textarea" ? (
-                <textarea
-                  value={v}
-                  onChange={(e) => setDetail(f.key, e.target.value)}
-                  placeholder={f.placeholder}
-                  rows={2}
-                  className="w-full px-2 py-1.5 text-[12px] rounded-md border border-input bg-background resize-y focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              ) : (
-                <input
-                  value={v}
-                  onChange={(e) => setDetail(f.key, e.target.value)}
-                  placeholder={f.placeholder}
-                  className={select}
-                />
-              )}
-            </Row>
-          );
-        })}
+        {state.category && detailFields.map((f) => (
+          <DetailRow key={f.key} field={f} value={state.details?.[f.key] ?? ""} onChange={(v) => setDetail(f.key, v)} />
+        ))}
 
         <Row label="Priority">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -368,6 +328,16 @@ export function IntakeCard({
         {state.department && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground pl-[100px]">
             <span>Routes to <b className="text-foreground font-medium">{DEPT_MAP[state.department]?.name ?? state.department}</b></span>
+            {state.routing?.owner && state.routing.departmentCode === state.department && (
+              <span title={state.routing.ownershipRule ?? OWNER_SOURCE[state.routing.owner.source]}>
+                Owner <b className="text-foreground font-medium">{state.routing.owner.name}</b>
+              </span>
+            )}
+            {state.priority && PRIORITY_CONFIG[state.priority] && (
+              <span>
+                SLA respond {fmtMins(PRIORITY_CONFIG[state.priority].responseMins)} · resolve {fmtMins(PRIORITY_CONFIG[state.priority].resolutionMins)}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -380,8 +350,12 @@ export function IntakeCard({
         ) : (
           <>
             {missing.length > 0 ? (
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />Still need: {missing.join(", ")}
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 min-w-0">
+                <AlertTriangle className="w-3 h-3 shrink-0" />
+                <span className="truncate" title={missing.join(", ")}>
+                  {urgentBypass ? "Urgent - you can file now; still missing: " : `Draft unlocks once ${missing.length} more ${missing.length === 1 ? "answer is" : "answers are"} in: `}
+                  {missing.slice(0, 4).join(", ")}{missing.length > 4 ? ` +${missing.length - 4} more` : ""}
+                </span>
               </span>
             ) : (
               <span className="text-[11px] text-muted-foreground">Looks complete. Type more details in the chat to add them.</span>
@@ -398,17 +372,65 @@ export function IntakeCard({
             <Button
               size="sm"
               className="h-8 text-[12px]"
-              disabled={missing.length > 0}
+              disabled={missing.length > 0 && !urgentBypass}
+              variant={urgentBypass ? "destructive" : "default"}
               onClick={() => {
                 set({ done: true });
                 onSubmit(draftFromIntake(state));
               }}
             >
-              Review ticket<ChevronDown className="w-3.5 h-3.5 ml-1 -rotate-90" />
+              {urgentBypass ? "File urgent ticket" : "Review ticket"}<ChevronDown className="w-3.5 h-3.5 ml-1 -rotate-90" />
             </Button>
           </>
         )}
       </div>
     </div>
+  );
+}
+
+const chip = (on: boolean) =>
+  cn("px-2.5 py-1 rounded-full border text-[11px]", on ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50");
+
+/** One schema question, rendered by its kind. "Don't know" always counts as an answer. */
+function DetailRow({ field: f, value: v, onChange }: { field: SpecField; value: string; onChange: (v: string) => void }) {
+  const unknown = v === UNKNOWN;
+  const dontKnow = (
+    <button onClick={() => onChange(unknown ? "" : UNKNOWN)} className={cn(chip(unknown), "border-dashed")} title="Counts as answered">
+      {UNKNOWN}
+    </button>
+  );
+  const options = f.kind === "yesno" ? ["Yes", "No"] : f.options;
+  return (
+    <Row label={f.label} need={f.required ? "required" : "optional"} done={!!v.trim()}>
+      {options ? (
+        <div className="flex flex-wrap gap-1.5">
+          {options.map((o) => (
+            <button key={o} onClick={() => onChange(v === o ? "" : o)} className={chip(v === o)}>{o}</button>
+          ))}
+          {dontKnow}
+        </div>
+      ) : (
+        <div className="flex items-start gap-1.5">
+          {f.kind === "textarea" ? (
+            <textarea
+              value={unknown ? "" : v}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={f.placeholder ?? f.ask}
+              rows={2}
+              className="flex-1 min-w-0 px-2 py-1.5 text-[12px] rounded-md border border-input bg-background resize-y focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          ) : (
+            <input
+              type={f.kind === "date" ? "date" : f.kind === "number" ? "number" : "text"}
+              value={unknown ? "" : v}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={f.placeholder ?? f.ask}
+              className={cn(select, "flex-1 min-w-0")}
+            />
+          )}
+          {dontKnow}
+        </div>
+      )}
+    </Row>
   );
 }

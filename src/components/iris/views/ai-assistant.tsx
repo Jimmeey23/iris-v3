@@ -78,8 +78,9 @@ type ClassifyResponse = {
   candidates: Array<{ category: string; subcategory: string | null; department: string | null; priority: "P0" | "P1" | "P2" | "P3" }>;
   confident: boolean;
   taxonomy: IntakeTaxonomy;
-  fields?: { studioCode?: string; area?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1" };
+  fields?: { studioCode?: string; area?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1"; answers?: Record<string, string> };
   question?: string | null;
+  routing?: import("@/lib/iris/store").IntakeRouting | null;
   source: "rules" | "ai";
 };
 
@@ -351,7 +352,8 @@ export function AIAssistantView() {
       subcategory: top?.subcategory ?? null,
       department: top?.department ?? null,
       // History can over-rate a category (e.g. bikes); only explicit urgency signals justify P0.
-      priority: f.urgent ?? (top?.priority === "P0" ? "P1" : top?.priority) ?? "P2",
+      // History votes can over-rate a category (e.g. bikes) so they never set P0 alone; the AI reads the report itself.
+      priority: f.urgent ?? (top?.priority === "P0" && r.source !== "ai" ? "P1" : top?.priority) ?? "P2",
       prioritySuggested: !f.urgent,
       studioCode: f.studioCode ?? null,
       area: f.area ?? null,
@@ -366,8 +368,10 @@ export function AIAssistantView() {
       suggestions: r.candidates.map((c) => ({ category: c.category, subcategory: c.subcategory })),
       taxonomy: r.taxonomy,
       detectedBy: r.source,
+      routing: top ? r.routing ?? null : null,
       done: false,
-      details: detailsFromText(text),
+      // AI answers win over the regex guesses; both only pre-fill, the reporter can edit.
+      details: { ...detailsFromText(text), ...(f.answers ?? {}) },
       memberSnapshot: null,
     };
     const lead = top
@@ -409,7 +413,7 @@ export function AIAssistantView() {
       classFormat: state.classFormat ?? f.classFormat ?? null,
       trainerNameHint: state.trainerNameHint ?? f.trainerName ?? null,
       priority: f.urgent && state.prioritySuggested ? f.urgent : state.priority,
-      ...(state.category || !top ? {} : { category: top.category, subcategory: top.subcategory, department: top.department }),
+      ...(state.category || !top ? {} : { category: top.category, subcategory: top.subcategory, department: top.department, routing: r.routing ?? null }),
       suggestions: state.category ? state.suggestions : r.candidates.map((c) => ({ category: c.category, subcategory: c.subcategory })),
     };
     useAppStore.getState().updateAIMessage(messageId, { intake: next });

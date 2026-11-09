@@ -34,9 +34,11 @@ export type Extracted = {
 };
 
 // ── Keyword rules (checked in order; first matches win) ───────────────────────
-const RULES: Array<{ re: RegExp; category: string; subcategory: string }> = [
+const RULES: Array<{ re: RegExp; category: string; subcategory: string; weight?: number }> = [
   { re: /\b(a\/?c|air ?con|aircon|hvac|cooling|too (hot|warm)|warm air|not cool)/i, category: "Repair and Maintenance", subcategory: "AC & Ventilation Repairs" },
-  { re: /\b(power ?cycle|bike|stages|sc3|pedal|saddle|cleat)/i, category: "Repair and Maintenance", subcategory: "PowerCycle Bike Malfunction & Repairs" },
+  // "PowerCycle" is also a class format ("can't book into PowerCycle"), so the bare word is not
+  // enough: need a bike part, or the bike named alongside a fault.
+  { re: /\b(pedal|saddle|cleat|sc3|handlebar|flywheel|resistance knob|bike console)|\b(power ?cycle|bikes?|stages)\b.{0,40}\b(broken|break|damaged|not working|isn'?t working|stopped|stuck|loose|wobbl|squeak|nois|creak|jam|repair|fault|malfunction|faulty|dead|no power|won'?t (turn|start|move|work))|\b(broken|damaged|faulty|squeaky|loose|wobbly|jammed)\b.{0,20}\b(power ?cycle|bikes?)\b/i, category: "Repair and Maintenance", subcategory: "PowerCycle Bike Malfunction & Repairs" },
   { re: /\b(leak|plumb|flush|tap|drain|washroom|toilet|shower)\b/i, category: "Repair and Maintenance", subcategory: "Washroom & Plumbing Repairs" },
   { re: /\b(light|bulb|lamp|dim|flicker)/i, category: "Repair and Maintenance", subcategory: "Studio Lighting Malfunction & Repairs" },
   { re: /\b(mic|microphone|speaker|sound system|headphone|audio|music)\b/i, category: "Class Experience", subcategory: "Audio Issues" },
@@ -59,6 +61,8 @@ const RULES: Array<{ re: RegExp; category: string; subcategory: string }> = [
   { re: /\b(refund|charged twice|double charge|payment (failed|deducted|missing)|deducted|razorpay|stripe|upi)\b/i, category: "Operating Systems", subcategory: "Stripe and Razorpay" },
   { re: /\b(credits?)\b.*\b(wrong|missing|not (showing|reflect)|deducted|incorrect)|\b(wrong|missing|incorrect)\b.*\bcredits?\b/i, category: "Operating Systems", subcategory: "Attendance Record Discrepancies" },
   { re: /\b(check-?in|attendance|marked absent|no-?show fee|late cancel(lation)? fee)\b/i, category: "Operating Systems", subcategory: "Attendance Record Discrepancies" },
+  // Booking intent outranks equipment words: "unable to book into PowerCycle" is a booking problem.
+  { re: /\b(unable to|not able to|can'?t|cannot|can ?not|couldn'?t|could not|won'?t let (me|her|him|them)|not letting (me|her|him|them)|isn'?t letting (me|her|him|them))\s+(book|reserve|sign ?up|register)|\bbook(ing)?s?\b.{0,30}\b(fail|error|not (going through|working|allowed|possible|showing)|issue|problem|blocked|greyed|disabled)|\b(able to|can) book\b.{0,60}\bbut (not|unable|can'?t|cannot)/i, category: "Tech Issues", subcategory: "Booking System Errors", weight: 5 },
   { re: /\b(momence|app (crash|not working|glitch)|website|booking (failed|error)|couldn'?t book|can'?t book)\b/i, category: "Operating Systems", subcategory: "Error in Class Listings" },
   { re: /\b(notification|reminder|sms|email) (not|never|didn'?t)\b|\bno (notification|reminder)\b/i, category: "Operating Systems", subcategory: "Delayed Notifications" },
   { re: /\b(waitlist|wait-list)\b/i, category: "Scheduling", subcategory: "Waitlist Concerns" },
@@ -155,7 +159,7 @@ export async function classify(db: PoolClient, rawText: string, trainerNamed = f
     else scores.set(key, { category, subcategory, score, department: m.department, priority: m.priority, via });
   };
 
-  for (const r of RULES) if (r.re.test(text)) add(r.category, r.subcategory, 3, "keywords");
+  for (const r of RULES) if (r.re.test(text)) add(r.category, r.subcategory, r.weight ?? 3, "keywords");
 
   // A named trainer plus lateness/absence is a punctuality issue even without the word "trainer".
   if (trainerNamed && /\b(late|no-?show|didn'?t (show|come|turn up)|absent|missed (the )?class)/i.test(text)) {

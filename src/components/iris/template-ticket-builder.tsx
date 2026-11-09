@@ -36,6 +36,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/iris/store";
 import { ticketsApi } from "@/lib/iris/live-data";
+import { useUserCollections } from "@/lib/iris/user-collections";
+import { formatRelativeTime } from "@/lib/iris/utils";
+import { Save, History } from "lucide-react";
 import { DEPARTMENTS, DEPT_MAP, PRIORITY_CONFIG, STUDIOS, type Priority } from "@/lib/iris/types";
 import { IRIS_STUDIOS, OCCURRED_OPTIONS, REPORTED_BY_OPTIONS, SYSTEMS, studioAreasFor } from "@/lib/iris/iris-constants";
 import { KNOWLEDGE_ARTICLES } from "@/lib/iris/knowledge-base-data";
@@ -133,6 +136,12 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
   const [departmentOverride, setDepartmentOverride] = React.useState<string | null>(null);
   const [notes, setNotes] = React.useState("");
   const [showErrors, setShowErrors] = React.useState(false);
+  // Saved drafts (ported from v2): up to 3 per person, stored with their preferences.
+  const savedDraft = useUserCollections((s) => s.drafts.find((d) => d.templateId === template.code) ?? null);
+  const saveDraftToServer = useUserCollections((s) => s.saveDraft);
+  const deleteDraft = useUserCollections((s) => s.deleteDraft);
+  const [draftId, setDraftId] = React.useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = React.useState(false);
   const [showDescription, setShowDescription] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
   const [created, setCreated] = React.useState<{ id: string; ticketId: string } | null>(null);
@@ -207,11 +216,51 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
         buildTicketPayload(ctx, draft, { studioCode, idempotencyKey: idempotencyKey.current }),
       );
       setCreated({ id: ticket.id, ticketId: ticket.ticketId });
+      if (draftId) deleteDraft(draftId).catch(() => { /* stale draft is harmless; user can delete it */ });
       toast.success(`Ticket ${ticket.ticketId} created`, { description: title });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't create the ticket");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const resumeDraft = () => {
+    if (!savedDraft) return;
+    const p = savedDraft.payload as Partial<TemplateTicketDraft> & { titleOverride?: string | null; departmentOverride?: string | null };
+    if (p.values && typeof p.values === "object") setValues({ ...initialFieldValues(form.fields), ...(p.values as FieldValues) });
+    if (typeof p.summary === "string") setSummary(p.summary);
+    if (typeof p.studio === "string" && (!p.studio || studioChoices.includes(p.studio))) setStudio(p.studio);
+    if (typeof p.area === "string") setArea(p.area);
+    if (typeof p.occurred === "string") setOccurred(p.occurred);
+    if (typeof p.reportedBy === "string") setReportedBy(p.reportedBy);
+    if (typeof p.system === "string") setSystem(p.system);
+    if (p.priority && PRIORITIES.includes(p.priority)) setPriority(p.priority);
+    if (typeof p.requestedOutcome === "string") setRequestedOutcome(p.requestedOutcome);
+    if (typeof p.notes === "string") setNotes(p.notes);
+    setTitleOverride(typeof p.titleOverride === "string" ? p.titleOverride : null);
+    setDepartmentOverride(typeof p.departmentOverride === "string" ? p.departmentOverride : null);
+    setDraftId(savedDraft.id);
+    toast.success("Draft restored");
+  };
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const saved = await saveDraftToServer({
+        id: draftId ?? savedDraft?.id,
+        title,
+        templateId: template.code,
+        category: form.category,
+        subcategory: form.subcategory,
+        payload: { summary, studio, area, occurred, reportedBy, system, priority, requestedOutcome, notes, values, titleOverride, departmentOverride },
+      });
+      setDraftId(saved.id);
+      toast.success("Draft saved", { description: "Resume it any time from this template or the Templates home." });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't save the draft");
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -267,6 +316,20 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
       <div className="space-y-4 min-w-0">
+        {savedDraft && !draftId && (
+          <div className="iris-card p-3 flex items-center gap-3 flex-wrap border-primary/30 bg-primary/5">
+            <History className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0 text-[12px]">
+              <span className="font-medium">You have a saved draft</span>
+              <span className="text-muted-foreground"> · {savedDraft.title} · saved {formatRelativeTime(savedDraft.updatedAt)}</span>
+            </div>
+            <Button size="sm" className="h-7 text-[11px]" onClick={resumeDraft}>Resume</Button>
+            <Button size="sm" variant="ghost" className="h-7 text-[11px]"
+              onClick={() => deleteDraft(savedDraft.id).catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't discard"))}>
+              Discard
+            </Button>
+          </div>
+        )}
         {/* Template header */}
         <div className="iris-card p-4">
           <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
@@ -479,6 +542,10 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
           <Button variant="ghost" className="h-9 text-[12px]" onClick={onBack} disabled={submitting}>
             <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
             Back
+          </Button>
+          <Button variant="outline" className="h-9 text-[12px]" onClick={handleSaveDraft} disabled={submitting || savingDraft}>
+            {savingDraft ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+            {draftId ? "Update draft" : "Save draft"}
           </Button>
           <Button className="h-9 text-[12px] min-w-[150px]" onClick={handleSubmit} disabled={submitting}>
             {submitting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />}

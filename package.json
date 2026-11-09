@@ -10,7 +10,8 @@
     "typegen": "next typegen",
     "typecheck": "next typegen && tsc --noEmit -p .",
     "test": "bun test scripts/unit",
-    "db:import-tickets": "node scripts/import-tickets.cjs db/import/tickets_rows.csv --commit && node scripts/close-legacy-tickets.cjs"
+    "db:import-tickets": "node scripts/import-tickets.cjs db/import/tickets_rows.csv --commit && node scripts/close-legacy-tickets.cjs",
+    "check:intake": "tsx scripts/check-intake-schema.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

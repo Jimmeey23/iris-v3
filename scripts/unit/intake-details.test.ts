@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildRichDraft, detailFieldsFor, detailsFromText, missingDetails } from "@/lib/iris/intake-details";
+import { buildRichDraft, detailsFromText, missingDetails } from "@/lib/iris/intake-details";
+import { fieldsFor, missingFields, UNKNOWN } from "@/lib/iris/intake-schema";
 import type { CurrentUser, IntakeState } from "@/lib/iris/store";
 
 const user: CurrentUser = { id: "emp_jimmeey", userId: "u1", email: "j@example.com", name: "Jimmeey Gondaa", role: "Head of SCS", tier: "admin" };
@@ -29,14 +30,27 @@ const base = (over: Partial<IntakeState> = {}): IntakeState => ({
 });
 
 describe("intake details", () => {
-  it("asks client-facing tickets for the client's words and mood", () => {
-    const keys = detailFieldsFor("Trainer Feedback").filter((f) => f.need === "required").map((f) => f.key);
-    expect(keys).toEqual(["verbatim", "sentiment"]);
+  it("asks only subcategory-relevant questions", () => {
+    const ac = fieldsFor({ category: "Repair and Maintenance", subcategory: "AC & Ventilation Repairs" }).map((f) => f.key);
+    expect(ac).toEqual(expect.arrayContaining(["studio", "area", "when", "sinceWhen", "acIssue", "memberImpact", "membersComplained", "membersInformed", "frontDeskSteps", "expectedResolution"]));
+    expect(ac).not.toContain("bikeNumber");
+    expect(ac).not.toContain("verbatim");
+    const booking = fieldsFor({ category: "Tech Issues", subcategory: "Booking System Errors" }).map((f) => f.key);
+    expect(booking).toEqual(expect.arrayContaining(["member", "device", "errorMessage", "worksVsFails"]));
+    expect(booking).not.toContain("acIssue");
   });
 
-  it("blocks the draft until when, words and mood are in", () => {
-    expect(missingDetails(base())).toEqual(["when it happened", "client said", "client mood"]);
-    expect(missingDetails(base({ when: "Today", details: { verbatim: "She didn't know the moves", sentiment: "Frustrated" } }))).toEqual([]);
+  it("only asks who complained when members did complain", () => {
+    const s = { category: "Repair and Maintenance", subcategory: "AC & Ventilation Repairs" };
+    expect(fieldsFor(s).map((f) => f.key)).not.toContain("complaintWho");
+    expect(fieldsFor({ ...s, details: { membersComplained: "Yes" } }).map((f) => f.key)).toContain("complaintWho");
+  });
+
+  it("blocks the draft until required answers are in; Don't know counts", () => {
+    expect(missingDetails(base())).toContain("when it happened");
+    expect(missingDetails(base())).toContain("client said");
+    const all = Object.fromEntries(missingFields(base()).map((f) => [f.key, UNKNOWN]));
+    expect(missingDetails(base({ when: "Today", session: { id: "s1", name: "Barre 57" }, details: all }))).toEqual([]);
   });
 
   it("reads quotes and mood words from the message", () => {
@@ -56,6 +70,6 @@ describe("intake details", () => {
     expect(extras.slaResolution).toBeTruthy();
     expect(draft.tags).toContain("churn-risk");
     expect(draft.tags).toContain("trainer:Anmol Sharma");
-    expect(draft.description).toContain('Client said\n"I want a refund or I\'m leaving"');
+    expect(draft.description).toContain('Client said: "I want a refund or I\'m leaving"');
   });
 });

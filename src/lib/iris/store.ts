@@ -169,6 +169,15 @@ export type IntakeTaxonomy = Array<{
 }>;
 
 /** State of a structured intake (deterministic form filled from the user's message). */
+export interface IntakeRouting {
+  departmentCode: string | null;
+  departmentName: string | null;
+  owner: { id: string; name: string; source: "policy" | "ai" | "workload" | "head" } | null;
+  sla: { priority: "P0" | "P1" | "P2" | "P3"; responseMins: number; resolutionMins: number; slaResponseTarget: string; slaResolutionTarget: string } | null;
+  routedByRule: string | null;
+  ownershipRule: string | null;
+}
+
 export interface IntakeState {
   text: string;
   category: string | null;
@@ -190,9 +199,11 @@ export interface IntakeState {
   suggestions: Array<{ category: string; subcategory: string | null }>;
   taxonomy: IntakeTaxonomy;
   detectedBy: "rules" | "ai";
+  /** Server routing preview for the picked category: owner and SLA. Cleared when the category changes. */
+  routing?: IntakeRouting | null;
   done: boolean;
   /** Answers to the per-type questions (client's words, mood, impact...). */
-  details?: Partial<Record<import("./intake-details").DetailKey, string>>;
+  details?: Record<string, string>;
   /** Momence profile, memberships and visits of the picked member. */
   memberSnapshot?: import("./intake-details").MemberSnapshot | null;
 }

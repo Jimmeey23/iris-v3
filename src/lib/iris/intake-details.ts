@@ -13,67 +13,21 @@ import { DEPARTMENTS, DEPT_MAP, EMPLOYEES, EMPLOYEE_MAP, PRIORITY_CONFIG, STUDIO
 import { KNOWLEDGE_ARTICLES } from "./knowledge-base-data";
 import { TEMPLATE_MAP } from "./templates";
 import type { AgentTicketDraft, CurrentUser, IntakeState } from "./store";
+import { FIELDS, fieldsFor, isSpecial, missingFields } from "./intake-schema";
 
 // ── Questions ────────────────────────────────────────────────────────────────
 
-export type DetailKey =
-  | "verbatim" | "sentiment" | "clientAsk" | "impact" | "actionsTaken"
-  | "usable" | "injury" | "item" | "itemValue" | "police";
+/** Any field key from the intake schema (see ./intake-schema). */
+export type DetailKey = string;
 
-export type DetailField = {
-  key: DetailKey;
-  label: string;
-  kind: "text" | "textarea" | "chips";
-  options?: string[];
-  placeholder?: string;
-};
-
-export const DETAIL_FIELDS: Record<DetailKey, DetailField> = {
-  verbatim: { key: "verbatim", label: "Client said", kind: "textarea", placeholder: "Their exact words, as close as you can remember" },
-  sentiment: { key: "sentiment", label: "Client mood", kind: "chips", options: ["Calm", "Disappointed", "Frustrated", "Angry", "Threatening to leave"] },
-  clientAsk: { key: "clientAsk", label: "Client wants", kind: "text", placeholder: "e.g. a refund, a call back, a different trainer" },
-  impact: { key: "impact", label: "Impact", kind: "chips", options: ["One client", "Several clients", "Whole class", "Studio can't run classes"] },
-  actionsTaken: { key: "actionsTaken", label: "Done so far", kind: "textarea", placeholder: "What you've already tried or told the client" },
-  usable: { key: "usable", label: "Condition", kind: "chips", options: ["Still usable", "Out of use", "Safety risk"] },
-  injury: { key: "injury", label: "Injury", kind: "chips", options: ["No injury", "Minor (first aid)", "Needs medical attention"] },
-  item: { key: "item", label: "Item", kind: "text", placeholder: "What was lost or stolen" },
-  itemValue: { key: "itemValue", label: "Approx. value", kind: "text", placeholder: "₹" },
-  police: { key: "police", label: "Police", kind: "chips", options: ["Not needed", "Advised", "Complaint filed"] },
-};
-
-type Req = Partial<Record<DetailKey, "required" | "optional">>;
-const BY_CATEGORY: Record<string, Req> = {
-  "Trainer Feedback": { verbatim: "required", sentiment: "required", clientAsk: "optional", actionsTaken: "optional" },
-  "Class Experience": { verbatim: "required", sentiment: "required", impact: "required", actionsTaken: "optional" },
-  "Customer Service and Communication": { verbatim: "required", sentiment: "required", clientAsk: "required", actionsTaken: "optional" },
-  "Pricing and Memberships": { clientAsk: "required", sentiment: "required", verbatim: "optional", actionsTaken: "optional" },
-  "Operating Systems": { impact: "required", actionsTaken: "optional", verbatim: "optional" },
-  Scheduling: { impact: "required", verbatim: "optional", sentiment: "optional", actionsTaken: "optional" },
-  "Repair and Maintenance": { usable: "required", impact: "required", actionsTaken: "optional" },
-  "Studio Amenities and Facilities": { usable: "required", impact: "required", verbatim: "optional", actionsTaken: "optional" },
-  "Safety and Security": { injury: "required", impact: "required", actionsTaken: "required", verbatim: "optional" },
-  "Theft and Lost Items": { item: "required", itemValue: "optional", police: "optional", actionsTaken: "optional", verbatim: "optional" },
-};
-const DEFAULT_REQ: Req = { impact: "required", actionsTaken: "optional", verbatim: "optional" };
-
-/** The questions for this ticket type, in display order. */
-export function detailFieldsFor(category: string | null): Array<DetailField & { need: "required" | "optional" }> {
-  const req = (category && BY_CATEGORY[category]) || DEFAULT_REQ;
-  return (Object.keys(req) as DetailKey[]).map((k) => ({ ...DETAIL_FIELDS[k], need: req[k]! }));
-}
-
+/** Required answers still missing for this report, as readable labels. */
 export function missingDetails(s: IntakeState): string[] {
-  if (!s.category) return [];
-  const out = detailFieldsFor(s.category)
-    .filter((f) => f.need === "required" && !(s.details?.[f.key] ?? "").trim())
-    .map((f) => f.label.toLowerCase());
-  if (!s.when) out.unshift("when it happened");
-  return out;
+  return missingFields(s).map((f) => f.label.toLowerCase());
 }
 
 /** Pre-fill answers we can read straight from the message: quoted words, mood words. */
-export function detailsFromText(text: string): Partial<Record<DetailKey, string>> {
-  const out: Partial<Record<DetailKey, string>> = {};
+export function detailsFromText(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
   const quote = /["“]([^"”]{6,})["”]/.exec(text)?.[1];
   if (quote) out.verbatim = quote.trim();
   const t = text.toLowerCase();
@@ -165,7 +119,7 @@ export type DraftExtras = {
   related: Array<{ id: string; ticketId: string; title: string; status: string }>;
   member?: MemberSnapshot;
   when?: string | null;
-  details: Partial<Record<DetailKey, string>>;
+  details: Record<string, string>;
 };
 
 const mins = (m: number) => (m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`);
@@ -226,13 +180,16 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
       .sort((a, b) => a.score - b.score);
     const top = ranked[0]?.e;
     const head = DEPARTMENTS.find((x) => x.code === s.department)?.headId;
-    const pick = top ?? (head ? EMPLOYEE_MAP[head] : undefined);
+    const routed = s.routing?.owner && s.routing.departmentCode === s.department ? EMPLOYEE_MAP[s.routing.owner.id] : undefined;
+    const pick = routed ?? top ?? (head ? EMPLOYEE_MAP[head] : undefined);
     if (pick) {
       owner = {
         id: pick.id,
         name: pick.name,
         role: pick.role,
-        reason: top
+        reason: routed
+          ? s.routing?.ownershipRule ?? (s.routing?.owner?.source === "ai" ? "Suggested by IRIS from skills and studio" : `${DEPT_MAP[s.department]?.name ?? s.department}, ${pick.workload ?? 0}/${pick.maxWorkload ?? "?"} open`)
+          : top
           ? `${DEPT_MAP[s.department]?.name ?? s.department}${s.studioCode && pick.studioCodes?.includes(s.studioCode) ? `, covers ${studio?.name.split(",")[0]}` : ""}, ${pick.workload ?? 0}/${pick.maxWorkload ?? "?"} open`
           : `Head of ${DEPT_MAP[s.department]?.name ?? s.department} (nobody else in the team)`,
       };
@@ -275,12 +232,13 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
     body && (Array.isArray(body) ? body.length : body.trim()) ? `\n${h}\n${Array.isArray(body) ? body.map((x) => `- ${x}`).join("\n") : body.trim()}` : "";
   const description = [
     s.text.trim(),
-    section("Client said", d.verbatim ? `"${d.verbatim}"` : null),
-    section("Client mood", d.sentiment),
-    section("Client wants", d.clientAsk),
-    section("Impact", [d.impact, d.usable, d.injury].filter(Boolean).join(" · ") || null),
-    section("Item", d.item ? `${d.item}${d.itemValue ? ` (≈ ${d.itemValue})` : ""}${d.police ? ` · police: ${d.police}` : ""}` : null),
-    section("Done so far", d.actionsTaken),
+    section(
+      "Details captured",
+      fieldsFor(s)
+        .filter((f) => !isSpecial(f.key) && (d[f.key] ?? "").trim())
+        .map((f) => `${FIELDS[f.key].label}: ${f.key === "verbatim" || f.key === "complaintWhat" ? `"${d[f.key]!.trim()}"` : d[f.key]!.trim()}`),
+    ),
+    section("Still unknown", missingFields(s).map((f) => f.label)),
     section(
       "Context",
       [

@@ -20,6 +20,9 @@ import {
 import { TicketWorkspace } from "./ticket-workspace";
 import { SmartBadges } from "../smart-badges";
 import { SmartBulkActions } from "../smart-bulk-actions";
+import { useUserCollections, type SavedTicketView, MAX_SAVED_VIEWS } from "@/lib/iris/user-collections";
+import { Bookmark, BookmarkPlus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Options
@@ -138,6 +141,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
   const [quick, setQuick] = React.useState<Set<QuickId>>(new Set());
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [preview, setPreview] = React.useState<string | null>(null);
+  const saveView = useUserCollections((s) => s.saveView);
 
   const toggleQuick = (id: QuickId) => {
     const next = new Set(quick);
@@ -274,6 +278,18 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
               </button>
             );
           })}
+          <SavedViewsMenu
+            canSave={filtersActive || scope !== "open"}
+            onSave={(name) => saveView({ name, scope, quick: [...quick], filters: { ...ticketFilters }, sortBy, group1 })}
+            onApply={(v) => {
+              resetTicketFilters();
+              (Object.keys(v.filters) as (keyof SavedTicketView["filters"])[]).forEach((k) => setTicketFilter(k, v.filters[k]));
+              setScope(v.scope);
+              setQuick(new Set(v.quick.filter((q): q is QuickId => QUICK.some((x) => x.id === q))));
+              if (v.sortBy && v.sortBy in SORTS) setSortBy(v.sortBy as SortKey);
+              if (v.group1 && v.group1 in GROUPS) { setGroup1(v.group1 as GroupKey); setGroup2("none"); }
+            }}
+          />
           {filtersActive && (
             <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => { resetTicketFilters(); setQuick(new Set()); }}>
               <X className="w-3 h-3 mr-1" />Clear
@@ -680,4 +696,91 @@ function FilterPopover({ label, options, optionLabels, selected, onChange }: {
       </PopoverContent>
     </Popover>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Saved views — named filter/scope/sort presets, stored per user on the server
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SavedViewsMenu({ canSave, onSave, onApply }: {
+  canSave: boolean;
+  onSave: (name: string) => Promise<SavedTicketView>;
+  onApply: (v: SavedTicketView) => void;
+}) {
+  const views = useUserCollections((s) => s.views);
+  const deleteView = useUserCollections((s) => s.deleteView);
+  const [open, setOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  const save = async () => {
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      const v = await onSave(name);
+      toast.success(`Saved view “${v.name}”`);
+      setName("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save view");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-medium border border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+          <Bookmark className="w-3 h-3" />Views
+          {views.length > 0 && <span className="text-[10px] tabular-nums">{views.length}</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-2">
+        {views.length === 0 ? (
+          <p className="px-2 py-3 text-[12px] text-muted-foreground">No saved views yet. Set filters, then save them here for one-click recall.</p>
+        ) : (
+          <ul className="max-h-64 overflow-y-auto">
+            {views.map((v) => (
+              <li key={v.id} className="group flex items-center gap-1 rounded-md hover:bg-muted/60">
+                <button className="flex-1 min-w-0 text-left px-2 py-1.5 text-[12px]" onClick={() => { onApply(v); setOpen(false); }}>
+                  <span className="block truncate font-medium">{v.name}</span>
+                  <span className="block truncate text-[10px] text-muted-foreground">{describeView(v)}</span>
+                </button>
+                <button aria-label={`Delete ${v.name}`} className="p-1.5 mr-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-rose-600"
+                  onClick={() => deleteView(v.id).catch((e) => toast.error(e instanceof Error ? e.message : "Could not delete"))}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="border-t border-border mt-2 pt-2">
+          {canSave ? (
+            <form className="flex items-center gap-1.5" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name current filters…" maxLength={60} className="h-7 text-[12px]" aria-label="View name" />
+              <Button type="submit" size="sm" className="h-7 px-2" disabled={busy || !name.trim()}>
+                <BookmarkPlus className="w-3.5 h-3.5" />
+              </Button>
+            </form>
+          ) : (
+            <p className="px-1 text-[11px] text-muted-foreground">Apply a filter to save it as a view.</p>
+          )}
+          <p className="px-1 mt-1.5 text-[10px] text-muted-foreground">{views.length}/{MAX_SAVED_VIEWS} · reusing a name updates that view</p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function describeView(v: SavedTicketView) {
+  const f = v.filters;
+  const parts = [v.scope === "open" ? "Open" : v.scope === "done" ? "Resolved" : "All"];
+  if (f.search) parts.push(`“${f.search}”`);
+  if (f.priority.length) parts.push(f.priority.join("/"));
+  if (f.status.length) parts.push(`${f.status.length} status`);
+  if (f.studio.length) parts.push(`${f.studio.length} studio`);
+  if (f.department.length) parts.push(`${f.department.length} dept`);
+  if (f.slaStatus.length) parts.push(`SLA ${f.slaStatus.join("/")}`);
+  if (v.quick.length) parts.push(`${v.quick.length} quick`);
+  return parts.join(" · ");
 }

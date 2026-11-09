@@ -34,6 +34,8 @@ import {
 } from "@/lib/iris/iris-constants";
 import { DEPARTMENTS, DEPT_MAP, PRIORITY_CONFIG, Priority } from "@/lib/iris/types";
 import { TemplateTicketBuilder } from "@/components/iris/template-ticket-builder";
+import { useUserCollections, MAX_INTAKE_DRAFTS } from "@/lib/iris/user-collections";
+import { formatRelativeTime } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { ACCENT_STYLES, PriorityMix, StepHeading, Stepper } from "@/components/iris/drilldown";
 import {
@@ -324,6 +326,7 @@ export function TemplatesView() {
             <StatCard label="Sub-categories" value={subcategoryTotal} icon={FolderTree} color="emerald" />
             <StatCard label="Avg target resolution" value={templates.length ? `${avgHours}h` : "-"} icon={Clock} color="amber" />
           </div>
+          <DraftsStrip templates={templates} onOpen={openBuilder} />
           <StepHeading
             n={1}
             title="Choose a category"
@@ -1609,6 +1612,38 @@ function InfoBox({ label, value }: { label: string; value: string }) {
     <div className="p-2 rounded-md bg-muted/30 border border-border">
       <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">{label}</div>
       <div className="text-[12px] font-semibold">{value}</div>
+    </div>
+  );
+}
+
+/** Saved intake drafts (max 3 per person) — one click back into the builder. */
+function DraftsStrip({ templates, onOpen }: { templates: TicketTemplate[]; onOpen: (t: TicketTemplate) => void }) {
+  const drafts = useUserCollections((s) => s.drafts);
+  const deleteDraft = useUserCollections((s) => s.deleteDraft);
+  const rows = drafts
+    .map((d) => ({ d, t: templates.find((t) => t.code === d.templateId) }))
+    .filter((r): r is { d: (typeof drafts)[number]; t: TicketTemplate } => Boolean(r.t));
+  if (!rows.length) return null;
+  return (
+    <div className="iris-card p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Your drafts</div>
+        <div className="text-[10px] text-muted-foreground tabular-nums">{drafts.length}/{MAX_INTAKE_DRAFTS}</div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {rows.map(({ d, t }) => (
+          <div key={d.id} className="group flex items-center gap-2 rounded-lg border border-border p-2.5 hover:bg-muted/50 transition-colors">
+            <button className="flex-1 min-w-0 text-left" onClick={() => onOpen(t)}>
+              <div className="text-[12px] font-medium truncate">{d.title}</div>
+              <div className="text-[10px] text-muted-foreground truncate">{t.title} · {formatRelativeTime(d.updatedAt)}</div>
+            </button>
+            <button aria-label="Discard draft" className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-rose-600"
+              onClick={() => deleteDraft(d.id).catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't discard"))}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
