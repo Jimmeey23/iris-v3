@@ -690,22 +690,24 @@ function Spark({ values }: { values: number[] }) {
   );
 }
 
-/** 14-day raised vs resolved columns for the service level panel. */
+/** 14-day mirrored bars: raised above the axis, resolved below it. */
 function FlowChart({ days }: { days: { day: string; created: number; resolved: number }[] }) {
   const max = Math.max(1, ...days.flatMap((d) => [d.created, d.resolved]));
+  const H = 20; // half-height in px
   return (
     <div className="shrink-0 text-right">
-      <div className="flex items-end gap-[3px] h-10" aria-hidden>
-        {days.map((d) => (
-          <div key={d.day} className="flex items-end gap-px" title={`${d.day}: ${d.created} raised, ${d.resolved} resolved`}>
-            <span className="w-[3px] rounded-t-sm bg-foreground/20" style={{ height: `${Math.max(2, (d.created / max) * 40)}px` }} />
-            <span className="w-[3px] rounded-t-sm bg-primary" style={{ height: `${Math.max(2, (d.resolved / max) * 40)}px` }} />
+      <div className="relative flex items-center gap-[3px]" style={{ height: H * 2 + 1 }} aria-hidden>
+        <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
+        {days.map((d, i) => (
+          <div key={d.day} className="relative flex flex-col items-center justify-center w-[5px] h-full" title={`${d.day}: ${d.created} raised, ${d.resolved} resolved`}>
+            <span className="absolute bottom-1/2 w-full rounded-t-[2px] bg-foreground/25" style={{ height: d.created ? Math.max(2, (d.created / max) * H) : 0 }} />
+            <span className={cn("absolute top-1/2 w-full rounded-b-[2px] bg-primary", i === days.length - 1 ? "opacity-100" : "opacity-80")} style={{ height: d.resolved ? Math.max(2, (d.resolved / max) * H) : 0, marginTop: 1 }} />
           </div>
         ))}
       </div>
       <div className="mt-1 flex justify-end gap-2.5 text-[9px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-foreground/20" />Raised</span>
-        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-primary" />Resolved</span>
+        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-foreground/25" />Raised ↑</span>
+        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-primary" />Resolved ↓</span>
       </div>
     </div>
   );
