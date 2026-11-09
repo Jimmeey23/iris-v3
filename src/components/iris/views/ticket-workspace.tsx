@@ -345,7 +345,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                   )}
 
                   {/* Action Buttons - functional */}
-                  <div className={cn("grid grid-cols-2 gap-2", isAdmin ? "md:grid-cols-4" : "md:grid-cols-3")}>
+                  <div data-tour="ticket-actions" className={cn("grid grid-cols-2 gap-2", isAdmin ? "md:grid-cols-4" : "md:grid-cols-3")}>
                     <ActionButton icon={PlayCircle} label="Start Work" color="violet" onClick={startWork} disabled={readOnly || busy || (status !== "open" && status !== "awaiting_response")} />
                     {isAdmin && <ActionButton icon={PauseCircle} label={slaPaused ? "Resume SLA" : "Pause SLA"} color="amber" onClick={toggleSlaPause} disabled={readOnly || busy} />}
                     {isAdmin ? (

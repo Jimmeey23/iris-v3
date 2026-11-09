@@ -671,7 +671,7 @@ export function AIAssistantView() {
               );
             })()}
             <ContextBar state={conversationState} draft={input} intake={[...aiMessages].reverse().find((m) => m.intake && !m.intake.done)?.intake} />
-            <div className="flex items-end gap-1.5 p-1.5 bg-card border border-border rounded-xl focus-within:border-primary/40 transition-colors">
+            <div data-tour="ai-input" className="flex items-end gap-1.5 p-1.5 bg-card border border-border rounded-xl focus-within:border-primary/40 transition-colors">
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
                 <Paperclip className="w-3.5 h-3.5" />
               </Button>

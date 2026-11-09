@@ -310,6 +310,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
         <SmartBulkActions selectedTickets={tickets.filter((t) => selectedIds.has(t.id))} onClear={() => setSelectedIds(new Set())} />
       )}
 
+      <div data-tour="ticket-list">
       {tickets.length === 0 ? (
         <div className="iris-card text-center py-20">
           <div className="text-[13px] text-muted-foreground">No tickets match.{scope === "open" ? " Switch to All to include resolved tickets." : ""}</div>
@@ -332,6 +333,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
                   onToggleAll={showSelectAll ? toggleAll : undefined} allSelected={selectedIds.size === tickets.length} />}
         />
       )}
+      </div>
     </div>
   );
 }
