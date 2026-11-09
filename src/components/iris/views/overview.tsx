@@ -241,6 +241,24 @@ export function OverviewView() {
                 </div>
               ))}
             </dl>
+
+            <dl className="mt-3 max-w-xl grid grid-cols-4 gap-px rounded-xl overflow-hidden border border-border/70 bg-border/70">
+              {[
+                { k: "Open", v: live.open.value, tone: "" },
+                { k: "Past SLA", v: live.overdue.value, tone: live.overdue.value ? "text-rose-600 dark:text-rose-400" : "" },
+                { k: "At risk", v: pulse.atRisk, tone: pulse.atRisk ? "text-amber-600 dark:text-amber-400" : "" },
+                { k: "Critical", v: live.critical.value, tone: live.critical.value ? "text-rose-600 dark:text-rose-400" : "" },
+                { k: "Unassigned", v: live.unassignedOpen, tone: live.unassignedOpen ? "text-amber-600 dark:text-amber-400" : "" },
+                { k: "Avg resolve", v: hours(live.avgResolveH), tone: "" },
+                { k: "Oldest open", v: pulse.oldestH === null ? "-" : hours(pulse.oldestH), tone: "" },
+                { k: "Net today", v: pulse.net > 0 ? `+${pulse.net}` : String(pulse.net), tone: pulse.net > 0 ? "text-rose-600 dark:text-rose-400" : pulse.net < 0 ? "text-emerald-600 dark:text-emerald-400" : "" },
+              ].map((m) => (
+                <div key={m.k} className="bg-white/90 dark:bg-card px-2 py-1.5">
+                  <dt className="text-[9px] uppercase tracking-[.12em] text-muted-foreground truncate">{m.k}</dt>
+                  <dd className={cn("mt-0.5 text-[14px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
           {/* Right: service level pulse */}
@@ -294,23 +312,6 @@ export function OverviewView() {
               })}
             </ul>
 
-            <dl className="mt-3 grid grid-cols-4 gap-px rounded-xl overflow-hidden border border-border/70 bg-border/70">
-              {[
-                { k: "Open", v: live.open.value, tone: "" },
-                { k: "Past SLA", v: live.overdue.value, tone: live.overdue.value ? "text-rose-600 dark:text-rose-400" : "" },
-                { k: "At risk", v: pulse.atRisk, tone: pulse.atRisk ? "text-amber-600 dark:text-amber-400" : "" },
-                { k: "Critical", v: live.critical.value, tone: live.critical.value ? "text-rose-600 dark:text-rose-400" : "" },
-                { k: "Unassigned", v: live.unassignedOpen, tone: live.unassignedOpen ? "text-amber-600 dark:text-amber-400" : "" },
-                { k: "Avg resolve", v: hours(live.avgResolveH), tone: "" },
-                { k: "Oldest open", v: pulse.oldestH === null ? "-" : hours(pulse.oldestH), tone: "" },
-                { k: "Net today", v: pulse.net > 0 ? `+${pulse.net}` : String(pulse.net), tone: pulse.net > 0 ? "text-rose-600 dark:text-rose-400" : pulse.net < 0 ? "text-emerald-600 dark:text-emerald-400" : "" },
-              ].map((m) => (
-                <div key={m.k} className="bg-white/90 dark:bg-card px-2 py-1.5">
-                  <dt className="text-[9px] uppercase tracking-[.12em] text-muted-foreground truncate">{m.k}</dt>
-                  <dd className={cn("mt-0.5 text-[14px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
-                </div>
-              ))}
-            </dl>
           </div>
         </div>
 
