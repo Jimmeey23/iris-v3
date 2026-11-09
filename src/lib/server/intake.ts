@@ -180,7 +180,10 @@ export async function classify(db: PoolClient, rawText: string, trainerNamed = f
     rows.forEach((r, i) => add(r.category, r.subcategory, Math.min(1, Number(r.rank) * 10) * (1 - i / 30), "history"));
   }
 
-  const candidates = [...scores.values()].sort((a, b) => b.score - a.score).slice(0, 5);
+  // A rule hit outranks any pile of history votes: many old bike-repair tickets mention
+  // "PowerCycle", which must not drown out "unable to book into PowerCycle".
+  const kw = (c: Candidate) => (c.via === "keywords" ? 1 : 0);
+  const candidates = [...scores.values()].sort((a, b) => kw(b) - kw(a) || b.score - a.score).slice(0, 5);
   const top = candidates[0];
   const second = candidates[1];
   // Confident when a keyword rule fired, or history clearly favours one subcategory.

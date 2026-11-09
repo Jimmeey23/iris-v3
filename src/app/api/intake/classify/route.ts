@@ -177,8 +177,11 @@ export async function POST(request: Request) {
 
       const rulesAnswer = async (aiUnavailable = false) => {
         const det = await classify(c, text, Boolean(fields.trainerName));
-        const topScore = det.candidates[0]?.score ?? 0;
-        const confident = det.confident && topScore >= Math.max(1, aiCfg.confidenceThreshold * 6);
+        // A keyword rule is high-precision on its own. The AI confidence threshold (0-1) only
+        // gates history-only matches, where the score is a vote count rather than a rule hit.
+        const top = det.candidates[0];
+        const confident =
+          det.confident && (top?.via === "keywords" || (top?.score ?? 0) >= Math.max(1, aiCfg.confidenceThreshold * 6));
         const mapped = det.candidates.map((cand) => preview(cand, fields.studioCode, undefined, null));
         return NextResponse.json({
           candidates: mapped.map((m) => m.candidate),
