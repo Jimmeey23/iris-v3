@@ -186,124 +186,99 @@ export function OverviewView() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">
       {/* === HERO === */}
-      <section className="ovh relative overflow-hidden rounded-2xl border border-border bg-white dark:bg-card iris-fade-in-up shadow-[0_1px_0_0_color-mix(in_srgb,var(--foreground)_4%,transparent),0_24px_48px_-32px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
-        {/* Hairline accent along the top edge */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--primary) 30%, color-mix(in srgb, var(--primary) 40%, transparent) 70%, transparent)" }} />
-        {/* Faint accent wash + fine grid texture, both fading out to the right */}
-        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 55%)" }} />
-        <div className="ovh-grid pointer-events-none absolute inset-0" />
+      <section className="ovh relative overflow-hidden rounded-2xl border border-border bg-white dark:bg-card iris-fade-in-up shadow-[0_24px_48px_-36px_color-mix(in_srgb,var(--primary)_40%,transparent)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, var(--primary) 25%, color-mix(in srgb, var(--primary) 30%, transparent) 75%, transparent)" }} />
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(80% 120% at 0% 0%, color-mix(in srgb, var(--primary) 9%, transparent) 0%, transparent 60%)" }} />
 
-        <div className="relative grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-stretch">
-          {/* Left */}
-          <div className="min-w-0 px-6 py-5 sm:px-8">
+        {/* 1. Greeting + actions */}
+        <header className="relative flex flex-col gap-4 px-6 pt-5 pb-4 sm:px-7 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2.5 text-[10px] font-medium uppercase tracking-[.18em] text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5 h-5 pl-1.5 pr-2 rounded-full border border-emerald-500/25 bg-emerald-500/[.06] text-emerald-700 dark:text-emerald-400 tracking-[.14em]">
+              <span className="inline-flex items-center gap-1.5 h-5 pl-1.5 pr-2 rounded-full border border-emerald-500/25 bg-emerald-500/[.06] text-emerald-700 dark:text-emerald-400">
                 <span className="iris-live-dot" />Live
               </span>
-              <span>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
+              {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
             </div>
-            <h1 className="mt-2.5 text-[28px] sm:text-[32px] font-semibold tracking-[-0.025em] leading-[1.05]">
-              {greeting},{" "}
-              <span className="iris-wordmark-ai text-primary text-[1.12em] tracking-[-0.01em]">{firstName}</span>
+            <h1 className="mt-2 text-[28px] sm:text-[30px] font-semibold tracking-[-0.025em] leading-[1.05]">
+              {greeting}, <span className="iris-wordmark-ai text-primary text-[1.12em]">{firstName}</span>
             </h1>
-            <p className="mt-1.5 text-[13px] text-muted-foreground max-w-xl leading-relaxed">
+            <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
               Across every Physique 57 India studio: <span className="text-foreground font-medium">{narrative}</span>.
             </p>
-
-            <div className="mt-4 flex flex-wrap items-center gap-1.5">
-              {nav.map((n, i) => (
-                <button key={n.label} onClick={() => setCurrentView(n.view)}
-                  className={cn("group inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-medium transition-all",
-                    i === 0
-                      ? "bg-foreground text-background hover:bg-primary hover:text-primary-foreground shadow-[0_8px_20px_-10px_var(--foreground)]"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
-                  <n.icon className={cn("w-3.5 h-3.5", i === 0 && "text-primary group-hover:text-primary-foreground")} />{n.label}
-                  {i === 0 && <ChevronRight className="w-3 h-3 -mr-1 opacity-60 transition-transform group-hover:translate-x-0.5" />}
-                </button>
-              ))}
-            </div>
-
-            <dl className="mt-4 grid grid-cols-3 max-w-xl border-t border-border/70 pt-3 divide-x divide-border/70">
-              {[
-                { k: "Raised", sub: "last 7 days", v: live.created7, d: live.total.trend, spark: live.trend.map((t) => t.created) },
-                { k: "Resolved", sub: "last 7 days", v: live.resolved7, d: live.resolved.trend, spark: live.trend.map((t) => t.resolved) },
-                { k: "First response", sub: "average · 30 days", v: hours(live.avgFirstResponseH), d: "", spark: null },
-              ].map((s, i) => (
-                <div key={s.k} className={cn("min-w-0", i === 0 ? "pr-4" : "px-4")}>
-                  <dt className="text-[10px] uppercase tracking-[.16em] text-muted-foreground">{s.k}</dt>
-                  <dd className="mt-1.5 flex items-end gap-2">
-                    <span className="text-[24px] font-semibold tabular-nums leading-none tracking-tight">{s.v}</span>
-                    {s.spark && <Spark values={s.spark} />}
-                  </dd>
-                  <dd className="mt-1 text-[10px] text-muted-foreground truncate">
-                    {s.d ? <span className="text-foreground/80 font-medium tabular-nums">{s.d}</span> : null}{s.d ? " vs prior week" : s.sub}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-
-            <dl className="mt-3 max-w-xl grid grid-cols-4 gap-px rounded-xl overflow-hidden border border-border/70 bg-border/70">
-              {[
-                { k: "Open", v: live.open.value, tone: "" },
-                { k: "Past SLA", v: live.overdue.value, tone: live.overdue.value ? "text-rose-600 dark:text-rose-400" : "" },
-                { k: "At risk", v: pulse.atRisk, tone: pulse.atRisk ? "text-amber-600 dark:text-amber-400" : "" },
-                { k: "Critical", v: live.critical.value, tone: live.critical.value ? "text-rose-600 dark:text-rose-400" : "" },
-                { k: "Unassigned", v: live.unassignedOpen, tone: live.unassignedOpen ? "text-amber-600 dark:text-amber-400" : "" },
-                { k: "Avg resolve", v: hours(live.avgResolveH), tone: "" },
-                { k: "Oldest open", v: pulse.oldestH === null ? "-" : hours(pulse.oldestH), tone: "" },
-                { k: "Net today", v: pulse.net > 0 ? `+${pulse.net}` : String(pulse.net), tone: pulse.net > 0 ? "text-rose-600 dark:text-rose-400" : pulse.net < 0 ? "text-emerald-600 dark:text-emerald-400" : "" },
-              ].map((m) => (
-                <div key={m.k} className="bg-white/90 dark:bg-card px-2 py-1.5">
-                  <dt className="text-[9px] uppercase tracking-[.12em] text-muted-foreground truncate">{m.k}</dt>
-                  <dd className={cn("mt-0.5 text-[14px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
-                </div>
-              ))}
-            </dl>
           </div>
+          <div className="flex flex-wrap items-center gap-1.5 md:justify-end shrink-0">
+            {nav.map((n, i) => (
+              <button key={n.label} onClick={() => setCurrentView(n.view)}
+                className={cn("group inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-medium transition-all",
+                  i === 0
+                    ? "bg-foreground text-background hover:bg-primary hover:text-primary-foreground"
+                    : "border border-border/80 bg-white/70 dark:bg-card/70 text-muted-foreground hover:text-foreground hover:border-foreground/20")}>
+                <n.icon className={cn("w-3.5 h-3.5", i === 0 && "text-primary group-hover:text-primary-foreground")} />{n.label}
+              </button>
+            ))}
+          </div>
+        </header>
 
-          {/* Right: service level pulse */}
-          <div className="relative flex flex-col border-t lg:border-t-0 lg:border-l border-border/70 bg-[color-mix(in_srgb,var(--muted)_35%,transparent)] px-6 py-5 sm:px-7">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Service level · 30d</div>
-                <div className="mt-1.5 flex items-baseline gap-1.5">
-                  <span className="text-[30px] font-semibold tabular-nums tracking-[-0.03em] leading-none">{live.sla === null ? "-" : live.sla}</span>
-                  {live.sla !== null && <span className="text-[14px] text-muted-foreground font-medium">%</span>}
-                  <span className="ml-1 text-[10.5px] text-muted-foreground">within SLA</span>
-                </div>
-                <div className="mt-2 h-1 w-40 rounded-full bg-border overflow-hidden">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${slaCompliance}%`, transition: "width 1.2s cubic-bezier(.16,1,.3,1)" }} />
-                </div>
-              </div>
-              <div className="text-right text-[10px] text-muted-foreground leading-relaxed">
-                <div className="uppercase tracking-[.16em]">14 days</div>
-                <div className="flex items-center justify-end gap-1.5"><span className="w-2.5 h-[2px] rounded bg-foreground/35" />Raised <b className="text-foreground tabular-nums font-semibold">{live.trend.reduce((n, d) => n + d.created, 0)}</b></div>
-                <div className="flex items-center justify-end gap-1.5"><span className="w-2.5 h-[2px] rounded bg-primary" />Resolved <b className="text-foreground tabular-nums font-semibold">{live.trend.reduce((n, d) => n + d.resolved, 0)}</b></div>
+        {/* 2. KPI strip */}
+        <dl className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 border-y border-border/70 divide-x divide-border/70 bg-white/60 dark:bg-card/60">
+          {[
+            { k: "Within SLA", v: live.sla === null ? "-" : `${live.sla}%`, sub: live.slaSample ? `${live.slaSample} resolved · 30d` : "no data · 30d", bar: live.sla, tone: "" },
+            { k: "Open", v: live.open.value, sub: `${live.unassignedOpen} unassigned`, tone: "" },
+            { k: "Past SLA", v: live.overdue.value, sub: `${pulse.atRisk} at risk`, tone: live.overdue.value ? "text-rose-600 dark:text-rose-400" : "" },
+            { k: "Critical", v: live.critical.value, sub: "open P0", tone: live.critical.value ? "text-rose-600 dark:text-rose-400" : "" },
+            { k: "Raised · 7d", v: live.created7, sub: live.total.trend ? `${live.total.trend} vs prior` : "vs prior week", spark: live.trend.map((t) => t.created), tone: "" },
+            { k: "Resolved · 7d", v: live.resolved7, sub: live.resolved.trend ? `${live.resolved.trend} vs prior` : "vs prior week", spark: live.trend.map((t) => t.resolved), tone: "" },
+          ].map((m) => (
+            <div key={m.k} className="min-w-0 px-5 py-3">
+              <dt className="text-[9.5px] uppercase tracking-[.16em] text-muted-foreground truncate">{m.k}</dt>
+              <dd className="mt-1.5 flex items-end justify-between gap-2">
+                <span className={cn("text-[22px] font-semibold tabular-nums leading-none tracking-tight", m.tone)}>{m.v}</span>
+                {m.spark && <Spark values={m.spark} />}
+              </dd>
+              {typeof m.bar === "number" && (
+                <div className="mt-1.5 h-[3px] rounded-full bg-border overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${m.bar}%` }} /></div>
+              )}
+              <dd className="mt-1 text-[10px] text-muted-foreground truncate">{m.sub}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {/* 3. Flow chart + due next, equal height */}
+        <div className="relative grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] divide-y lg:divide-y-0 lg:divide-x divide-border/70">
+          <div className="min-w-0 px-6 py-4 sm:px-7">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Ticket flow · 14 days</div>
+              <div className="flex items-center gap-3 text-[10.5px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5"><span className="w-3 h-[2px] rounded bg-foreground/35" />Raised <b className="text-foreground tabular-nums">{live.trend.reduce((n, d) => n + d.created, 0)}</b></span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-3 h-[2px] rounded bg-primary" />Resolved <b className="text-foreground tabular-nums">{live.trend.reduce((n, d) => n + d.resolved, 0)}</b></span>
               </div>
             </div>
             <FlowChart days={live.trend} />
+          </div>
 
-            <div className="mt-3 flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Due next</div>
-              <button onClick={() => setDrill("overdue")} className="group inline-flex items-center gap-0.5 text-[10.5px] font-medium text-muted-foreground hover:text-primary transition-colors">
-                {live.overdue.value ? <span className="text-rose-600 dark:text-rose-400 tabular-nums">{live.overdue.value} past SLA</span> : "Nothing past SLA"}
-                <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+          <div className="min-w-0 flex flex-col px-6 py-4 sm:px-7">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Due next · 24h</div>
+              <button onClick={() => setDrill("overdue")} className="group inline-flex items-center gap-0.5 text-[10.5px] font-medium text-muted-foreground hover:text-primary">
+                All at risk<ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
               </button>
             </div>
-            <ul className="mt-1.5 divide-y divide-border/60 rounded-xl border border-border/70 bg-white/90 dark:bg-card overflow-hidden">
+            <ul className="mt-2 flex-1 space-y-0.5">
               {pulse.dueNext.length === 0 ? (
-                <li className="px-3 py-2.5 text-[11.5px] text-muted-foreground">No SLA deadlines in the next 24 hours.</li>
+                <li className="h-full grid place-items-center rounded-lg border border-dashed border-border text-[11.5px] text-muted-foreground py-4">No SLA deadlines in the next 24 hours</li>
               ) : pulse.dueNext.map((t) => {
                 const mins = Math.max(0, Math.round((+new Date(t.slaResolutionTarget!) - now) / 60000));
                 const urgent = mins < 120;
                 return (
                   <li key={t.id}>
                     <button onClick={() => { selectTicket(t.id); setCurrentView("all_tickets"); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-muted/50 transition-colors">
+                      className="w-full flex items-center gap-2.5 -mx-2 px-2 py-1.5 rounded-lg text-left hover:bg-muted/60 transition-colors">
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", urgent ? "bg-rose-500" : "bg-amber-500")} />
-                      <span className="text-[10.5px] font-mono text-muted-foreground shrink-0">{t.ticketId}</span>
-                      <span className="text-[11.5px] truncate flex-1">{t.title}</span>
-                      <span className={cn("text-[10.5px] font-semibold tabular-nums shrink-0", urgent ? "text-rose-600 dark:text-rose-400" : "text-foreground/80")}>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[11.5px] font-medium truncate">{t.title}</span>
+                        <span className="block text-[10px] font-mono text-muted-foreground">{t.ticketId}</span>
+                      </span>
+                      <span className={cn("text-[11px] font-semibold tabular-nums shrink-0", urgent ? "text-rose-600 dark:text-rose-400" : "text-foreground/80")}>
                         {mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`}
                       </span>
                     </button>
@@ -311,25 +286,19 @@ export function OverviewView() {
                 );
               })}
             </ul>
-
+            <div className="mt-2 pt-2 border-t border-border/70 flex items-center justify-between text-[10px] text-muted-foreground tabular-nums">
+              <span>Avg resolve <b className="text-foreground">{hours(live.avgResolveH)}</b></span>
+              <span>Oldest <b className="text-foreground">{pulse.oldestH === null ? "-" : hours(pulse.oldestH)}</b></span>
+              <span>Net today <b className={cn(pulse.net > 0 ? "text-rose-600 dark:text-rose-400" : pulse.net < 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>{pulse.net > 0 ? `+${pulse.net}` : pulse.net}</b></span>
+            </div>
           </div>
         </div>
 
-        {/* Live ticker, flush with the bottom of the hero */}
+        {/* Live ticker */}
         <div className="relative">
           <MarqueeStrip icon={Zap} variant="hero" items={marqueeItems} />
         </div>
-
-        <style>{`
-          .ovh-grid {
-            background-image: linear-gradient(to right, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px),
-                              linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px);
-            background-size: 28px 28px;
-            mask-image: radial-gradient(90% 120% at 0% 0%, #000 0%, transparent 60%);
-            -webkit-mask-image: radial-gradient(90% 120% at 0% 0%, #000 0%, transparent 60%);
-          }
-          @media (prefers-reduced-motion: reduce) { .ovh * { animation: none !important; } }
-        `}</style>
+        <style>{`@media (prefers-reduced-motion: reduce) { .ovh * { animation: none !important; transition: none !important; } }`}</style>
       </section>
 
       {/* === METRIC CARDS - click for drill-down === */}
@@ -704,7 +673,7 @@ function Spark({ values }: { values: number[] }) {
 /** 14-day raised vs resolved: two 2px lines on one axis, soft area under resolved, crosshair tooltip. */
 function FlowChart({ days }: { days: { day: string; created: number; resolved: number }[] }) {
   const [hover, setHover] = React.useState<number | null>(null);
-  const W = 320, H = 76, P = { t: 6, b: 14, l: 0, r: 0 };
+  const W = 320, H = 120, P = { t: 6, b: 14, l: 0, r: 0 };
   const max = Math.max(2, ...days.flatMap((d) => [d.created, d.resolved]));
   const x = (i: number) => P.l + (i / Math.max(1, days.length - 1)) * (W - P.l - P.r);
   const y = (v: number) => P.t + (1 - v / max) * (H - P.t - P.b);
@@ -713,8 +682,8 @@ function FlowChart({ days }: { days: { day: string; created: number; resolved: n
   const area = `${path("resolved")}L${x(days.length - 1)},${base}L${x(0)},${base}Z`;
   const h = hover === null ? null : days[hover];
   return (
-    <div className="relative mt-2.5">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[76px] overflow-visible" role="img"
+    <div className="relative mt-3">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[120px] overflow-visible" role="img"
         aria-label="Tickets raised and resolved per day over the last 14 days"
         onMouseLeave={() => setHover(null)}
         onMouseMove={(e) => {
@@ -743,7 +712,7 @@ function FlowChart({ days }: { days: { day: string; created: number; resolved: n
         <>
           {(["created", "resolved"] as const).map((k) => (
             <span key={k} className={cn("pointer-events-none absolute w-2 h-2 -ml-1 -mt-1 rounded-full ring-2 ring-white dark:ring-card", k === "resolved" ? "bg-primary" : "bg-foreground/45")}
-              style={{ left: `${(x(hover) / W) * 100}%`, top: `${(y(h[k]) / H) * 76}px` }} />
+              style={{ left: `${(x(hover) / W) * 100}%`, top: `${(y(h[k]) / H) * 120}px` }} />
           ))}
           <div className="pointer-events-none absolute -top-2 z-10 -translate-y-full rounded-lg border border-border bg-popover px-2.5 py-1.5 text-[10.5px] shadow-md whitespace-nowrap"
             style={{ left: `${(x(hover) / W) * 100}%`, transform: `translate(${hover > days.length / 2 ? "-100%" : "0"}, -100%)` }}>
