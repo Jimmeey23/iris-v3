@@ -220,7 +220,7 @@ export async function sendWeeklyDigests({ force = false, onlyUserId }: { force?:
     try {
       const mail = renderDigest(await digestFor(r), r.name, appUrl);
       await pool.query("update iris.email_log set subject = $2 where dedupe_key = $1", [key, mail.subject]);
-      await enqueueEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text, category: "weekly_digest" }, { emailLogId: key });
+      await enqueueEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text, category: "weekly_digest" }, { emailLogId: claimed.rows[0].id });
       queued++;
     } catch (err) {
       await pool.query("update iris.email_log set status = 'failed', error = $2 where dedupe_key = $1", [key, err instanceof Error ? err.message.slice(0, 300) : "build failed"]);
