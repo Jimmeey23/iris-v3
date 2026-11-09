@@ -7,6 +7,7 @@ import { EMPLOYEES, DEPARTMENTS, STUDIOS } from "@/lib/iris/types";
 import { PriorityBadge, StatusBadge, SLABadge } from "../badges";
 import { SmartBadges } from "../smart-badges";
 import { RelativeTime } from "../relative-time";
+import { useSharedClock } from "@/lib/iris/use-visible-interval";
 import { PremiumMetricCard } from "../premium-metric-card";
 import { DailyBriefing } from "../daily-briefing";
 import { AnomalyFeed } from "../anomaly-feed";
@@ -147,6 +148,24 @@ export function OverviewView() {
     return items;
   }, [dataVersion, live]);
 
+  const now = useSharedClock();
+  const pulse = React.useMemo(() => {
+    void dataVersion;
+    const open = ALL_TICKETS.filter((t) => !DONE.has(t.status));
+    const dueNext = open
+      .filter((t) => t.slaResolutionTarget && +new Date(t.slaResolutionTarget) > now && +new Date(t.slaResolutionTarget) - now < 86_400_000)
+      .sort((a, b) => +new Date(a.slaResolutionTarget!) - +new Date(b.slaResolutionTarget!))
+      .slice(0, 3);
+    const oldest = open.reduce<number | null>((m, t) => { const c = +new Date(t.createdAt); return m === null || c < m ? c : m; }, null);
+    const today = live.trend[live.trend.length - 1];
+    return {
+      dueNext,
+      atRisk: open.filter((t) => t.slaStatus === "at_risk").length,
+      oldestH: oldest === null || !now ? null : (now - oldest) / 3_600_000,
+      net: today ? today.created - today.resolved : 0,
+    };
+  }, [dataVersion, now, live.trend]);
+
   const nav = [
     { icon: Sparkles, label: "Ask IRIS", view: "ai_assistant" as const },
     { icon: TicketIcon, label: "Open tickets", view: "all_tickets" as const },
@@ -224,57 +243,64 @@ export function OverviewView() {
             </dl>
           </div>
 
-          {/* Right: service level */}
-          <div className="relative flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-border/70 bg-[color-mix(in_srgb,var(--muted)_35%,transparent)] px-6 py-5 sm:px-7">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Service level</div>
-              <div className="text-[10px] text-muted-foreground tabular-nums">{live.slaSample ? `${live.slaSample} resolved · 30d` : "No data · 30d"}</div>
-            </div>
-            <div className="mt-3 flex items-center gap-5">
-              <div className="relative shrink-0" style={{ width: 116, height: 116 }}>
-                <svg width="116" height="116" viewBox="0 0 148 148" aria-hidden>
-                  <defs>
-                    <linearGradient id="ovh-sla" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="var(--primary)" />
-                      <stop offset="100%" stopColor="color-mix(in srgb, var(--primary) 55%, var(--foreground))" />
-                    </linearGradient>
-                  </defs>
-                  {Array.from({ length: 60 }, (_, i) => {
-                    const a = (i / 60) * Math.PI * 2;
-                    const r1 = 71, r2 = i % 5 === 0 ? 66 : 68.5;
-                    return <line key={i} x1={74 + Math.sin(a) * r1} y1={74 - Math.cos(a) * r1} x2={74 + Math.sin(a) * r2} y2={74 - Math.cos(a) * r2}
-                      stroke="var(--foreground)" strokeOpacity={i % 5 === 0 ? 0.22 : 0.1} strokeWidth="1" />;
-                  })}
-                  <circle cx="74" cy="74" r="58" fill="none" stroke="var(--border)" strokeWidth="4" />
-                  <circle cx="74" cy="74" r="58" fill="none" stroke="url(#ovh-sla)" strokeWidth="4" strokeLinecap="round"
-                    strokeDasharray={`${(slaCompliance / 100) * 364.4} 364.4`} transform="rotate(-90 74 74)"
-                    style={{ animation: "hero-ring 1.6s cubic-bezier(0.16,1,0.3,1)" }} />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-[26px] font-semibold tabular-nums tracking-[-0.03em] leading-none">
-                    {live.sla === null ? "-" : live.sla}{live.sla !== null && <span className="text-[13px] text-muted-foreground font-medium">%</span>}
-                  </span>
-                  <span className="mt-1 text-[8.5px] uppercase tracking-[.18em] text-muted-foreground">within SLA</span>
+          {/* Right: service level pulse */}
+          <div className="relative flex flex-col border-t lg:border-t-0 lg:border-l border-border/70 bg-[color-mix(in_srgb,var(--muted)_35%,transparent)] px-6 py-5 sm:px-7">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Service level · 30d</div>
+                <div className="mt-1.5 flex items-baseline gap-1.5">
+                  <span className="text-[30px] font-semibold tabular-nums tracking-[-0.03em] leading-none">{live.sla === null ? "-" : live.sla}</span>
+                  {live.sla !== null && <span className="text-[14px] text-muted-foreground font-medium">%</span>}
+                  <span className="ml-1 text-[10.5px] text-muted-foreground">within SLA</span>
+                </div>
+                <div className="mt-2 h-1 w-40 rounded-full bg-border overflow-hidden">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${slaCompliance}%`, transition: "width 1.2s cubic-bezier(.16,1,.3,1)" }} />
                 </div>
               </div>
-              <dl className="min-w-0 flex-1 grid grid-cols-2 gap-px rounded-xl overflow-hidden border border-border/70 bg-border/70">
-                {[
-                  { k: "Avg resolution", v: hours(live.avgResolveH), tone: "" },
-                  { k: "Past SLA", v: live.overdue.value, tone: live.overdue.value ? "text-rose-600 dark:text-rose-400" : "" },
-                  { k: "Critical", v: live.critical.value, tone: live.critical.value ? "text-amber-600 dark:text-amber-400" : "" },
-                  { k: "Unassigned", v: live.unassignedOpen, tone: "" },
-                ].map((m) => (
-                  <div key={m.k} className="bg-white/90 dark:bg-card px-2.5 py-2">
-                    <dt className="text-[9.5px] uppercase tracking-[.12em] text-muted-foreground truncate">{m.k}</dt>
-                    <dd className={cn("mt-0.5 text-[15px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
-                  </div>
-                ))}
-              </dl>
+              <FlowChart days={live.trend} />
             </div>
-            <button onClick={() => setDrill("overdue")} className="group mt-3.5 inline-flex items-center gap-1 self-start text-[11.5px] font-medium text-muted-foreground hover:text-primary transition-colors">
-              See what&apos;s at risk
-              <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-            </button>
+
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Due next</div>
+              <button onClick={() => setDrill("overdue")} className="group inline-flex items-center gap-0.5 text-[10.5px] font-medium text-muted-foreground hover:text-primary transition-colors">
+                {live.overdue.value ? <span className="text-rose-600 dark:text-rose-400 tabular-nums">{live.overdue.value} past SLA</span> : "Nothing past SLA"}
+                <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </div>
+            <ul className="mt-1.5 divide-y divide-border/60 rounded-xl border border-border/70 bg-white/90 dark:bg-card overflow-hidden">
+              {pulse.dueNext.length === 0 ? (
+                <li className="px-3 py-2.5 text-[11.5px] text-muted-foreground">No SLA deadlines in the next 24 hours.</li>
+              ) : pulse.dueNext.map((t) => {
+                const mins = Math.max(0, Math.round((+new Date(t.slaResolutionTarget!) - now) / 60000));
+                const urgent = mins < 120;
+                return (
+                  <li key={t.id}>
+                    <button onClick={() => { selectTicket(t.id); setCurrentView("all_tickets"); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-muted/50 transition-colors">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", urgent ? "bg-rose-500" : "bg-amber-500")} />
+                      <span className="text-[10.5px] font-mono text-muted-foreground shrink-0">{t.ticketId}</span>
+                      <span className="text-[11.5px] truncate flex-1">{t.title}</span>
+                      <span className={cn("text-[10.5px] font-semibold tabular-nums shrink-0", urgent ? "text-rose-600 dark:text-rose-400" : "text-foreground/80")}>
+                        {mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <dl className="mt-3.5 grid grid-cols-3 divide-x divide-border/70 text-center">
+              {[
+                { k: "At risk", v: pulse.atRisk, tone: pulse.atRisk ? "text-amber-600 dark:text-amber-400" : "" },
+                { k: "Oldest open", v: pulse.oldestH === null ? "-" : hours(pulse.oldestH), tone: "" },
+                { k: "Net today", v: pulse.net > 0 ? `+${pulse.net}` : String(pulse.net), tone: pulse.net > 0 ? "text-rose-600 dark:text-rose-400" : pulse.net < 0 ? "text-emerald-600 dark:text-emerald-400" : "" },
+              ].map((m) => (
+                <div key={m.k} className="px-2">
+                  <dt className="text-[9.5px] uppercase tracking-[.14em] text-muted-foreground">{m.k}</dt>
+                  <dd className={cn("mt-0.5 text-[15px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
 
@@ -284,7 +310,6 @@ export function OverviewView() {
         </div>
 
         <style>{`
-          @keyframes hero-ring { from { stroke-dashoffset: 364.4; } to { stroke-dashoffset: 0; } }
           .ovh-grid {
             background-image: linear-gradient(to right, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px),
                               linear-gradient(to bottom, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px);
@@ -662,5 +687,26 @@ function Spark({ values }: { values: number[] }) {
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="mb-0.5 overflow-visible" aria-hidden>
       <polyline points={pts} fill="none" stroke="var(--primary)" strokeWidth="1.25" strokeLinejoin="round" strokeLinecap="round" opacity="0.8" />
     </svg>
+  );
+}
+
+/** 14-day raised vs resolved columns for the service level panel. */
+function FlowChart({ days }: { days: { day: string; created: number; resolved: number }[] }) {
+  const max = Math.max(1, ...days.flatMap((d) => [d.created, d.resolved]));
+  return (
+    <div className="shrink-0 text-right">
+      <div className="flex items-end gap-[3px] h-10" aria-hidden>
+        {days.map((d) => (
+          <div key={d.day} className="flex items-end gap-px" title={`${d.day}: ${d.created} raised, ${d.resolved} resolved`}>
+            <span className="w-[3px] rounded-t-sm bg-foreground/20" style={{ height: `${Math.max(2, (d.created / max) * 40)}px` }} />
+            <span className="w-[3px] rounded-t-sm bg-primary" style={{ height: `${Math.max(2, (d.resolved / max) * 40)}px` }} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex justify-end gap-2.5 text-[9px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-foreground/20" />Raised</span>
+        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-primary" />Resolved</span>
+      </div>
+    </div>
   );
 }
