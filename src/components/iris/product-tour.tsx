@@ -19,6 +19,7 @@ import { useUserCollections } from "@/lib/iris/user-collections";
 type Task =
   | { kind: "view"; view: ViewName; hint: string }
   | { kind: "demo"; hint: string }
+  | { kind: "resolve"; hint: string }
   | { kind: "palette"; hint: string };
 
 type Step = {
@@ -32,7 +33,8 @@ type Step = {
   title: string;
   body: string;
   task?: Task;
-  demo?: boolean;
+  /** Illustration shown inside the card. */
+  visual?: "intake" | "chat" | "resolve" | "recurrence";
   cta?: string;
 };
 
@@ -51,34 +53,44 @@ const STEPS: Step[] = [
     target: "nav-overview",
     view: "overview",
     eyebrow: "Home base",
-    title: "Your studio's pulse",
-    body: "Open, urgent and past-SLA tickets for your studio, what's due next, and what's being raised most. Your morning chai companion ☕",
+    title: "Your studio at a glance",
+    body: "What's open, what's urgent and what's due next. One look and you're in the know 👀",
   },
   {
     id: "open-ai",
     emoji: "🤖",
     target: "nav-ai_assistant",
-    eyebrow: "Your turn · 1 of 4",
+    eyebrow: "Your turn · 1 of 6",
     title: "Meet your new sidekick",
-    body: "No more hunting for forms. Tell IRIS what happened in plain words and it does the rest.",
-    task: { kind: "view", view: "ai_assistant", hint: "Click AI Assistant (or Tab to it and press Enter)" },
+    body: "Just tell IRIS what happened, the way you'd tell a friend. It takes it from there 💬",
+    task: { kind: "view", view: "ai_assistant", hint: "Click AI Assistant to continue" },
+  },
+  {
+    id: "chat",
+    emoji: "💬",
+    view: "ai_assistant",
+    eyebrow: "Your turn · 2 of 6",
+    title: "Three things you can ask IRIS",
+    body: "Report a problem, ask a question, or ask it to dig deeper. Plain words work best. Tap a bubble to see what IRIS does with it 👇",
+    visual: "chat",
+    task: { kind: "demo", hint: "Tap any example bubble" },
   },
   {
     id: "demo",
     emoji: "🧾",
-    eyebrow: "Your turn · 2 of 4",
+    eyebrow: "Your turn · 3 of 6",
     title: "Watch IRIS do the heavy lifting",
-    body: "Someone sent the message below. IRIS picked the category, owner and SLA, pre-filled what it could, and asks only what an AC fault needs. Answer the glowing question ✨",
-    demo: true,
+    body: "Here's a sample report. IRIS sorted it, picked who fixes it and set a deadline, all on its own. It only asks what it still needs. Try answering the glowing question ✨",
+    visual: "intake",
     task: { kind: "demo", hint: "Answer “Members complained?”" },
   },
   {
     id: "open-tickets",
     emoji: "🎟️",
     target: "nav-all_tickets",
-    eyebrow: "Your turn · 3 of 4",
+    eyebrow: "Your turn · 4 of 6",
     title: "Every ticket, one place",
-    body: "Search, filter, group and act on tickets in bulk.",
+    body: "Search, filter and sort every ticket. Nothing hides from you here 🔍",
     task: { kind: "view", view: "all_tickets", hint: "Open All Tickets" },
   },
   {
@@ -88,14 +100,31 @@ const STEPS: Step[] = [
     view: "all_tickets",
     eyebrow: "Brand new",
     title: "Saved views",
-    body: "Set up the filters you use daily (like breached P0s at your studio), save them here, and bring them back in one click. Like a speed-dial for tickets 📞",
+    body: "Set your filters once, save them, and open them in one click next time. Less clicking, more doing 🙌",
+  },
+  {
+    id: "resolve",
+    emoji: "✅",
+    eyebrow: "Your turn · 5 of 6",
+    title: "Closing the loop",
+    body: "Fixed it? Open the ticket and hit Mark Resolved. IRIS asks for a short summary of what you did, so everyone knows how it ended. Give it a go 👇",
+    visual: "resolve",
+    task: { kind: "resolve", hint: "Mark the sample ticket resolved" },
+  },
+  {
+    id: "recurrence",
+    emoji: "🔁",
+    eyebrow: "Fixed means fixed",
+    title: "Recurrence checks",
+    body: "When a PowerCycle bike or a mic is fixed, IRIS doesn't just take our word for it. It sets up two follow-up checks to make sure the fault stays gone.",
+    visual: "recurrence",
   },
   {
     id: "palette",
     emoji: "⚡",
-    eyebrow: "Your turn · 4 of 4",
+    eyebrow: "Your turn · 6 of 6",
     title: "Find anything, instantly",
-    body: "Tickets, members, templates and articles from anywhere in IRIS. Faster than finding the last box of kaju katli 🍬",
+    body: "Looking for a ticket, member or template? One shortcut finds it, from anywhere ⚡",
     task: { kind: "palette", hint: "Press ⌘K (Ctrl K on Windows)" },
   },
   {
@@ -104,7 +133,7 @@ const STEPS: Step[] = [
     target: "member-360",
     eyebrow: "Know your members",
     title: "Member 360",
-    body: "A member's Momence profile, memberships, visits and past tickets, all before you reply.",
+    body: "Everything about a member in one place: visits, memberships and past tickets. Know them before you reply 🤝",
   },
   {
     id: "templates",
@@ -113,7 +142,7 @@ const STEPS: Step[] = [
     view: "templates",
     eyebrow: "Shortcuts",
     title: "Templates & drafts",
-    body: "Hundreds of ready-made forms. Got interrupted mid-way? Save a draft (up to three) and pick up later.",
+    body: "Ready-made forms for common issues. Got interrupted? Save a draft and finish later. IRIS will wait 😌",
   },
   {
     id: "escalations",
@@ -121,7 +150,7 @@ const STEPS: Step[] = [
     target: "nav-escalations",
     eyebrow: "Nothing slips",
     title: "Escalations",
-    body: "Breached and escalated tickets gather here, and owners get nudged automatically.",
+    body: "Overdue tickets land here, and IRIS nudges their owners for you. No chasing needed 🏃",
   },
   {
     id: "notifications",
@@ -129,14 +158,14 @@ const STEPS: Step[] = [
     target: "notifications",
     eyebrow: "Stay in the loop",
     title: "Notifications",
-    body: "Assignments, mentions, nudges and SLA warnings, all in one place.",
+    body: "New tickets for you, mentions and reminders all ping here. You won't miss a thing 🔔",
   },
   {
     id: "done",
     emoji: "🎆",
     eyebrow: "That's a wrap",
     title: "Shubh Deepavali! 🎇",
-    body: "You're all set. Report issues from AI Assistant or the New issue button, and send ideas through the feedback button at the top. May your tickets be few and your SLAs always green 💚",
+    body: "You're all set! Spot an issue? Tell IRIS. Have an idea? Hit the feedback button. Wishing you a bright Diwali and very few tickets 💛",
     cta: "Start using IRIS 🚀",
   },
 ];
@@ -179,6 +208,9 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
   const [index, setIndex] = React.useState(0);
   const [doneTasks, setDoneTasks] = React.useState<Record<string, boolean>>({});
   const [demoAnswer, setDemoAnswer] = React.useState<string | null>(null);
+  const [chatPick, setChatPick] = React.useState<number | null>(null);
+  const [resolved, setResolved] = React.useState(false);
+  const [finale, setFinale] = React.useState(0);
   const [burst, setBurst] = React.useState(0);
   const cardRef = React.useRef<HTMLDivElement>(null);
 
@@ -199,14 +231,27 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
     const done =
       (t.kind === "view" && currentView === t.view) ||
       (t.kind === "palette" && paletteOpen) ||
-      (t.kind === "demo" && demoAnswer !== null);
+      (t.kind === "demo" && (step.visual === "chat" ? chatPick !== null : demoAnswer !== null)) ||
+      (t.kind === "resolve" && resolved);
     if (!done) return;
     const id = window.requestAnimationFrame(() => {
       setDoneTasks((d) => ({ ...d, [step.id]: true }));
       setBurst((b) => b + 1);
     });
     return () => window.cancelAnimationFrame(id);
-  }, [active, step, currentView, paletteOpen, demoAnswer, doneTasks]);
+  }, [active, step, currentView, paletteOpen, demoAnswer, chatPick, resolved, doneTasks]);
+
+  // Diwali accent while the tour runs; the app's own (random or pinned) accent comes back after.
+  React.useEffect(() => {
+    if (!active) return;
+    const root = document.documentElement;
+    const previous = root.getAttribute("data-accent");
+    root.setAttribute("data-accent", "diwali");
+    return () => {
+      if (previous) root.setAttribute("data-accent", previous);
+      else root.removeAttribute("data-accent");
+    };
+  }, [active]);
 
   const rect = useTargetRect(active ? step.target : undefined, currentView);
   const hidden = paletteOpen && step.task?.kind === "palette";
@@ -240,7 +285,7 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
     return () => window.cancelAnimationFrame(id);
   }, [active, hidden, index, taskDone]);
 
-  if (!active) return null;
+  if (!active) return finale ? <Fireworks key={finale} onDone={() => setFinale(0)} /> : null;
 
   const isFirst = index === 0;
   const isLast = index === STEPS.length - 1;
@@ -248,6 +293,7 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
 
   const next = () => {
     if (isLast) {
+      setFinale(Date.now());
       void completeTour();
       setCurrentView("overview");
       return;
@@ -302,6 +348,10 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
         targetMissing={!hole}
         demoAnswer={demoAnswer}
         onDemoAnswer={setDemoAnswer}
+        chatPick={chatPick}
+        onChatPick={setChatPick}
+        resolved={resolved}
+        onResolve={() => setResolved(true)}
         onDoTask={() => {
           if (step.task?.kind === "view") setCurrentView(step.task.view);
           else if (step.task?.kind === "palette") openPalette();
@@ -334,6 +384,10 @@ function TourCard({
   targetMissing,
   demoAnswer,
   onDemoAnswer,
+  chatPick,
+  onChatPick,
+  resolved,
+  onResolve,
   onDoTask,
   onBack,
   onNext,
@@ -349,6 +403,10 @@ function TourCard({
   targetMissing: boolean;
   demoAnswer: string | null;
   onDemoAnswer: (v: string) => void;
+  chatPick: number | null;
+  onChatPick: (i: number) => void;
+  resolved: boolean;
+  onResolve: () => void;
   onDoTask: () => void;
   onBack: () => void;
   onNext: () => void;
@@ -381,7 +439,7 @@ function TourCard({
     if (hole.x + hole.w + gap + cw < vw && hole.w < 320) set({ left: px(hole.x + hole.w + gap), top: px(clampY(hole.y + hole.h / 2 - ch / 2)) });
     else if (hole.y + hole.h + gap + ch < vh) set({ left: px(clampX(hole.x + hole.w / 2 - cw / 2)), top: px(hole.y + hole.h + gap) });
     else set({ left: px(clampX(hole.x + hole.w / 2 - cw / 2)), top: px(clampY(hole.y - gap - ch)) });
-  }, [hole, step.id, cardRef, demoAnswer]);
+  }, [hole, step.id, cardRef, demoAnswer, chatPick, resolved]);
 
   const t = step.task;
   return (
@@ -395,7 +453,7 @@ function TourCard({
       className={cn(
         "iris-tour-card absolute pointer-events-auto overflow-hidden rounded-3xl border border-amber-400/30 bg-card text-card-foreground",
         "shadow-[0_30px_80px_-20px_rgba(251,146,60,.45),0_0_0_1px_rgba(255,255,255,.04)] transition-[left,top] duration-300 ease-out",
-        step.demo ? "w-[min(540px,calc(100vw-24px))] max-h-[calc(100vh-24px)] overflow-y-auto" : big ? "w-[min(460px,calc(100vw-24px))]" : "w-[min(370px,calc(100vw-24px))]",
+        step.visual ? "w-[min(540px,calc(100vw-24px))] max-h-[calc(100vh-24px)] overflow-y-auto" : big ? "w-[min(460px,calc(100vw-24px))]" : "w-[min(370px,calc(100vw-24px))]",
       )}
       style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
     >
@@ -405,15 +463,17 @@ function TourCard({
         className="pointer-events-none absolute inset-0"
         style={{ background: "radial-gradient(120% 70% at 100% 0%, rgba(251,146,60,.18), transparent 60%), radial-gradient(90% 60% at 0% 100%, rgba(236,72,153,.12), transparent 60%)" }}
       />
+      <Toran />
+      <Rangoli className={cn("pointer-events-none absolute opacity-[.16] dark:opacity-[.22] iris-tour-spin", big ? "-right-14 -bottom-14 h-56 w-56" : "-right-10 -bottom-10 h-36 w-36")} />
       {big && (
-        <div aria-hidden className="pointer-events-none absolute top-2 inset-x-0 flex justify-around text-[15px] opacity-90">
+        <div aria-hidden className="pointer-events-none absolute top-5 inset-x-0 flex justify-around text-[15px] opacity-90">
           {["🪔", "✨", "🪔", "✨", "🪔"].map((c, i) => (
             <span key={i} className="iris-tour-float" style={{ animationDelay: `${i * 0.25}s` }}>{c}</span>
           ))}
         </div>
       )}
 
-      <div className={cn("relative", big ? "p-6 pt-10" : "p-5")}>
+      <div className={cn("relative", big ? "p-6 pt-12" : "p-5 pt-7")}>
         <div className="flex items-start gap-3">
           <div
             aria-hidden
@@ -470,7 +530,10 @@ function TourCard({
           </button>
         )}
 
-        {step.demo && <DemoIntake answer={demoAnswer} onAnswer={onDemoAnswer} />}
+        {step.visual === "intake" && <DemoIntake answer={demoAnswer} onAnswer={onDemoAnswer} />}
+        {step.visual === "chat" && <DemoChat pick={chatPick} onPick={onChatPick} />}
+        {step.visual === "resolve" && <DemoResolve resolved={resolved} onResolve={onResolve} />}
+        {step.visual === "recurrence" && <DemoRecurrence />}
 
         <div className="mt-5 flex items-center gap-3">
           <Diyas index={index} total={STEPS.length} />
@@ -572,12 +635,19 @@ function Confetti({ active }: { active: boolean }) {
 function TourStyles() {
   return (
     <style>{`
+      :root[data-accent="diwali"] {
+        --primary: #f97316; --ring: #f97316; --accent-foreground: #ea580c;
+        --sidebar-primary: #f97316; --sidebar-accent-foreground: #f97316; --sidebar-ring: #f97316;
+        --iris-hero-from: #f59e0b; --iris-hero-to: #e11d48;
+      }
+      @keyframes iris-tour-twinkle-soft { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
       @keyframes iris-tour-in { from { opacity: 0; translate: 0 10px; scale: .97 } to { opacity: 1; translate: 0 0; scale: 1 } }
       @keyframes iris-tour-pop { 0% { scale: .6; rotate: -12deg } 60% { scale: 1.12; rotate: 6deg } 100% { scale: 1; rotate: 0deg } }
       @keyframes iris-tour-float { 0%,100% { translate: 0 0 } 50% { translate: 0 -5px } }
       @keyframes iris-tour-twinkle { 0%,100% { opacity: 0; scale: .5 } 50% { opacity: .95; scale: 1 } }
       @keyframes iris-tour-flicker { 0%,100% { filter: drop-shadow(0 0 2px #f59e0b) } 50% { filter: drop-shadow(0 0 6px #fb923c) } }
       @keyframes iris-tour-ring { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
+      @keyframes iris-tour-spin { to { rotate: 360deg } }
       @keyframes iris-tour-point { 0%,100% { translate: 0 0 } 50% { translate: -4px -4px } }
       @keyframes iris-tour-burst { 0% { opacity: 1; transform: translate(-50%,-50%) scale(.4) } 100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.1) rotate(25deg) } }
       @media (prefers-reduced-motion: no-preference) {
@@ -587,6 +657,8 @@ function TourStyles() {
         .iris-tour-twinkle { animation: iris-tour-twinkle 2.8s ease-in-out infinite }
         .iris-tour-flicker { display: inline-block; animation: iris-tour-flicker 1.4s ease-in-out infinite }
         .iris-tour-ring-pulse, .iris-tour-glow-pulse { animation: iris-tour-ring 1.3s ease-in-out infinite }
+        .iris-tour-twinkle-soft { animation: iris-tour-twinkle-soft 1.6s ease-in-out infinite }
+        .iris-tour-spin { animation: iris-tour-spin 60s linear infinite }
         .iris-tour-point { animation: iris-tour-point 1s ease-in-out infinite }
         .iris-tour-burst { animation: iris-tour-burst .9s cubic-bezier(.2,.7,.3,1) forwards }
       }
@@ -661,6 +733,297 @@ function DemoIntake({ answer, onAnswer }: { answer: string | null; onAnswer: (v:
             🔒 The ticket draft unlocks once every * answer is in. &ldquo;Don&apos;t know&rdquo; counts too.
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Illustrations ─────────────────────────────────────────────────────────────
+
+const CHAT_EXAMPLES = [
+  {
+    tag: "Report",
+    you: "Bike 7 at Bandra keeps squeaking 😩",
+    iris: "Logged it! 🛠️ PowerCycle bike repair, sent to Facilities, due in 1 day. I'll ask only for what's missing, like the bike number and whether it's still usable.",
+  },
+  {
+    tag: "Ask",
+    you: "How many tickets are open at Kwality House?",
+    iris: "4 open right now 📊 1 urgent, 2 due today, 1 waiting on a vendor. Want me to list them?",
+  },
+  {
+    tag: "Dig deeper",
+    you: "Why do the mics keep failing at Kemps?",
+    iris: "I checked past tickets 🔎 3 mic faults in 30 days, all the same headset, all after 7pm classes. Likely battery. Shall I raise a ticket to replace it?",
+  },
+];
+
+/** Three example prompts; tapping one shows how IRIS replies. Nothing is sent anywhere. */
+function DemoChat({ pick, onPick }: { pick: number | null; onPick: (i: number) => void }) {
+  const ex = pick === null ? null : CHAT_EXAMPLES[pick];
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="grid gap-1.5">
+        {CHAT_EXAMPLES.map((c, i) => (
+          <button
+            key={c.tag}
+            onClick={() => onPick(i)}
+            className={cn(
+              "group flex items-center gap-2 rounded-2xl border px-3 py-2 text-left text-[12.5px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400",
+              pick === i ? "border-amber-500 bg-amber-500/10 shadow-sm" : "border-border hover:border-amber-400/60 hover:-translate-y-px",
+              pick === null && "iris-tour-glow-pulse",
+            )}
+          >
+            <span className="shrink-0 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-white">{c.tag}</span>
+            <span className="truncate">“{c.you}”</span>
+          </button>
+        ))}
+      </div>
+      {ex && (
+        <div key={pick} className="rounded-2xl border border-border bg-background/70 p-3 space-y-2 iris-tour-card">
+          <div className="flex justify-end">
+            <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary text-primary-foreground px-3 py-2 text-[12px]">{ex.you}</div>
+          </div>
+          <div className="flex items-end gap-2">
+            <div className="h-6 w-6 shrink-0 grid place-items-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-[11px] text-white font-bold">I</div>
+            <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-[12px] leading-relaxed">{ex.iris}</div>
+          </div>
+        </div>
+      )}
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11.5px] text-muted-foreground">
+        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">➕ Keep typing to add details. IRIS updates the report as you go.</li>
+        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">👤 Mention a member and pick them from Momence.</li>
+        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">🔍 &ldquo;Investigate with AI&rdquo; checks past tickets and workload.</li>
+        <li className="rounded-xl bg-muted/50 px-2.5 py-1.5">📤 Export the chat whenever you need a record.</li>
+      </ul>
+    </div>
+  );
+}
+
+/** A make-believe ticket you can resolve. Nothing is saved. */
+function DemoResolve({ resolved, onResolve }: { resolved: boolean; onResolve: () => void }) {
+  const [open, setOpen] = React.useState(false);
+  const [note, setNote] = React.useState("Replaced the headset battery and tested the mic for a full class. Working fine.");
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-background/70 overflow-hidden">
+      <div className="px-3 py-2.5 border-b border-border flex items-center gap-2">
+        <span className="text-[10.5px] font-mono text-muted-foreground">TKT-1042</span>
+        <span className="text-[12.5px] font-semibold truncate">Headset mic crackling in Studio 2</span>
+        <span
+          className={cn(
+            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold transition-colors",
+            resolved ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+          )}
+        >
+          {resolved ? "Resolved ✓" : "In progress"}
+        </span>
+      </div>
+      <div className="p-3 space-y-2.5">
+        {!resolved && !open && (
+          <button
+            onClick={() => setOpen(true)}
+            className="iris-tour-glow-pulse inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 text-white text-[12px] font-semibold hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          >
+            <Check className="w-3.5 h-3.5" />Mark Resolved
+          </button>
+        )}
+        {!resolved && open && (
+          <div className="space-y-2 iris-tour-card">
+            <label className="block text-[11px] font-medium" htmlFor="iris-tour-resolution">
+              What did you do? <span className="text-rose-500">*</span>
+              <span className="font-normal text-muted-foreground"> (required, everyone involved can see it)</span>
+            </label>
+            <textarea
+              id="iris-tour-resolution"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+            />
+            <button
+              onClick={onResolve}
+              disabled={!note.trim()}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 text-white text-[12px] font-semibold disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <Check className="w-3.5 h-3.5" />Resolve ticket
+            </button>
+          </div>
+        )}
+        {resolved && (
+          <div className="space-y-1.5 text-[12px] iris-tour-card">
+            <div className="rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-emerald-800 dark:text-emerald-200">📝 {note}</div>
+            <div className="text-muted-foreground">🎯 The reporter is notified. It&apos;s a mic, so IRIS has also booked follow-up checks. More on that next 👉</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Timeline of the bike / mic recurrence protocol. */
+function DemoRecurrence() {
+  const nodes = [
+    { day: "Day 0", label: "Resolved", emoji: "✅", cls: "from-emerald-400 to-emerald-600" },
+    { day: "Day 5", label: "Check #1", emoji: "🔍", cls: "from-amber-400 to-orange-500" },
+    { day: "Day 10", label: "Check #2", emoji: "🔍", cls: "from-orange-400 to-rose-500" },
+  ];
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="relative rounded-2xl border border-border bg-background/70 px-3 pt-4 pb-3">
+        <div aria-hidden className="absolute left-[16%] right-[16%] top-[34px] h-[3px] rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 opacity-70" />
+        <div className="relative grid grid-cols-3 text-center">
+          {nodes.map((n, i) => (
+            <div key={n.day} className="flex flex-col items-center gap-1">
+              <div className={cn("h-9 w-9 grid place-items-center rounded-full bg-gradient-to-br text-[16px] shadow-md ring-4 ring-card iris-tour-pop", n.cls)} style={{ animationDelay: `${i * 0.15}s` }}>
+                {n.emoji}
+              </div>
+              <div className="text-[11.5px] font-semibold">{n.label}</div>
+              <div className="text-[10.5px] text-muted-foreground">{n.day}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11.5px]">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5">
+          <div className="font-semibold text-emerald-700 dark:text-emerald-300">✅ No recurrence</div>
+          <div className="mt-0.5 text-muted-foreground">Check closes and the next one is lined up. Two passes and you&apos;re done.</div>
+        </div>
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5">
+          <div className="font-semibold text-rose-700 dark:text-rose-300">↩️ Fault returned</div>
+          <div className="mt-0.5 text-muted-foreground">The original ticket reopens and the remaining checks are cancelled.</div>
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        📅 Each check turns into a ticket only on its due day, so your queue stays clean. Only bikes and mics get checks; everything else just closes.
+      </p>
+    </div>
+  );
+}
+
+/** Decorative rangoli, drawn in SVG so it stays crisp and theme-friendly. */
+function Rangoli({ className }: { className?: string }) {
+  const petals = Array.from({ length: 12 }, (_, i) => i * 30);
+  return (
+    <svg viewBox="-50 -50 100 100" aria-hidden className={className}>
+      <g fill="none" strokeWidth="1.4">
+        {petals.map((a) => (
+          <path key={a} d="M0 -8 C 7 -18, 7 -30, 0 -42 C -7 -30, -7 -18, 0 -8 Z" transform={`rotate(${a})`} stroke="#f59e0b" fill="rgba(251,146,60,.12)" />
+        ))}
+        {petals.map((a) => (
+          <circle key={`d${a}`} cx="0" cy="-46" r="1.8" transform={`rotate(${a + 15})`} fill="#e11d48" stroke="none" />
+        ))}
+        <circle r="13" stroke="#e11d48" fill="rgba(225,29,72,.08)" />
+        <circle r="6" stroke="#f59e0b" fill="rgba(245,158,11,.35)" />
+      </g>
+    </svg>
+  );
+}
+
+/** A string of festive lights across the top of the card. */
+function Toran() {
+  const colors = ["#f59e0b", "#e11d48", "#22c55e", "#f97316", "#a855f7", "#facc15"];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-6">
+      <svg viewBox="0 0 400 24" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+        <path d="M0 2 Q 100 18 200 6 T 400 2" fill="none" stroke="currentColor" strokeOpacity=".25" strokeWidth="1" className="text-foreground" />
+      </svg>
+      <div className="absolute inset-x-3 top-1 flex justify-between">
+        {Array.from({ length: 14 }, (_, i) => (
+          <span
+            key={i}
+            className="h-2 w-2 rounded-full iris-tour-twinkle-soft"
+            style={{
+              background: colors[i % colors.length],
+              boxShadow: `0 0 8px ${colors[i % colors.length]}`,
+              marginTop: `${Math.round(6 * Math.sin((i / 13) * Math.PI))}px`,
+              animationDelay: `${(i % 5) * 0.3}s`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Two confetti cannons from the bottom corners, played once when the tour ends. */
+function Fireworks({ onDone }: { onDone: () => void }) {
+  React.useEffect(() => {
+    const id = window.setTimeout(onDone, 3600);
+    return () => window.clearTimeout(id);
+  }, [onDone]);
+  const colors = ["#f59e0b", "#f97316", "#e11d48", "#facc15", "#ec4899", "#fde68a", "#ffffff", "#a855f7", "#22c55e"];
+  // Deterministic pseudo-random so the render stays pure.
+  const rnd = (n: number) => {
+    const x = Math.sin(n * 9301 + 49297) * 233280;
+    return x - Math.floor(x);
+  };
+  const pieces = (side: "left" | "right") =>
+    Array.from({ length: 80 }, (_, i) => {
+      const seed = i + (side === "left" ? 0 : 1000);
+      const angle = (-70 + rnd(seed) * 45) * (Math.PI / 180); // up and inwards
+      const power = 420 + rnd(seed + 1) * 520;
+      // Left cannon fires up-and-right, right cannon up-and-left.
+      const dx = Math.cos(angle) * power * 0.55 * (side === "left" ? 1 : -1);
+      const dy = Math.sin(angle) * power;
+      return {
+        key: `${side}${i}`,
+        side,
+        color: colors[Math.floor(rnd(seed + 2) * colors.length)],
+        w: 6 + rnd(seed + 3) * 6,
+        h: rnd(seed + 4) > 0.5 ? 6 + rnd(seed + 5) * 10 : 6 + rnd(seed + 3) * 6,
+        round: rnd(seed + 6) > 0.6,
+        delay: rnd(seed + 7) * 0.25,
+        dur: 2.2 + rnd(seed + 8) * 1.2,
+        spin: (rnd(seed + 9) > 0.5 ? 1 : -1) * (360 + rnd(seed + 10) * 720),
+        dx,
+        dy,
+      };
+    });
+  return (
+    <div aria-hidden className="fixed inset-0 z-[95] pointer-events-none overflow-hidden">
+      <style>{`
+        @keyframes iris-cannon {
+          0%   { opacity: 1; transform: translate(0,0) rotate(0deg) }
+          45%  { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(calc(var(--spin) * .5)) }
+          100% { opacity: 0; transform: translate(calc(var(--dx) * 1.25), calc(var(--dy) + 340px)) rotate(var(--spin)) }
+        }
+        @keyframes iris-flash { 0% { opacity: 0; scale: .2 } 30% { opacity: 1 } 100% { opacity: 0; scale: 1.6 } }
+        @media (prefers-reduced-motion: reduce) { .iris-cannon-piece, .iris-flash { display: none } }
+      `}</style>
+      {(["left", "right"] as const).map((side) => (
+        <div
+          key={side}
+          className="iris-flash absolute bottom-[-60px] h-40 w-40 rounded-full"
+          style={{
+            [side]: "-40px",
+            background: "radial-gradient(circle, rgba(253,230,138,.9), rgba(249,115,22,.35) 45%, transparent 70%)",
+            animation: "iris-flash .9s ease-out forwards",
+          }}
+        />
+      ))}
+      {[...pieces("left"), ...pieces("right")].map((p) => (
+        <span
+          key={p.key}
+          className="iris-cannon-piece absolute bottom-0"
+          style={
+            {
+              [p.side]: "2vw",
+              width: p.w,
+              height: p.h,
+              background: p.color,
+              borderRadius: p.round ? "9999px" : "2px",
+              boxShadow: `0 0 6px ${p.color}`,
+              "--dx": `${p.dx}px`,
+              "--dy": `${p.dy}px`,
+              "--spin": `${p.spin}deg`,
+              animation: `iris-cannon ${p.dur}s cubic-bezier(.15,.65,.35,1) ${p.delay}s forwards`,
+              opacity: 0,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+      <div className="absolute inset-x-0 top-[18%] text-center text-[44px] iris-tour-card" style={{ animation: "iris-flash 2.6s ease-out forwards" }}>
+        🎆🪔🎆
       </div>
     </div>
   );
