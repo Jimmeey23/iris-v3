@@ -68,6 +68,7 @@ import { SlaBreachBanner } from "./sla-breach-banner";
 import { RouteSync } from "./route-sync";
 import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
 import { Member360Lookup } from "./member-360";
+import { OnlineUsers } from "./online-users";
 
 interface NavItem {
   id: ViewName;
@@ -96,6 +97,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "email_templates", label: "Emails", icon: Mail, group: "config" },
   { id: "settings", label: "Settings", icon: Settings, group: "config" },
 ];
+const VIEW_LABELS: Record<string, string> = Object.fromEntries(NAV_ITEMS.map((n) => [n.id, n.label]));
 
 const NAV_GROUPS: { id: NavItem["group"]; label?: string }[] = [
   { id: "main" },
@@ -587,6 +589,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </PopoverContent>
           </Popover>
           </div>
+          <OnlineUsers labels={VIEW_LABELS} />
 
           {/* Account menu */}
           <Popover>
