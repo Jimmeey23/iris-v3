@@ -257,10 +257,15 @@ export function OverviewView() {
                   <div className="h-full rounded-full bg-primary" style={{ width: `${slaCompliance}%`, transition: "width 1.2s cubic-bezier(.16,1,.3,1)" }} />
                 </div>
               </div>
-              <FlowChart days={live.trend} />
+              <div className="text-right text-[10px] text-muted-foreground leading-relaxed">
+                <div className="uppercase tracking-[.16em]">14 days</div>
+                <div className="flex items-center justify-end gap-1.5"><span className="w-2.5 h-[2px] rounded bg-foreground/35" />Raised <b className="text-foreground tabular-nums font-semibold">{live.trend.reduce((n, d) => n + d.created, 0)}</b></div>
+                <div className="flex items-center justify-end gap-1.5"><span className="w-2.5 h-[2px] rounded bg-primary" />Resolved <b className="text-foreground tabular-nums font-semibold">{live.trend.reduce((n, d) => n + d.resolved, 0)}</b></div>
+              </div>
             </div>
+            <FlowChart days={live.trend} />
 
-            <div className="mt-4 flex items-center justify-between">
+            <div className="mt-3 flex items-center justify-between">
               <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Due next</div>
               <button onClick={() => setDrill("overdue")} className="group inline-flex items-center gap-0.5 text-[10.5px] font-medium text-muted-foreground hover:text-primary transition-colors">
                 {live.overdue.value ? <span className="text-rose-600 dark:text-rose-400 tabular-nums">{live.overdue.value} past SLA</span> : "Nothing past SLA"}
@@ -289,15 +294,20 @@ export function OverviewView() {
               })}
             </ul>
 
-            <dl className="mt-3.5 grid grid-cols-3 divide-x divide-border/70 text-center">
+            <dl className="mt-3 grid grid-cols-4 gap-px rounded-xl overflow-hidden border border-border/70 bg-border/70">
               {[
+                { k: "Open", v: live.open.value, tone: "" },
+                { k: "Past SLA", v: live.overdue.value, tone: live.overdue.value ? "text-rose-600 dark:text-rose-400" : "" },
                 { k: "At risk", v: pulse.atRisk, tone: pulse.atRisk ? "text-amber-600 dark:text-amber-400" : "" },
+                { k: "Critical", v: live.critical.value, tone: live.critical.value ? "text-rose-600 dark:text-rose-400" : "" },
+                { k: "Unassigned", v: live.unassignedOpen, tone: live.unassignedOpen ? "text-amber-600 dark:text-amber-400" : "" },
+                { k: "Avg resolve", v: hours(live.avgResolveH), tone: "" },
                 { k: "Oldest open", v: pulse.oldestH === null ? "-" : hours(pulse.oldestH), tone: "" },
                 { k: "Net today", v: pulse.net > 0 ? `+${pulse.net}` : String(pulse.net), tone: pulse.net > 0 ? "text-rose-600 dark:text-rose-400" : pulse.net < 0 ? "text-emerald-600 dark:text-emerald-400" : "" },
               ].map((m) => (
-                <div key={m.k} className="px-2">
-                  <dt className="text-[9.5px] uppercase tracking-[.14em] text-muted-foreground">{m.k}</dt>
-                  <dd className={cn("mt-0.5 text-[15px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
+                <div key={m.k} className="bg-white/90 dark:bg-card px-2 py-1.5">
+                  <dt className="text-[9px] uppercase tracking-[.12em] text-muted-foreground truncate">{m.k}</dt>
+                  <dd className={cn("mt-0.5 text-[14px] font-semibold tabular-nums leading-tight", m.tone)}>{m.v}</dd>
                 </div>
               ))}
             </dl>
@@ -690,22 +700,60 @@ function Spark({ values }: { values: number[] }) {
   );
 }
 
-/** 14-day raised vs resolved columns for the service level panel. */
+/** 14-day raised vs resolved: two 2px lines on one axis, soft area under resolved, crosshair tooltip. */
 function FlowChart({ days }: { days: { day: string; created: number; resolved: number }[] }) {
-  const max = Math.max(1, ...days.flatMap((d) => [d.created, d.resolved]));
+  const [hover, setHover] = React.useState<number | null>(null);
+  const W = 320, H = 76, P = { t: 6, b: 14, l: 0, r: 0 };
+  const max = Math.max(2, ...days.flatMap((d) => [d.created, d.resolved]));
+  const x = (i: number) => P.l + (i / Math.max(1, days.length - 1)) * (W - P.l - P.r);
+  const y = (v: number) => P.t + (1 - v / max) * (H - P.t - P.b);
+  const path = (k: "created" | "resolved") => days.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join("");
+  const base = H - P.b;
+  const area = `${path("resolved")}L${x(days.length - 1)},${base}L${x(0)},${base}Z`;
+  const h = hover === null ? null : days[hover];
   return (
-    <div className="shrink-0 text-right">
-      <div className="flex items-end gap-[3px] h-10" aria-hidden>
-        {days.map((d) => (
-          <div key={d.day} className="flex items-end gap-px" title={`${d.day}: ${d.created} raised, ${d.resolved} resolved`}>
-            <span className="w-[3px] rounded-t-sm bg-foreground/20" style={{ height: `${Math.max(2, (d.created / max) * 40)}px` }} />
-            <span className="w-[3px] rounded-t-sm bg-primary" style={{ height: `${Math.max(2, (d.resolved / max) * 40)}px` }} />
-          </div>
+    <div className="relative mt-2.5">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[76px] overflow-visible" role="img"
+        aria-label="Tickets raised and resolved per day over the last 14 days"
+        onMouseLeave={() => setHover(null)}
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const i = Math.round(((e.clientX - r.left) / r.width) * (days.length - 1));
+          setHover(Math.max(0, Math.min(days.length - 1, i)));
+        }}>
+        <defs>
+          <linearGradient id="ovh-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0.5, 1].map((f) => (
+          <line key={f} x1={0} x2={W} y1={y(max * f)} y2={y(max * f)} stroke="var(--foreground)" strokeOpacity="0.07" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
         ))}
-      </div>
-      <div className="mt-1 flex justify-end gap-2.5 text-[9px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-foreground/20" />Raised</span>
-        <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm bg-primary" />Resolved</span>
+        <line x1={0} x2={W} y1={base} y2={base} stroke="var(--foreground)" strokeOpacity="0.15" vectorEffect="non-scaling-stroke" />
+        <path d={area} fill="url(#ovh-area)" />
+        <path d={path("created")} fill="none" stroke="var(--foreground)" strokeOpacity="0.35" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <path d={path("resolved")} fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {hover !== null && h && (
+          <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={base} stroke="var(--foreground)" strokeOpacity="0.25" vectorEffect="non-scaling-stroke" />
+        )}
+      </svg>
+      {hover !== null && h && (
+        <>
+          {(["created", "resolved"] as const).map((k) => (
+            <span key={k} className={cn("pointer-events-none absolute w-2 h-2 -ml-1 -mt-1 rounded-full ring-2 ring-white dark:ring-card", k === "resolved" ? "bg-primary" : "bg-foreground/45")}
+              style={{ left: `${(x(hover) / W) * 100}%`, top: `${(y(h[k]) / H) * 76}px` }} />
+          ))}
+          <div className="pointer-events-none absolute -top-2 z-10 -translate-y-full rounded-lg border border-border bg-popover px-2.5 py-1.5 text-[10.5px] shadow-md whitespace-nowrap"
+            style={{ left: `${(x(hover) / W) * 100}%`, transform: `translate(${hover > days.length / 2 ? "-100%" : "0"}, -100%)` }}>
+            <div className="font-semibold mb-0.5">{h.day}</div>
+            <div className="flex items-center gap-1.5 text-muted-foreground"><span className="w-2 h-[2px] bg-foreground/45" />Raised <b className="ml-auto pl-3 text-foreground tabular-nums">{h.created}</b></div>
+            <div className="flex items-center gap-1.5 text-muted-foreground"><span className="w-2 h-[2px] bg-primary" />Resolved <b className="ml-auto pl-3 text-foreground tabular-nums">{h.resolved}</b></div>
+          </div>
+        </>
+      )}
+      <div className="flex justify-between text-[9px] text-muted-foreground tabular-nums">
+        <span>{days[0]?.day}</span><span>Today</span>
       </div>
     </div>
   );
