@@ -78,6 +78,8 @@ interface NavItem {
   group: "main" | "intelligence" | "config";
   badge?: () => number;
   adminOnly?: boolean;
+  /** Locked for executives; managers and admins can open it. */
+  managerOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -95,7 +97,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "reports", label: "Reports", icon: FileBarChart, group: "intelligence" },
   { id: "knowledge_base", label: "Knowledge", icon: BookOpen, group: "intelligence" },
   { id: "momence", label: "Momence", icon: Plug, group: "config" },
-  { id: "email_templates", label: "Emails", icon: Mail, group: "config" },
+  { id: "email_templates", label: "Emails", icon: Mail, group: "config", managerOnly: true },
   { id: "settings", label: "Settings", icon: Settings, group: "config" },
 ];
 const VIEW_LABELS: Record<string, string> = Object.fromEntries(NAV_ITEMS.map((n) => [n.id, n.label]));
@@ -293,8 +295,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           >
                             <Icon className={cn("w-[16px] h-[16px] shrink-0", isActive && "text-primary")} />
                             {!sidebarCollapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
-                            {!sidebarCollapsed && item.adminOnly && currentUser.tier !== "admin" && (
-                              <Lock className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-label="Admins only" />
+                            {!sidebarCollapsed && ((item.adminOnly && currentUser.tier !== "admin") || (item.managerOnly && currentUser.tier === "executive")) && (
+                              <Lock className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-label={item.adminOnly ? "Admins only" : "Managers and admins only"} />
                             )}
                             {!sidebarCollapsed && badgeCount != null && badgeCount > 0 && (
                               <span className={cn(

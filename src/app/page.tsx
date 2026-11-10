@@ -21,7 +21,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGate } from "@/components/iris/auth-gate";
 import { Lock } from "lucide-react";
 
-function LockedView({ title }: { title: string }) {
+function LockedView({ title, who = "admins" }: { title: string; who?: string }) {
   return (
     <div className="h-full flex items-center justify-center p-6">
       <div className="iris-card p-8 max-w-sm text-center">
@@ -29,7 +29,7 @@ function LockedView({ title }: { title: string }) {
           <Lock className="w-5 h-5 text-muted-foreground" />
         </div>
         <div className="text-[15px] font-semibold">{title} is locked</div>
-        <p className="text-[12px] text-muted-foreground mt-1">Only admins can open this module. Ask an admin if you need access.</p>
+        <p className="text-[12px] text-muted-foreground mt-1">Only {who} can open this module. Ask an admin if you need access.</p>
       </div>
     </div>
   );
@@ -38,6 +38,7 @@ function LockedView({ title }: { title: string }) {
 export default function Home() {
   const currentView = useAppStore((s) => s.currentView);
   const isAdmin = useAppStore((s) => s.currentUser.tier === "admin");
+  const isExecutive = useAppStore((s) => s.currentUser.tier === "executive");
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -58,7 +59,7 @@ export default function Home() {
         {currentView === "reports" && <ReportsView />}
         {currentView === "knowledge_base" && <KnowledgeBaseView />}
         {currentView === "momence" && <MomenceView />}
-        {currentView === "email_templates" && <EmailTemplatesView />}
+        {currentView === "email_templates" && (isExecutive ? <LockedView title="Emails" who="managers and admins" /> : <EmailTemplatesView />)}
         {currentView === "settings" && <SettingsView />}
       </AppShell>
       </AuthGate>
