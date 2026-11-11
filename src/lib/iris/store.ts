@@ -206,6 +206,8 @@ export interface IntakeState {
   details?: Record<string, string>;
   /** Momence profile, memberships and visits of the picked member. */
   memberSnapshot?: import("./intake-details").MemberSnapshot | null;
+  /** Questions the AI chose when the subcategory has no intake spec. */
+  aiFields?: import("./intake-schema").AiFields | null;
 }
 
 export interface AIMessage {

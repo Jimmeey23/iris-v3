@@ -163,8 +163,6 @@ export const SPECS: Record<string, string[]> = {
   "Housekeeping & Cleaning Issues": S(AMENITY, "cleanIssue", "lastCleaned", "housekeeperOnDuty", "actionsTaken"),
   "Washroom & Plumbing Repairs": S(FAULT, "washroomType", "plumbingIssue"),
   "AC & Ventilation Repairs": S(FAULT, "acUnit", "acIssue", "?roomTemp", "?classesAffected"),
-  // Live taxonomy name for the same issue.
-  "AC and HVAC Issues": S(FAULT, "acUnit", "acIssue", "?roomTemp", "?classesAffected"),
   "Electrical & Power Issues": S(FAULT, "electricalIssue", "classesAffected", "riskNow"),
   "Doors, Locks & Fixture Repairs": S(FAULT, "fixtureName", "doorIssue", "riskNow"),
   "General Studio Repairs & Maintenance": S(FAULT, "equipmentItem", "faultDetail"),
@@ -425,7 +423,69 @@ export const CATEGORY_DEFAULTS: Record<string, string[]> = {
 };
 const GENERIC = S(["studio", "when", "issueDetail", "impact", "reportedBy", "memberImpact", "actionsTaken", "?member"]);
 
-export function specFor(category: string | null, subcategory: string | null): string[] {
-  if (!category) return [];
-  return (subcategory && (SPECS[`${category}|${subcategory}`] ?? SPECS[subcategory])) || CATEGORY_DEFAULTS[category] || GENERIC;
+// ── Resolving a spec for names that aren't an exact key ──────────────────────
+// Live taxonomy names come from ticket history and drift from the spec keys
+// ("AC and HVAC Issues" vs "AC & Ventilation Repairs"), so lookup is layered.
+
+/** "AC & Ventilation Repairs" and "ac and ventilation repairs" compare equal; "(…)" asides are ignored. */
+export const normName = (s: string) =>
+  s.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
+
+let normIndex: Map<string, string> | null = null;
+const byNormName = (key: string) => {
+  normIndex ??= new Map(Object.keys(SPECS).map((k) => [normName(k), k]));
+  return normIndex.get(normName(key));
+};
+
+/**
+ * Key words in a subcategory name that identify the physical thing at fault.
+ * Scoped to the facilities categories so e.g. a "PowerCycle booking" issue
+ * under Scheduling never picks up the bike-repair questions.
+ */
+const FACILITY_CATS = new Set(["Repair and Maintenance", "Studio Amenities and Facilities"].map(normName));
+const KEYWORD_SPECS: Array<[RegExp, string]> = [
+  [/\b(ac|hvac|air ?con(dition(er|ing))?|aircon|ventilation|cooling)\b/, "AC & Ventilation Repairs"],
+  [/\b(bike|bikes|powercycle|cycle)\b/, "PowerCycle Bike Malfunction & Repairs"],
+  [/\b(light|lights|lighting)\b/, "Studio Lighting Malfunction & Repairs"],
+  [/\b(audio|mic|mics|headphone|headphones|speaker|speakers|sound|music)\b/, "Audio, Mic & Headphone Malfunction"],
+  [/\b(washroom|toilet|plumbing|shower|leak|leakage|drain)\b/, "Washroom & Plumbing Repairs"],
+  [/\b(electric|electrical|power|wiring|socket)\b/, "Electrical & Power Issues"],
+  [/\b(door|doors|lock|locks|locker|lockers)\b/, "Doors, Locks & Fixture Repairs"],
+  [/\b(clean|cleaning|housekeeping|hygiene)\b/, "Housekeeping & Cleaning Issues"],
+  // Catch-all last: any other repair/maintenance name.
+  [/\b(repair|repairs|maintenance|broken|fault|faulty)\b/, "General Studio Repairs & Maintenance"],
+];
+const byKeyword = (category: string, subcategory: string) => {
+  if (!FACILITY_CATS.has(normName(category))) return undefined;
+  const n = normName(subcategory);
+  return KEYWORD_SPECS.find(([re, key]) => re.test(n) && SPECS[key])?.[1];
+};
+
+/** Pickers every AI-chosen spec still gets, so a ticket always has where and when. */
+const AI_BASE = ["studio", "?area", "when"];
+
+export type SpecSource = "exact" | "normalized" | "keyword" | "ai" | "category" | "generic" | "none";
+
+export function resolveSpec(
+  category: string | null,
+  subcategory: string | null,
+  aiKeys?: string[] | null,
+): { keys: string[]; source: SpecSource; matched?: string } {
+  if (!category) return { keys: [], source: "none" };
+  if (subcategory) {
+    const exact = SPECS[`${category}|${subcategory}`] ? `${category}|${subcategory}` : SPECS[subcategory] ? subcategory : undefined;
+    if (exact) return { keys: SPECS[exact], source: "exact", matched: exact };
+    const norm = byNormName(`${category}|${subcategory}`) ?? byNormName(subcategory);
+    if (norm) return { keys: SPECS[norm], source: "normalized", matched: norm };
+    const kw = byKeyword(category, subcategory);
+    if (kw) return { keys: SPECS[kw], source: "keyword", matched: kw };
+  }
+  // No spec for this name: use the fields the AI picked for this report, if any.
+  if (aiKeys?.length) return { keys: uniq([...AI_BASE, ...aiKeys]), source: "ai" };
+  const cat = CATEGORY_DEFAULTS[category] ?? CATEGORY_DEFAULTS[Object.keys(CATEGORY_DEFAULTS).find((c) => normName(c) === normName(category)) ?? ""];
+  return cat ? { keys: cat, source: "category" } : { keys: GENERIC, source: "generic" };
+}
+
+export function specFor(category: string | null, subcategory: string | null, aiKeys?: string[] | null): string[] {
+  return resolveSpec(category, subcategory, aiKeys).keys;
 }

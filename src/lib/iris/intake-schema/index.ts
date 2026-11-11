@@ -3,7 +3,7 @@ import { specFor } from "./specs";
 
 export { FIELDS, UNKNOWN, isSpecial, SPECIAL_KEYS } from "./fields";
 export type { FieldDef, FieldKind, SpecialKey } from "./fields";
-export { SPECS, specFor } from "./specs";
+export { SPECS, specFor, resolveSpec, normName, type SpecSource } from "./specs";
 
 export type SpecField = FieldDef & { required: boolean };
 
@@ -18,7 +18,28 @@ export type SchemaState = {
   session?: unknown;
   when?: string | null;
   details?: Record<string, string | undefined>;
+  /** Fields the AI picked for a report whose subcategory has no spec; only used for that exact pick. */
+  aiFields?: AiFields | null;
 };
+
+export type AiFields = { category: string; subcategory: string | null; keys: string[] };
+
+/** The AI's field picks apply only while the reporter keeps the AI's category. */
+export const aiKeysFor = (s: Pick<SchemaState, "category" | "subcategory" | "aiFields">) =>
+  s.aiFields && s.aiFields.category === s.category && s.aiFields.subcategory === s.subcategory ? s.aiFields.keys : null;
+
+/** Max fields the AI may add, so an AI-built form stays short. */
+export const MAX_AI_FIELDS = 5;
+
+/** Keep AI-picked keys that exist in the library and aren't pickers. */
+export function cleanAiFields(keys: string[] | null | undefined): string[] {
+  const out: string[] = [];
+  for (const k of keys ?? []) {
+    if (FIELDS[k] && !isSpecial(k) && !out.includes(k)) out.push(k);
+    if (out.length >= MAX_AI_FIELDS) break;
+  }
+  return out;
+}
 
 const specialValue = (s: SchemaState, key: string): string => {
   switch (key) {
@@ -37,7 +58,7 @@ export const answerOf = (s: SchemaState, key: string): string =>
 
 /** The fields to show for this report, in order, with conditionals resolved. */
 export function fieldsFor(s: SchemaState): SpecField[] {
-  return specFor(s.category, s.subcategory)
+  return specFor(s.category, s.subcategory, aiKeysFor(s))
     .map((raw) => {
       const key = raw.replace(/^\?/, "");
       const def = FIELDS[key];
@@ -74,8 +95,13 @@ export function fieldCatalogue(): string {
 }
 
 /** Keep only answers that belong to this report's spec and match the field's options. */
-export function cleanAnswers(category: string | null, subcategory: string | null, answers: Array<{ key: string; value: string }>) {
-  const allowed = new Set(specFor(category, subcategory).map((k) => k.replace(/^\?/, "")));
+export function cleanAnswers(
+  category: string | null,
+  subcategory: string | null,
+  answers: Array<{ key: string; value: string }>,
+  aiKeys?: string[] | null,
+) {
+  const allowed = new Set(specFor(category, subcategory, aiKeys).map((k) => k.replace(/^\?/, "")));
   const out: Record<string, string> = {};
   for (const a of answers) {
     const def = FIELDS[a.key];

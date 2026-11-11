@@ -78,7 +78,7 @@ type ClassifyResponse = {
   candidates: Array<{ category: string; subcategory: string | null; department: string | null; priority: "P0" | "P1" | "P2" | "P3" }>;
   confident: boolean;
   taxonomy: IntakeTaxonomy;
-  fields?: { studioCode?: string; area?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1"; answers?: Record<string, string> };
+  fields?: { studioCode?: string; area?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1"; answers?: Record<string, string>; aiFields?: import("@/lib/iris/intake-schema").AiFields };
   question?: string | null;
   routing?: import("@/lib/iris/store").IntakeRouting | null;
   source: "rules" | "ai";
@@ -376,6 +376,7 @@ export function AIAssistantView() {
       // AI answers win over the regex guesses; both only pre-fill, the reporter can edit.
       details: { ...detailsFromText(text), ...(f.answers ?? {}) },
       memberSnapshot: null,
+      aiFields: f.aiFields ?? null,
     };
     const lead = top
       ? `Got it - this looks like **${top.subcategory ?? top.category}**${f.studioCode ? ` at ${STUDIO_MAP[f.studioCode]?.name ?? f.studioCode}` : ""}. ` +

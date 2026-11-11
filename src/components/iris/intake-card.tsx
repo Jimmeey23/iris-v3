@@ -17,7 +17,7 @@ import { fieldsFor, isSpecial, missingFields, progress, UNKNOWN, type SpecField 
 
 /** Which pickers and questions this report needs comes from the intake schema (one spec per subcategory). */
 type Need = "required" | "optional";
-export const needsFor = (s: Pick<IntakeState, "category" | "subcategory" | "details" | "studioCode" | "when">) => {
+export const needsFor = (s: Pick<IntakeState, "category" | "subcategory" | "details" | "studioCode" | "when" | "aiFields">) => {
   const out: { member?: Need; session?: Need; trainer?: Need; studio?: Need; area?: Need; when?: Need } = {};
   for (const f of fieldsFor(s)) if (isSpecial(f.key)) out[f.key] = f.required ? "required" : "optional";
   return out;

@@ -14,7 +14,7 @@ import {
 } from "@/lib/iris/routing-engine";
 import { decideOwnership } from "@/lib/iris/ownership-policy";
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
-import { cleanAnswers } from "@/lib/iris/intake-schema";
+import { cleanAiFields, cleanAnswers, resolveSpec } from "@/lib/iris/intake-schema";
 
 /**
  * Intake classification.
@@ -256,6 +256,12 @@ export async function POST(request: Request) {
       );
       const confident = ai.confidence >= Math.min(0.9, Math.max(0.4, aiCfg.confidenceThreshold));
 
+      // A subcategory with no matching spec (new or renamed in ticket history) gets the AI's
+      // own pick of questions instead of the broad category default.
+      const specHit = resolveSpec(known.category, sub).source;
+      const aiKeys = specHit === "category" || specHit === "generic" ? cleanAiFields(ai.relevant_fields) : [];
+      if (aiKeys.length) console.warn(`[intake] no spec for "${known.category} | ${sub}" - using AI fields: ${aiKeys.join(", ")}`);
+
       // Alternatives for the picker: other subcategories in the same category by history volume.
       const alternatives: Candidate[] = known.subcategories
         .filter((s) => s.name !== sub)
@@ -275,7 +281,8 @@ export async function POST(request: Request) {
           clientName: ai.client_name ?? undefined,
           title: ai.title ?? undefined,
           // Answers to this subcategory's intake questions that the report already gives.
-          answers: cleanAnswers(known.category, sub, ai.answers ?? []),
+          answers: cleanAnswers(known.category, sub, ai.answers ?? [], aiKeys),
+          ...(aiKeys.length ? { aiFields: { category: known.category, subcategory: sub, keys: aiKeys } } : {}),
         },
         routing: top.routing,
         question: confident ? null : ai.clarifying_question,

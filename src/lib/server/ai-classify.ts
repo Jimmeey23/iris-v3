@@ -39,6 +39,9 @@ const Result = z.object({
   answers: z
     .array(z.object({ key: z.string(), value: z.string() }))
     .describe("Report fields the message clearly answers, using keys from the Field catalogue"),
+  relevant_fields: z
+    .array(z.string())
+    .describe("3-5 Field catalogue keys staff must answer so this specific issue can be acted on, most important first"),
 });
 export type AiClassification = z.infer<typeof Result>;
 
@@ -72,6 +75,7 @@ const UNCLEAR: AiClassification = {
   title: null,
   clarifying_question: "Could you describe what happened, where, and who was affected?",
   answers: [],
+  relevant_fields: [],
 };
 
 const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -115,6 +119,7 @@ For each report decide:
 4. priority - P0 safety/injury/theft/harassment or a studio unable to run classes; P1 significant disruption to many clients or a whole class; P2 one client's issue; P3 minor or informational.
 5. confidence - honest 0 to 1. Below 0.6 when the report could reasonably fit two subcategories.
 6. answers - fill every field from the Field catalogue that the message states or clearly implies (e.g. "since Monday" → sinceWhen, "two members complained" → membersComplained=Yes). For fields with [options], use one option exactly as written. Never guess: leave out anything the message does not say.
+7. relevant_fields - the 3-5 Field catalogue keys most needed to act on THIS issue (e.g. an AC leak: acUnit, acIssue, usable, memberImpact). Pick only fields that fit the issue; skip member/complaint fields when the problem is in a staff-only area such as an office.
 If the report is too vague to classify, set understood=false and ask one short, specific question.
 
 Studios: ${studios}
