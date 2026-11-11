@@ -173,11 +173,14 @@ export function AIAssistantView() {
     }
   }, []); // Empty deps = run ONCE on mount
 
+  // Scroll only when a message is added or processing starts - not when an existing
+  // message (e.g. the intake form) is edited, or every chip click jumps to the bottom.
+  const msgCount = aiMessages.length;
   React.useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }
-  }, [aiMessages, isProcessing]);
+  }, [msgCount, isProcessing]);
 
   // Focus input when a text question is asked
   React.useEffect(() => {
@@ -376,9 +379,13 @@ export function AIAssistantView() {
     };
     const lead = top
       ? `Got it - this looks like **${top.subcategory ?? top.category}**${f.studioCode ? ` at ${STUDIO_MAP[f.studioCode]?.name ?? f.studioCode}` : ""}. ` +
-        (missingRequired(intake).length
-          ? `Before I draft the ticket I need a few details below: ${missingRequired(intake).join(", ")}.`
-          : "Check the details and review the ticket.")
+        (() => {
+          const miss = missingRequired(intake);
+          if (!miss.length) return "Check the details and review the ticket.";
+          return miss.length <= 3
+            ? `Just need: ${miss.join(", ")}.`
+            : `Fill the ${miss.length} marked fields below and I'll draft the ticket.`;
+        })()
       : r.question
         ? r.question
         : "I couldn't tell what kind of issue this is. Pick the closest category below, or add a bit more detail.";

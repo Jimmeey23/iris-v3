@@ -28,8 +28,9 @@ const S = (pack: string[], ...extra: string[]) => {
 
 // ── Packs ─────────────────────────────────────────────────────────────────────
 const FAULT = [
-  "studio", "area", "when", "sinceWhen", "usable", "memberImpact", "membersComplained", "complaintWho", "complaintWhat",
-  "membersInformed", "frontDeskSteps", "vendorContacted", "vendorName", "expectedResolution", "?workaround", "?photoTaken",
+  // Only what's needed to act is required; follow-up admin detail is optional.
+  "studio", "area", "when", "sinceWhen", "usable", "memberImpact", "?membersComplained", "complaintWho", "complaintWhat",
+  "?membersInformed", "?frontDeskSteps", "?vendorContacted", "vendorName", "?expectedResolution", "?workaround", "?photoTaken",
 ];
 const AMENITY = [
   "studio", "area", "when", "sinceWhen", "memberImpact", "membersComplained", "complaintWho", "complaintWhat",
@@ -161,7 +162,9 @@ export const SPECS: Record<string, string[]> = {
   "Audio, Mic & Headphone Malfunction": S(FAULT, "audioDevice", "audioIssue", "classesAffected"),
   "Housekeeping & Cleaning Issues": S(AMENITY, "cleanIssue", "lastCleaned", "housekeeperOnDuty", "actionsTaken"),
   "Washroom & Plumbing Repairs": S(FAULT, "washroomType", "plumbingIssue"),
-  "AC & Ventilation Repairs": S(FAULT, "acUnit", "acIssue", "roomTemp", "classesAffected"),
+  "AC & Ventilation Repairs": S(FAULT, "acUnit", "acIssue", "?roomTemp", "?classesAffected"),
+  // Live taxonomy name for the same issue.
+  "AC and HVAC Issues": S(FAULT, "acUnit", "acIssue", "?roomTemp", "?classesAffected"),
   "Electrical & Power Issues": S(FAULT, "electricalIssue", "classesAffected", "riskNow"),
   "Doors, Locks & Fixture Repairs": S(FAULT, "fixtureName", "doorIssue", "riskNow"),
   "General Studio Repairs & Maintenance": S(FAULT, "equipmentItem", "faultDetail"),
