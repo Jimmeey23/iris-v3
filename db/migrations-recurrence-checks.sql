@@ -149,6 +149,7 @@ declare
   v_steps int := cardinality(iris.recurrence_days());
   v_checklist text;
   v_new_id text;
+  v_reporter text;
   n int := 0;
 begin
   for rc in
@@ -164,6 +165,10 @@ begin
       update iris.recurrence_checks set status = 'cancelled', outcome_at = now() where id = rc.id;
       continue;
     end if;
+
+    -- Shown on every check: who reported the original and when it was raised.
+    v_reporter := coalesce((select e.name from iris.employees e where e.id = p.reporter_id),
+                           p.metadata #>> '{legacy,created_by_name}', 'Unknown');
 
     v_num := substring(p.title || ' ' || coalesce(p.description, '') from
                case rc.kind when 'bike' then '(?i)bike\s*(?:no\.?|number|#)?\s*(\d{1,3})\M'
@@ -183,8 +188,9 @@ begin
                               assignee_id, reporter_id, equipment, tags, source, metadata, idempotency_key)
     values (
       format('[Recurrence check %s of %s · day %s] %s — confirm the fault has not returned', rc.step, v_steps, rc.day_offset, v_label),
-      format(E'Raised automatically: %s ("%s") was resolved on %s.\n\nCheck %s of %s, %s days after the resolution. Confirm the %s has worked without the original fault since then, then record the outcome on this ticket: "No recurrence" or "Fault returned". If the fault is back, the original ticket reopens.\n\nWhat to do:\n%s',
+      format(E'Raised automatically: %s ("%s") was resolved on %s.\nOriginal ticket reported by %s on %s.\n\nCheck %s of %s, %s days after the resolution. Confirm the %s has worked without the original fault since then, then record the outcome on this ticket: "No recurrence" or "Fault returned". If the fault is back, the original ticket reopens.\n\nWhat to do:\n%s',
              p.ticket_id, p.title, to_char(coalesce(p.resolved_at, rc.created_at) at time zone 'Asia/Kolkata', 'DD Mon YYYY'),
+             v_reporter, to_char(p.created_at at time zone 'Asia/Kolkata', 'DD Mon YYYY'),
              rc.step, v_steps, rc.day_offset, lower(v_label), v_checklist),
       'Repair and Maintenance',
       case rc.kind when 'bike' then 'PowerCycle Bike Malfunction & Repairs' else 'Audio, Mic & Headphone Malfunction' end,
@@ -193,7 +199,8 @@ begin
       'system',
       jsonb_build_object('recurrence_check', jsonb_build_object(
         'id', rc.id, 'parent_ticket_id', p.id, 'parent_ticket', p.ticket_id, 'kind', rc.kind,
-        'cycle', rc.cycle, 'step', rc.step, 'of', v_steps, 'day', rc.day_offset)),
+        'cycle', rc.cycle, 'step', rc.step, 'of', v_steps, 'day', rc.day_offset,
+        'parent_reported_by', v_reporter, 'parent_created_at', p.created_at)),
       'recheck:' || p.id || ':c' || rc.cycle || ':s' || rc.step)
     returning id into v_new_id;
 

@@ -21,6 +21,21 @@ type Check = {
   is_this_ticket: boolean;
 };
 
+type Origin = { id: string; ticket_id: string; created_at: string; reported_by: string | null };
+
+const fullDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+/** The original ticket a check belongs to: always shown on a check ticket. */
+function OriginLine({ origin }: { origin: Origin }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] mb-3 px-2.5 py-2 rounded-md bg-muted/50">
+      <span><span className="text-muted-foreground">Original ticket </span><span className="font-mono font-medium">{origin.ticket_id}</span></span>
+      <span><span className="text-muted-foreground">Reported by </span><span className="font-medium">{origin.reported_by ?? "Unknown"}</span></span>
+      <span><span className="text-muted-foreground">Raised on </span><span className="font-medium">{fullDate(origin.created_at)}</span></span>
+    </div>
+  );
+}
+
 const STATUS: Record<Check["status"], { label: string; cls: string; icon: React.ComponentType<{ className?: string }> }> = {
   scheduled: { label: "Scheduled", cls: "text-sky-600 dark:text-sky-400 bg-sky-500/10", icon: CalendarClock },
   open: { label: "Due now", cls: "text-amber-700 dark:text-amber-300 bg-amber-500/10", icon: CalendarClock },
@@ -46,21 +61,39 @@ async function refreshTicket(id: string) {
  */
 export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; readOnly?: boolean }) {
   const [checks, setChecks] = React.useState<Check[] | null>(null);
+  const [origin, setOrigin] = React.useState<Origin | null>(null);
   const [mode, setMode] = React.useState<"idle" | "returned">("idle");
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
   const load = React.useCallback(async () => {
     try {
-      setChecks((await api<{ checks: Check[] }>(`/api/tickets/${encodeURIComponent(ticketId)}/recurrence`)).checks);
+      const r = await api<{ checks: Check[]; origin: Origin | null }>(`/api/tickets/${encodeURIComponent(ticketId)}/recurrence`);
+      setChecks(r.checks);
+      setOrigin(r.origin);
     } catch {
       setChecks([]);
+      setOrigin(null);
     }
   }, [ticketId]);
   React.useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
+  const mine = checks?.find((c) => c.is_this_ticket);
+  // A check imported from v2 has no schedule row, but still shows where it came from.
+  if (!mine && origin) {
+    return (
+      <div className="iris-card p-4 border border-amber-500/30">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
+            <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="text-[13px] font-semibold">Recurrence check</div>
+        </div>
+        <OriginLine origin={origin} />
+      </div>
+    );
+  }
   if (!checks?.length) return null;
-  const mine = checks.find((c) => c.is_this_ticket);
 
   const record = async (outcome: "clear" | "returned") => {
     setBusy(true);
@@ -96,6 +129,7 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
           <div className="text-[13px] font-semibold">Day-{mine.day_offset} recurrence check</div>
           <span className={cn("ml-auto px-2 py-0.5 rounded text-[10px] font-semibold", STATUS[mine.status].cls)}>{STATUS[mine.status].label}</span>
         </div>
+        {origin && <OriginLine origin={origin} />}
         <p className="text-[12px] text-muted-foreground mb-3">
           Has the {what} fault from <span className="font-mono">{mine.parent_ticket}</span> come back? If it has, the original ticket reopens for the repair owner.
         </p>

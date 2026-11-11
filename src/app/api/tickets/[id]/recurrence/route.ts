@@ -15,8 +15,8 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
   if ("error" in auth) return auth.error;
   const { id } = await ctx.params;
   try {
-    const checks = await withUser(auth.session.user_id, async (c) =>
-      (await c.query(
+    const { checks, origin } = await withUser(auth.session.user_id, async (c) => ({
+      checks: (await c.query(
         `select rc.id, rc.kind, rc.cycle, rc.step, rc.day_offset, rc.due_at, rc.status, rc.outcome_note, rc.outcome_at,
                 p.ticket_id as parent_ticket, k.ticket_id as check_ticket,
                 (k.id = t.id) as is_this_ticket
@@ -28,8 +28,22 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
           order by rc.cycle, rc.step`,
         [id],
       )).rows,
-    );
-    return NextResponse.json({ checks });
+      // When this ticket is a check: the original ticket, who reported it and when it was raised.
+      // Linked via metadata so checks imported from v2 (no recurrence_checks row) get it too.
+      origin: (await c.query(
+        `select p.id, p.ticket_id, p.created_at,
+                coalesce(e.name, p.metadata #>> '{legacy,created_by_name}') as reported_by
+           from tickets t
+           join tickets p on p.ticket_id = coalesce(
+                  t.metadata #>> '{recurrence_check,parent_ticket}',
+                  t.metadata #>> '{legacy,custom_fields,parentTicketNumber}')
+           left join employees e on e.id = p.reporter_id
+          where t.id = $1 or t.ticket_id = $1
+          limit 1`,
+        [id],
+      )).rows[0] ?? null,
+    }));
+    return NextResponse.json({ checks, origin });
   } catch (err) {
     return dbError(err);
   }
