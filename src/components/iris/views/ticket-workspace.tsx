@@ -14,6 +14,7 @@ import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { AdminTicketControls } from "../admin-ticket-controls";
 import { RecurrencePanel } from "../recurrence-panel";
 import { FormattedText, TicketDescription, TicketFormFields } from "../formatted-text";
+import { TicketAiCard } from "../ticket-ai-card";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -298,6 +299,12 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                 {/* Resolution Center Tab */}
                 <TabsContent value="resolution" className="mt-3 space-y-3">
+                  <TicketAiCard
+                    ticketId={ticket.id}
+                    info={ticket.collectedInfo}
+                    currentCategory={`${ticket.category}${ticket.subcategory ? ` › ${ticket.subcategory}` : ""}`}
+                    readOnly={readOnly}
+                  />
                   {ticket.description && (
                     <div className="iris-card p-4">
                       <div className="flex items-center gap-2 mb-2">

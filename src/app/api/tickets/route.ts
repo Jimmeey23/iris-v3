@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { notifyTicketEvent } from "@/lib/server/notify";
@@ -10,6 +10,7 @@ import { evaluateRoutingRules, selectBestAssignee, type AssignableEmployee, type
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
 import { decideOwnership } from "@/lib/iris/ownership-policy";
 import { pool } from "@/lib/server/db";
+import { enrichTicket } from "@/lib/server/ai-enrich";
 
 export async function GET() {
   const auth = await requireSession();
@@ -286,6 +287,8 @@ export async function POST(request: Request) {
       return fetchTicket(c, id);
     });
     if (ticket) notifyTicketEvent("ticket_created", ticket, session);
+    // Tidy title / summary / facts and second-check the category, after the response is sent.
+    if (ticket) after(() => enrichTicket(ticket.id, { userId: session.user_id }).then(() => undefined, () => undefined));
     if (adminOnly && ticket) {
       return NextResponse.json(
         { ticket: { id: ticket.id, ticketId: ticket.ticketId, title: ticket.title, category: ticket.category, status: ticket.status }, locked: true },
