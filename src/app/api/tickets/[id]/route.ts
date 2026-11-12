@@ -95,6 +95,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
   if (Array.isArray(b.assigneeIds)) set("assignee_ids", strList(b.assigneeIds));
   if (Array.isArray(b.departmentCodes)) set("department_codes", strList(b.departmentCodes));
   if (b.departmentCode !== undefined) set("department_code", b.departmentCode || null);
+  // Linked tickets are stored by their human ticket number (P57-…); tags are free text.
+  if (Array.isArray(b.relatedTicketIds)) set("related_ticket_ids", strList(b.relatedTicketIds, 20).filter((x) => /^P57-[A-Z0-9-]{1,20}$/i.test(x)).slice(0, 20));
+  if (Array.isArray(b.tags)) set("tags", strList(b.tags, 30).map((x) => x.slice(0, 60)).slice(0, 30));
   if (typeof b.resolutionSummary === "string") set("resolution_summary", b.resolutionSummary.slice(0, 5000));
   if (typeof b.resolution === "string") set("resolution", b.resolution.slice(0, 5000));
   if (typeof b.investigationNotes === "string") set("investigation_notes", b.investigationNotes.slice(0, 10000));
@@ -141,7 +144,6 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     text("recommendedResolution", "recommended_resolution", 10000);
     text("businessImpact", "business_impact", 5000);
     text("severity", "severity", 40);
-    if (Array.isArray(b.tags)) set("tags", strList(b.tags, 30));
     if (b.slaResolutionTarget === null || typeof b.slaResolutionTarget === "string") {
       const d = b.slaResolutionTarget ? new Date(b.slaResolutionTarget) : null;
       if (d && Number.isNaN(d.getTime())) return NextResponse.json({ error: "Invalid SLA target" }, { status: 400 });

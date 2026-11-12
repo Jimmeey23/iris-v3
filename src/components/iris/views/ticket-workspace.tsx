@@ -15,6 +15,9 @@ import { AdminTicketControls } from "../admin-ticket-controls";
 import { RecurrencePanel } from "../recurrence-panel";
 import { FormattedText, TicketDescription, TicketFormFields } from "../formatted-text";
 import { TicketAiCard } from "../ticket-ai-card";
+import { AdminEditableEntry } from "../ticket-entry-admin";
+import { LinkTicketDialog } from "../link-ticket-dialog";
+import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -56,6 +59,7 @@ import {
   Timer,
   Users,
   ClipboardList,
+  X,
 } from "lucide-react";
 
 export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
@@ -133,9 +137,45 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [resolutionActions, setResolutionActions] = React.useState("");
   const [extensionHours, setExtensionHours] = React.useState(4);
   const [extensionReason, setExtensionReason] = React.useState("");
-  const [resolutionLog, setResolutionLog] = React.useState<Array<{ author: string; type: string; content: string; timestamp: string }>>(
-    ticket.comments.map(c => ({ author: c.author, type: "comment", content: c.content, timestamp: c.timestamp }))
+  // Entries posted from the log carry a "[follow up] " style marker in front of their text.
+  const resolutionLog = React.useMemo(
+    () =>
+      ticket.comments.map((c) => {
+        const m = c.content.match(/^\[(follow up|observation|sla extension|resolution)\] ([\s\S]*)$/i);
+        return {
+          id: c.id,
+          author: c.author,
+          type: m ? m[1].toLowerCase().replace(/ /g, "_") : "comment",
+          prefix: m ? `[${m[1]}] ` : "",
+          content: m ? m[2] : c.content,
+          timestamp: c.timestamp,
+        };
+      }),
+    [ticket.comments],
   );
+  const [showLinkDialog, setShowLinkDialog] = React.useState(false);
+  const [tagDraft, setTagDraft] = React.useState<string | null>(null);
+  const [editingSummary, setEditingSummary] = React.useState<string | null>(null);
+  const openRelated = (ticketNumber: string) => {
+    const t = ALL_TICKETS.find((x) => x.ticketId === ticketNumber);
+    if (t) selectTicket(t.id);
+    else toast.error(`${ticketNumber} isn't in your ticket list.`);
+  };
+  const linkTicket = async (ticketNumber: string) => {
+    if (await save({ relatedTicketIds: [...(ticket.relatedTickets ?? []), ticketNumber] }, `Linked ${ticketNumber}`)) setShowLinkDialog(false);
+  };
+  const unlinkTicket = (ticketNumber: string) =>
+    save({ relatedTicketIds: (ticket.relatedTickets ?? []).filter((x) => x !== ticketNumber) }, `Unlinked ${ticketNumber}`);
+  const addTag = async () => {
+    const tag = (tagDraft ?? "").trim();
+    if (!tag) return setTagDraft(null);
+    if ((ticket.tags ?? []).includes(tag)) return setTagDraft(null);
+    if (await save({ tags: [...(ticket.tags ?? []), tag] }, `Tag "${tag}" added`)) setTagDraft(null);
+  };
+  const viewHistory = () => {
+    setActiveTab("activity");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [newLogEntry, setNewLogEntry] = React.useState("");
   const [logEntryType, setLogEntryType] = React.useState("note");
 
@@ -149,8 +189,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const canResolve = isOwner || isManager;
 
   const logEntry = async (type: string, content: string) => {
-    const saved = await ticketsApi.comment(ticket.id, type === "comment" || type === "note" ? content : `[${type.replace(/_/g, " ")}] ${content}`);
-    setResolutionLog((log) => [...log, { author: saved.author, type, content, timestamp: saved.timestamp }]);
+    await ticketsApi.comment(ticket.id, type === "comment" || type === "note" ? content : `[${type.replace(/_/g, " ")}] ${content}`);
   };
 
   const postComment = async () => {
@@ -396,8 +435,38 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                         <div className="text-[13px] font-semibold">Resolution Summary</div>
+                        {isAdmin && editingSummary === null && (
+                          <div className="ml-auto flex gap-1">
+                            <button type="button" className="text-[11px] text-muted-foreground hover:text-foreground" onClick={() => setEditingSummary(ticket.resolutionSummary ?? "")}>Edit</button>
+                            <span className="text-muted-foreground/50">·</span>
+                            <button
+                              type="button"
+                              className="text-[11px] text-muted-foreground hover:text-rose-600"
+                              onClick={() => { if (window.confirm("Delete the resolution summary?")) void save({ resolutionSummary: "" }, "Resolution summary deleted"); }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <FormattedText text={ticket.resolutionSummary} className="text-[12px] text-muted-foreground" />
+                      {editingSummary !== null ? (
+                        <div className="space-y-1.5">
+                          <Textarea value={editingSummary} onChange={(e) => setEditingSummary(e.target.value)} className="text-[12px] min-h-[80px]" autoFocus />
+                          <div className="flex gap-1.5">
+                            <Button
+                              size="sm"
+                              className="h-7 text-[12px]"
+                              disabled={busy || !editingSummary.trim()}
+                              onClick={async () => { if (await save({ resolutionSummary: editingSummary.trim() }, "Resolution summary updated")) setEditingSummary(null); }}
+                            >
+                              Save
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-[12px]" onClick={() => setEditingSummary(null)}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <FormattedText text={ticket.resolutionSummary} className="text-[12px] text-muted-foreground" />
+                      )}
                     </div>
                   ) : (
                     <div className="iris-card p-4">
@@ -421,19 +490,50 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                   {/* Quick actions footer */}
                   <div className="flex items-center gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="h-7 text-[12px]">
+                    <Button variant="outline" size="sm" className="h-7 text-[12px]" onClick={() => setShowLinkDialog(true)} disabled={readOnly}>
                       <Link2 className="w-3 h-3 mr-1.5" />
                       Link Related Ticket
                     </Button>
-                    <Button variant="outline" size="sm" className="h-7 text-[12px]">
-                      <Tag className="w-3 h-3 mr-1.5" />
-                      Add Tag
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-7 text-[12px]">
+                    {tagDraft === null ? (
+                      <Button variant="outline" size="sm" className="h-7 text-[12px]" onClick={() => setTagDraft("")} disabled={readOnly}>
+                        <Tag className="w-3 h-3 mr-1.5" />
+                        Add Tag
+                      </Button>
+                    ) : (
+                      <input
+                        autoFocus
+                        value={tagDraft}
+                        onChange={(e) => setTagDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void addTag();
+                          if (e.key === "Escape") setTagDraft(null);
+                        }}
+                        onBlur={() => void addTag()}
+                        placeholder="Tag, then Enter"
+                        className="h-7 w-36 px-2 text-[12px] rounded-md border border-border bg-card focus:outline-none focus:border-primary"
+                      />
+                    )}
+                    <Button variant="outline" size="sm" className="h-7 text-[12px]" onClick={viewHistory}>
                       <History className="w-3 h-3 mr-1.5" />
                       View History
                     </Button>
                   </div>
+                  {(ticket.relatedTickets?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Linked</span>
+                      {(ticket.relatedTickets ?? []).map((tid) => (
+                        <span key={tid} className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 pl-2 pr-1 py-0.5 text-[11px]">
+                          <button type="button" className="font-mono hover:text-primary" onClick={() => openRelated(tid)}>{tid}</button>
+                          {!readOnly && (
+                            <button type="button" aria-label={`Unlink ${tid}`} className="text-muted-foreground hover:text-rose-600" onClick={() => void unlinkTicket(tid)}>
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {showLinkDialog && <LinkTicketDialog current={ticket} onPick={(n) => void linkTicket(n)} onClose={() => setShowLinkDialog(false)} />}
 
                   {/* Resolution Log - notes, comments, follow-ups */}
                   <div className="iris-card p-4">
@@ -449,7 +549,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         <div className="text-[11px] text-muted-foreground italic p-2">No entries yet. Add a note, comment, or follow-up below.</div>
                       ) : (
                         resolutionLog.map((entry, i) => (
-                          <div key={i} className="p-2.5 rounded-md border border-border bg-muted/20">
+                          <div key={entry.id ?? i} className="p-2.5 rounded-md border border-border bg-muted/20">
                             <div className="flex items-center gap-2 mb-1">
                               <span className={cn(
                                 "text-[9px] font-semibold px-1.5 py-px rounded capitalize",
@@ -463,7 +563,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                               <span className="text-[10px] font-medium">{entry.author}</span>
                               <span className="text-[9px] text-muted-foreground ml-auto">{formatRelativeTime(entry.timestamp)}</span>
                             </div>
-                            <div className="text-[11px] text-foreground/90 leading-relaxed whitespace-pre-line">{entry.content}</div>
+                            <AdminEditableEntry ticketId={ticket.id} commentId={entry.id} text={entry.content} prefix={entry.prefix} isAdmin={isAdmin}>
+                              <div className="text-[11px] text-foreground/90 leading-relaxed whitespace-pre-line">{entry.content}</div>
+                            </AdminEditableEntry>
                           </div>
                         ))
                       )}
@@ -645,7 +747,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Related Tickets</div>
                         <div className="space-y-1">
                           {ticket.relatedTickets.map((tid) => (
-                            <div key={tid} className="flex items-center gap-2 p-2 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer">
+                            <div key={tid} role="button" tabIndex={0} onClick={() => openRelated(tid)} onKeyDown={(e) => { if (e.key === "Enter") openRelated(tid); }} className="flex items-center gap-2 p-2 rounded-md bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer">
                               <Link2 className="w-3 h-3 text-muted-foreground" />
                               <span className="text-[12px] font-mono">{tid}</span>
                               <ChevronRight className="w-3 h-3 ml-auto text-muted-foreground" />
@@ -702,7 +804,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     ) : (
                       <div className="space-y-3">
                         {ticket.comments.map((c, i) => (
-                          <div key={i} className="flex gap-3">
+                          <div key={c.id ?? i} className="flex gap-3">
                             <Avatar className="w-7 h-7 shrink-0">
                               <AvatarFallback className={cn("text-white text-[10px] font-semibold", getAvatarColor(c.author))}>
                                 {getInitials(c.author)}
@@ -722,9 +824,11 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                                 )}
                                 <span className="text-[10px] text-muted-foreground ml-auto">{formatRelativeTime(c.timestamp)}</span>
                               </div>
-                              <div className="text-[12px] text-foreground/90 bg-muted/30 rounded-lg p-2.5">
-                                {c.content}
-                              </div>
+                              <AdminEditableEntry ticketId={ticket.id} commentId={c.id} text={c.content} isAdmin={isAdmin}>
+                                <div className="text-[12px] text-foreground/90 bg-muted/30 rounded-lg p-2.5 whitespace-pre-line">
+                                  {c.content}
+                                </div>
+                              </AdminEditableEntry>
                             </div>
                           </div>
                         ))}

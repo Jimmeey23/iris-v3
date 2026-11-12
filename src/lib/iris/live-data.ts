@@ -235,7 +235,23 @@ export const ticketsApi = {
     const { comment } = await api(`/api/tickets/${encodeURIComponent(id)}/comments`, { method: "POST", json: { content, isInternal } });
     const t = ALL_TICKETS.find((x) => x.id === id);
     if (t) t.comments = [...t.comments, comment];
+    useAppStore.getState().bumpData();
     return comment as Ticket["comments"][number];
+  },
+  /** Admin-only: correct an entry that was already posted. */
+  editComment: async (id: string, commentId: string, content: string) => {
+    const { comment } = await api(`/api/tickets/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}`, { method: "PATCH", json: { content } });
+    const t = ALL_TICKETS.find((x) => x.id === id);
+    if (t) t.comments = t.comments.map((c) => (c.id === commentId ? { ...c, content: comment.content } : c));
+    useAppStore.getState().bumpData();
+    return comment as Ticket["comments"][number];
+  },
+  /** Admin-only: remove an entry that was already posted. */
+  deleteComment: async (id: string, commentId: string) => {
+    await api(`/api/tickets/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}`, { method: "DELETE" });
+    const t = ALL_TICKETS.find((x) => x.id === id);
+    if (t) t.comments = t.comments.filter((c) => c.id !== commentId);
+    useAppStore.getState().bumpData();
   },
 };
 
