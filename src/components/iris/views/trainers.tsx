@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  GraduationCap, Star, Heart, TriangleAlert, ChevronRight, Search, RefreshCw, Loader2, Settings2,
+  ClipboardCheck, GraduationCap, Star, Heart, TriangleAlert, ChevronRight, Search, RefreshCw, Loader2, Settings2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
@@ -18,6 +18,7 @@ import { TrainerReport } from "../trainer-report";
 import { TrainerPhoto } from "../trainer-photo";
 import { TrainerSelect } from "../trainer-select";
 import { TrainersHero } from "../trainers-hero";
+import { EvaluationForms } from "../evaluation-forms";
 import "./trainers.css";
 
 type AssessmentWithTrainer = Assessment & { trainerName: string };
@@ -46,6 +47,7 @@ export function TrainersView() {
   // in the initializer cannot cause a hydration mismatch.
   const [overrides, setOverrides] = React.useState<TrainerOverrides>(() => loadOverrides());
   const [q, setQ] = React.useState("");
+  const [showForms, setShowForms] = React.useState(false);
   const [activeName, setActiveName] = React.useState<string>();
   const [manage, setManage] = React.useState<Trainer>();
   const [mergeInto, setMergeInto] = React.useState("");
@@ -165,6 +167,9 @@ export function TrainersView() {
         </div>
         <div className="flex-row">
           <span className="badge blue"><GraduationCap size={12} />{trainers.length} trainers tracked</span>
+          <button className={`btn${showForms ? " btn-primary" : ""}`} onClick={() => setShowForms((v) => !v)}>
+            <ClipboardCheck size={14} />{showForms ? "Back to trainers" : "Evaluation forms"}
+          </button>
           <button className="btn" disabled={refreshing} onClick={() => void refresh(false)}>
             {refreshing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={14} />}
             {refreshing ? "Refreshing..." : "Refresh feedback"}
@@ -173,7 +178,9 @@ export function TrainersView() {
       </div>
       {error && <div className="error-box">{error}</div>}
 
-      {!filtered.length ? (
+      {showForms ? (
+        <EvaluationForms />
+      ) : !filtered.length ? (
         <div className="tv-empty">
           <GraduationCap size={28} style={{ margin: "0 auto 8px" }} />
           No trainers found
