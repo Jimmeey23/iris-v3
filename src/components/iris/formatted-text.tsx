@@ -39,18 +39,51 @@ export function FormattedText({ text, className, itemClassName }: { text: string
   );
 }
 
-/** A ticket description as headed paragraphs of full sentences (never a bullet list). */
+/** A ticket description: summary paragraphs, then each section as a labelled field grid. */
 export function TicketDescription({ text, className }: { text: string | null | undefined; className?: string }) {
   const blocks = descriptionBlocks(text);
   if (!blocks.length) return null;
   return (
-    <div className={cn("space-y-3", className)}>
-      {blocks.map((b, i) => (
-        <div key={i}>
-          {b.heading && <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground mb-1">{b.heading}</div>}
-          <p className="leading-relaxed whitespace-pre-line">{b.text}</p>
-        </div>
-      ))}
+    <div className={cn("space-y-4", className)}>
+      {blocks.map((b, i) => {
+        if (b.kind === "text") {
+          return (
+            <div key={i} className="space-y-2">
+              {b.paragraphs.map((p, j) => (
+                <p key={j} className={cn("leading-relaxed", i === 0 && j === 0 && "text-[1.08em] font-medium text-foreground")}>{p}</p>
+              ))}
+            </div>
+          );
+        }
+        return (
+          <section key={i}>
+            <h4 className="text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground mb-1.5">{b.heading}</h4>
+            {b.kind === "chips" ? (
+              <div className="flex flex-wrap gap-1.5">
+                {b.items.map((x) => (
+                  <span key={x} className="text-[11px] rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5">{x}</span>
+                ))}
+              </div>
+            ) : (
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 rounded-lg border border-border/70 bg-muted/20 px-3 py-1">
+                {b.fields.map((f, j) => (
+                  <div
+                    key={j}
+                    className={cn(
+                      "py-1.5 border-b border-border/50 last:border-b-0 min-w-0",
+                      // Long answers (notes, quotes) take the full row.
+                      (!f.label || f.value.length > 60) && "sm:col-span-2",
+                    )}
+                  >
+                    {f.label && <dt className="text-[10.5px] text-muted-foreground">{f.label.replace(/\?$/, "")}</dt>}
+                    <dd className="leading-snug break-words">{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
