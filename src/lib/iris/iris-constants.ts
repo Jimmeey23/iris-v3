@@ -65,9 +65,20 @@ export const HIGH_SUBS = new Set([
   "Injury Prevention and Safety", "Unresolved Complaints",
   "Trainer Punctuality Issues", "Trainer Behaviour", "Class Capacity & Schedule Gaps",
   "Competitor Solicitation / Client Poaching",
+  "Disruptive / Abusive Member Behaviour", "Cash Deposit Discrepancy / Reconciliation",
+  "Client Payment Held by Staff / Not Deposited", "Glass, Window & Mirror Damage",
+  "Trainer No-Show – Cover Arranged",
 ]);
 
-export const MEDIUM_SUBS = new Set(["Music Volume Issues"]);
+export const MEDIUM_SUBS = new Set([
+  "Music Volume Issues",
+  "Package / Membership Transfer to Another Person", "Package / Membership Extension Request",
+  "Medical / Injury Extension Request", "Complimentary / Bonus Classes Not Added",
+  "Money Credit Conversion / Calculation", "Inter-City / Studio Membership Transfer (Relocation)",
+  "Wall Seepage, Paint & Civil Work", "Flooring Damage & Replacement", "DG / Generator Service",
+  "Damage Caused by Vendor / Third Party", "Building Lift, Access & Parking",
+  "Trainer Reporting-Time Breach (arrived inside buffer)", "Tone & Clarity of Written Communication",
+]);
 
 export const STATUS_LABELS: Record<string, string> = {
   recorded: "Recorded",

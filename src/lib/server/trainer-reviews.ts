@@ -287,7 +287,7 @@ async function createAssessmentTicket(
   const { rows } = await c.query(
     `insert into iris.tickets (title, description, category, subcategory, priority, status, studio_code, department_code,
        tags, source, collected_info, resolution, resolution_summary, resolved_at)
-     values ($1, $2, 'Trainer Feedback', 'Knowledge and Competence', $3, $4, $5, 'TRN', $6, 'webhook', $7::jsonb, $8, $8, $9)
+     values ($1, $2, 'Trainer Feedback', 'Trainer Assessment / Evaluation Submission', $3, $4, $5, 'TRN', $6, 'webhook', $7::jsonb, $8, $8, $9)
      returning id, ticket_id`,
     [
       `Trainer assessment · ${t.name}${review.sessionName ? ` · ${review.sessionName}` : ""}`,

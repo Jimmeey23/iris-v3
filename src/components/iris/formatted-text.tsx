@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { descriptionBlocks } from "@/lib/iris/description-format";
+import { descriptionBlocks, tidy } from "@/lib/iris/description-format";
 
 /**
  * Split long free text into bullet points. Short text (one sentence or under
@@ -85,5 +85,49 @@ export function TicketDescription({ text, className }: { text: string | null | u
         );
       })}
     </div>
+  );
+}
+
+// Keys already shown elsewhere on the ticket (title, description, classification, studio).
+const FORM_SKIP = new Set(["title", "summary", "issue", "description", "category", "subcategory", "studio", "priority"]);
+const FORM_LABELS: Record<string, string> = {
+  occurred: "When it happened",
+  reportedBy: "Reported by",
+  affectedClient: "Affected client",
+  memberContact: "Member contact",
+  clientContact: "Client contact",
+  membershipType: "Membership",
+  requestedOutcome: "Requested outcome",
+  additionalContext: "Additional context",
+  paymentReference: "Payment reference",
+  sessionTime: "Class time",
+  classFormat: "Class format",
+};
+const fieldLabel = (key: string) =>
+  FORM_LABELS[key] ?? key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());
+
+function fieldValue(v: unknown): string {
+  if (v == null || typeof v === "boolean") return typeof v === "boolean" ? (v ? "Yes" : "No") : "";
+  if (Array.isArray(v)) return v.map(fieldValue).filter(Boolean).join(", ");
+  if (typeof v === "object") return "";
+  return String(v).trim();
+}
+
+/** The answers captured by the intake form (iris.tickets.collected_info), as a labelled grid. */
+export function TicketFormFields({ info, className }: { info: Record<string, unknown> | null | undefined; className?: string }) {
+  const rows = Object.entries(info ?? {})
+    .filter(([k]) => !k.startsWith("_") && !FORM_SKIP.has(k))
+    .map(([k, v]) => ({ label: fieldLabel(k), value: tidy(fieldValue(v)) }))
+    .filter((r) => r.value);
+  if (!rows.length) return null;
+  return (
+    <dl className={cn("grid grid-cols-1 sm:grid-cols-2 gap-x-4 rounded-lg border border-border/70 bg-muted/20 px-3 py-1", className)}>
+      {rows.map((r) => (
+        <div key={r.label} className={cn("py-1.5 border-b border-border/50 last:border-b-0 min-w-0", r.value.length > 60 && "sm:col-span-2")}>
+          <dt className="text-[10.5px] text-muted-foreground">{r.label}</dt>
+          <dd className="leading-snug break-words">{r.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

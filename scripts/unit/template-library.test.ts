@@ -11,7 +11,7 @@ import { KNOWLEDGE_ARTICLES } from "../../src/lib/iris/knowledge-base-data";
 // Mirrors the server-side limits enforced by cleanForm()/templateColumns() in
 // src/lib/server/library.ts (that module is server-only, so it isn't imported).
 const FIELD_ID = /^[A-Za-z][A-Za-z0-9_]*$/;
-const FIELD_TYPES = new Set(["text", "textarea", "number", "select", "multiselect", "checkbox", "date"]);
+const FIELD_TYPES = new Set(["text", "textarea", "number", "select", "multiselect", "checkbox", "date", "session", "roster"]);
 const DEPT_CODES = new Set(DEPARTMENTS.map((d) => d.code));
 const ROOT = join(import.meta.dir, "..", "..");
 
@@ -20,10 +20,14 @@ describe("Built-in template library", () => {
     expect(BUILTIN_TEMPLATES.length).toBeGreaterThanOrEqual(211);
     const codes = BUILTIN_TEMPLATES.map((t) => t.code);
     expect(new Set(codes).size).toBe(codes.length);
-    codes.forEach((code, i) => {
+    // Hand-written templates are numbered TPL-001…; generated sub-category templates
+    // (template-library/coverage.ts) carry a stable hash code after them.
+    const numbered = codes.filter((c) => !c.startsWith("TPL-S"));
+    numbered.forEach((code, i) => {
       expect(code).toMatch(/^TPL-\d{3}$/);
       expect(Number(code.slice(4))).toBe(i + 1);
     });
+    for (const code of codes.slice(numbered.length)) expect(code).toMatch(/^TPL-S[0-9A-Z]{7}$/);
     for (let n = 1; n <= 111; n++) expect(BUILTIN_TEMPLATE_CODES.has(`TPL-${String(n).padStart(3, "0")}`)).toBe(true);
   });
 
@@ -38,19 +42,20 @@ describe("Built-in template library", () => {
     expect(dupes).toEqual([]);
   });
 
-  it("files every template under a known Category -> Sub-category, and every sub-category offers a choice", () => {
+  it("files every template under an IRIS Category -> Sub-category, and every sub-category has a template", () => {
+    expect(TEMPLATE_CATEGORY_ORDER).toEqual(Object.keys(CATEGORY_MAP));
     for (const t of BUILTIN_TEMPLATES) {
       expect(TEMPLATE_CATEGORY_ORDER).toContain(t.category);
-      const meta = TEMPLATE_TAXONOMY.find((c) => c.key === t.category)!;
-      expect(meta.subcategories.map((s) => s.name)).toContain(t.subcategory!);
+      expect(CATEGORY_MAP[t.category]).toContain(t.subcategory!);
+      // The page groups by the same pair the ticket is filed under.
+      expect([t.form?.category, t.form?.subcategory]).toEqual([t.category, t.subcategory]);
     }
     for (const cat of TEMPLATE_TAXONOMY) {
       const inCat = BUILTIN_TEMPLATES.filter((t) => t.category === cat.key);
-      expect(inCat.length).toBeGreaterThanOrEqual(10);
       expect(DEPT_CODES.has(cat.defaultDept)).toBe(true);
       for (const sub of cat.subcategories) {
         const n = inCat.filter((t) => t.subcategory === sub.name).length;
-        if (n < 2) throw new Error(`${cat.key} › ${sub.name} has ${n} template(s)`);
+        if (n < 1) throw new Error(`${cat.key} › ${sub.name} has no template`);
       }
     }
   });

@@ -60,9 +60,11 @@ export interface TicketTemplate {
   code: string;
   title: string;
   description: string;
-  /** Library taxonomy - drives the Category → Sub-category drill-down on the Templates page. */
+  /** IRIS issue category / sub-category (CATEGORY_MAP) - drives the Templates page drill-down. */
   category: string;
   subcategory?: string;
+  /** Section of the hand-written library it came from (search only; not stored). */
+  libraryGroup?: string;
   departmentCode: string;
   defaultPriority: TemplatePriority;
   defaultSeverity?: string;
@@ -270,8 +272,11 @@ export function defineTemplates(category: string, specs: TemplateSpec[]): Ticket
       code: s.code,
       title: s.title,
       description: s.desc,
-      category,
-      subcategory: s.sub,
+      // The Templates page groups by the IRIS issue taxonomy (what the ticket is filed under);
+      // the library section this spec was written in is kept for search.
+      category: s.map[0],
+      subcategory: s.map[1],
+      libraryGroup: `${category} › ${s.sub}`,
       departmentCode: s.dept,
       defaultPriority: s.prio,
       defaultSeverity: SEVERITY_BY_PRIORITY[s.prio],

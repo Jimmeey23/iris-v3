@@ -18,7 +18,7 @@ function renderAt(nav: Partial<TemplateNav>): string {
 /** React's HTML escaping, for matching visible text in rendered markup. */
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
-const codesIn = (html: string) => new Set([...html.matchAll(/>(TPL-\d{3})</g)].map((m) => m[1]));
+const codesIn = (html: string) => new Set([...html.matchAll(/>(TPL-(?:\d{3}|S[0-9A-Z]{7}))</g)].map((m) => m[1]));
 
 describe("Templates page — 3-step drill-down", () => {
   it("step 1 shows only the categories, never a template list", () => {

@@ -221,6 +221,7 @@ function isValidPair(c?: string, s?: string): c is string {
 export function templateTaxonomy(t: TicketTemplate): { category: string; subcategory: string } {
   const f = t.form;
   if (f?.category && isValidPair(f.category, f.subcategory)) return { category: f.category, subcategory: f.subcategory! };
+  if (isValidPair(t.category, t.subcategory)) return { category: t.category, subcategory: t.subcategory! };
   const hit = SUBCATEGORY_MAP[`${t.category}|${t.subcategory ?? ""}`];
   if (hit && isValidPair(hit[0], hit[1])) return { category: hit[0], subcategory: hit[1] };
   const fb = CATEGORY_FALLBACK[t.category];
@@ -333,4 +334,22 @@ export function formatFieldValue(v: string | boolean | string[] | undefined): st
   if (typeof v === "boolean") return v ? "Yes" : "No";
   if (Array.isArray(v)) return v.join(", ");
   return (v ?? "").toString().trim();
+}
+
+/**
+ * A template re-filed under the IRIS issue taxonomy it raises tickets in. Rows saved before
+ * the Templates page moved to that taxonomy still carry the old library category
+ * ("Membership" › "Reactivation"); this maps them so every template sits under its IRIS
+ * category / sub-category. Templates that can't be resolved are left as they are.
+ */
+export function withIrisTaxonomy(t: TicketTemplate): TicketTemplate {
+  const tax = templateTaxonomy(t);
+  if (!tax.category || (tax.category === t.category && (tax.subcategory || undefined) === (t.subcategory || undefined))) return t;
+  return {
+    ...t,
+    category: tax.category,
+    subcategory: tax.subcategory || undefined,
+    libraryGroup: t.libraryGroup ?? [t.category, t.subcategory].filter(Boolean).join(" › "),
+    form: t.form ? { ...t.form, category: tax.category, subcategory: tax.subcategory || t.form.subcategory } : t.form,
+  };
 }

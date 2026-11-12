@@ -93,18 +93,20 @@ const FIELD_TYPES: { value: TemplateFieldType; label: string }[] = [
 type Accent = TemplateCategoryMeta["accent"] | "slate";
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  Membership: BadgeCheck,
-  Payment: CreditCard,
   Scheduling: CalendarClock,
-  "Class & Trainer Experience": Activity,
-  "Client Experience": HeartHandshake,
-  Facilities: Wrench,
-  "Equipment & Studio Assets": Bike,
-  IT: MonitorSmartphone,
-  "Safety & Security": ShieldAlert,
-  Operations: ClipboardList,
-  HR: Users,
-  Marketing: Megaphone,
+  "Class Experience": Activity,
+  "Trainer Feedback": Users,
+  "Repair and Maintenance": Wrench,
+  "Studio Amenities and Facilities": Bike,
+  "Operating Systems": MonitorSmartphone,
+  "Tech Issues": MonitorSmartphone,
+  "Pricing and Memberships": BadgeCheck,
+  "Customer Service and Communication": HeartHandshake,
+  "Brand Feedback": Megaphone,
+  "Safety and Security": ShieldAlert,
+  "Theft and Lost Items": ClipboardList,
+  Miscellaneous: Layers,
+  "Internal Operations & Admin": ClipboardList,
 };
 
 function categoryVisual(category: string): { Icon: LucideIcon; accent: (typeof ACCENT_STYLES)[Accent] } {
@@ -182,6 +184,7 @@ export function TemplatesView() {
         templateCategoryLabel(t.category),
         t.subcategory ?? "",
         t.form?.subcategory ?? "",
+        t.libraryGroup ?? "",
         DEPT_MAP[t.departmentCode]?.name ?? "",
       ]
         .join(" ")

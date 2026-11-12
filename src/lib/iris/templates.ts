@@ -22,6 +22,7 @@ import { SAFETY_TEMPLATES } from "./template-library/safety";
 import { OPERATIONS_TEMPLATES } from "./template-library/operations";
 import { HR_TEMPLATES } from "./template-library/hr";
 import { MARKETING_TEMPLATES } from "./template-library/marketing";
+import { coverageTemplates } from "./template-library/coverage";
 
 export type { TicketTemplate, TemplateField, TemplateForm, TemplateFieldType, TemplatePriority } from "./template-types";
 
@@ -30,9 +31,7 @@ function codeNumber(code: string): number {
   return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
 }
 
-/** Immutable built-in catalogue, ordered by template code. */
-export const BUILTIN_TEMPLATES: readonly TicketTemplate[] = Object.freeze(
-  [
+const HAND_WRITTEN: TicketTemplate[] = [
     ...MEMBERSHIP_TEMPLATES,
     ...PAYMENT_TEMPLATES,
     ...SCHEDULING_TEMPLATES,
@@ -45,8 +44,13 @@ export const BUILTIN_TEMPLATES: readonly TicketTemplate[] = Object.freeze(
     ...OPERATIONS_TEMPLATES,
     ...HR_TEMPLATES,
     ...MARKETING_TEMPLATES,
-  ].sort((a, b) => codeNumber(a.code) - codeNumber(b.code)),
-);
+].sort((a, b) => codeNumber(a.code) - codeNumber(b.code));
+
+/**
+ * Immutable built-in catalogue: the hand-written templates (by code), then one generated
+ * template for each IRIS sub-category they don't cover, so every sub-category has one.
+ */
+export const BUILTIN_TEMPLATES: readonly TicketTemplate[] = Object.freeze([...HAND_WRITTEN, ...coverageTemplates(HAND_WRITTEN)]);
 
 export const BUILTIN_TEMPLATE_CODES: ReadonlySet<string> = new Set(BUILTIN_TEMPLATES.map((t) => t.code));
 

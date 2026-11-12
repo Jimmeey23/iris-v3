@@ -13,7 +13,7 @@ import { MomenceContextPanel } from "../momence-member-panel";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { AdminTicketControls } from "../admin-ticket-controls";
 import { RecurrencePanel } from "../recurrence-panel";
-import { FormattedText, TicketDescription } from "../formatted-text";
+import { FormattedText, TicketDescription, TicketFormFields } from "../formatted-text";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -54,6 +54,7 @@ import {
   Layers,
   Timer,
   Users,
+  ClipboardList,
 } from "lucide-react";
 
 export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
@@ -305,6 +306,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       </div>
                       <TicketDescription text={ticket.description} className="text-[12px] text-foreground/90" />
                     </div>
+                  )}
+                  {ticket.collectedInfo && Object.keys(ticket.collectedInfo).some((k) => !k.startsWith("_")) && (
+                    <TicketFormFieldsCard info={ticket.collectedInfo} />
                   )}
                   {/* Bike / microphone recurrence check: outcome buttons, or the schedule on the original */}
                   <RecurrencePanel key={`${ticket.id}:${ticket.status}`} ticketId={ticket.id} readOnly={readOnly} />
@@ -589,6 +593,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Description</div>
                       <TicketDescription text={ticket.description} className="text-[13px] text-foreground/90" />
                     </div>
+                    <TicketFormFields info={ticket.collectedInfo} className="text-[12px]" />
 
                     {ticket.businessImpact && (
                       <DetailRow label="Business Impact" value={ticket.businessImpact} />
@@ -1075,6 +1080,20 @@ function NudgeCard({ ticket, ownerIds }: { ticket: Ticket; ownerIds: string[] })
           {sending ? "Sending..." : "Send instant nudge"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** Hidden when the form captured nothing beyond what the ticket already shows. */
+function TicketFormFieldsCard({ info }: { info: Record<string, unknown> }) {
+  const body = <TicketFormFields info={info} className="text-[12px]" />;
+  return (
+    <div className="iris-card p-4 empty:hidden [&:not(:has(dl))]:hidden">
+      <div className="flex items-center gap-2 mb-2">
+        <ClipboardList className="w-4 h-4 text-primary" />
+        <div className="text-[13px] font-semibold">Form answers</div>
+      </div>
+      {body}
     </div>
   );
 }

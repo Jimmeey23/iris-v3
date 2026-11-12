@@ -120,8 +120,12 @@ describe("Built-in knowledge base", () => {
   });
 
   it("covers every template category with at least one guide", () => {
-    const linked = new Set(KNOWLEDGE_ARTICLES.flatMap((a) => (a.relatedTemplates ?? []).map((c) => TEMPLATE_MAP[c]?.category)));
-    for (const category of new Set(BUILTIN_TEMPLATES.map((t) => t.category))) expect(linked.has(category), category).toBe(true);
+    // Guides are written per section of the hand-written library (libraryGroup "Membership › …");
+    // generated sub-category templates (TPL-S…) have no section and aren't linked to guides.
+    const section = (code: string) => TEMPLATE_MAP[code]?.libraryGroup?.split(" › ")[0];
+    const linked = new Set(KNOWLEDGE_ARTICLES.flatMap((a) => (a.relatedTemplates ?? []).map(section)));
+    const handWritten = BUILTIN_TEMPLATES.filter((t) => !t.code.startsWith("TPL-S"));
+    for (const s of new Set(handWritten.map((t) => section(t.code)))) expect(linked.has(s), s).toBe(true);
   });
 
   it("avoids markdown the reader can't render (no GFM tables or task lists)", () => {

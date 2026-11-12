@@ -9,13 +9,15 @@ import { api } from "./live-data";
 import { useAppStore } from "./store";
 import { TICKET_TEMPLATES, TEMPLATE_MAP, type TicketTemplate } from "./templates";
 import { KNOWLEDGE_ARTICLES, type KnowledgeArticle } from "./knowledge-base-data";
+import { withIrisTaxonomy } from "./template-form";
 
 function replaceArray<T>(target: T[], items: T[]) {
   target.length = 0;
   target.push(...items);
 }
 
-export function hydrateTemplates(items: TicketTemplate[]) {
+export function hydrateTemplates(rows: TicketTemplate[]) {
+  const items = rows.map(withIrisTaxonomy);
   replaceArray(TICKET_TEMPLATES, items);
   for (const k of Object.keys(TEMPLATE_MAP)) delete TEMPLATE_MAP[k];
   for (const t of items) TEMPLATE_MAP[t.code] = t;

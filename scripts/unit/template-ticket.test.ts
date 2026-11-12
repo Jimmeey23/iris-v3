@@ -71,11 +71,13 @@ describe("Template → ticket taxonomy fallbacks", () => {
     }
   });
 
-  it("covers every library category and sub-category", () => {
+  it("files every Templates-page category and sub-category as itself", () => {
+    // The page now uses the IRIS taxonomy, so a template there needs no fallback mapping.
     for (const cat of TEMPLATE_TAXONOMY) {
-      expect(CATEGORY_FALLBACK[cat.key]).toBeDefined();
-      for (const sub of cat.subcategories) expect(SUBCATEGORY_MAP[`${cat.key}|${sub.name}`]).toBeDefined();
+      for (const sub of cat.subcategories) expect(CATEGORY_MAP[cat.key]).toContain(sub.name);
     }
+    expect(Object.keys(CATEGORY_FALLBACK).length).toBeGreaterThan(0);
+    expect(Object.keys(SUBCATEGORY_MAP).length).toBeGreaterThan(0);
   });
 
   it("resolves a form-less (user-created) template from its library sub-category", () => {

@@ -62,8 +62,8 @@ describe("Templates Category & Sub-category Grouping", () => {
     const subs = templateSubcategories(TICKET_TEMPLATES, firstCat);
     expect(subs.length).toBeGreaterThanOrEqual(1);
 
-    const sortedCats = sortTemplateCategories(["Zeta", "Facilities", "Membership"]);
-    expect(sortedCats).toEqual(["Membership", "Facilities", "Zeta"]);
+    const sortedCats = sortTemplateCategories(["Zeta", "Pricing and Memberships", "Scheduling"]);
+    expect(sortedCats).toEqual(["Scheduling", "Pricing and Memberships", "Zeta"]);
   });
 
   it("orders built-in categories and their sub-categories as the taxonomy defines them", () => {
