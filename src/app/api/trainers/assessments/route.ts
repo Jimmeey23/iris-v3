@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { lastSyncAt, syncTrainerReviewsThrottled } from "@/lib/server/trainer-reviews";
 import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 
@@ -13,6 +14,9 @@ export async function GET() {
   // The Trainers module is admin-only.
   const auth = await requireSession({ admin: true });
   if ("error" in auth) return auth.error;
+  // Pull new Fillout/Zite submissions after the response is sent (at most once a minute across
+  // all instances), so the next poll of this endpoint picks up whatever it imported.
+  after(() => syncTrainerReviewsThrottled().then(() => undefined, (e) => console.error("[trainer-reviews]", e)));
   try {
     const rows = await withUser(auth.session.user_id, async (c) =>
       (await c.query(
@@ -45,7 +49,7 @@ export async function GET() {
         answers: Array.isArray(p.answers) ? p.answers : [],
       };
     });
-    return NextResponse.json({ assessments });
+    return NextResponse.json({ assessments, lastSync: await lastSyncAt().catch(() => null) });
   } catch (err) {
     return dbError(err);
   }

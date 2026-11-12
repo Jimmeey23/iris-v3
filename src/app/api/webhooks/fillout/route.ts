@@ -3,6 +3,9 @@ import { createHash, timingSafeEqual } from "crypto";
 import { asSystem } from "@/lib/server/db";
 import { loadCredentials } from "@/lib/server/integration-vault";
 import { FilloutError, parseFilloutAssessment } from "@/lib/iris/fillout-assessment";
+import {
+  looksLikeZiteRow, normaliseFilloutSubmission, normaliseZiteRow, saveReview, sourceById,
+} from "@/lib/server/trainer-reviews";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +70,39 @@ export async function POST(req: Request) {
 
     try {
       const studios = (await c.query("select name from iris.studios where is_active")).rows.map((r) => r.name as string);
+      const sourceParam = url.searchParams.get("source")?.slice(0, 80) || undefined;
+      const env = (payload ?? {}) as Record<string, unknown>;
+      const formId = String(env.formId ?? (env.form as Record<string, unknown> | undefined)?.id ?? sourceParam ?? "");
+
+      // Zite's "Test fetch" posts a body with no saved record in it. Answer 200 so the
+      // integration can be saved; it is logged as ignored and nothing is imported.
+      const ziteSource = sourceById(sourceParam);
+      if (ziteSource?.kind === "zite-app" && !looksLikeZiteRow(payload)) {
+        await finish("ignored", "Zite test fetch or payload without an assessment row (needs id + trainerName).");
+        return NextResponse.json({ ok: true, test: true, note: "Connected. Real deliveries must include id and trainerName." });
+      }
+
+      // Zite apps (Strength Lab, powerCycle) post their assessment row from a workflow HTTP step.
+      if (looksLikeZiteRow(payload)) {
+        const source = sourceById(sourceParam) ?? { id: sourceParam ?? "zite", kind: "zite-app" as const, label: "Zite app" };
+        const review = normaliseZiteRow(payload, source);
+        if (!review) throw new FilloutError("The Zite payload has no id or trainerName.");
+        const saved = await saveReview(c, review, studios);
+        await finish(saved.outcome === "imported" ? "processed" : "ignored", saved.outcome === "imported" ? null : saved.outcome);
+        return NextResponse.json({ ok: true, outcome: saved.outcome, assessmentId: saved.id ?? null, score: review.score });
+      }
+
+      // The four built-in forms are scored the v2 way (every scored question, against its own
+      // ceiling) so the Barre form's "❖ ..." labels don't need a field map.
+      const known = sourceById(formId);
+      if (known?.kind === "fillout-form") {
+        const review = normaliseFilloutSubmission(payload, known);
+        if (!review) throw new FilloutError("No submission id or trainer name was found in the submission.");
+        const saved = await saveReview(c, review, studios);
+        await finish(saved.outcome === "imported" ? "processed" : "ignored", saved.outcome === "imported" ? null : saved.outcome);
+        return NextResponse.json({ ok: true, outcome: saved.outcome, assessmentId: saved.id ?? null, score: review.score });
+      }
+
       let fieldMap: Record<string, string> | undefined;
       if (values.field_map) {
         try {
