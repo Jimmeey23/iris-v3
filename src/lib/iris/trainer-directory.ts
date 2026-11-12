@@ -102,7 +102,15 @@ const BUILT_IN_ALIASES: Record<string, string> = {
   "siddhartha kasuma": "Siddhartha Kusuma",
   "bret saldhana": "Bret Saldanha",
   "richard d'souza": "Richard D'Costa",
+  rhichard: "Richard D'Costa",
+  simolle: "Simonelle De Vitre",
+  "simonelle de vitre": "Simonelle De Vitre",
 };
+
+/** True when a resolved name is somebody on the roster. Only these get a card: the ticket
+ *  text is free-form, so anything else is a typo, a list that was not split, or a person
+ *  who is not a trainer. */
+export const isRosterTrainer = (name: string) => knownTrainerNames().includes(name);
 
 /** Bengaluru, by first name as given: Kajol, Pushyank, Shruti, Siddhartha, Chaitanya.
  *  Everyone else is Mumbai. */
@@ -252,7 +260,7 @@ export function trainerMentions(t: Ticket): string[] {
   const out = new Set<string>();
   // The intake form writes "• Trainer: Name" into the description.
   for (const m of t.description.matchAll(/^[\s•*-]*Trainers?\s*:\s*(.+)$/gim)) {
-    for (const part of m[1].split(/,|&|\band\b/i)) {
+    for (const part of m[1].split(/[,;&/|]|\band\b/i)) {
       const name = part.replace(/\(.*?\)/g, "").trim();
       if (name) out.add(name);
     }
@@ -302,6 +310,7 @@ export function buildTrainerProfiles(
   const assessedBy = new Map<string, Assessment[]>();
   for (const a of [...assessments].sort((x, y) => y.submittedAt.localeCompare(x.submittedAt))) {
     const name = resolveTrainer(a.trainerName, overrides).name ?? a.trainerName;
+    if (!isRosterTrainer(name)) continue;
     if (!assessedBy.has(name)) assessedBy.set(name, []);
     assessedBy.get(name)!.push(a);
     if (!byTrainer.has(name)) byTrainer.set(name, []);
@@ -313,7 +322,7 @@ export function buildTrainerProfiles(
   for (const t of newestFirst) {
     for (const written of new Set(trainerMentions(t))) {
       const resolved = resolveTrainer(written, overrides);
-      if (!resolved.name) continue;
+      if (!resolved.name || !isRosterTrainer(resolved.name)) continue;
       if (resolved.via === "ambiguous") ambiguous.set(resolved.name, resolved.candidates);
       const list = byTrainer.get(resolved.name);
       if (list) list.push(t);
@@ -377,7 +386,9 @@ export function buildTrainerProfiles(
 
   const sources = FEEDBACK_CATEGORIES.map((label) => ({
     label: label as string,
-    count: tickets.filter((t) => t.category === label && trainerMentions(t).length > 0).length,
+    count: tickets.filter(
+      (t) => t.category === label && trainerMentions(t).some((n) => isRosterTrainer(resolveTrainer(n, overrides).name)),
+    ).length,
   })).filter((s) => s.count > 0);
 
   return {
