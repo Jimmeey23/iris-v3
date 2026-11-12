@@ -21,7 +21,7 @@ export function tidy(text: string): string {
 /** A full sentence: tidied and ending in punctuation. */
 export function toSentence(text: string): string {
   const s = tidy(text);
-  return !s || /[.!?…:;]["'”’)]?$/.test(s) ? s : `${s}.`;
+  return !s || /[.!?…:;\]]["'”’)]?$/.test(s) ? s : `${s}.`;
 }
 
 export type DescriptionField = { label: string | null; value: string };
@@ -43,7 +43,7 @@ export function descriptionBlocks(text: string | null | undefined): DescriptionB
   let lines: string[] = [];
   let paragraphs: string[] = [];
   const flushText = () => {
-    if (lines.length) paragraphs.push(lines.map(toSentence).join(" "));
+    if (lines.length) paragraphs.push(lines.map((l) => toSentence(l.replace(BULLET_RE, ""))).join(" "));
     lines = [];
   };
   const flush = () => {
