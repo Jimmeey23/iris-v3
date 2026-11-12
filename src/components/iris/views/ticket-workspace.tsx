@@ -13,7 +13,7 @@ import { MomenceContextPanel } from "../momence-member-panel";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { AdminTicketControls } from "../admin-ticket-controls";
 import { RecurrencePanel } from "../recurrence-panel";
-import { FormattedText } from "../formatted-text";
+import { FormattedText, TicketDescription } from "../formatted-text";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -303,7 +303,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         <FileText className="w-4 h-4 text-primary" />
                         <div className="text-[13px] font-semibold">Issue Description</div>
                       </div>
-                      <FormattedText text={ticket.description} className="text-[12px] text-foreground/90" />
+                      <TicketDescription text={ticket.description} className="text-[12px] text-foreground/90" />
                     </div>
                   )}
                   {/* Bike / microphone recurrence check: outcome buttons, or the schedule on the original */}
@@ -587,7 +587,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                   <div className="iris-card p-4 space-y-4">
                     <div>
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Description</div>
-                      <FormattedText text={ticket.description} className="text-[13px] text-foreground/90" />
+                      <TicketDescription text={ticket.description} className="text-[13px] text-foreground/90" />
                     </div>
 
                     {ticket.businessImpact && (

@@ -74,6 +74,12 @@ export async function POST(req: Request) {
       const env = (payload ?? {}) as Record<string, unknown>;
       const formId = String(env.formId ?? (env.form as Record<string, unknown> | undefined)?.id ?? sourceParam ?? "");
 
+      // An empty body is a connection test (Zite's "Test fetch" sends {}).
+      if (env && typeof env === "object" && !Array.isArray(env) && Object.keys(env).length === 0) {
+        await finish("ignored", "Empty test delivery.");
+        return NextResponse.json({ ok: true, test: true, note: "Connected." });
+      }
+
       // Zite's "Test fetch" posts a body with no saved record in it. Answer 200 so the
       // integration can be saved; it is logged as ignored and nothing is imported.
       const ziteSource = sourceById(sourceParam);
@@ -84,23 +90,34 @@ export async function POST(req: Request) {
 
       // Zite apps (Strength Lab, powerCycle) post their assessment row from a workflow HTTP step.
       if (looksLikeZiteRow(payload)) {
-        const source = sourceById(sourceParam) ?? { id: sourceParam ?? "zite", kind: "zite-app" as const, label: "Zite app" };
+        // The app id is part of the stored reference; without it a webhook delivery and the
+        // background read of the same row would be stored twice.
+        const source = sourceById(sourceParam);
+        if (source?.kind !== "zite-app") {
+          throw new FilloutError("Add ?source=srq1c6n7br (Strength Lab) or ?source=pdtcpzhxas (powerCycle) to the webhook URL.");
+        }
         const review = normaliseZiteRow(payload, source);
         if (!review) throw new FilloutError("The Zite payload has no id or trainerName.");
         const saved = await saveReview(c, review, studios);
         await finish(saved.outcome === "imported" ? "processed" : "ignored", saved.outcome === "imported" ? null : saved.outcome);
-        return NextResponse.json({ ok: true, outcome: saved.outcome, assessmentId: saved.id ?? null, score: review.score });
+        return NextResponse.json({ ok: true, outcome: saved.outcome, assessmentId: saved.id ?? null, ticketId: saved.ticketId ?? null, score: review.score });
       }
 
       // The four built-in forms are scored the v2 way (every scored question, against its own
       // ceiling) so the Barre form's "❖ ..." labels don't need a field map.
       const known = sourceById(formId);
+      // Fillout's "Test" button sends a sample with an empty submissionId and blank answers.
+      const sub = (env.submission ?? {}) as Record<string, unknown>;
+      if (known?.kind === "fillout-form" && !String(sub.submissionId ?? env.submissionId ?? "").trim()) {
+        await finish("ignored", "Fillout test delivery (no submissionId).");
+        return NextResponse.json({ ok: true, test: true, note: "Connected. Real submissions will be imported." });
+      }
       if (known?.kind === "fillout-form") {
         const review = normaliseFilloutSubmission(payload, known);
         if (!review) throw new FilloutError("No submission id or trainer name was found in the submission.");
         const saved = await saveReview(c, review, studios);
         await finish(saved.outcome === "imported" ? "processed" : "ignored", saved.outcome === "imported" ? null : saved.outcome);
-        return NextResponse.json({ ok: true, outcome: saved.outcome, assessmentId: saved.id ?? null, score: review.score });
+        return NextResponse.json({ ok: true, outcome: saved.outcome, assessmentId: saved.id ?? null, ticketId: saved.ticketId ?? null, score: review.score });
       }
 
       let fieldMap: Record<string, string> | undefined;

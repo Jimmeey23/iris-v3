@@ -13,6 +13,7 @@ import { DEPARTMENTS, DEPT_MAP, EMPLOYEES, EMPLOYEE_MAP, PRIORITY_CONFIG, STUDIO
 import { KNOWLEDGE_ARTICLES } from "./knowledge-base-data";
 import { TEMPLATE_MAP } from "./templates";
 import type { AgentTicketDraft, CurrentUser, IntakeState } from "./store";
+import { descriptionText } from "./description-format";
 import { FIELDS, fieldsFor, isSpecial, missingFields } from "./intake-schema";
 
 // ── Questions ────────────────────────────────────────────────────────────────
@@ -230,7 +231,7 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
 
   const section = (h: string, body?: string | string[] | null) =>
     body && (Array.isArray(body) ? body.length : body.trim()) ? `\n${h}\n${Array.isArray(body) ? body.map((x) => `- ${x}`).join("\n") : body.trim()}` : "";
-  const description = [
+  const rawDescription = [
     s.text.trim(),
     section(
       "Details captured",
@@ -252,6 +253,7 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
     section("Member profile", snap ? memberLines(snap) : s.member ? [`${s.member.name} (${s.member.id})`] : null),
     section("Related open tickets", related.map((r) => `${r.ticketId} - ${r.title}`)),
   ].join("\n");
+  const description = descriptionText(rawDescription);
 
   const due = new Date(Date.now() + p.resolutionMins * 60_000);
   const extras: DraftExtras = {

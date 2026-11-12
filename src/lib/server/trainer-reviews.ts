@@ -194,7 +194,7 @@ export function matchStudio(raw: string, studios: string[]): string | null {
 export type SaveOutcome = "imported" | "duplicate" | "deleted" | "unmatched-studio";
 
 /** Stores one review. Rows from a studio that isn't ours are the apps' sample data and are skipped. */
-export async function saveReview(c: PoolClient, review: NormalisedReview, studios: string[]): Promise<{ outcome: SaveOutcome; id?: string }> {
+export async function saveReview(c: PoolClient, review: NormalisedReview, studios: string[]): Promise<{ outcome: SaveOutcome; id?: string; ticketId?: string }> {
   const dupe = (await c.query("select id from iris.trainer_assessments where source_ref = $1", [review.sourceRef])).rows[0];
   if (dupe) return { outcome: "duplicate", id: dupe.id };
   if ((await deletedRefs(c)).has(review.sourceRef)) return { outcome: "deleted" };
@@ -234,6 +234,14 @@ export async function saveReview(c: PoolClient, review: NormalisedReview, studio
       ],
     )
   ).rows[0];
+  let ticketId: string | undefined;
+  if (row) {
+    ticketId = await createAssessmentTicket(c, review, { name, studio, when, score: review.score, band: review.band || b.band });
+    await c.query(
+      `update iris.trainer_assessments set ticket_number = $2, payload = payload || jsonb_build_object('ticketNumber', $2::text) where id = $1`,
+      [row.id, ticketId],
+    );
+  }
   if (trainer) {
     await c.query(
       `update iris.trainers t set assessment_count = s.n, avg_score = s.avg, updated_at = now()
@@ -242,7 +250,58 @@ export async function saveReview(c: PoolClient, review: NormalisedReview, studio
       [trainer.id],
     );
   }
-  return { outcome: row ? "imported" : "duplicate", id: row?.id };
+  return { outcome: row ? "imported" : "duplicate", id: row?.id, ticketId };
+}
+
+/** Assessments under this score need a coaching follow-up, so their ticket stays open. */
+const COACHING_THRESHOLD = 65;
+
+/**
+ * Files the submission as a Training ticket, as v2 does, so it shows on the board with the
+ * rest of the trainer's history. The `trainer-assessment` tag keeps it out of the Trainers
+ * tab's member-feedback counts (it is already counted as an assessment). A score that needs
+ * coaching stays open for Training; anything else is filed already resolved, so a routine
+ * evaluation never sits in someone's queue or trips an SLA.
+ */
+async function createAssessmentTicket(
+  c: PoolClient,
+  review: NormalisedReview,
+  t: { name: string; studio: string; when: string; score: number | null; band: string },
+): Promise<string> {
+  const studioCode =
+    ((await c.query("select code from iris.studios where name = $1 limit 1", [t.studio])).rows[0]?.code as string | undefined) ?? null;
+  const needsCoaching = t.score !== null && t.score < COACHING_THRESHOLD;
+  const lines = [
+    `• Trainer: ${t.name}`,
+    `• Studio: ${t.studio}`,
+    review.sessionName && `• Class: ${review.sessionName}`,
+    `• Evaluator: ${review.evaluator}`,
+    `• Score: ${t.score ?? "not scored"}${t.band ? ` (${t.band})` : ""}`,
+    `• Submitted: ${new Date(t.when).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })}`,
+    `• Source: ${review.sourceLabel}`,
+    review.strengths && `\nKey strengths: ${review.strengths}`,
+    review.improvements && `\nDevelopment areas: ${review.improvements}`,
+    review.coachingPlan && `\nCoaching action plan: ${review.coachingPlan}`,
+    review.rubric.length && `\nScorecard:\n${review.rubric.map((r) => `  - ${r.category}: ${r.score}/${r.weightage}`).join("\n")}`,
+  ].filter(Boolean);
+  const { rows } = await c.query(
+    `insert into iris.tickets (title, description, category, subcategory, priority, status, studio_code, department_code,
+       tags, source, collected_info, resolution, resolution_summary, resolved_at)
+     values ($1, $2, 'Trainer Feedback', 'Knowledge and Competence', $3, $4, $5, 'TRN', $6, 'webhook', $7::jsonb, $8, $8, $9)
+     returning id, ticket_id`,
+    [
+      `Trainer assessment · ${t.name}${review.sessionName ? ` · ${review.sessionName}` : ""}`,
+      lines.join("\n"),
+      needsCoaching ? "P2" : "P3",
+      needsCoaching ? "open" : "resolved",
+      studioCode,
+      ["trainer-assessment", "trainer-evaluation", review.sourceRef.startsWith("zite:") ? "via-zite" : "via-fillout"],
+      JSON.stringify({ sourceRef: review.sourceRef, evaluationScore: t.score, evaluator: review.evaluator, sourceLabel: review.sourceLabel }),
+      needsCoaching ? null : "Assessment recorded — no follow-up required.",
+      needsCoaching ? null : new Date().toISOString(),
+    ],
+  );
+  return rows[0].ticket_id as string;
 }
 
 // === Deleted-review tombstones ==============================================

@@ -162,6 +162,8 @@ export const RATE_LIMITS = {
   "ticket-write": { max: 60, windowSeconds: 60 },
   /** Password sign-in, keyed by IP and email; stops credential stuffing early. */
   login: { max: 10, windowSeconds: 300 },
+  /** "Forgot password" requests, keyed by IP and email; each one sends an email. */
+  "password-reset": { max: 5, windowSeconds: 900 },
 } as const satisfies Record<string, Limit>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

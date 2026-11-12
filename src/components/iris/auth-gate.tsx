@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { parseAppPath } from "@/lib/iris/routes";
-import { Loader2, Lock, Eye, AlertTriangle, RefreshCw } from "lucide-react";
+import { Loader2, Lock, Eye, AlertTriangle, RefreshCw, Mail, ArrowLeft } from "lucide-react";
 import { IrisLogo } from "./iris-logo";
 import { IrisLoadingScreen } from "./intro-animation";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,21 @@ type Me = {
   departmentCode: string | null;
 };
 
-type Phase = "checking" | "login" | "change_password" | "loading" | "ready" | "error";
+type Phase = "checking" | "login" | "forgot" | "reset" | "change_password" | "loading" | "ready" | "error";
+
+/** A reset link lands on /?reset=<token>. Read once, then removed from the address bar. */
+let takenResetToken: string | null | undefined;
+function takeResetToken(): string | null {
+  if (typeof window === "undefined") return null;
+  if (takenResetToken !== undefined) return takenResetToken; // StrictMode runs initializers twice
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get("reset");
+  takenResetToken = token;
+  if (!token) return null;
+  url.searchParams.delete("reset");
+  window.history.replaceState(null, "", url.toString());
+  return token;
+}
 
 const AuthContext = React.createContext<{ signOut: () => Promise<void>; refresh: () => Promise<void> }>({
   signOut: async () => {},
@@ -34,6 +48,8 @@ export const useAuth = () => React.useContext(AuthContext);
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [phase, setPhase] = React.useState<Phase>("checking");
   const [error, setError] = React.useState<string | null>(null);
+  // Read during the first client render; the server render has no URL and sees null.
+  const [resetToken] = React.useState(takeResetToken);
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
 
   const boot = React.useCallback(async () => {
@@ -94,13 +110,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [setCurrentUser]);
 
   React.useEffect(() => {
-    boot();
+    // A reset link skips the session check: the person is signed out by definition.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off routing on mount
+    if (resetToken) setPhase("reset");
+    else boot();
     const onSignedOut = () => {
       if (!(process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true")) setPhase("login");
     };
     window.addEventListener("iris:signed-out", onSignedOut);
     return () => window.removeEventListener("iris:signed-out", onSignedOut);
-  }, [boot]);
+  }, [boot, resetToken]);
 
   const signOut = React.useCallback(async () => {
     await api("/api/auth/logout", { method: "POST" }).catch(() => {});
@@ -123,7 +142,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="iris-card p-6 sm:p-8 shadow-2xl">
-          {phase === "login" && <LoginForm onDone={boot} />}
+          {phase === "login" && <LoginForm onDone={boot} onForgot={() => setPhase("forgot")} />}
+          {phase === "forgot" && <ForgotPasswordForm onBack={() => setPhase("login")} />}
+          {phase === "reset" && resetToken && (
+            <ResetPasswordForm token={resetToken} onDone={boot} onRequestNew={() => setPhase("forgot")} />
+          )}
           {phase === "change_password" && <ChangePasswordForm onDone={boot} onCancel={signOut} />}
           {phase === "error" && (
             <div className="space-y-3 text-center">
@@ -158,7 +181,7 @@ const GOOGLE_ERRORS: Record<string, string> = {
   profile_unavailable: "We couldn't load your workspace profile. Please try again in a moment.",
 };
 
-function LoginForm({ onDone }: { onDone: () => void }) {
+function LoginForm({ onDone, onForgot }: { onDone: () => void; onForgot: () => void }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -197,7 +220,10 @@ function LoginForm({ onDone }: { onDone: () => void }) {
         <Input type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
       </label>
       <label className="block space-y-1">
-        <span className="text-[11px] font-medium text-muted-foreground">Password</span>
+        <span className="flex items-center justify-between">
+          <span className="text-[11px] font-medium text-muted-foreground">Password</span>
+          <button type="button" onClick={onForgot} className="text-[11px] font-medium text-primary hover:underline">Forgot password?</button>
+        </span>
         <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
       </label>
       <FormError message={error} />
@@ -269,6 +295,102 @@ function ChangePasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>Sign out</Button>
       </div>
+    </form>
+  );
+}
+
+function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [sent, setSent] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ message: string }>("/api/auth/forgot-password", { method: "POST", json: { email: email.trim() } });
+      setSent(res.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't send the reset email");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-[14px] font-semibold"><Mail className="w-4 h-4" />Check your email</div>
+        <p className="text-[12px] text-muted-foreground">{sent} The link expires in 30 minutes. Check spam if it doesn't arrive in a few minutes.</p>
+        <Button type="button" variant="outline" className="w-full" onClick={onBack}><ArrowLeft className="w-3.5 h-3.5 mr-1.5" />Back to sign in</Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <div className="flex items-center gap-2 text-[14px] font-semibold"><Lock className="w-4 h-4" />Forgot your password?</div>
+      <p className="text-[12px] text-muted-foreground">Enter your work email and we'll send you a link to choose a new one.</p>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium text-muted-foreground">Work email</span>
+        <Input type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+      </label>
+      <FormError message={error} />
+      <Button type="submit" className="w-full" disabled={busy}>
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Email me a reset link"}
+      </Button>
+      <Button type="button" variant="ghost" className="w-full" onClick={onBack}><ArrowLeft className="w-3.5 h-3.5 mr-1.5" />Back to sign in</Button>
+    </form>
+  );
+}
+
+function ResetPasswordForm({ token, onDone, onRequestNew }: { token: string; onDone: () => void; onRequestNew: () => void }) {
+  const [newPassword, setNew] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [expired, setExpired] = React.useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 10) return setError("Use at least 10 characters.");
+    if (newPassword !== confirm) return setError("The passwords don't match.");
+    setBusy(true);
+    setError(null);
+    try {
+      await api("/api/auth/reset-password", { method: "POST", json: { token, newPassword } });
+      onDone();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Couldn't reset the password";
+      setError(msg);
+      if (/expired|already used|invalid/i.test(msg)) setExpired(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <div className="flex items-center gap-2 text-[14px] font-semibold"><Lock className="w-4 h-4" />Choose a new password</div>
+      <p className="text-[12px] text-muted-foreground">This signs you out of IRIS everywhere else, then signs you in here.</p>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium text-muted-foreground">New password (10+ characters)</span>
+        <Input type="password" autoComplete="new-password" required value={newPassword} onChange={(e) => setNew(e.target.value)} autoFocus />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium text-muted-foreground">Confirm new password</span>
+        <Input type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+      </label>
+      <FormError message={error} />
+      {expired ? (
+        <Button type="button" className="w-full" onClick={onRequestNew}>Send me a new link</Button>
+      ) : (
+        <Button type="submit" className="w-full" disabled={busy}>
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save and sign in"}
+        </Button>
+      )}
     </form>
   );
 }

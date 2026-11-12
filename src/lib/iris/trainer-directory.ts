@@ -249,7 +249,10 @@ export const CITY_ORDER: TrainerCity[] = ["Mumbai", "Bengaluru"];
 /** Categories whose tickets count as member feedback about a trainer. */
 export const FEEDBACK_CATEGORIES = ["Trainer Feedback", "Class Experience"] as const;
 
-const isFeedback = (t: Ticket) => (FEEDBACK_CATEGORIES as readonly string[]).includes(t.category);
+/** Assessment tickets (filed from the evaluation forms) count as assessments, not member feedback. */
+export const isAssessmentTicket = (t: Ticket) => (t.tags ?? []).includes("trainer-assessment");
+const isFeedback = (t: Ticket) =>
+  (FEEDBACK_CATEGORIES as readonly string[]).includes(t.category) && !isAssessmentTicket(t);
 const PRAISE = /compliment|praise|appreciat|kudos|shout-?out|positive feedback|loved|great class/i;
 const isCompliment = (t: Ticket) => PRAISE.test([t.subcategory, t.title, ...(t.tags ?? [])].join(" "));
 

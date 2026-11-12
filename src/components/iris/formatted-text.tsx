@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { descriptionBlocks } from "@/lib/iris/description-format";
 
 /**
  * Split long free text into bullet points. Short text (one sentence or under
@@ -35,5 +36,21 @@ export function FormattedText({ text, className, itemClassName }: { text: string
         </li>
       ))}
     </ul>
+  );
+}
+
+/** A ticket description as headed paragraphs of full sentences (never a bullet list). */
+export function TicketDescription({ text, className }: { text: string | null | undefined; className?: string }) {
+  const blocks = descriptionBlocks(text);
+  if (!blocks.length) return null;
+  return (
+    <div className={cn("space-y-3", className)}>
+      {blocks.map((b, i) => (
+        <div key={i}>
+          {b.heading && <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground mb-1">{b.heading}</div>}
+          <p className="leading-relaxed whitespace-pre-line">{b.text}</p>
+        </div>
+      ))}
+    </div>
   );
 }

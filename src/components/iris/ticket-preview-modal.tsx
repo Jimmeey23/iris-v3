@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FormattedText } from "./formatted-text";
+import { FormattedText, TicketDescription } from "./formatted-text";
 import { cn } from "@/lib/utils";
 import { TicketDetailData, AssigneeDetail, CandidateAssignee } from "@/lib/iris/ticket-detail-builder";
 import { PRIORITY_CONFIG } from "@/lib/iris/types";
@@ -225,7 +225,7 @@ function OverviewTab({ data }: { data: TicketDetailData }) {
           </div>
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Description</div>
-            <div className="text-[12px] text-foreground/90 p-2.5 rounded-md bg-muted/30 border border-border"><FormattedText text={data.description} /></div>
+            <div className="text-[12px] text-foreground/90 p-2.5 rounded-md bg-muted/30 border border-border"><TicketDescription text={data.description} /></div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <InfoBox label="Category" value={data.category} icon={Tag} />
