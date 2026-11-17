@@ -231,7 +231,8 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
   const toggleAll = () => setSelectedIds(selectedIds.size === tickets.length ? new Set() : new Set(tickets.map((t) => t.id)));
 
   const selectedTicket = selectedTicketId ? ALL_TICKETS.find((t) => t.id === selectedTicketId) : null;
-  if (selectedTicket) return <TicketWorkspace ticket={selectedTicket} />;
+  // key: workspace state (status, owners, drafts) must reset when moving between tickets.
+  if (selectedTicket) return <TicketWorkspace key={selectedTicket.id} ticket={selectedTicket} />;
 
   const titles: Record<string, string> = { all: "All Tickets", my: "My Tickets", department: myDepartment ? `${DEPARTMENTS.find((d) => d.code === myDepartment)?.name ?? myDepartment} Queue` : "Department Queue", escalations: "Escalations & SLA Risks" };
   const filtersActive = quick.size > 0 || ticketFilters.priority.length + ticketFilters.status.length + ticketFilters.studio.length + ticketFilters.department.length + ticketFilters.slaStatus.length > 0 || Boolean(ticketFilters.search);

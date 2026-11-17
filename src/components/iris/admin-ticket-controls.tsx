@@ -81,7 +81,14 @@ export function AdminTicketControls({
           </Button>
         ) : (
           <>
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => run({ status: "resolved" }, "Ticket resolved")}>
+            <Button
+              size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy}
+              onClick={() =>
+                ticket.resolutionSummary
+                  ? run({ status: "resolved" }, "Ticket resolved")
+                  : toast.error("Add a resolution summary first - use Mark Resolved or the summary card.")
+              }
+            >
               <CheckCircle2 className="w-3 h-3 mr-1" /> Resolve
             </Button>
             <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => run({ status: "closed" }, "Ticket closed")}>
@@ -90,7 +97,7 @@ export function AdminTicketControls({
           </>
         )}
         <Button
-          size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy || level >= 5}
+          size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy || level >= 5 || closed}
           onClick={() => run({ escalationLevel: level + 1, status: "escalated" }, `Escalated to level ${level + 1}`)}
         >
           <ArrowUpCircle className="w-3 h-3 mr-1" /> Escalate{level ? ` (L${level})` : ""}
@@ -98,7 +105,16 @@ export function AdminTicketControls({
         {level > 0 && (
           <Button
             size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy}
-            onClick={() => run(level === 1 ? { escalationLevel: 0, status: "in_progress" } : { escalationLevel: level - 1 }, "De-escalated")}
+            onClick={() =>
+              run(
+                // Leaving L0 only resets the status when it is still "escalated"; a
+                // resolved or awaiting_response ticket keeps its status.
+                level === 1 && ticket.status === "escalated"
+                  ? { escalationLevel: 0, status: "in_progress" }
+                  : { escalationLevel: level - 1 },
+                "De-escalated",
+              )
+            }
           >
             <ArrowDownCircle className="w-3 h-3 mr-1" /> De-escalate
           </Button>
@@ -134,6 +150,7 @@ export function AdminTicketControls({
         <label className="text-[10px] text-muted-foreground">
           SLA resolution target
           <Input type="datetime-local" className="h-8 text-[12px]" disabled={busy}
+            key={String(ticket.slaResolutionTarget ?? "")}
             defaultValue={toLocalInput(ticket.slaResolutionTarget)}
             onBlur={(e) => {
               const v = e.target.value;

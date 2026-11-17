@@ -12,6 +12,7 @@ import { SmartBadges } from "../smart-badges";
 import { MomenceContextPanel } from "../momence-member-panel";
 import { AIResolutionSuggestions } from "../ai-resolution-suggestions";
 import { AdminTicketControls } from "../admin-ticket-controls";
+import { EscalationLadder } from "../escalation-ladder";
 import { RecurrencePanel } from "../recurrence-panel";
 import { FormattedText, TicketDescription, TicketFormFields } from "../formatted-text";
 import { TicketAiCard } from "../ticket-ai-card";
@@ -135,6 +136,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [showRequestDialog, setShowRequestDialog] = React.useState(false);
   const [resolutionNote, setResolutionNote] = React.useState("");
   const [resolutionActions, setResolutionActions] = React.useState("");
+  const [resolutionRootCause, setResolutionRootCause] = React.useState("");
   const [extensionHours, setExtensionHours] = React.useState(4);
   const [extensionReason, setExtensionReason] = React.useState("");
   // Entries posted from the log carry a "[follow up] " style marker in front of their text.
@@ -183,10 +185,11 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const reporter = getReporter(ticket);
   const studio = getStudio(ticket);
 
-  // Resolution permission - only owner or their reporting manager can resolve
+  // Resolution permission - the owner, the owner's reporting manager, or an admin.
   const isOwner = isTicketOwner(ticket, currentUser.id) || ownerIds.includes(currentUser.id);
-  const isManager = currentUser.tier === "admin" || currentUser.tier === "manager";
-  const canResolve = isOwner || isManager;
+  const isOwnersManager =
+    currentUser.tier === "manager" && !!assignee?.reportingManager && assignee.reportingManager === currentUser.name;
+  const canResolve = isOwner || isOwnersManager || currentUser.tier === "admin";
 
   const logEntry = async (type: string, content: string) => {
     await ticketsApi.comment(ticket.id, type === "comment" || type === "note" ? content : `[${type.replace(/_/g, " ")}] ${content}`);
@@ -220,12 +223,21 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   };
 
   const handleResolve = async () => {
-    if (!resolutionNote.trim()) return;
-    const summary = `${resolutionNote.trim()}${resolutionActions ? `\nActions taken: ${resolutionActions.trim()}` : ""}`;
+    if (!resolutionNote.trim() || busy) return;
+    const summary = [
+      resolutionNote.trim(),
+      resolutionRootCause.trim() ? `Root cause: ${resolutionRootCause.trim()}` : "",
+      resolutionActions.trim() ? `Actions taken: ${resolutionActions.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
     if (!(await save({ status: "resolved", resolutionSummary: summary }, "Ticket resolved"))) return;
     setStatus("resolved");
     await logEntry("resolution", `Ticket resolved. Summary: ${summary}`).catch(() => {});
     setShowResolveDialog(false);
+    setResolutionNote("");
+    setResolutionActions("");
+    setResolutionRootCause("");
   };
 
   const handleExtension = async () => {
@@ -610,6 +622,29 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       </div>
                       <div className="text-[11px] text-muted-foreground mb-4">A resolution summary is required. This will be logged and visible to all stakeholders.</div>
                       <div className="space-y-3">
+                        {/* Quick starts: common outcomes and the AI recommendation, one click to prefill. */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {["Fixed on site", "Part replaced", "Vendor resolved", "Resolved with member", "No fault found", "Duplicate of another ticket"].map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setResolutionNote((v) => (v.trim() ? v : `${t}. `))}
+                              className="h-6 px-2 rounded-full border border-border text-[10.5px] text-muted-foreground hover:border-primary hover:text-foreground"
+                            >
+                              {t}
+                            </button>
+                          ))}
+                          {ticket.recommendedResolution && (
+                            <button
+                              type="button"
+                              onClick={() => setResolutionNote(ticket.recommendedResolution ?? "")}
+                              className="h-6 px-2 rounded-full border border-violet-500/40 bg-violet-500/5 text-[10.5px] text-violet-600 dark:text-violet-400 hover:border-violet-500"
+                            >
+                              <Sparkles className="w-2.5 h-2.5 inline mr-1" />
+                              Use AI recommendation
+                            </button>
+                          )}
+                        </div>
                         <div>
                           <label className="text-[11px] font-semibold mb-1 block">Resolution Summary *</label>
                           <textarea
@@ -618,6 +653,15 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                             placeholder="Describe what was done to resolve this issue..."
                             rows={3}
                             className="w-full px-3 py-2 text-[12px] rounded-lg border border-border bg-card focus:outline-none focus:border-primary resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold mb-1 block">Root Cause</label>
+                          <input
+                            value={resolutionRootCause}
+                            onChange={(e) => setResolutionRootCause(e.target.value)}
+                            placeholder="What actually caused it? (helps recurrence tracking)"
+                            className="w-full h-8 px-3 text-[12px] rounded-lg border border-border bg-card focus:outline-none focus:border-primary"
                           />
                         </div>
                         <div>
@@ -632,11 +676,11 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
-                        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowResolveDialog(false)}>Cancel</Button>
+                        <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowResolveDialog(false)} disabled={busy}>Cancel</Button>
                         <div className="flex-1" />
-                        <Button size="sm" className="h-8 text-[12px]" onClick={handleResolve} disabled={!resolutionNote.trim()}>
+                        <Button size="sm" className="h-8 text-[12px]" onClick={handleResolve} disabled={busy || !resolutionNote.trim()}>
                           <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Confirm Resolution
+                          {busy ? "Resolving…" : "Confirm Resolution"}
                         </Button>
                       </div>
                     </div>
@@ -645,7 +689,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
                 {/* SLA Extension Dialog */}
                 <ExtensionRequestDialog
-                  breach={showRequestDialog ? { id: ticket.id, ticketId: ticket.id, title: ticket.title } : null}
+                  breach={showRequestDialog ? { id: ticket.id, ticketId: ticket.ticketId, title: ticket.title } : null}
                   onClose={() => setShowRequestDialog(false)}
                   onSent={() => setShowRequestDialog(false)}
                 />
@@ -874,7 +918,18 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                 <div className="p-3 space-y-3">
                   <div>
                     <div className="text-[10px] font-medium text-muted-foreground mb-1">Status</div>
-                    <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+                    <Select
+                      value={status}
+                      disabled={readOnly || busy}
+                      onValueChange={(v: TicketStatus) => {
+                        if (v === status) return;
+                        if (v === "resolved" && !ticket.resolutionSummary) {
+                          setShowResolveDialog(true);
+                          return;
+                        }
+                        void save({ status: v }, "Status updated").then((ok) => ok && setStatus(v));
+                      }}
+                    >
                       <SelectTrigger className="h-8 text-[12px]">
                         <SelectValue />
                       </SelectTrigger>
@@ -902,17 +957,17 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     />
                     {ticket.assignmentLocked && !isAdmin && <div className="text-[10px] text-muted-foreground mt-1">Imported legacy ticket: owners are locked.</div>}
                   </div>
-                  <div>
-                    <div className="text-[10px] font-medium text-muted-foreground mb-1">Escalation Level</div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className={cn("h-full rounded-full", ticket.escalationLevel > 0 ? "bg-rose-500" : "bg-emerald-500")} style={{ width: `${Math.min(100, ticket.escalationLevel * 33 + 33)}%` }} />
-                      </div>
-                      <span className="text-[11px] font-semibold tabular-nums">L{ticket.escalationLevel}</span>
-                    </div>
-                  </div>
                 </div>
               </div>
+
+              {/* Escalation ladder: chain, history, next auto-escalation countdown */}
+              <EscalationLadder
+                ticketId={ticket.id}
+                level={ticket.escalationLevel}
+                canManage={currentUser.tier === "admin" || currentUser.tier === "manager"}
+                readOnly={readOnly}
+                ticketClosed={status === "resolved" || status === "closed"}
+              />
 
               {/* Routing */}
               <div className="iris-card">

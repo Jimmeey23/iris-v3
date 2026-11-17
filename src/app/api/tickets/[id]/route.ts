@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
+import { enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import { fetchTicket } from "@/lib/server/tickets";
 import { notifyTicketEvent, statusEvent } from "@/lib/server/notify";
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
@@ -33,6 +34,7 @@ interface BeforeSnapshot {
   escalation_level: number;
   sla_status: string;
   created_at: string;
+  resolution_summary: string | null;
 }
 
 /** Diff the pre-update row against the saved ticket and notify each stage that changed. */
@@ -73,6 +75,12 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { id } = await ctx.params;
+  try {
+    await enforceRateLimit("ticket-write", userKey(auth.session.user_id));
+  } catch (e) {
+    const resetsIn = e instanceof Error && "resetsInSec" in e ? String((e as { resetsInSec: number }).resetsInSec) : "60";
+    return NextResponse.json({ error: (e as Error).message }, { status: 429, headers: { "Retry-After": resetsIn } });
+  }
   const b = await request.json().catch(() => ({}));
 
   const sets: string[] = [];
@@ -101,7 +109,13 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
   if (typeof b.resolutionSummary === "string") set("resolution_summary", b.resolutionSummary.slice(0, 5000));
   if (typeof b.resolution === "string") set("resolution", b.resolution.slice(0, 5000));
   if (typeof b.investigationNotes === "string") set("investigation_notes", b.investigationNotes.slice(0, 10000));
-  if (Number.isInteger(b.escalationLevel)) set("escalation_level", Math.max(0, Math.min(5, b.escalationLevel)));
+  if (b.escalationLevel !== undefined) {
+    if (!Number.isInteger(b.escalationLevel)) return NextResponse.json({ error: "Invalid escalation level" }, { status: 400 });
+    if (auth.session.role !== "admin" && auth.session.role !== "manager") {
+      return NextResponse.json({ error: "Only admins and managers can change the escalation level" }, { status: 403 });
+    }
+    set("escalation_level", Math.max(0, Math.min(5, b.escalationLevel)));
+  }
   // Non-admins can't add SLA time directly; they request it from their reporting manager
   // via /api/sla-extensions and it's added only on approval.
   if (b.slaStatus !== undefined && auth.session.role !== "admin") {
@@ -110,9 +124,17 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
   if (b.extendSlaHours !== undefined && auth.session.role !== "admin") {
     return NextResponse.json({ error: "Ask your reporting manager for more time instead" }, { status: 403 });
   }
+  if (b.extendSlaHours !== undefined && b.slaResolutionTarget !== undefined) {
+    // Both would assign sla_resolution_target in one UPDATE, which Postgres rejects.
+    return NextResponse.json({ error: "Send either extendSlaHours or slaResolutionTarget, not both" }, { status: 400 });
+  }
   if (Number.isFinite(b.extendSlaHours) && b.extendSlaHours > 0) {
+    // Extend from now when the target has already passed, so the extension is real time.
     vals.push(Math.min(168, b.extendSlaHours));
-    sets.push(`sla_resolution_target = coalesce(sla_resolution_target, now()) + make_interval(hours => $${vals.length}::int)`);
+    sets.push(`sla_resolution_target = greatest(coalesce(sla_resolution_target, now()), now()) + make_interval(hours => $${vals.length}::int)`);
+    // The target moved into the future: a breached/at-risk clock is live again. The
+    // calculate_sla trigger re-derives the precise value on the next status change.
+    sets.push(`sla_status = case when sla_status = 'paused' then 'paused' else 'on_track' end`);
   }
   if (b.acknowledge === true) {
     vals.push(
@@ -148,6 +170,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       const d = b.slaResolutionTarget ? new Date(b.slaResolutionTarget) : null;
       if (d && Number.isNaN(d.getTime())) return NextResponse.json({ error: "Invalid SLA target" }, { status: 400 });
       set("sla_resolution_target", d);
+      // A hand-set future target un-breaches the clock (paused stays paused).
+      if (d && d.getTime() > Date.now()) sets.push(`sla_status = case when sla_status = 'paused' then 'paused' else 'on_track' end`);
     }
     if (b.unlock === true) sets.push("metadata = metadata - 'legacy_import' - 'lock_assignment' - 'sla_exempt'");
   }
@@ -158,7 +182,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     const ticket = await withUser(auth.session.user_id, async (c) => {
       const cur = (
         await c.query(
-          "select metadata, status, priority, assignee_id, assignee_ids, department_codes, escalation_level, sla_status, created_at from tickets where id = $1",
+          "select metadata, status, priority, assignee_id, assignee_ids, department_codes, escalation_level, sla_status, created_at, resolution_summary from tickets where id = $1 for update",
           [id],
         )
       ).rows[0];
@@ -169,6 +193,10 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       }
       if (!isAdmin && cur.metadata?.legacy_import && (b.status !== undefined || b.extendSlaHours !== undefined || b.slaStatus !== undefined)) {
         throw Object.assign(new Error("Imported legacy tickets are closed and read-only"), { code: "P0001" });
+      }
+      // Resolving needs a resolution summary: sent with this request or already on the ticket.
+      if (b.status === "resolved" && cur.status !== "resolved" && !(b.resolutionSummary?.trim?.() || cur.resolution_summary)) {
+        throw Object.assign(new Error("A resolution summary is required to resolve a ticket"), { code: "P0001" });
       }
 
       // If reassigned and `routing.require_acknowledgment` is enabled, flag acknowledgment required
@@ -216,6 +244,29 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
             `insert into ticket_activities (ticket_id, activity_type, description, actor_user_id, actor_name)
              values ($1, 'acknowledged', 'Ownership acknowledged', $2, $3)`,
             [id, auth.session.user_id, auth.session.email],
+          )
+          .catch(() => {});
+      }
+
+      // Manual escalation changes get the same audit trail as the automatic sweep.
+      if (Number.isInteger(b.escalationLevel) && b.escalationLevel !== cur.escalation_level) {
+        const nextLevel = Math.max(0, Math.min(5, b.escalationLevel));
+        const up = nextLevel > cur.escalation_level;
+        const reason =
+          (typeof b.escalationReason === "string" && b.escalationReason.trim().slice(0, 500)) ||
+          (up ? `Manually escalated to level ${nextLevel}.` : `Manually de-escalated to level ${nextLevel}.`);
+        await c
+          .query(
+            `insert into escalation_log (ticket_id, escalation_level, escalated_to_role, reason, automatic, escalated_by_user_id)
+             values ($1, $2, $3, $4, false, $5)`,
+            [id, nextLevel, up ? "manual" : "manual_deescalation", reason, auth.session.user_id],
+          )
+          .catch(() => {});
+        await c
+          .query(
+            `insert into ticket_activities (ticket_id, activity_type, description, actor_user_id, actor_name)
+             values ($1, $2, $3, $4, $5)`,
+            [id, up ? "escalated" : "deescalated", reason, auth.session.user_id, auth.session.email],
           )
           .catch(() => {});
       }

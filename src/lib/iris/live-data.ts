@@ -228,6 +228,18 @@ export const ticketsApi = {
     if (i >= 0) ALL_TICKETS.splice(i, 1);
     useAppStore.getState().bumpData();
   },
+  /** Escalation ladder: current level, who each level goes to, history, next auto-escalation. */
+  escalation: async (id: string) =>
+    api<{
+      level: number;
+      maxLevel: number;
+      afterBreachHours: number;
+      slaStatus: string | null;
+      slaResolutionTarget: string | null;
+      nextEscalationAt: string | null;
+      ladder: { level: number; role: string; name: string | null }[];
+      history: { level: number; toRole: string; toName: string | null; byName: string | null; reason: string; automatic: boolean; at: string }[];
+    }>(`/api/tickets/${encodeURIComponent(id)}/escalation`),
   /** Admin-only: instant in-app nudge to the ticket's owners (or chosen employees). */
   nudge: async (id: string, body: { employeeIds?: string[]; message?: string } = {}) =>
     api<{ sent: string[]; skipped: string[] }>(`/api/tickets/${encodeURIComponent(id)}/nudge`, { method: "POST", json: body }),
