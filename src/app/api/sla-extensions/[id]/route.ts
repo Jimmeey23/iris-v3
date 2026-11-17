@@ -53,7 +53,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/sla-ext
         await c.query(
           `update tickets
               set sla_resolution_target = greatest(coalesce(sla_resolution_target, now()), now()) + make_interval(hours => $2::int),
-                  sla_status = 'on_track'
+                  sla_status = case when sla_status = 'paused' then 'paused' else 'on_track' end
             where id = $1`,
           [r.ticket_id, r.hours],
         );

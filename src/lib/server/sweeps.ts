@@ -291,27 +291,41 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
       const reason = escalationReason(nextLevel, s.afterBreachHours);
 
       // Claim with a conditional update on the exact current level - the idempotency lock.
-      const claimed = await client.query<{ id: string }>(
-        `update tickets
-            set escalation_level = $2,
-                assignee_id = coalesce($3, assignee_id),
-                updated_at = now()
-          where id = $1 and escalation_level = $4
-          returning id`,
-        [t.id, nextLevel, targetId, t.escalation_level],
-      );
-      if (!claimed.rowCount) continue;
-
-      await client.query(
-        `insert into escalation_log (ticket_id, escalation_level, escalated_to_role, escalated_to_employee_id, reason, automatic)
-         values ($1, $2, $3, $4, $5, true)`,
-        [t.id, nextLevel, targetRole, targetId, reason],
-      );
-      await client.query(
-        `insert into ticket_activities (ticket_id, activity_type, description, actor_name)
-         values ($1, 'escalated', $2, 'IRIS')`,
-        [t.id, `${reason} ${targetLabel(nextLevel, t.manager_name)}`],
-      );
+      // One transaction per ticket: the level bump, log row and activity land together.
+      await client.query("begin");
+      let claimedRow = false;
+      try {
+        const claimed = await client.query<{ id: string }>(
+          `update tickets
+              set escalation_level = $2,
+                  assignee_id = coalesce($3, assignee_id),
+                  assignee_ids = case when $3::text is null then assignee_ids
+                                      else array_prepend($3::text, array_remove(coalesce(assignee_ids, '{}'), $3::text)) end,
+                  status = case when status in ('open','in_progress','awaiting_response') then 'escalated' else status end,
+                  updated_at = now()
+            where id = $1 and escalation_level = $4
+            returning id`,
+          [t.id, nextLevel, targetId, t.escalation_level],
+        );
+        claimedRow = (claimed.rowCount ?? 0) > 0;
+        if (claimedRow) {
+          await client.query(
+            `insert into escalation_log (ticket_id, escalation_level, escalated_to_role, escalated_to_employee_id, reason, automatic)
+             values ($1, $2, $3, $4, $5, true)`,
+            [t.id, nextLevel, targetRole, targetId, reason],
+          );
+          await client.query(
+            `insert into ticket_activities (ticket_id, activity_type, description, actor_name)
+             values ($1, 'escalated', $2, 'IRIS')`,
+            [t.id, `${reason} ${targetLabel(nextLevel, t.manager_name)}`],
+          );
+        }
+        await client.query("commit");
+      } catch (err) {
+        await client.query("rollback").catch(() => {});
+        throw err;
+      }
+      if (!claimedRow) continue;
       escalated++;
       await notifyTicketEventNow("escalated", { id: t.id, title: t.title, escalationLevel: nextLevel }, null, {
         dedupe: `escalation:${nextLevel}`,

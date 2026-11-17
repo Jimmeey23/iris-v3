@@ -128,8 +128,7 @@ export async function deliverPending({ limit = 10 }: { limit?: number } = {}): P
       `select id, attempts, payload, email_log_id from outbox
         where status = 'pending' and next_attempt_at <= now()
         order by next_attempt_at, created_at
-        limit $1
-        for update skip locked`,
+        limit $1`,
       [limit],
     );
     summary.processed = due.rows.length;
@@ -189,10 +188,15 @@ export async function deliverPending({ limit = 10 }: { limit?: number } = {}): P
 
 /** Manually retry one parked ('failed') row - wired to the Integrations/ops surface later. */
 export async function retryFailed(id: string): Promise<boolean> {
-  const res = await pool.query(
+  const res = await pool.query<{ email_log_id: string | null }>(
     `update iris.outbox set status = 'pending', next_attempt_at = now(), attempts = 0, updated_at = now()
-      where id = $1 and status = 'failed'`,
+      where id = $1 and status = 'failed'
+      returning email_log_id`,
     [id],
   );
-  return (res.rowCount ?? 0) > 0;
+  if (!res.rowCount) return false;
+  // The linked log row said 'failed'; while the retry is pending it is queued again.
+  const logId = res.rows[0].email_log_id;
+  if (logId) await pool.query(`update iris.email_log set status = 'pending', error = null where id = $1`, [logId]).catch(() => {});
+  return true;
 }
