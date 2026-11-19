@@ -7,7 +7,9 @@
  *  3. Facilities, housekeeping, repair & maintenance, amenities, supplies
  *       Mumbai     → Zahur (L1), Saachi (L2, on escalation)
  *       Bengaluru  → Prathap (L1), Shifa (L2, on escalation)
- *  4. Anything else at Kwality House or Supreme HQ Bandra → the studio team:
+ *  4. Class experience & scheduling, Mumbai → Mrigakshi + Vivaran,
+ *       escalating to Anisha (L1) then Mitali (L2). Bengaluru falls through.
+ *  5. Anything else at Kwality House or Supreme HQ Bandra → the studio team:
  *       the reporter if they are on that team, otherwise round robin.
  *
  * Returns null when no rule applies (the generic auto-assignment then runs).
@@ -20,6 +22,9 @@ export const PEOPLE = {
   zahur: "emp_zahur",
   prathap: "emp_prathap",
   shifa: "emp_shifa",
+  mrigakshi: "emp_mrigakshi",
+  vivaran: "emp_vivaran",
+  anisha: "emp_anisha",
 } as const;
 
 export const STUDIO_TEAMS: Record<string, string[]> = {
@@ -38,16 +43,20 @@ export type PolicyInput = {
   studioCode: string | null;
   studioCity: string | null;
   reporterEmployeeId: string | null;
+  /** Department the classifier/routing picked, if any. */
+  departmentCode?: string | null;
 };
 
 export type PolicyDecision = {
-  rule: "accounts" | "brand_legal" | "facilities" | "studio_team";
+  rule: "accounts" | "brand_legal" | "facilities" | "class_experience" | "studio_team";
   label: string;
   assigneeId: string;
   ownerIds: string[];
   departmentCodes: string[];
   /** Escalation level 1 goes here instead of the owner's reporting manager. */
   escalationL2: string | null;
+  /** Escalation level 2 goes here instead of the department head. */
+  escalationL3?: string | null;
   /** Set for the round-robin rule: the team key whose counter was used. */
   roundRobinKey?: string;
 };
@@ -75,6 +84,14 @@ export function isFacilities(i: PolicyInput) {
     i.category === "Repair and Maintenance" ||
     i.category === "Studio Amenities and Facilities" ||
     has(/\b(facilit\w*|housekeeping|cleaning|cleanliness|hygiene|repair\w*|maintenance|amenit\w*|supplies|toiletries|towels?|plumbing|leak\w*|electrical|ac|hvac|air.?condition\w*|lighting|locker repair|washroom|shower)\b/i, i.subcategory, i.title)
+  );
+}
+
+export function isClassExperience(i: PolicyInput) {
+  return (
+    i.category === "Class Experience" ||
+    i.departmentCode === "SCH" ||
+    has(/\b(class schedul\w*|timetable|time ?slots?|class timings?|instructor rotation|class variety|class format)\b/i, i.subcategory, i.title)
   );
 }
 
@@ -111,6 +128,13 @@ export function decideOwnership(i: PolicyInput, roundRobinIndex: (team: string) 
     return {
       rule: "facilities", label: "Facilities (Mumbai) → Zahur, escalates to Saachi",
       assigneeId: PEOPLE.zahur, ownerIds: [PEOPLE.zahur], departmentCodes: ["FAC"], escalationL2: PEOPLE.saachi,
+    };
+  }
+  if (isClassExperience(i) && city(i) === "Mumbai") {
+    return {
+      rule: "class_experience", label: "Class experience & scheduling (Mumbai) → Mrigakshi and Vivaran, escalates to Anisha then Mitali",
+      assigneeId: PEOPLE.mrigakshi, ownerIds: [PEOPLE.mrigakshi, PEOPLE.vivaran], departmentCodes: ["SCH", "TRN"],
+      escalationL2: PEOPLE.anisha, escalationL3: PEOPLE.mitali,
     };
   }
   const team = i.studioCode ? STUDIO_TEAMS[i.studioCode] : undefined;

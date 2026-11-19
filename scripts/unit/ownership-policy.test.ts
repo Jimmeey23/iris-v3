@@ -43,4 +43,14 @@ describe("decideOwnership", () => {
     expect(decideOwnership({ ...base, studioCode: "KHB" }, rr)).toBeNull();
     expect(decideOwnership(base, rr)).toBeNull();
   });
+  it("sends Mumbai class experience / scheduling to Mrigakshi + Vivaran, escalating Anisha then Mitali", () => {
+    const d = decideOwnership({ ...base, category: "Class Experience", subcategory: "Class Variety and Themes", studioCode: "KH" }, rr);
+    expect(d).toMatchObject({ rule: "class_experience", assigneeId: "emp_mrigakshi", ownerIds: ["emp_mrigakshi", "emp_vivaran"], escalationL2: "emp_anisha", escalationL3: "emp_mitali" });
+    expect(decideOwnership({ ...base, departmentCode: "SCH", studioCity: "Mumbai" }, rr)?.rule).toBe("class_experience");
+    // Bengaluru and unknown city fall through to the generic rules.
+    expect(decideOwnership({ ...base, category: "Class Experience", studioCode: "KHB" }, rr)).toBeNull();
+    expect(decideOwnership({ ...base, category: "Class Experience" }, rr)).toBeNull();
+    // Facilities still win.
+    expect(decideOwnership({ ...base, category: "Repair and Maintenance", departmentCode: "SCH", studioCode: "KH" }, rr)?.rule).toBe("facilities");
+  });
 });

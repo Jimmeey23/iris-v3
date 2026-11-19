@@ -117,6 +117,7 @@ export async function POST(request: Request) {
             studioCode: studioCode ?? null,
             studioCity,
             reporterEmployeeId: auth.session.employee_id ?? null,
+            departmentCode: department,
           },
           () => 0, // preview only; the POST advances the round-robin counter
         );

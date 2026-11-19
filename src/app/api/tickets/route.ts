@@ -139,11 +139,13 @@ export async function POST(request: Request) {
       let departmentCodes = strList(b.departmentCodes);
       let ownershipRule: string | null = null;
       let escalationL2: string | null = null;
+      let escalationL3: string | null = null;
       const overrideOwners = b.overrideOwners === true && session.role === "admin";
       if (!overrideOwners) {
         const policyInput = {
           category, subcategory, title, description, studioCode, studioCity,
           reporterEmployeeId: session.employee_id ?? null,
+          departmentCode: effectiveDepartmentCode,
         };
         let policy = decideOwnership(policyInput, () => 0);
         if (policy?.roundRobinKey) {
@@ -169,6 +171,7 @@ export async function POST(request: Request) {
           }
           ownershipRule = policy.label;
           escalationL2 = policy.escalationL2;
+          escalationL3 = policy.escalationL3 ?? null;
         }
       }
       if (!effectiveAssigneeId && explicitAssigneeIds.length === 0) {
@@ -212,6 +215,7 @@ export async function POST(request: Request) {
       }
       if (ownershipRule) collectedInfo._ownership_rule = ownershipRule;
       if (escalationL2) collectedInfo._escalation_l2 = escalationL2;
+      if (escalationL3) collectedInfo._escalation_l3 = escalationL3;
       if (settings["routing.require_acknowledgment"] === true && (effectiveAssigneeId || explicitAssigneeIds.length > 0)) {
         collectedInfo._requires_acknowledgment = true;
       }

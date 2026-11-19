@@ -19,10 +19,12 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
                 t.assignee_id, a.name as assignee_name,
                 m.id as manager_id, m.name as manager_name,
                 l2.id as policy_l2_id, l2.name as policy_l2_name,
+                l3.id as policy_l3_id, l3.name as policy_l3_name,
                 h.id as dept_head_id, h.name as dept_head_name
            from iris.tickets t
            left join iris.employees a on a.id = t.assignee_id
            left join iris.employees l2 on l2.id = t.collected_info->>'_escalation_l2' and l2.is_active
+           left join iris.employees l3 on l3.id = t.collected_info->>'_escalation_l3' and l3.is_active
            left join iris.employees m on m.name = (select e.reporting_manager from iris.employees e where e.id = t.assignee_id)
                                       and m.is_active and not m.exclude_from_escalation
            left join iris.departments d on d.code = t.department_code
@@ -77,8 +79,8 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
       nextEscalationAt,
       ladder: [
         { level: 0, role: "owner", name: t.assignee_name ?? null },
-        { level: 1, role: "reporting manager", name: t.policy_l2_name ?? t.manager_name ?? null },
-        { level: 2, role: "department head", name: t.dept_head_name ?? null },
+        { level: 1, role: t.policy_l2_name ? "escalation owner" : "reporting manager", name: t.policy_l2_name ?? t.manager_name ?? null },
+        { level: 2, role: t.policy_l3_name ? "escalation owner" : "department head", name: t.policy_l3_name ?? t.dept_head_name ?? null },
         { level: 3, role: "admin", name: null },
       ].slice(0, Math.max(maxLevel, 3) + 1),
       history: logRes.rows.map((r) => ({

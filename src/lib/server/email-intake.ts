@@ -11,6 +11,9 @@ import { aiClassify, INTAKE_MODEL, type ClassifyContext } from "./ai-classify";
 import { loadEffectiveAiConfig } from "./ai-config";
 import { classify, extractFields, taxonomy } from "./intake";
 import { fetchTicket } from "./tickets";
+import { searchMembers, REGION_LABEL, configuredRegions } from "./momence-core";
+import { getMemberBookings } from "./momence-extra";
+import { matchStudio } from "@/lib/iris/aliases";
 import { notifyTicketEvent } from "./notify";
 import { enrichTicket } from "./ai-enrich";
 import { evaluateRoutingRules, selectBestAssignee, type AssignableEmployee, type RoutingRuleRow } from "@/lib/iris/routing-engine";
@@ -235,7 +238,16 @@ export async function processInboundMessage(logId: string, ref: { messageId: str
       return;
     }
 
-    const ticketId = await fileTicket({ from, staff, subject, text, read, aiOn: aiOn && aiCfg.autoTriage, received: msg.received_at ?? null });
+    const member = {
+      name: read?.member_name ?? (staff ? null : from.name),
+      email: read?.member_email ?? (staff ? null : from.email),
+      phone: read?.member_phone ?? null,
+    };
+    const momence = await lookupMemberStudio(member).catch((e) => {
+      console.error("[email-intake] momence lookup failed", (e as Error).message);
+      return null;
+    });
+    const ticketId = await fileTicket({ from, staff, subject, text, read, aiOn: aiOn && aiCfg.autoTriage, received: msg.received_at ?? null, momence });
     const stored = await storeAttachments(ticketId, files);
 
     await asSystem(async (c) => {
@@ -285,6 +297,7 @@ async function fileTicket(i: {
   read: EmailReadT | null;
   aiOn: boolean;
   received: string | null;
+  momence: MemberStudio | null;
 }): Promise<string> {
   return asSystem(async (c) => {
     const [employeesRes, studiosRes, deptRes, rulesRes, settingsRes] = await Promise.all([
@@ -365,7 +378,13 @@ async function fileTicket(i: {
     }
     if (fields.urgent && ["P0", "P1"].includes(fields.urgent) && fields.urgent < priority) priority = fields.urgent;
 
-    const studioCity = studioCode ? studios.find((s) => s.code === studioCode)?.city ?? null : null;
+    // Email didn't name a studio: use the member's usual studio from Momence bookings.
+    let studioVia: string | null = studioCode ? "email" : null;
+    if (!studioCode && i.momence?.studioCode && studios.some((s) => s.code === i.momence!.studioCode)) {
+      studioCode = i.momence.studioCode;
+      studioVia = "momence";
+    }
+    const studioCity = studioCode ? studios.find((s) => s.code === studioCode)?.city ?? null : i.momence?.city ?? null;
     const title = (read?.title?.trim() || aiTitle || i.subject || "Email request").replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, "").slice(0, 300);
 
     const memberName = read?.member_name ?? (i.staff ? null : i.from.name);
@@ -377,6 +396,9 @@ async function fileTicket(i: {
         : `Emailed in by ${i.from.name ? `${i.from.name} <${i.from.email}>` : i.from.email}.`,
       memberName || memberEmail || memberPhone
         ? `Member: ${[memberName, memberEmail, memberPhone].filter(Boolean).join(" · ")}`
+        : null,
+      studioVia === "momence" && i.momence?.location
+        ? `Studio: ${i.momence.location} (member's most-booked studio in Momence; the email didn't say)`
         : null,
     ].filter(Boolean);
     const body = read?.description?.trim() || i.text.slice(0, 4000);
@@ -397,10 +419,11 @@ async function fileTicket(i: {
       _email: { from: i.from.email, from_name: i.from.name, subject: i.subject, staff: i.staff, received_at: i.received, classified_by: classifiedBy },
       ...(memberEmail ? { memberEmail } : {}),
       ...(memberPhone ? { memberPhone } : {}),
+      ...(i.momence ? { _momence_lookup: { ...i.momence, studioVia } } : {}),
     };
     if (routed.matchedRule) collected._routed_by_rule = routed.matchedRule.name;
 
-    const policyInput = { category, subcategory, title, description, studioCode, studioCity, reporterEmployeeId: reporter?.id ?? null };
+    const policyInput = { category, subcategory, title, description, studioCode, studioCity, reporterEmployeeId: reporter?.id ?? null, departmentCode: department };
     let policy = decideOwnership(policyInput, () => 0);
     if (policy?.roundRobinKey) {
       const n = Number(
@@ -424,6 +447,7 @@ async function fileTicket(i: {
       }
       collected._ownership_rule = policy.label;
       if (policy.escalationL2) collected._escalation_l2 = policy.escalationL2;
+      if (policy.escalationL3) collected._escalation_l3 = policy.escalationL3;
     } else {
       const aiPick = aiOwner ? employees.find((e) => e.id === aiOwner && e.department_code === department) : undefined;
       if (aiPick) assigneeId = aiPick.id;
@@ -447,12 +471,13 @@ async function fileTicket(i: {
     const tags = ["via-email", i.staff ? "staff-forward" : "member-email"];
     const { rows } = await c.query(
       `insert into tickets (title, description, category, subcategory, priority, studio_code, department_code,
-         assignee_id, reporter_id, affected_client, tags, source, collected_info, department_codes, assignee_ids)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'email',$12::jsonb,$13,$14)
+         assignee_id, reporter_id, affected_client, tags, source, collected_info, department_codes, assignee_ids, client_momence_id)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'email',$12::jsonb,$13,$14,$15)
        returning id, created_at`,
       [
         title, description, category, subcategory, priority, studioCode, department, assigneeId, reporter?.id ?? null,
-        memberName ?? memberEmail ?? null, tags, JSON.stringify(collected), departmentCodes, ownerIds,
+        i.momence?.memberName ?? memberName ?? memberEmail ?? null, tags, JSON.stringify(collected), departmentCodes, ownerIds,
+        i.momence?.memberId ?? null,
       ],
     );
     const id = rows[0].id as string;
@@ -475,6 +500,57 @@ async function fileTicket(i: {
     }
     return id;
   });
+}
+
+// ── Momence: the member's usual studio ───────────────────────────────────────
+
+export type MemberStudio = {
+  memberId: string;
+  memberName: string;
+  studioCode: string | null;
+  location: string | null;
+  city: string | null;
+  bookingsCounted: number;
+};
+
+const norm = (v: string | null | undefined) => (v ?? "").toLowerCase().replace(/[^a-z0-9@.+]/g, "");
+
+/**
+ * Finds the member in Momence (email → phone → name) and picks the studio they book most
+ * often from their recent sessions. Bounded to ~10s so a slow Momence never blocks intake.
+ */
+export async function lookupMemberStudio(m: { name: string | null; email: string | null; phone: string | null }): Promise<MemberStudio | null> {
+  if (!configuredRegions().length || (!m.email && !m.phone && !m.name)) return null;
+  const work = (async () => {
+    let found = null as Awaited<ReturnType<typeof searchMembers>>[number] | null;
+    if (m.email) found = (await searchMembers(m.email, 5)).find((x) => norm(x.email) === norm(m.email)) ?? null;
+    if (!found && m.phone) {
+      const digits = m.phone.replace(/\D/g, "").slice(-10);
+      if (digits.length >= 8) found = (await searchMembers(digits, 5)).find((x) => (x.phone ?? "").replace(/\D/g, "").endsWith(digits)) ?? null;
+    }
+    if (!found && m.name && m.name.trim().split(/\s+/).length >= 2) {
+      const hits = (await searchMembers(m.name, 5)).filter((x) => norm(x.name) === norm(m.name));
+      if (hits.length === 1) found = hits[0]; // only trust an unambiguous full-name match
+    }
+    if (!found) return null;
+    const { rows } = await getMemberBookings(found.id, { limit: 40, includeCancelled: false });
+    const counts = new Map<string, number>();
+    for (const b of rows) {
+      const loc = b.session?.location?.trim();
+      if (loc) counts.set(loc, (counts.get(loc) ?? 0) + (b.checkedIn ? 2 : 1));
+    }
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    return {
+      memberId: found.id,
+      memberName: found.name,
+      studioCode: top ? matchStudio(top) : null,
+      location: top,
+      city: REGION_LABEL[found.region] ?? null,
+      bookingsCounted: rows.length,
+    } satisfies MemberStudio;
+  })();
+  const timeout = new Promise<null>((res) => setTimeout(() => res(null), 10_000));
+  return Promise.race([work, timeout]);
 }
 
 // ── Attachments ──────────────────────────────────────────────────────────────
