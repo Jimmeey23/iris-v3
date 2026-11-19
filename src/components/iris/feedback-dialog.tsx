@@ -34,7 +34,7 @@ export function FeedbackButton() {
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label="Send feedback to the developer"
         className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-        <MessageSquareWarning className="w-3.5 h-3.5" /><span className="hidden lg:inline">Feedback</span>
+        <MessageSquareWarning className="w-3.5 h-3.5" /><span className="hidden 2xl:inline">Feedback</span>
       </button>
       <FeedbackDialog open={open} onOpenChange={setOpen} />
     </>

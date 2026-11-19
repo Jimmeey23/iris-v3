@@ -92,9 +92,9 @@ export function TrainersHero({
               { k: "Compliments", v: totals.compliments, icon: Heart, tone: "text-emerald-600 dark:text-emerald-400" },
               { k: "Flagged", v: totals.flagged, icon: TriangleAlert, tone: "text-rose-600 dark:text-rose-400" },
             ].map((s) => (
-              <div key={s.k} className="rounded-xl border border-border/70 bg-card/60 backdrop-blur px-3.5 py-2">
-                <dt className="flex items-center gap-1 text-[10px] uppercase tracking-[.14em] text-muted-foreground">
-                  <s.icon className={`w-3 h-3 ${s.tone}`} />{s.k}
+              <div key={s.k} className="min-w-0 rounded-xl border border-border/70 bg-card/60 backdrop-blur px-2.5 sm:px-3.5 py-2">
+                <dt className="flex items-center gap-1 min-w-0 text-[10px] uppercase tracking-[.08em] sm:tracking-[.14em] text-muted-foreground">
+                  <s.icon className={`w-3 h-3 shrink-0 ${s.tone}`} /><span className="truncate">{s.k}</span>
                 </dt>
                 <dd className="mt-1 text-[20px] font-semibold tabular-nums leading-none">{s.v}</dd>
               </div>

@@ -228,7 +228,7 @@ export function OverviewView() {
   ];
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-4">
+    <div className="p-3 sm:p-6 max-w-[1400px] mx-auto space-y-4 min-w-0">
       {/* === HERO === */}
       <section className="ovh relative overflow-hidden rounded-2xl border border-border bg-white dark:bg-card iris-fade-in-up shadow-[0_1px_0_0_color-mix(in_srgb,var(--foreground)_4%,transparent),0_24px_48px_-32px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
         {/* Hairline accent along the top edge */}
@@ -237,18 +237,18 @@ export function OverviewView() {
         <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 55%)" }} />
         <div className="ovh-grid pointer-events-none absolute inset-0" />
 
-        <div className="relative grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-stretch">
+        <div className="relative grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] xl:items-stretch">
           {/* Left */}
-          <div className="min-w-0 px-6 py-5 sm:px-8">
-            <div className="flex items-center gap-2.5 text-[10px] font-medium uppercase tracking-[.18em] text-muted-foreground">
+          <div className="min-w-0 px-4 py-5 sm:px-8">
+            <div className="flex items-center gap-2.5 min-w-0 text-[10px] font-medium uppercase tracking-[.18em] text-muted-foreground">
               <span className="inline-flex items-center gap-1.5 h-5 pl-1.5 pr-2 rounded-full border border-emerald-500/25 bg-emerald-500/[.06] text-emerald-700 dark:text-emerald-400 tracking-[.14em]">
                 <span className="iris-live-dot" />Live
               </span>
-              <span>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
-              <span className="ml-auto inline-flex items-center rounded-full bg-muted/70 p-0.5 normal-case tracking-normal" role="tablist" aria-label="Time range">
+              <span className="hidden sm:inline min-w-0 truncate">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</span>
+              <span className="ml-auto inline-flex shrink-0 items-center rounded-full bg-muted/70 p-0.5 normal-case tracking-normal" role="tablist" aria-label="Time range">
                 {(["recent", "all"] as const).map((r) => (
                   <button key={r} role="tab" aria-selected={(r === "all") === allTime} onClick={() => setRange(r)}
-                    className={cn("h-5 px-2.5 rounded-full text-[10.5px] font-medium transition-colors",
+                    className={cn("h-5 px-2.5 rounded-full text-[10.5px] font-medium whitespace-nowrap transition-colors",
                       (r === "all") === allTime ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                     {r === "recent" ? "Recent" : "All time"}
                   </button>
@@ -310,7 +310,7 @@ export function OverviewView() {
           </div>
 
           {/* Right: service level pulse */}
-          <div className="relative flex flex-col border-t lg:border-t-0 lg:border-l border-border/70 bg-[color-mix(in_srgb,var(--muted)_35%,transparent)] px-6 py-5 sm:px-7">
+          <div className="relative min-w-0 flex flex-col border-t xl:border-t-0 xl:border-l border-border/70 bg-[color-mix(in_srgb,var(--muted)_35%,transparent)] px-4 py-5 sm:px-7">
             <div className="flex items-end justify-between gap-4">
               <div>
                 <div className="text-[10px] uppercase tracking-[.18em] text-muted-foreground">Service level · {allTime ? "all time" : "30d"}</div>
@@ -388,7 +388,8 @@ export function OverviewView() {
       </section>
 
       {/* === METRIC CARDS - click for drill-down === */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+      <div className="@container">
+      <div className="grid grid-cols-2 @lg:grid-cols-3 @3xl:grid-cols-4 @6xl:grid-cols-7 gap-2">
         {cards.map((c) => {
           const m = live[c.id];
           return (
@@ -396,6 +397,7 @@ export function OverviewView() {
               tooltip={`${c.tooltip}. Click for details.`} sparkData={m.spark} caption={allTime ? c.caption.replace("7-day trend", "all time") : c.caption} onClick={() => setDrill(c.id)} />
           );
         })}
+      </div>
       </div>
       <MetricDrilldown metric={drill} onClose={() => setDrill(null)} />
 

@@ -166,7 +166,7 @@ export function TrainersView() {
           <Search size={14} />
           <input placeholder="Find a trainer, studio or city..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <div className="flex-row">
+        <div className="flex-row wrap">
           <span className="badge blue"><GraduationCap size={12} />{trainers.length} trainers tracked</span>
           <div className="tv-modes" role="tablist" aria-label="Trainers view">
             <button role="tab" aria-selected={mode === "trainers"} className={`btn${mode === "trainers" ? " btn-primary" : ""}`} onClick={() => setMode("trainers")}>

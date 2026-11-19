@@ -167,7 +167,7 @@ export function PremiumMetricCard({
       aria-label={onClick ? `${label}: ${value}. Open details` : undefined}
       className={cn(
         onClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-        "relative rounded-[20px] bg-gradient-to-b from-muted/60 to-muted/40 p-1.5 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)_inset] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)_inset] transition-transform duration-200 hover:-translate-y-0.5",
+        "relative h-full min-w-0 rounded-[20px] bg-gradient-to-b from-muted/60 to-muted/40 p-1.5 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)_inset] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.04)_inset] transition-transform duration-200 hover:-translate-y-0.5",
         className,
       )}
       title={tooltip}
@@ -179,26 +179,26 @@ export function PremiumMetricCard({
       />
 
       {/* Inner card */}
-      <div className="relative overflow-hidden rounded-[14px] bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.03)]">
+      <div className="relative h-full flex flex-col overflow-hidden rounded-[14px] bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.03)]">
         {/* Header row: label + icon */}
-        <div className="flex items-start justify-between mb-1.5">
-          <div className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+        <div className="flex items-start justify-between gap-1.5 mb-1.5 min-w-0">
+          <div className="min-w-0 truncate text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
             {label}
           </div>
-          <div className="relative -mr-0.5 -mt-0.5">
+          <div className="relative -mr-0.5 -mt-0.5 shrink-0">
             <Icon className="w-4 h-4 text-primary" />
           </div>
         </div>
 
         {/* Value + trend */}
-        <div className="flex items-end gap-2 mb-1">
-          <div className="text-[26px] font-semibold leading-[1] tracking-[-0.02em] tabular-nums text-card-foreground">
+        <div className="flex flex-wrap items-end gap-x-2 gap-y-1 mb-1 min-w-0">
+          <div className="text-[clamp(20px,2.2vw,26px)] font-semibold leading-[1] tracking-[-0.02em] tabular-nums text-card-foreground">
             {value}
           </div>
           {trend && (
             <div
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 mb-0.5 shadow-sm text-[9px] font-semibold",
+                "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-1.5 py-0.5 mb-0.5 shadow-sm text-[9px] font-semibold",
                 trendUp
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                   : "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400",
@@ -210,11 +210,11 @@ export function PremiumMetricCard({
           )}
         </div>
         {caption && (
-          <div className="text-[9px] text-muted-foreground mb-1">{caption}</div>
+          <div className="text-[9px] text-muted-foreground mb-1 truncate">{caption}</div>
         )}
 
         {/* Chart */}
-        <div className="relative mt-1">
+        <div className="relative mt-auto pt-1">
           <svg
             ref={chartRef}
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}

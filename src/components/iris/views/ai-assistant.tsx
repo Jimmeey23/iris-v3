@@ -530,40 +530,40 @@ export function AIAssistantView() {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         {/* Chat Header */}
-        <div className="h-12 border-b border-border flex items-center px-5 gap-3 shrink-0 bg-background">
-          <div className="relative">
+        <div className="h-12 border-b border-border flex items-center px-3 sm:px-5 gap-2 sm:gap-3 shrink-0 bg-background min-w-0">
+          <div className="relative shrink-0">
             <IrisAvatar size={34} className="shadow-[0_4px_14px_-4px_var(--primary)]" />
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
           </div>
-          <div className="flex-1">
-            <div className="text-[13px] font-semibold flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold flex items-center gap-2 whitespace-nowrap">
               IRIS Assistant
               <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
                 <span className="iris-live-dot" />
                 Online
               </span>
             </div>
-            <div className="text-[10px] text-muted-foreground">
+            <div className="text-[10px] text-muted-foreground truncate">
               Claude · live Momence & ticket data
             </div>
           </div>
-          <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => setShowFormIntake(true)}>
-            <FileText className="w-3 h-3 mr-1" />
-            Form Mode
+          <Button variant="outline" size="sm" className="h-7 text-[11px] shrink-0" aria-label="Form mode" onClick={() => setShowFormIntake(true)}>
+            <FileText className="w-3 h-3 sm:mr-1" />
+            <span className="hidden sm:inline">Form Mode</span>
           </Button>
 
           {/* Copy chat - dropdown with multiple formats */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 text-[11px]" disabled={aiMessages.length === 0}>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] shrink-0" disabled={aiMessages.length === 0}>
                 {copyStatus === "ok" ? (
                   <><Check className="w-3 h-3 mr-1 text-emerald-500" /> Copied</>
                 ) : copyStatus === "err" ? (
                   <><AlertTriangle className="w-3 h-3 mr-1 text-amber-500" /> Failed</>
                 ) : (
-                  <><Copy className="w-3 h-3 mr-1" /> Copy <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" /></>
+                  <><Copy className="w-3 h-3 sm:mr-1" /> <span className="hidden sm:inline">Copy</span> <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" /></>
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -594,8 +594,8 @@ export function AIAssistantView() {
           {/* Export chat - dropdown with multiple formats (download / print) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 text-[11px]" disabled={aiMessages.length === 0}>
-                <Download className="w-3 h-3 mr-1" /> Export <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] shrink-0" disabled={aiMessages.length === 0}>
+                <Download className="w-3 h-3 sm:mr-1" /> <span className="hidden sm:inline">Export</span> <ChevronDown className="w-2.5 h-2.5 ml-0.5 opacity-60" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
@@ -626,11 +626,12 @@ export function AIAssistantView() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-[11px] text-rose-600 hover:text-rose-700 hover:bg-rose-500/5"
+            aria-label="Clear chat"
+            className="h-7 px-2 shrink-0 text-[11px] text-rose-600 hover:text-rose-700 hover:bg-rose-500/5"
             onClick={() => { if (aiMessages.length <= 1 || window.confirm("Clear this chat? Drafts that weren't approved will be lost.")) handleReset(); }}
           >
-            <Trash2 className="w-3 h-3 mr-1" />
-            Clear chat
+            <Trash2 className="w-3 h-3 sm:mr-1" />
+            <span className="hidden sm:inline">Clear chat</span>
           </Button>
         </div>
 

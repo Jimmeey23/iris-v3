@@ -151,6 +151,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Phones and small tablets: the full sidebar would cover the page, so fold it to icons.
+  // Not saved to preferences - the desktop choice is kept.
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const fold = () => {
+      if (mq.matches && !useAppStore.getState().sidebarCollapsed) useAppStore.getState().toggleSidebar();
+    };
+    fold();
+    mq.addEventListener("change", fold);
+    return () => mq.removeEventListener("change", fold);
+  }, []);
+
   // ⌘K Command Palette state
   const [cmdOpen, setCmdOpen] = React.useState(false);
   // Member 360 Lookup state
@@ -381,32 +393,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true" && <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/25 px-5 py-2 text-[11px] text-amber-700 dark:text-amber-300">Preview mode · Authentication is bypassed locally. Live data and changes are unavailable.</div>}
         {/* Top Bar */}
-        <header className="iris-app-header h-16 border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 flex items-center px-5 gap-3 shrink-0 z-20">
-          <div className="flex items-center gap-2 flex-1 max-w-sm">
+        <header className="iris-app-header h-16 border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 flex items-center px-3 sm:px-5 gap-2 lg:gap-3 shrink-0 z-20 min-w-0">
+          <div className="flex items-center gap-2 flex-1 min-w-[40px] max-w-sm">
             {/* Click-to-open the ⌘K command palette. The visual is a fake input
                 so it looks like a search field, but clicking it opens the palette. */}
             <button
               type="button"
               onClick={() => setCmdOpen(true)}
-              className="relative flex-1 text-left h-9 pl-9 pr-10 text-[12px] bg-muted/50 border border-border/50 hover:border-border rounded-lg text-muted-foreground cursor-pointer transition-colors"
+              aria-label="Search"
+              className="relative flex-1 min-w-0 text-left h-9 pl-9 pr-3 sm:pr-10 text-[12px] bg-muted/50 border border-border/50 hover:border-border rounded-lg text-muted-foreground cursor-pointer transition-colors whitespace-nowrap overflow-hidden"
             >
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" />
-              Search tickets, members, articles...
-              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium text-muted-foreground bg-background px-1 py-px rounded border border-border flex items-center gap-0.5 pointer-events-none">
+              <span className="hidden sm:block truncate">Search tickets, members, articles...</span>
+              <kbd className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium text-muted-foreground bg-background px-1 py-px rounded border border-border flex items-center gap-0.5 pointer-events-none">
                 <Command className="w-2.5 h-2.5" />K
               </kbd>
             </button>
           </div>
 
           {/* Live queue counters */}
-          <div className="hidden lg:flex items-center gap-1.5">
+          <div className="hidden xl:flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setCurrentView("my_tickets")}
-              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-card/70 text-[11px] font-medium hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-card/70 text-[11px] font-medium whitespace-nowrap hover:border-primary/40 hover:bg-primary/5 transition-colors"
               title="Open tickets you own"
             >
               <UserCircle className="w-3.5 h-3.5 text-primary" />
@@ -417,7 +430,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => setCurrentView("escalations")}
               className={cn(
-                "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-medium transition-colors",
+                "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-medium whitespace-nowrap transition-colors",
                 breachedCount ? "border-rose-500/30 bg-rose-500/5 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10" : "border-border bg-card/70 text-muted-foreground hover:bg-muted/60",
               )}
               title="Open tickets past their SLA"
@@ -429,8 +442,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Right cluster: status + actions, pinned to extreme right */}
-          <div className="ml-auto flex items-center gap-2">
-          <div className="hidden md:flex items-center gap-1.5 h-8 px-2.5 rounded-full border border-emerald-500/25 bg-emerald-500/5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+          <div className="ml-auto flex items-center gap-1.5 lg:gap-2 shrink-0">
+          <div className="hidden 2xl:flex whitespace-nowrap items-center gap-1.5 h-8 px-2.5 rounded-full border border-emerald-500/25 bg-emerald-500/5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
             <span className="iris-live-dot" />
             Operational
           </div>
@@ -439,13 +452,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             type="button"
             data-tour="new-issue"
             onClick={() => setCurrentView("ai_assistant")}
-            className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium shadow-[0_6px_16px_-8px_var(--primary)] hover:brightness-110 transition"
+            className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg whitespace-nowrap shrink-0 bg-primary text-primary-foreground text-[12px] font-medium shadow-[0_6px_16px_-8px_var(--primary)] hover:brightness-110 transition"
           >
             <Plus className="w-3.5 h-3.5" />
-            New issue
+            <span className="hidden lg:inline">New issue</span>
           </button>
 
-          <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-border/80 bg-muted/40">
+          <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-border/80 bg-muted/40 shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -596,18 +609,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </PopoverContent>
           </Popover>
           </div>
-          <OnlineUsers labels={VIEW_LABELS} />
+          <div className="hidden md:block shrink-0"><OnlineUsers labels={VIEW_LABELS} /></div>
 
           {/* Account menu */}
           <Popover>
             <PopoverTrigger asChild>
-              <button type="button" aria-label="Account" className="flex items-center gap-2 h-9 pl-1 pr-2 rounded-full hover:bg-muted/60 transition-colors">
+              <button type="button" aria-label="Account" className="flex shrink-0 items-center gap-2 h-9 pl-1 pr-1 xl:pr-2 rounded-full hover:bg-muted/60 transition-colors">
                 <Avatar className="w-7 h-7">
                   <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-semibold">
                     {getInitials(currentUser.name || currentUser.email)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden xl:block text-left leading-tight">
+                <span className="hidden 2xl:block text-left leading-tight">
                   <span className="block text-[11px] font-semibold max-w-[120px] truncate">{currentUser.name}</span>
                   <span className="block text-[9px] text-muted-foreground capitalize">{currentUser.tier}</span>
                 </span>

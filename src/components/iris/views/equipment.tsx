@@ -359,12 +359,12 @@ export function EquipmentView() {
                 <button onClick={() => toggle(setCollapsed, g.key)} aria-expanded={!isCollapsed}
                   className="w-full flex items-center gap-3 px-1 py-1 group">
                   <ChevronRight className={cn("w-4 h-4 text-muted-foreground transition-transform", !isCollapsed && "rotate-90")} />
-                  <span className="text-[13px] font-semibold">{g.label}</span>
+                  <span className="text-[13px] font-semibold truncate min-w-0">{g.label}</span>
                   <span className="text-[11px] text-muted-foreground tabular-nums">{g.items.length} item{g.items.length === 1 ? "" : "s"}</span>
                   {gReplace > 0 && <Chip tone={HEALTH.replace.chip}>{gReplace} replace</Chip>}
                   {gOpen > 0 && <Chip tone={HEALTH.open.chip}>{gOpen} open</Chip>}
                   <div className="flex-1 h-px bg-border mx-2" />
-                  <HealthBar items={g.items} className="h-1.5 w-28 shrink-0" />
+                  <HealthBar items={g.items} className="hidden sm:flex h-1.5 w-28 shrink-0" />
                 </button>
               )}
               {!isCollapsed && (
@@ -408,7 +408,7 @@ function EquipmentCard({ item: i, layout, canEdit, expanded, onToggle, selected,
     <div className={cn("iris-card-elevated overflow-hidden relative transition-shadow", i.status === "retired" && "opacity-60", selected && "ring-2 ring-primary/50", expanded && "shadow-md")}>
       <span className={cn("absolute left-0 top-0 bottom-0 w-1", HEALTH[h].bar)} aria-hidden />
       <div className={cn("p-3.5 pl-4 flex gap-3", grid ? "flex-col" : "items-center flex-wrap")}>
-        <div className="flex items-center gap-3 flex-1 min-w-[220px]">
+        <div className="flex items-center gap-3 flex-1 min-w-0 sm:min-w-[220px] basis-full sm:basis-auto">
           {canEdit && (
             <input type="checkbox" checked={selected} onChange={onSelect} aria-label={`Select ${i.label}`} className="accent-[var(--primary)] shrink-0" />
           )}
@@ -430,7 +430,7 @@ function EquipmentCard({ item: i, layout, canEdit, expanded, onToggle, selected,
             {!grid && <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0 md:hidden", expanded && "rotate-180")} />}
           </button>
         </div>
-        <button onClick={onToggle} className={cn("flex items-center gap-1", grid ? "justify-between w-full rounded-lg bg-muted/40 px-2 py-1.5" : "gap-4")}>
+        <button onClick={onToggle} className={cn("flex items-center gap-1", grid ? "justify-between w-full rounded-lg bg-muted/40 px-2 py-1.5" : "flex-wrap gap-x-4 gap-y-2 max-w-full")}>
           <Metric label="Faults" value={i.faults_total} />
           <Metric label="90 days" value={i.faults_90d} warn={i.faults_90d >= 3} />
           <Metric label="Open" value={i.open_faults} warn={i.open_faults > 0} />
