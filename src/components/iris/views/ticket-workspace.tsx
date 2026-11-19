@@ -746,6 +746,27 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Description</div>
                       <TicketDescription text={ticket.description} className="text-[13px] text-foreground/90" />
                     </div>
+                    {(ticket.attachments ?? []).some((a) => a.startsWith("/api/attachments/")) && (
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Attachments</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(ticket.attachments ?? [])
+                            .filter((a) => a.startsWith("/api/attachments/"))
+                            .map((href) => (
+                              <a
+                                key={href}
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-1 text-[12px] hover:bg-muted max-w-full"
+                              >
+                                <Paperclip className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{decodeURIComponent(href.split("/").pop() ?? "file")}</span>
+                              </a>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                     <TicketFormFields info={ticket.collectedInfo} className="text-[12px]" />
 
                     {ticket.businessImpact && (

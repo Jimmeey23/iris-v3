@@ -142,7 +142,7 @@ let client: Anthropic | null = null;
 export async function aiClassify(
   text: string,
   ctx: ClassifyContext,
-  userId: string,
+  userId: string | null,
   modelOverride?: string,
 ): Promise<AiClassification> {
   client ??= new Anthropic();
