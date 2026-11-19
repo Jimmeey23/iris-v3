@@ -182,7 +182,10 @@ export async function processInboundMessage(logId: string, ref: { messageId: str
     }
 
     const msg = await fetchMessage(inboxId, ref.messageId);
-    const from = parseAddress(msg.from);
+    // Google Groups rewrites From to the group ("Name via IRIS Tickets <tickets@…>") for senders
+    // with strict DMARC; the real sender is kept in X-Original-Sender (else Reply-To).
+    const hdr = Object.fromEntries(Object.entries(msg.headers ?? {}).map(([k, v]) => [k.toLowerCase(), Array.isArray(v) ? v[0] : v]));
+    const from = parseAddress(hdr["x-original-sender"]) ?? (/\bvia\b/i.test(String(msg.from ?? "")) ? parseAddress(hdr["reply-to"]) : null) ?? parseAddress(msg.from);
     if (!from) {
       await finish(logId, "ignored", "No sender address.");
       return;
