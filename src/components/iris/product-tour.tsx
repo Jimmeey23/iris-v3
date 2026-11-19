@@ -354,6 +354,12 @@ export function ProductTour({ paletteOpen, openPalette }: { paletteOpen: boolean
         onDoTask={() => {
           if (step.task?.kind === "view") setCurrentView(step.task.view);
           else if (step.task?.kind === "palette") openPalette();
+          else if (step.task?.kind === "click") {
+            const el = step.target ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`) : null;
+            const field = el?.matches("input,textarea") ? el : el?.querySelector<HTMLElement>("input,textarea,[contenteditable]");
+            (field ?? el)?.focus();
+            setClicked((c) => ({ ...c, [step.id]: true }));
+          }
           else if (step.task?.kind === "ticket") {
             const newest = [...ALL_TICKETS].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
             if (newest) selectTicket(newest.id);
@@ -511,7 +517,9 @@ function TourCard({
     const ch = el.offsetHeight;
     const gap = 56; // room for the arrow
     if (!hole || vw < 640) {
-      set(vw < 640 && hole ? { left: "12px", right: "12px", bottom: "12px" } : { left: "50%", top: "50%", transform: "translate(-50%, -50%)" });
+      // Phones: dock the card on the opposite half from the target so it never covers it.
+      if (vw < 640 && hole) set(hole.y + hole.h / 2 > vh / 2 ? { left: "12px", right: "12px", top: "12px" } : { left: "12px", right: "12px", bottom: "12px" });
+      else set({ left: "50%", top: "50%", transform: "translate(-50%, -50%)" });
       return;
     }
     const clampX = (x: number) => Math.min(Math.max(12, x), vw - cw - 12);
@@ -526,7 +534,7 @@ function TourCard({
   const t = step.task;
   const total = STEPS.length;
   const centred = isFirst || isLast;
-  const showHelper = t && !taskDone && (t.kind === "palette" || (t.kind === "view" && targetMissing) || (t.kind === "ticket" && emptyList));
+  const showHelper = t && !taskDone && (t.kind === "palette" || t.kind === "click" || (t.kind === "view" && targetMissing) || (t.kind === "ticket" && emptyList));
   return (
     <div
       ref={cardRef}
@@ -594,7 +602,7 @@ function TourCard({
             onClick={onDoTask}
             className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
           >
-            {t?.kind === "palette" ? "Open search for me" : t?.kind === "ticket" ? "Open a recent ticket for me" : "Take me there"}
+            {t?.kind === "palette" ? "Open search for me" : t?.kind === "ticket" ? "Open a recent ticket for me" : t?.kind === "click" ? "Do it for me" : "Take me there"}
             <ArrowRight className="w-3 h-3" />
           </button>
         )}
