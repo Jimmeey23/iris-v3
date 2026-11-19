@@ -82,6 +82,7 @@ async function fetchMessage(inboxId: string, messageId: string): Promise<Mailtra
     `https://mailtrap.io/api/inbound/inboxes/${encodeURIComponent(inboxId)}/messages/${encodeURIComponent(messageId)}`,
     { headers: { "Api-Token": token, Accept: "application/json" }, cache: "no-store" },
   );
+  if (res.status === 404) throw new Error("Message not found in Mailtrap (webhook test event, or deleted).");
   if (!res.ok) throw new Error(`Mailtrap message fetch failed (${res.status})`);
   return (await res.json()) as MailtrapMessage;
 }
