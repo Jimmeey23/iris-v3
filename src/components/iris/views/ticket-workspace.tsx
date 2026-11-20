@@ -318,8 +318,8 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto iris-scrollbar">
-        <div className="px-6 py-4 max-w-[1600px] mx-auto space-y-3">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden iris-scrollbar">
+        <div className="px-4 sm:px-6 py-4 max-w-[1600px] mx-auto space-y-3 min-w-0">
           {ticket.requiresAcknowledgment && !ticket.acknowledgedAt && !["resolved", "closed"].includes(ticket.status) && (
             <div className="iris-card p-3 border-l-4 border-l-amber-500 bg-amber-500/5 flex items-center justify-between gap-3 flex-wrap">
               <div className="text-[12px]">
@@ -339,9 +339,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
               </Button>
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)] gap-4">
             {/* Main Content */}
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="bg-muted/40 h-9">
                   <TabsTrigger value="resolution" className="text-[12px] data-[state=active]:bg-background">
@@ -942,8 +942,8 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
               </Tabs>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-3">
+            {/* Sidebar: every card shrinks to the column and long text wraps instead of overflowing */}
+            <div className="space-y-3 min-w-0 max-w-full overflow-x-hidden [overflow-wrap:anywhere] [&>*]:min-w-0 [&>*]:max-w-full">
               {isAdmin && !["resolved", "closed"].includes(status) && (
                 <NudgeCard key={ownerIds.join(",")} ticket={ticket} ownerIds={ownerIds} />
               )}
@@ -1187,9 +1187,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
 
 function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] gap-3 items-start">
+    <div className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)] gap-3 items-start">
       <div className="text-[11px] font-medium text-muted-foreground pt-0.5">{label}</div>
-      <div className={cn("text-[12px] leading-relaxed", mono && "font-mono text-[11px]")}>{value}</div>
+      <div className={cn("text-[12px] leading-relaxed min-w-0 break-words", mono && "font-mono text-[11px]")}>{value}</div>
     </div>
   );
 }
