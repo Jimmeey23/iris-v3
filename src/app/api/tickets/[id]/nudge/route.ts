@@ -94,8 +94,10 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets
           ]);
           whatsapp.push(p.name);
         } catch (e) {
-          console.error("[nudge] WhatsApp failed", t.ticket_id, p.id, e instanceof Error ? e.message : e);
-          whatsappSkipped.push({ name: p.name, reason: "WhatsApp send failed" });
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("[nudge] WhatsApp failed", t.ticket_id, p.id, msg);
+          // Admin-only endpoint: show the provider's reason so failures can be fixed without log access.
+          whatsappSkipped.push({ name: p.name, reason: `WhatsApp send failed: ${msg.slice(0, 200)}` });
         }
       }),
     );
@@ -104,6 +106,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets
       const parts = [
         sent.length ? `in-app: ${sent.join(", ")}` : "",
         whatsapp.length ? `WhatsApp: ${whatsapp.join(", ")}` : "",
+        whatsappSkipped.length ? `WhatsApp not sent: ${whatsappSkipped.map((w) => `${w.name} (${w.reason})`).join(", ")}` : "",
       ].filter(Boolean);
       await client
         .query(
