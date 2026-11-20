@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { withUser } from "@/lib/server/db";
+import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
@@ -15,34 +15,62 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
   if ("error" in auth) return auth.error;
   const { id } = await ctx.params;
   try {
-    const { checks, origin } = await withUser(auth.session.user_id, async (c) => ({
-      checks: (await c.query(
-        `select rc.id, rc.kind, rc.cycle, rc.step, rc.day_offset, rc.due_at, rc.status, rc.outcome_note, rc.outcome_at,
-                p.ticket_id as parent_ticket, k.ticket_id as check_ticket,
-                (k.id = t.id) as is_this_ticket
-           from tickets t
-           join recurrence_checks rc on rc.check_ticket_id = t.id or rc.parent_ticket_id = t.id
-           join tickets p on p.id = rc.parent_ticket_id
-           left join tickets k on k.id = rc.check_ticket_id
-          where t.id = $1 or t.ticket_id = $1
-          order by rc.cycle, rc.step`,
-        [id],
-      )).rows,
-      // When this ticket is a check: the original ticket, who reported it and when it was raised.
-      // Linked via metadata so checks imported from v2 (no recurrence_checks row) get it too.
-      origin: (await c.query(
-        `select p.id, p.ticket_id, p.created_at,
-                coalesce(e.name, p.metadata #>> '{legacy,created_by_name}') as reported_by
-           from tickets t
-           join tickets p on p.ticket_id = coalesce(
-                  t.metadata #>> '{recurrence_check,parent_ticket}',
-                  t.metadata #>> '{legacy,custom_fields,parentTicketNumber}')
-           left join employees e on e.id = p.reporter_id
-          where t.id = $1 or t.ticket_id = $1
-          limit 1`,
+    const { self } = await withUser(auth.session.user_id, async (c) => ({
+      // Proves the caller can see this ticket (RLS) and gives the original's number.
+      self: (await c.query(
+        `select t.id, coalesce(t.metadata #>> '{recurrence_check,parent_ticket}',
+                              t.metadata #>> '{legacy,custom_fields,parentTicketNumber}') as parent_ticket
+           from tickets t where t.id = $1 or t.ticket_id = $1 limit 1`,
         [id],
       )).rows[0] ?? null,
     }));
+
+    // When this ticket is a check: the original ticket, who reported it, when it was
+    // created and resolved, and its full activity log. Read as system: the check's
+    // assignee (the original reporter) may not otherwise have access to the original,
+    // but the check is about that ticket, so its history is shown read-only here.
+    if (!self) return NextResponse.json({ checks: [], origin: null });
+    // Same reason as below: the parent may be outside the caller's RLS scope.
+    const checks = await asSystem(async (c) => (await c.query(
+      `select rc.id, rc.kind, rc.cycle, rc.step, rc.day_offset, rc.due_at, rc.status, rc.outcome_note, rc.outcome_at,
+              p.ticket_id as parent_ticket, k.ticket_id as check_ticket,
+              (k.id = $1) as is_this_ticket
+         from iris.recurrence_checks rc
+         join iris.tickets p on p.id = rc.parent_ticket_id
+         left join iris.tickets k on k.id = rc.check_ticket_id
+        where rc.check_ticket_id = $1 or rc.parent_ticket_id = $1
+        order by rc.cycle, rc.step`,
+      [self.id],
+    )).rows);
+
+    let origin = null;
+    if (self.parent_ticket) {
+      origin = await asSystem(async (c) => {
+        const p = (await c.query(
+          `select p.id, p.ticket_id, p.title, p.status, p.created_at, p.resolved_at,
+                  coalesce(e.name, p.metadata #>> '{legacy,created_by_name}') as reported_by,
+                  a.name as assignee
+             from iris.tickets p
+             left join iris.employees e on e.id = p.reporter_id
+             left join iris.employees a on a.id = p.assignee_id
+            where p.ticket_id = $1 limit 1`,
+          [self.parent_ticket],
+        )).rows[0];
+        if (!p) return null;
+        // resolved_at is cleared on reopen; fall back to when this cycle was resolved.
+        if (!p.resolved_at) {
+          p.resolved_at = (await c.query(
+            `select metadata #>> '{recurrence_check,parent_resolved_at}' as r from iris.tickets where id = $1`, [self.id],
+          )).rows[0]?.r ?? null;
+        }
+        p.history = (await c.query(
+          `select activity_type as type, description, actor_name as actor, created_at as at
+             from iris.ticket_activities where ticket_id = $1 order by created_at`,
+          [p.id],
+        )).rows;
+        return p;
+      });
+    }
     return NextResponse.json({ checks, origin });
   } catch (err) {
     return dbError(err);

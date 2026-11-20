@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, RotateCcw, CalendarClock, XCircle, Ban, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Loader2, RotateCcw, CalendarClock, XCircle, Ban, ShieldCheck, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { useAppStore } from "@/lib/iris/store";
+import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { api, upsertTicket } from "@/lib/iris/live-data";
@@ -21,17 +23,64 @@ type Check = {
   is_this_ticket: boolean;
 };
 
-type Origin = { id: string; ticket_id: string; created_at: string; reported_by: string | null };
+type Origin = {
+  id: string;
+  ticket_id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  reported_by: string | null;
+  assignee: string | null;
+  history: { type: string; description: string; actor: string | null; at: string }[];
+};
 
-const fullDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+const dateTime = (iso: string) =>
+  new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
 
-/** The original ticket a check belongs to: always shown on a check ticket. */
-function OriginLine({ origin }: { origin: Origin }) {
+/** The original ticket a check belongs to: always shown on a check ticket, with its full history. */
+function OriginBlock({ origin }: { origin: Origin }) {
+  const selectTicket = useAppStore((s) => s.selectTicket);
+  const [open, setOpen] = React.useState(true);
+  const canOpen = ALL_TICKETS.some((t) => t.id === origin.id);
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] mb-3 px-2.5 py-2 rounded-md bg-muted/50">
-      <span><span className="text-muted-foreground">Original ticket </span><span className="font-mono font-medium">{origin.ticket_id}</span></span>
-      <span><span className="text-muted-foreground">Reported by </span><span className="font-medium">{origin.reported_by ?? "Unknown"}</span></span>
-      <span><span className="text-muted-foreground">Raised on </span><span className="font-medium">{fullDate(origin.created_at)}</span></span>
+    <div className="mb-3 rounded-md bg-muted/50 text-[12px]">
+      <div className="px-2.5 py-2 space-y-1">
+        <div className="flex flex-wrap items-center gap-x-2">
+          <span className="text-muted-foreground">Original ticket</span>
+          <span className="font-mono font-medium">{origin.ticket_id}</span>
+          <span className="truncate min-w-0 flex-1">{origin.title}</span>
+          {canOpen && (
+            <button type="button" className="inline-flex items-center gap-1 text-[11px] text-sky-600 hover:underline" onClick={() => selectTicket(origin.id)}>
+              Open <ExternalLink className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
+          <span><span className="text-muted-foreground">Created </span><span className="font-medium">{dateTime(origin.created_at)}</span></span>
+          <span><span className="text-muted-foreground">Resolved </span><span className="font-medium">{origin.resolved_at ? dateTime(origin.resolved_at) : "—"}</span></span>
+          <span><span className="text-muted-foreground">Reported by </span><span className="font-medium">{origin.reported_by ?? "Unknown"}</span></span>
+          <span><span className="text-muted-foreground">Repair owner </span><span className="font-medium">{origin.assignee ?? "—"}</span></span>
+        </div>
+      </div>
+      {origin.history.length > 0 && (
+        <div className="border-t border-border px-2.5 py-2">
+          <button type="button" className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => setOpen((v) => !v)}>
+            {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            Original ticket history ({origin.history.length})
+          </button>
+          {open && (
+            <ol className="mt-1.5 space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
+              {origin.history.map((h, i) => (
+                <li key={i} className="border-l-2 border-border pl-2">
+                  <div className="whitespace-pre-wrap break-words">{h.description}</div>
+                  <div className="text-[10px] text-muted-foreground">{h.actor ? `${h.actor} · ` : ""}{dateTime(h.at)}</div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -89,7 +138,7 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
           </div>
           <div className="text-[13px] font-semibold">Recurrence check</div>
         </div>
-        <OriginLine origin={origin} />
+        <OriginBlock origin={origin} />
       </div>
     );
   }
@@ -129,7 +178,7 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
           <div className="text-[13px] font-semibold">Day-{mine.day_offset} recurrence check</div>
           <span className={cn("ml-auto px-2 py-0.5 rounded text-[10px] font-semibold", STATUS[mine.status].cls)}>{STATUS[mine.status].label}</span>
         </div>
-        {origin && <OriginLine origin={origin} />}
+        {origin && <OriginBlock origin={origin} />}
         <p className="text-[12px] text-muted-foreground mb-3">
           Has the {what} fault from <span className="font-mono">{mine.parent_ticket}</span> come back? If it has, the original ticket reopens for the repair owner.
         </p>
