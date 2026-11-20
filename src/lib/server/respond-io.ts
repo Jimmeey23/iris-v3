@@ -1,6 +1,6 @@
 import "server-only";
 import type { PoolClient } from "pg";
-import { loadCredentials } from "@/lib/server/integration-vault";
+import { dbIdFor, loadCredentials } from "@/lib/server/integration-vault";
 
 /**
  * respond.io (Developer API v2) WhatsApp template sender. Internal staff only:
@@ -15,7 +15,7 @@ const BASE = "https://api.respond.io/v2";
 export type RespondConfig = { apiKey: string; channelId?: number; language: string };
 
 export async function respondConfig(c: PoolClient): Promise<RespondConfig | null> {
-  const { values } = await loadCredentials(c, "respond");
+  const { values } = await loadCredentials(c, dbIdFor("respond"));
   const apiKey = values.api_key?.trim();
   if (!apiKey) return null;
   const ch = Number(values.channel_id);
