@@ -99,6 +99,7 @@ function looksLikeQuestion(text: string) {
 }
 import { PRIORITY_CONFIG, DEPT_MAP, STUDIO_MAP, EMPLOYEE_MAP } from "@/lib/iris/types";
 import { toast } from "sonner";
+import { useDictation } from "@/components/iris/use-dictation";
 import { buildWelcome, detectLiveContext } from "@/lib/iris/chat-welcome";
 import { detailsFromText, memberLines } from "@/lib/iris/intake-details";
 import {
@@ -148,6 +149,8 @@ export function AIAssistantView() {
   } = useAppStore();
 
   const [input, setInput] = React.useState("");
+  const onDictationError = React.useCallback((m: string) => toast.error(m), []);
+  const dictation = useDictation(setInput, onDictationError);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [hasInitialized, setHasInitialized] = React.useState(false);
   const [showFormIntake, setShowFormIntake] = React.useState(false);
@@ -217,6 +220,7 @@ export function AIAssistantView() {
   };
 
   const handleSend = async (text: string) => {
+    dictation.stop();
     const trimmed = text.trim();
     // Use BOTH the ref (synchronous, prevents race) AND state (for UI feedback)
     if (!trimmed || isProcessingRef.current) return;
@@ -711,7 +715,16 @@ export function AIAssistantView() {
                 className="flex-1 resize-none bg-transparent border-0 outline-none text-[13px] py-1.5 px-1 max-h-32 placeholder:text-muted-foreground"
                 style={{ minHeight: "32px" }}
               />
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                title={dictation.listening ? "Stop voice typing" : "Speak your issue"}
+                aria-pressed={dictation.listening}
+                className={cn("h-8 w-8 shrink-0 rounded-lg", dictation.listening && "bg-red-500/15 text-red-600 animate-pulse")}
+                onClick={() => (dictation.listening ? dictation.stop() : dictation.start(input))}
+                disabled={isProcessing}
+              >
                 <Mic className="w-3.5 h-3.5" />
               </Button>
               <Button
