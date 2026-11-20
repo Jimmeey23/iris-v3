@@ -6,7 +6,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { put } from "@vercel/blob";
 import { asSystem, pool } from "./db";
-import { costUsd } from "./ai-pricing";
+import { recordAiUsage } from "./ai-usage";
 import { aiClassify, INTAKE_MODEL, type ClassifyContext } from "./ai-classify";
 import { loadEffectiveAiConfig } from "./ai-config";
 import { classify, extractFields, taxonomy } from "./intake";
@@ -124,11 +124,15 @@ const PASTE_SYSTEM = `You read raw text a Physique 57 India staff member pasted 
 - Not actionable only if there is clearly nothing for the team to do.`;
 
 /** Reads raw pasted text (email, chat, notes) the same way inbound emails are read. */
-export async function readPastedReport(text: string): Promise<EmailReadT | null> {
-  return readEmail(text.slice(0, 12000), PASTE_SYSTEM);
+export async function readPastedReport(text: string, userId: string | null = null): Promise<EmailReadT | null> {
+  return readEmail(text.slice(0, 12000), PASTE_SYSTEM, { feature: "pasted_report", userId, detail: `Pasted text: ${text.slice(0, 140)}` });
 }
 
-async function readEmail(prompt: string, system = READ_SYSTEM): Promise<EmailReadT | null> {
+async function readEmail(
+  prompt: string,
+  system = READ_SYSTEM,
+  log: { feature: "email_intake" | "pasted_report"; userId: string | null; detail: string } = { feature: "email_intake", userId: null, detail: "Inbound email" },
+): Promise<EmailReadT | null> {
   anthropic ??= new Anthropic();
   const model = INTAKE_MODEL;
   const response = await anthropic.messages.parse({
@@ -139,13 +143,7 @@ async function readEmail(prompt: string, system = READ_SYSTEM): Promise<EmailRea
     output_config: { effort: "low", format: zodOutputFormat(EmailRead) },
   } as Parameters<Anthropic["messages"]["parse"]>[0]);
   const u = response.usage;
-  await asSystem((c) =>
-    c.query(
-      `insert into iris.ai_usage (user_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
-       values (null, $1, $2, $3, $4, $5, $6)`,
-      [response.model ?? model, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, costUsd(response.model ?? model, u) ?? 0],
-    ),
-  ).catch(() => {});
+  await recordAiUsage({ userId: log.userId, model: response.model ?? model, usage: u, feature: log.feature, detail: log.detail });
   if (response.stop_reason === "refusal" || !response.parsed_output) return null;
   return response.parsed_output as EmailReadT;
 }
@@ -240,7 +238,7 @@ export async function processInboundMessage(logId: string, ref: { messageId: str
     let read: EmailReadT | null = null;
     if (aiOn) {
       try {
-        read = await readEmail(prompt);
+        read = await readEmail(prompt, READ_SYSTEM, { feature: "email_intake", userId: null, detail: `Inbound email from ${from.email}: ${subject ?? ""}` });
       } catch (e) {
         console.error("[email-intake] AI read failed", (e as Error).message);
       }
@@ -361,7 +359,7 @@ async function fileTicket(i: {
         employees: employees.map((e) => ({ id: e.id, name: e.name, department_code: e.department_code, role: e.role, title: e.title, skills: e.skills, studio_codes: e.studio_codes })),
       };
       try {
-        const ai = await aiClassify(classifyText, ctx, null);
+        const ai = await aiClassify(classifyText, ctx, null, undefined, "email_intake");
         const known = tax.categories.find((x) => x.category === ai.category);
         if (ai.understood && known) {
           category = known.category;

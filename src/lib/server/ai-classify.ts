@@ -2,8 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { costUsd } from "./ai-pricing";
-import { asSystem } from "./db";
+import { recordAiUsage } from "./ai-usage";
 import { fieldCatalogue } from "@/lib/iris/intake-schema";
 
 /**
@@ -144,6 +143,7 @@ export async function aiClassify(
   ctx: ClassifyContext,
   userId: string | null,
   modelOverride?: string,
+  feature: "intake_classify" | "email_intake" = "intake_classify",
 ): Promise<AiClassification> {
   client ??= new Anthropic();
   const model = modelOverride || INTAKE_MODEL;
@@ -157,13 +157,7 @@ export async function aiClassify(
   } as Parameters<Anthropic["messages"]["parse"]>[0]);
 
   const u = response.usage;
-  await asSystem((c) =>
-    c.query(
-      `insert into iris.ai_usage (user_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, response.model ?? model, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, costUsd(response.model ?? model, u) ?? 0],
-    ),
-  ).catch(() => {});
+  await recordAiUsage({ userId, model: response.model ?? model, usage: u, feature, detail: `Classify: ${text.slice(0, 160)}` });
 
   if (response.stop_reason === "refusal" || !response.parsed_output) return UNCLEAR;
   return response.parsed_output as AiClassification;

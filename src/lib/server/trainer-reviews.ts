@@ -253,15 +253,15 @@ export async function saveReview(c: PoolClient, review: NormalisedReview, studio
   return { outcome: row ? "imported" : "duplicate", id: row?.id, ticketId };
 }
 
-/** Assessments under this score need a coaching follow-up, so their ticket stays open. */
+/** Assessments under this score are flagged as needing coaching in the notice to admins. */
 const COACHING_THRESHOLD = 65;
 
 /**
- * Files the submission as a Training ticket, as v2 does, so it shows on the board with the
- * rest of the trainer's history. The `trainer-assessment` tag keeps it out of the Trainers
- * tab's member-feedback counts (it is already counted as an assessment). A score that needs
- * coaching stays open for Training; anything else is filed already resolved, so a routine
- * evaluation never sits in someone's queue or trips an SLA.
+ * Files the submission as a Training ticket so it shows with the rest of the trainer's
+ * history. Assessments are for information only: the ticket is never assigned, never open
+ * and never on an SLA. It is filed closed with the `info-only` tag and the Training
+ * department admins are told about it. The `trainer-assessment` tag keeps it out of the
+ * Trainers tab's member-feedback counts (it is already counted as an assessment).
  */
 async function createAssessmentTicket(
   c: PoolClient,
@@ -287,21 +287,62 @@ async function createAssessmentTicket(
   const { rows } = await c.query(
     `insert into iris.tickets (title, description, category, subcategory, priority, status, studio_code, department_code,
        tags, source, collected_info, resolution, resolution_summary, resolved_at)
-     values ($1, $2, 'Trainer Feedback', 'Trainer Assessment / Evaluation Submission', $3, $4, $5, 'TRN', $6, 'webhook', $7::jsonb, $8, $8, $9)
+     values ($1, $2, 'Trainer Feedback', 'Trainer Assessment / Evaluation Submission', 'P3', 'closed', $3, 'TRN', $4, 'webhook', $5::jsonb, $6, $6, now())
      returning id, ticket_id`,
     [
       `Trainer assessment · ${t.name}${review.sessionName ? ` · ${review.sessionName}` : ""}`,
       lines.join("\n"),
-      needsCoaching ? "P2" : "P3",
-      needsCoaching ? "open" : "resolved",
       studioCode,
-      ["trainer-assessment", "trainer-evaluation", review.sourceRef.startsWith("zite:") ? "via-zite" : "via-fillout"],
-      JSON.stringify({ sourceRef: review.sourceRef, evaluationScore: t.score, evaluator: review.evaluator, sourceLabel: review.sourceLabel }),
-      needsCoaching ? null : "Assessment recorded — no follow-up required.",
-      needsCoaching ? null : new Date().toISOString(),
+      [
+        "trainer-assessment", "trainer-evaluation", "info-only",
+        review.sourceRef.startsWith("zite:") ? "via-zite" : "via-fillout",
+        ...(needsCoaching ? ["needs-coaching"] : []),
+      ],
+      JSON.stringify({ sourceRef: review.sourceRef, evaluationScore: t.score, evaluator: review.evaluator, sourceLabel: review.sourceLabel, infoOnly: true }),
+      "For information only. Shared with the Training department admins; no action tracked in IRIS.",
     ],
   );
-  return rows[0].ticket_id as string;
+  const ticket = rows[0] as { id: string; ticket_id: string };
+  await notifyDepartmentAdmins(c, ticket, "TRN", {
+    title: `Trainer assessment (FYI): ${t.name}${needsCoaching ? " · needs coaching" : ""}`,
+    body: `${t.name} at ${t.studio} scored ${t.score ?? "n/a"}${t.band ? ` (${t.band})` : ""}. Evaluator: ${review.evaluator}. For your information, no action needed in IRIS.`,
+    detail: lines.join("\n"),
+  });
+  return ticket.ticket_id;
+}
+
+const esc = (v: string) => v.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
+
+/**
+ * In-app notification plus a queued email to every active admin in the department (and its
+ * head), all in the caller's transaction. Internal staff only, never members.
+ */
+async function notifyDepartmentAdmins(
+  c: PoolClient,
+  ticket: { id: string; ticket_id: string },
+  departmentCode: string,
+  msg: { title: string; body: string; detail: string },
+) {
+  const { rows } = await c.query<{ user_id: string; email: string; name: string }>(
+    `select distinct u.id as user_id, coalesce(e.email, u.email::text) as email, coalesce(e.name, u.email::text) as name
+       from iris.users u
+       join iris.employees e on e.id = u.employee_id
+       left join iris.departments d on d.code = $1
+      where u.is_active and e.is_active
+        and ((u.role = 'admin' and e.department_code = $1) or e.id = d.head_employee_id)`,
+    [departmentCode],
+  );
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000").replace(/\/+$/, "");
+  for (const r of rows) {
+    await c.query("select iris.create_notification($1, 'info', $2, $3, $4, 'P3')", [r.user_id, msg.title, msg.body, ticket.id]);
+    if (!r.email) continue;
+    const text = `${msg.body}\n\n${msg.detail}\n\nTicket ${ticket.ticket_id} (information only): ${appUrl}`;
+    const html = `<p>Hi ${esc(r.name)},</p><p>${esc(msg.body)}</p><pre style="font-family:inherit;white-space:pre-wrap">${esc(msg.detail)}</pre><p style="color:#666">Ticket ${esc(ticket.ticket_id)} is filed for information only. It is not assigned and needs no action in IRIS.</p>`;
+    await c.query(
+      `insert into iris.outbox (kind, status, payload) values ('email', 'pending', $1::jsonb)`,
+      [JSON.stringify({ to: r.email, subject: `[FYI] ${msg.title}`, html, text, category: "trainer-assessment" })],
+    );
+  }
 }
 
 // === Deleted-review tombstones ==============================================

@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { PoolClient } from "pg";
-import { costUsd } from "./ai-pricing";
+import { recordAiUsage } from "./ai-usage";
 import { loadEffectiveAiConfig } from "./ai-config";
 import { asSystem } from "./db";
 import { CATEGORY_MAP } from "@/lib/iris/constants";
@@ -120,7 +120,7 @@ export function isGeneratedTitle(title: string, category: string | null, subcate
 
 let client: Anthropic | null = null;
 
-async function callModel(text: string, userId: string | null): Promise<Enrichment | null> {
+async function callModel(text: string, userId: string | null, ticketId: string): Promise<Enrichment | null> {
   client ??= new Anthropic();
   const response = await client.messages.parse({
     model: ENRICH_MODEL,
@@ -132,13 +132,7 @@ async function callModel(text: string, userId: string | null): Promise<Enrichmen
 
   const u = response.usage;
   const model = response.model ?? ENRICH_MODEL;
-  await asSystem((c) =>
-    c.query(
-      `insert into iris.ai_usage (user_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, model, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, costUsd(model, u) ?? 0],
-    ),
-  ).catch(() => {});
+  await recordAiUsage({ userId, model, usage: u, feature: "ticket_enrich", ticketId, detail: "Ticket summary & tags" });
 
   if (response.stop_reason === "refusal" || !response.parsed_output) return null;
   return response.parsed_output as Enrichment;
@@ -202,7 +196,7 @@ export async function enrichTicket(ticketId: string, opts: { userId?: string | n
 
   let e: Enrichment | null;
   try {
-    e = await callModel(ticketText(t), opts.userId ?? null);
+    e = await callModel(ticketText(t), opts.userId ?? null, ticketId);
   } catch (err) {
     console.warn("[ai-enrich] failed:", err instanceof Error ? err.message : err);
     return { outcome: "failed" };

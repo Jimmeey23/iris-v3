@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { PoolClient } from "pg";
 import { costUsd } from "./ai-pricing";
-import { asSystem } from "./db";
+import { recordAiUsage } from "./ai-usage";
 import { searchMembers, getMemberDetails, searchSessions, listTrainers, configuredRegions } from "./momence";
 import { getMemberBookings, getMemberPayments, getSessionRoster, getMemberNotes } from "./momence-extra";
 
@@ -471,13 +471,7 @@ export async function runTurn(
     turnUsage.cacheWrite += u.cache_creation_input_tokens ?? 0;
     turnUsage.cost += cost;
     // Own connection: billed usage must be kept even if this turn later fails and rolls back.
-    await asSystem((c) =>
-      c.query(
-        `insert into iris.ai_usage (user_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
-         values ($1, $2, $3, $4, $5, $6, $7)`,
-        [userId, response.model ?? MODEL, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, cost],
-      ),
-    ).catch((e) => console.error("[ai usage] not recorded:", (e as Error).message));
+    await recordAiUsage({ userId, model: response.model ?? MODEL, usage: u, cost, feature: "assistant_chat", detail: userText });
 
     const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")

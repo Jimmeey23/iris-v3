@@ -18,6 +18,8 @@ import { FormattedText, TicketDescription, TicketFormFields } from "../formatted
 import { TicketAiCard } from "../ticket-ai-card";
 import { AdminEditableEntry } from "../ticket-entry-admin";
 import { LinkTicketDialog } from "../link-ticket-dialog";
+import { TicketStatusBanner } from "../ticket-status-banner";
+import { getResolutionQuestions, resolutionAnswersComplete, formatResolutionAnswers, isInfoOnlyTicket } from "@/lib/iris/resolution-questions";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
@@ -153,6 +155,13 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [resolutionNote, setResolutionNote] = React.useState("");
   const [resolutionActions, setResolutionActions] = React.useState("");
   const [resolutionRootCause, setResolutionRootCause] = React.useState("");
+  const resolutionQuestions = React.useMemo(
+    () => getResolutionQuestions({ category: ticket.category, subcategory: ticket.subcategory, title: ticket.title, departmentCode: getDepartment(ticket)?.code }),
+    [ticket],
+  );
+  const [resolutionAnswers, setResolutionAnswers] = React.useState<Record<string, string>>({});
+  const answersComplete = resolutionAnswersComplete(resolutionQuestions, resolutionAnswers);
+  const infoOnly = isInfoOnlyTicket(ticket);
   const [extensionHours, setExtensionHours] = React.useState(4);
   const [extensionReason, setExtensionReason] = React.useState("");
   // Entries posted from the log carry a "[follow up] " style marker in front of their text.
@@ -238,10 +247,63 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
     }
   };
 
+  const renderResolutionQuestions = (compact = false) => (
+    <div className={cn("rounded-lg border-2 border-amber-500/40 bg-amber-500/5", compact ? "p-3" : "p-4")}>
+      <div className="flex items-center gap-2 mb-2">
+        <ClipboardList className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        <div className="text-[12px] font-semibold">Required before resolving</div>
+        <span className={cn(
+          "ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full",
+          answersComplete ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+        )}>
+          {resolutionQuestions.filter((q) => (resolutionAnswers[q.id] ?? "").trim()).length}/{resolutionQuestions.length} answered
+        </span>
+      </div>
+      <div className="space-y-2.5">
+        {resolutionQuestions.map((q) => (
+          <div key={q.id}>
+            <label className="text-[11px] font-semibold mb-1 block">
+              {q.label} <span className="text-red-500">*</span>
+            </label>
+            {q.kind === "choice" ? (
+              <div className="flex flex-wrap gap-1.5">
+                {q.options!.map((o) => (
+                  <button
+                    key={o}
+                    type="button"
+                    disabled={readOnly || !canResolve}
+                    onClick={() => setResolutionAnswers((a) => ({ ...a, [q.id]: o }))}
+                    className={cn(
+                      "h-7 px-3 rounded-full border text-[11px] transition-colors",
+                      resolutionAnswers[q.id] === o
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border text-muted-foreground hover:border-primary hover:text-foreground",
+                    )}
+                  >
+                    {o}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <input
+                value={resolutionAnswers[q.id] ?? ""}
+                disabled={readOnly || !canResolve}
+                onChange={(e) => setResolutionAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                placeholder={q.placeholder}
+                className="w-full h-8 px-3 text-[12px] rounded-lg border border-border bg-card focus:outline-none focus:border-primary"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const handleResolve = async () => {
-    if (!resolutionNote.trim() || busy) return;
+    if (!resolutionNote.trim() || !answersComplete || busy) return;
     const summary = [
       resolutionNote.trim(),
+      formatResolutionAnswers(resolutionQuestions, resolutionAnswers),
       resolutionRootCause.trim() ? `Root cause: ${resolutionRootCause.trim()}` : "",
       resolutionActions.trim() ? `Actions taken: ${resolutionActions.trim()}` : "",
     ]
@@ -254,6 +316,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
     setResolutionNote("");
     setResolutionActions("");
     setResolutionRootCause("");
+    setResolutionAnswers({});
   };
 
   const handleExtension = async () => {
@@ -320,7 +383,8 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
       {/* Body */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden iris-scrollbar">
         <div className="px-4 sm:px-6 py-4 max-w-[1600px] mx-auto space-y-3 min-w-0">
-          {ticket.requiresAcknowledgment && !ticket.acknowledgedAt && !["resolved", "closed"].includes(ticket.status) && (
+          <TicketStatusBanner ticket={ticket} status={status} infoOnly={infoOnly} />
+          {!infoOnly && ticket.requiresAcknowledgment && !ticket.acknowledgedAt && !["resolved", "closed"].includes(ticket.status) && (
             <div className="iris-card p-3 border-l-4 border-l-amber-500 bg-amber-500/5 flex items-center justify-between gap-3 flex-wrap">
               <div className="text-[12px]">
                 <span className="font-semibold text-amber-700 dark:text-amber-400">Ownership Acknowledgment Required:</span>{" "}
@@ -422,8 +486,11 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                     <AdminTicketControls ticket={ticket} onStatus={setStatus} onDeleted={() => selectTicket(null)} />
                   )}
 
-                  {/* Action Buttons - functional */}
-                  <div data-tour="ticket-actions" className={cn("grid grid-cols-2 gap-2", isAdmin ? "md:grid-cols-4" : "md:grid-cols-3")}>
+                  {/* Mandatory close-out questions, answered here or in the Resolve dialog */}
+                  {!infoOnly && !readOnly && !["resolved", "closed"].includes(status) && renderResolutionQuestions()}
+
+                  {/* Action Buttons - functional (none for information-only tickets) */}
+                  {!infoOnly && <div data-tour="ticket-actions" className={cn("grid grid-cols-2 gap-2", isAdmin ? "md:grid-cols-4" : "md:grid-cols-3")}>
                     <ActionButton icon={PlayCircle} label="Start Work" color="violet" onClick={startWork} disabled={readOnly || busy || (status !== "open" && status !== "awaiting_response")} />
                     {isAdmin && <ActionButton icon={PauseCircle} label={slaPaused ? "Resume SLA" : "Pause SLA"} color="amber" onClick={toggleSlaPause} disabled={readOnly || busy} />}
                     {isAdmin ? (
@@ -432,7 +499,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       <ActionButton icon={Clock} label="Ask for More Time" color="sky" onClick={() => setShowRequestDialog(true)} disabled={readOnly || busy || status === "resolved" || status === "closed"} />
                     )}
                     <ActionButton icon={CheckCircle2} label="Mark Resolved" color="emerald" onClick={() => setShowResolveDialog(true)} disabled={readOnly || busy || !canResolve || status === "resolved" || status === "closed"} />
-                  </div>
+                  </div>}
 
                   {readOnly && (
                     <div className="p-2.5 rounded-md bg-muted/40 border border-border flex items-center gap-2">
@@ -636,8 +703,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                         <div className="text-[15px] font-semibold">Resolve Ticket</div>
                       </div>
-                      <div className="text-[11px] text-muted-foreground mb-4">A resolution summary is required. This will be logged and visible to all stakeholders.</div>
-                      <div className="space-y-3">
+                      <div className="text-[11px] text-muted-foreground mb-4">Answer every required question and add a resolution summary. Both are logged and visible to all stakeholders.</div>
+                      <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+                        {renderResolutionQuestions(true)}
                         {/* Quick starts: common outcomes and the AI recommendation, one click to prefill. */}
                         <div className="flex flex-wrap gap-1.5">
                           {["Fixed on site", "Part replaced", "Vendor resolved", "Resolved with member", "No fault found", "Duplicate of another ticket"].map((t) => (
@@ -694,7 +762,8 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
                         <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowResolveDialog(false)} disabled={busy}>Cancel</Button>
                         <div className="flex-1" />
-                        <Button size="sm" className="h-8 text-[12px]" onClick={handleResolve} disabled={busy || !resolutionNote.trim()}>
+                        {!answersComplete && <span className="text-[10.5px] text-amber-600 dark:text-amber-400">Answer all required questions</span>}
+                        <Button size="sm" className="h-8 text-[12px]" onClick={handleResolve} disabled={busy || !resolutionNote.trim() || !answersComplete}>
                           <CheckCircle2 className="w-3 h-3 mr-1" />
                           {busy ? "Resolving…" : "Confirm Resolution"}
                         </Button>
@@ -960,7 +1029,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                       disabled={readOnly || busy}
                       onValueChange={(v: TicketStatus) => {
                         if (v === status) return;
-                        if (v === "resolved" && !ticket.resolutionSummary) {
+                        if (v === "resolved") {
                           setShowResolveDialog(true);
                           return;
                         }

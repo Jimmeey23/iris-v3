@@ -101,12 +101,12 @@ export const REPORTS: ReportItem[] = [
   { code: "RPT-076", name: "AI Resolution Rate", description: "Tickets resolved through AI automation", category: "AI & Automation", type: "summary", dataSource: "tickets", outputFormats: ["pdf", "csv"], visualizations: ["kpi", "gauge"] },
   { code: "RPT-077", name: "AI Model Usage Analytics", description: "Token usage and cost per AI model", category: "AI & Automation", type: "tabular", dataSource: "audit_logs", outputFormats: ["xlsx", "csv", "pdf"], visualizations: ["bar"] },
   { code: "RPT-078", name: "AI Accuracy Metrics", description: "Classification accuracy and routing accuracy", category: "AI & Automation", type: "summary", dataSource: "tickets", outputFormats: ["pdf", "xlsx"], visualizations: ["gauge"] },
-  { code: "RPT-079", name: "Model Routing Analysis", description: "How tickets are routed across models", category: "AI & Automation", type: "chart", dataSource: "audit_logs", outputFormats: ["pdf", "png"], visualizations: ["sankey"] },
+  { code: "RPT-079", name: "AI Spend by Person & Feature", description: "Token spend and cost per person and per AI feature", category: "AI & Automation", type: "tabular", dataSource: "audit_logs", outputFormats: ["xlsx", "csv", "pdf"], visualizations: ["bar"] },
   { code: "RPT-080", name: "AI Cost Analysis", description: "Cost breakdown of AI operations", category: "AI & Automation", type: "summary", dataSource: "audit_logs", outputFormats: ["pdf", "xlsx"], visualizations: ["pie"] },
   { code: "RPT-081", name: "Token Consumption Trends", description: "Daily token consumption trends", category: "AI & Automation", type: "chart", dataSource: "audit_logs", outputFormats: ["pdf", "png", "csv"], visualizations: ["line"] },
   { code: "RPT-082", name: "AI Fallback Frequency", description: "How often fallback models are used", category: "AI & Automation", type: "summary", dataSource: "audit_logs", outputFormats: ["pdf", "csv"] },
   { code: "RPT-083", name: "Auto-Resolution Success Rate", description: "Success rate of AI auto-resolution attempts", category: "AI & Automation", type: "summary", dataSource: "tickets", outputFormats: ["pdf", "csv"], visualizations: ["gauge"] },
-  { code: "RPT-084", name: "Conversational Flow Analytics", description: "Analysis of AI conversation patterns", category: "AI & Automation", type: "summary", dataSource: "audit_logs", outputFormats: ["pdf", "xlsx"] },
+  { code: "RPT-084", name: "AI Token Spend Log", description: "Every AI call: date and time, who spent it, on what, tokens and cost", category: "AI & Automation", type: "tabular", dataSource: "audit_logs", outputFormats: ["xlsx", "csv", "pdf"] },
 
   // === Historical Intelligence (8) ===
   { code: "RPT-085", name: "Recurring Issue Detection", description: "Issues that recur over time", category: "Historical Intelligence", type: "tabular", dataSource: "tickets", outputFormats: ["xlsx", "csv", "pdf"] },

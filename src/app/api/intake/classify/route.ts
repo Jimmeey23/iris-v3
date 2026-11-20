@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     // same way forwarded emails are read, then classify the core issue it contains.
     let pasted: Awaited<ReturnType<typeof readPastedReport>> = null;
     if (allowAi && looksLikeRawPaste(rawText)) {
-      pasted = await readPastedReport(rawText).catch((e) => {
+      pasted = await readPastedReport(rawText, auth.session.user_id).catch((e) => {
         console.error("[intake paste]", (e as Error).message);
         return null;
       });

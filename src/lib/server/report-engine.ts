@@ -422,7 +422,15 @@ export const REPORT_SPECS: Record<string, Spec> = {
     { chart: "bar" },
   ),
   "RPT-078": { kind: "unavailable", reason: NOT_TRACKED("classification accuracy against a corrected label") },
-  "RPT-079": { kind: "unavailable", reason: NOT_TRACKED("per-ticket model routing") },
+  "RPT-079": table(
+    `select coalesce(e.name, us.email::text, 'System (automatic)') as person, case u.feature when 'assistant_chat' then 'AI assistant chat' when 'intake_classify' then 'Ticket intake classification' when 'ticket_enrich' then 'Ticket summary & tags' when 'email_intake' then 'Inbound email reading' when 'pasted_report' then 'Pasted report reading' when 'trainer_analysis' then 'Trainer analysis' else 'Other (before logging)' end as feature, count(*)::int as calls,
+            sum(u.input_tokens + u.cache_read_tokens + u.cache_write_tokens + u.output_tokens)::int as tokens, round(sum(u.cost_usd)::numeric, 4) as cost_usd
+       from ai_usage u left join users us on us.id = u.user_id left join employees e on e.id = us.employee_id
+      where ($1::int is null or u.created_at >= now() - make_interval(days => $1::int))
+      group by 1, 2 order by cost_usd desc`,
+    ["Person", "Feature", "Calls", "Tokens", "Cost (USD)"],
+    { chart: "bar" },
+  ),
   "RPT-080": table(
     `select to_char(date_trunc('day', created_at), 'DD Mon') as day, round(sum(cost_usd)::numeric, 4) as cost_usd, count(*)::int as calls
        from ai_usage u where ($1::int is null or u.created_at >= now() - make_interval(days => $1::int)) group by date_trunc('day', created_at) order by date_trunc('day', created_at)`,
@@ -437,7 +445,15 @@ export const REPORT_SPECS: Record<string, Spec> = {
   ),
   "RPT-082": { kind: "unavailable", reason: NOT_TRACKED("model fallbacks") },
   "RPT-083": { kind: "unavailable", reason: NOT_TRACKED("auto-resolution attempts") },
-  "RPT-084": { kind: "unavailable", reason: NOT_TRACKED("conversation-level analytics") },
+  "RPT-084": table(
+    `select to_char(u.created_at at time zone 'Asia/Kolkata', 'DD Mon YYYY HH24:MI:SS') as at_ist, coalesce(e.name, us.email::text, 'System (automatic)') as person, case u.feature when 'assistant_chat' then 'AI assistant chat' when 'intake_classify' then 'Ticket intake classification' when 'ticket_enrich' then 'Ticket summary & tags' when 'email_intake' then 'Inbound email reading' when 'pasted_report' then 'Pasted report reading' when 'trainer_analysis' then 'Trainer analysis' else 'Other (before logging)' end as feature,
+            coalesce(t.ticket_id, '-') as ticket, coalesce(u.detail, '-') as detail, u.model,
+            u.input_tokens + u.cache_read_tokens + u.cache_write_tokens as input_tokens, u.output_tokens, round(u.cost_usd::numeric, 5) as cost_usd
+       from ai_usage u left join users us on us.id = u.user_id left join employees e on e.id = us.employee_id left join tickets t on t.id = u.ticket_id
+      where ($1::int is null or u.created_at >= now() - make_interval(days => $1::int))
+      order by u.created_at desc`,
+    ["Date & time (IST)", "Person", "Feature", "Ticket", "Details", "Model", "Input tokens", "Output tokens", "Cost (USD)"],
+  ),
   // Historical intelligence
   "RPT-085": { kind: "group", dim: "coalesce(t.subcategory, t.category)", label: "Issue", having: "count(*) >= 3" },
   "RPT-086": { kind: "group", dim: "to_char(t.created_at at time zone 'Asia/Kolkata', 'FMDay')", label: "Weekday" },

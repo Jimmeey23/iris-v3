@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { asSystem, withUser } from "@/lib/server/db";
+import { withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { loadEffectiveAiConfig } from "@/lib/server/ai-config";
-import { costUsd } from "@/lib/server/ai-pricing";
+import { recordAiUsage } from "@/lib/server/ai-usage";
 import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import type { AnalysisFacts, TrainerAnalysis } from "@/lib/iris/trainer-analysis";
 
@@ -67,13 +67,7 @@ export async function POST(request: NextRequest) {
     } as Parameters<Anthropic["messages"]["parse"]>[0]);
 
     const u = response.usage;
-    await asSystem((c) =>
-      c.query(
-        `insert into iris.ai_usage (user_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd)
-         values ($1, $2, $3, $4, $5, $6, $7)`,
-        [session.user_id, response.model ?? model, u.input_tokens, u.output_tokens, u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0, costUsd(response.model ?? model, u) ?? 0],
-      ),
-    ).catch(() => {});
+    await recordAiUsage({ userId: session.user_id, model: response.model ?? model, usage: u, feature: "trainer_analysis", detail: `Trainer analysis: ${facts?.name ?? ""}` });
 
     const out = response.parsed_output as z.infer<typeof Out> | null;
     if (!out) return NextResponse.json({ analysis: null, reason: "No analysis returned" });
