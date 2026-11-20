@@ -180,6 +180,8 @@ export interface IntakeRouting {
 
 export interface IntakeState {
   text: string;
+  /** AI write-up of pasted raw text (email, chat, notes); leads the ticket description. */
+  summary?: string | null;
   category: string | null;
   subcategory: string | null;
   department: string | null;

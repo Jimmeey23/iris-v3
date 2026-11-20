@@ -6,6 +6,7 @@ import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-lim
 import { classify, extractFields, taxonomy, type Candidate } from "@/lib/server/intake";
 import { aiClassify, type ClassifyContext } from "@/lib/server/ai-classify";
 import { loadEffectiveAiConfig } from "@/lib/server/ai-config";
+import { readPastedReport } from "@/lib/server/email-intake";
 import {
   evaluateRoutingRules,
   selectBestAssignee,
@@ -54,12 +55,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Try again in a moment." }, { status: 503 });
   }
   const b = await request.json().catch(() => ({}));
-  const text = typeof b.text === "string" ? b.text.trim().slice(0, 4000) : "";
-  if (!text) return NextResponse.json({ error: "Text is empty" }, { status: 400 });
+  const rawText = typeof b.text === "string" ? b.text.trim().slice(0, 12000) : "";
+  if (!rawText) return NextResponse.json({ error: "Text is empty" }, { status: 400 });
+  // Classification works on the core issue; long pastes are condensed by the AI reader below.
+  let text = rawText.slice(0, 4000);
 
   try {
     const aiCfg = await loadEffectiveAiConfig();
     const allowAi = b.allowAi !== false && Boolean(process.env.ANTHROPIC_API_KEY) && aiCfg.enabled && aiCfg.autoTriage;
+
+    // Raw pasted context (a copied email/thread, WhatsApp chat, call notes): read it the
+    // same way forwarded emails are read, then classify the core issue it contains.
+    let pasted: Awaited<ReturnType<typeof readPastedReport>> = null;
+    if (allowAi && looksLikeRawPaste(rawText)) {
+      pasted = await readPastedReport(rawText).catch((e) => {
+        console.error("[intake paste]", (e as Error).message);
+        return null;
+      });
+      if (pasted?.issue_text?.trim()) {
+        text = [pasted.studio_hint ? `Studio: ${pasted.studio_hint}` : null, pasted.issue_text.trim()].filter(Boolean).join("\n").slice(0, 4000);
+      }
+    }
+    const pastedFields = pasted
+      ? {
+          title: pasted.title || undefined,
+          summary: pasted.description || undefined,
+          clientName: pasted.member_name || undefined,
+          memberEmail: pasted.member_email || undefined,
+          memberPhone: pasted.member_phone || undefined,
+        }
+      : {};
 
     return await withUser(auth.session.user_id, async (c) => {
       const [employeesRes, studiosRes, deptRes, rulesRes, settingsRes, slaRes] = await Promise.all([
@@ -188,7 +213,7 @@ export async function POST(request: Request) {
           candidates: mapped.map((m) => m.candidate),
           confident,
           taxonomy: det.taxonomy,
-          fields,
+          fields: { ...fields, ...pastedFields },
           routing: confident ? mapped[0]?.routing ?? null : null,
           source: "rules",
           ...(aiUnavailable ? { aiUnavailable: true } : {}),
@@ -233,7 +258,7 @@ export async function POST(request: Request) {
           candidates: det.candidates.map((cand) => preview(cand, resolvedStudio, undefined, null).candidate),
           confident: false,
           taxonomy: det.taxonomy,
-          fields: { ...fields, studioCode: resolvedStudio },
+          fields: { ...fields, ...pastedFields, studioCode: resolvedStudio },
           question: ai.clarifying_question,
           routing: null,
           source: "ai",
@@ -279,8 +304,11 @@ export async function POST(request: Request) {
           studioCode: resolvedStudio,
           when: fields.when ?? ai.when ?? undefined,
           trainerName: fields.trainerName ?? ai.trainer_name ?? undefined,
-          clientName: ai.client_name ?? undefined,
-          title: ai.title ?? undefined,
+          clientName: pastedFields.clientName ?? ai.client_name ?? undefined,
+          title: pastedFields.title ?? ai.title ?? undefined,
+          summary: pastedFields.summary,
+          memberEmail: pastedFields.memberEmail,
+          memberPhone: pastedFields.memberPhone,
           // Answers to this subcategory's intake questions that the report already gives.
           answers: cleanAnswers(known.category, sub, ai.answers ?? [], aiKeys),
           ...(aiKeys.length ? { aiFields: { category: known.category, subcategory: sub, keys: aiKeys } } : {}),
@@ -293,4 +321,15 @@ export async function POST(request: Request) {
   } catch (err) {
     return dbError(err);
   }
+}
+
+/** A copied email/thread, chat log or long notes rather than a one-line report. */
+function looksLikeRawPaste(t: string) {
+  const lines = t.split(/\n/).filter((l) => l.trim()).length;
+  return (
+    t.length > 400 ||
+    lines >= 6 ||
+    /forwarded message|^\s*(from|sent|to|subject|date)\s*:/im.test(t) ||
+    /^\[?\d{1,2}[/.:-]\d{1,2}[/.:-]?\d{0,4},?\s.*\]?\s*-?\s*[^:]{1,40}:/m.test(t)
+  );
 }

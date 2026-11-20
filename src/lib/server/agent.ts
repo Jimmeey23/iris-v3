@@ -410,6 +410,11 @@ async function runTool(name: string, input: any, ctx: Ctx): Promise<{ result: un
  * Run one user turn. `history` is the full Anthropic transcript so far (the
  * client stores it and sends it back unchanged, including thinking blocks).
  */
+/** Claude 4.x Haiku/Sonnet/Opus models predate the effort parameter. */
+function supportsEffort(model: string) {
+  return !/^claude-(haiku|sonnet|opus)-4(?:[-.]|$)/.test(model) && !/^claude-3/.test(model);
+}
+
 export async function runTurn(
   db: PoolClient,
   history: Anthropic.MessageParam[],
@@ -432,25 +437,27 @@ export async function runTurn(
   const turnUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     let response: Anthropic.Message;
+    const call = (model: string) =>
+      anthropic().messages.create({
+        model,
+        max_tokens: 16000,
+        system: [{ type: "text", text: systemPrompt(ref), cache_control: { type: "ephemeral" } }],
+        tools: TOOLS,
+        messages,
+        // Older models (e.g. Haiku 4.5) reject the effort parameter with a 400.
+        ...(supportsEffort(model) ? { output_config: { effort: "low" } } : {}),
+      } as Anthropic.MessageCreateParamsNonStreaming);
     try {
-      response = await anthropic().messages.create({
-        model: activeModel,
-        max_tokens: 16000,
-        system: [{ type: "text", text: systemPrompt(ref), cache_control: { type: "ephemeral" } }],
-        tools: TOOLS,
-        messages,
-        output_config: { effort: "low" },
-      } as Anthropic.MessageCreateParamsNonStreaming);
+      response = await call(activeModel);
     } catch (primaryErr) {
+      console.error("[agent] primary model failed", activeModel, (primaryErr as Error).message);
       if (!fallbackModel || fallbackModel === activeModel) throw primaryErr;
-      response = await anthropic().messages.create({
-        model: fallbackModel,
-        max_tokens: 16000,
-        system: [{ type: "text", text: systemPrompt(ref), cache_control: { type: "ephemeral" } }],
-        tools: TOOLS,
-        messages,
-        output_config: { effort: "low" },
-      } as Anthropic.MessageCreateParamsNonStreaming);
+      try {
+        response = await call(fallbackModel);
+      } catch (fallbackErr) {
+        console.error("[agent] fallback model failed", fallbackModel, (fallbackErr as Error).message);
+        throw primaryErr;
+      }
     }
 
     messages.push({ role: "assistant", content: response.content });

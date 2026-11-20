@@ -232,7 +232,7 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
   const section = (h: string, body?: string | string[] | null) =>
     body && (Array.isArray(body) ? body.length : body.trim()) ? `\n${h}\n${Array.isArray(body) ? body.map((x) => `- ${x}`).join("\n") : body.trim()}` : "";
   const rawDescription = [
-    s.text.trim(),
+    s.summary?.trim() ? `${s.summary.trim()}\n\nOriginal message:\n${s.text.trim()}` : s.text.trim(),
     section(
       "Details captured",
       fieldsFor(s)

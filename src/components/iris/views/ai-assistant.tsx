@@ -78,7 +78,7 @@ type ClassifyResponse = {
   candidates: Array<{ category: string; subcategory: string | null; department: string | null; priority: "P0" | "P1" | "P2" | "P3" }>;
   confident: boolean;
   taxonomy: IntakeTaxonomy;
-  fields?: { studioCode?: string; area?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; urgent?: "P0" | "P1"; answers?: Record<string, string>; aiFields?: import("@/lib/iris/intake-schema").AiFields };
+  fields?: { studioCode?: string; area?: string; when?: string; classFormat?: string; trainerName?: string; clientName?: string; title?: string; summary?: string; memberEmail?: string; memberPhone?: string; urgent?: "P0" | "P1"; answers?: Record<string, string>; aiFields?: import("@/lib/iris/intake-schema").AiFields };
   question?: string | null;
   routing?: import("@/lib/iris/store").IntakeRouting | null;
   source: "rules" | "ai";
@@ -351,6 +351,12 @@ export function AIAssistantView() {
     const f = r.fields ?? {};
     const intake: IntakeState = {
       text,
+      // Pasted emails/chats/notes: the AI's clean write-up leads the ticket, the raw text follows.
+      summary: f.summary
+        ? [f.summary, [f.memberEmail && `Member email: ${f.memberEmail}`, f.memberPhone && `Member phone: ${f.memberPhone}`].filter(Boolean).join(" · ")]
+            .filter(Boolean)
+            .join("\n")
+        : null,
       category: top?.category ?? null,
       subcategory: top?.subcategory ?? null,
       department: top?.department ?? null,

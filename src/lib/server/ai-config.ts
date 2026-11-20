@@ -23,9 +23,17 @@ const ENV_MODEL = (process.env.ANTHROPIC_MODEL ?? "").trim() || "claude-opus-5-5
 
 const MODEL_ALIASES: Record<string, string> = {
   "claude opus": "claude-opus-5-5",
-  "claude sonnet 4": "claude-sonnet-4-5",
-  "claude sonnet": "claude-sonnet-4-5",
-  "claude haiku": "claude-haiku-4-5",
+  "claude sonnet 4": "claude-sonnet-5-5",
+  "claude sonnet": "claude-sonnet-5-5",
+  "claude haiku": "claude-haiku-5-5",
+};
+
+/** Model ids the API no longer serves (404) → their current replacement. */
+const RETIRED: Record<string, string> = {
+  "claude-sonnet-4-5": "claude-sonnet-5-5",
+  "claude-sonnet-4": "claude-sonnet-5-5",
+  "claude-opus-4": "claude-opus-5-5",
+  "claude-opus-4-1": "claude-opus-5-5",
 };
 
 function resolveAnthropicModelId(raw?: string | null): string | null {
@@ -33,7 +41,7 @@ function resolveAnthropicModelId(raw?: string | null): string | null {
   const trimmed = raw.trim();
   const aliased = MODEL_ALIASES[trimmed.toLowerCase()];
   if (aliased) return aliased;
-  if (/^claude-[a-z0-9._-]+$/i.test(trimmed)) return trimmed;
+  if (/^claude-[a-z0-9._-]+$/i.test(trimmed)) return RETIRED[trimmed.toLowerCase()] ?? trimmed;
   return null;
 }
 

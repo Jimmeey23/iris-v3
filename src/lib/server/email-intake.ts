@@ -116,13 +116,25 @@ const READ_SYSTEM = `You read emails sent to the Physique 57 India support inbox
 - Do not invent facts. Leave fields null when the email does not say them.
 - Not actionable: newsletters, promotions, spam, delivery/auto replies, pure thank-you notes with nothing to do, calendar notices.`;
 
-async function readEmail(prompt: string): Promise<EmailReadT | null> {
+const PASTE_SYSTEM = `You read raw text a Physique 57 India staff member pasted into the IRIS support assistant (barre fitness studios in Mumbai and Bengaluru) and turn it into a ticket draft.
+- The text can be a copied email or email thread, a WhatsApp/Instagram chat, a review, call notes, or the staff member's own rough notes.
+- The member/client is the person the issue is about (the original writer of a copied message), never the staff member who pasted it.
+- Strip greetings, signatures, disclaimers, quoted headers and chat timestamps; keep every concrete fact (dates, class, trainer, studio, amounts, booking/membership ids).
+- Do not invent facts. Leave fields null when the text does not say them.
+- Not actionable only if there is clearly nothing for the team to do.`;
+
+/** Reads raw pasted text (email, chat, notes) the same way inbound emails are read. */
+export async function readPastedReport(text: string): Promise<EmailReadT | null> {
+  return readEmail(text.slice(0, 12000), PASTE_SYSTEM);
+}
+
+async function readEmail(prompt: string, system = READ_SYSTEM): Promise<EmailReadT | null> {
   anthropic ??= new Anthropic();
   const model = INTAKE_MODEL;
   const response = await anthropic.messages.parse({
     model,
     max_tokens: 2000,
-    system: [{ type: "text", text: READ_SYSTEM, cache_control: { type: "ephemeral" } }],
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: prompt }],
     output_config: { effort: "low", format: zodOutputFormat(EmailRead) },
   } as Parameters<Anthropic["messages"]["parse"]>[0]);
