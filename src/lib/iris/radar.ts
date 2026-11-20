@@ -25,18 +25,18 @@ const BRAIN = /\b(brain cell|office|back office|admin room)\b/i;
 
 export const PLANS: Plan[] = [
   {
-    code: "KH", label: "Kwality House", src: "/radar/kwality-floorplan.webp", width: 1774, height: 887,
+    code: "KH", label: "Kwality House", src: "/radar/kwality-floorplan.webp", width: 1920, height: 1080,
     rooms: [
-      r("PowerCycle Studio", { x: 78, y: 15, w: 20, h: 47 }, POWERCYCLE),
-      r("Strength Studio", { x: 60, y: 10, w: 14, h: 49 }, STRENGTH),
-      r("Studio 1", { x: 2, y: 8, w: 25, h: 35 }, /\bstudio\s*(1|one)\b/i),
-      r("Studio 2", { x: 2, y: 58, w: 30, h: 31 }, /\bstudio\s*(2|two)\b/i),
-      r("His Space", { x: 49, y: 20, w: 13, h: 31 }, MEN),
-      r("Her Space", { x: 27, y: 2, w: 14, h: 18 }, WOMEN),
-      r("Guest Washroom", { x: 31, y: 20, w: 11, h: 14 }, WASHROOM),
-      r("Brain Cell", { x: 21, y: 59, w: 13, h: 24 }, BRAIN),
-      r("Pantry", { x: 31, y: 39, w: 12, h: 13 }, PANTRY),
-      r("Lobby / Reception", { x: 2, y: 43, w: 30, h: 17 }, RECEPTION),
+      r("PowerCycle Studio", { x: 82, y: 14, w: 16, h: 54 }, POWERCYCLE),
+      r("Strength Studio", { x: 62, y: 27, w: 17, h: 30 }, STRENGTH),
+      r("Studio 1", { x: 2.5, y: 8, w: 23, h: 29 }, /\bstudio\s*(1|one)\b/i),
+      r("Studio 2", { x: 2.5, y: 53, w: 17.5, h: 24 }, /\bstudio\s*(2|two)\b/i),
+      r("His Space", { x: 49, y: 27, w: 9, h: 21 }, MEN),
+      r("Her Space", { x: 26, y: 8, w: 17, h: 9 }, WOMEN),
+      r("Guest Washroom", { x: 30.5, y: 18, w: 12.5, h: 17 }, WASHROOM),
+      r("Brain Cell", { x: 20.5, y: 53, w: 9.5, h: 24 }, BRAIN),
+      r("Pantry", { x: 30.5, y: 37, w: 12.5, h: 9 }, PANTRY),
+      r("Lobby / Reception", { x: 2, y: 38, w: 28, h: 14 }, RECEPTION),
     ],
   },
   {
