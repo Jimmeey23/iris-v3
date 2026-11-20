@@ -38,9 +38,11 @@ export function EscalationLadder({
   canManage,
   readOnly,
   ticketClosed,
+  refreshKey,
 }: {
   ticketId: string;
   level: number;
+  refreshKey?: string;
   canManage: boolean;
   readOnly: boolean;
   ticketClosed: boolean;
@@ -55,7 +57,7 @@ export function EscalationLadder({
   const load = React.useCallback(() => {
     ticketsApi.escalation(ticketId).then(setData).catch(() => {});
   }, [ticketId]);
-  React.useEffect(load, [load, level]);
+  React.useEffect(load, [load, level, refreshKey]);
   React.useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
@@ -106,7 +108,8 @@ export function EscalationLadder({
             { level: 2, role: "department head", name: null },
             { level: 3, role: "admin", name: null },
           ]).map((rung) => {
-            const active = rung.level === cur;
+            // A resolved/closed ticket keeps its level for the record, but nothing is "burning".
+            const active = rung.level === cur && !ticketClosed;
             const passed = rung.level < cur;
             return (
               <div
@@ -122,7 +125,7 @@ export function EscalationLadder({
                 <span className="capitalize text-muted-foreground">{rung.role}</span>
                 <span className="ml-auto flex items-center gap-1 font-medium truncate max-w-[45%]">
                   {rung.name && <User className="w-3 h-3 text-muted-foreground shrink-0" />}
-                  {rung.name ?? (rung.level === 0 ? "Unassigned" : "—")}
+                  {rung.name ?? (rung.level === 0 ? "Unassigned" : rung.role === "admin" ? "Any admin" : "Not set")}
                 </span>
                 {active && <Flame className="w-3 h-3 text-rose-500 shrink-0" />}
               </div>

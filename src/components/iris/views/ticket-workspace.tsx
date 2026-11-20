@@ -80,6 +80,22 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [deptCodes, setDeptCodes] = React.useState<string[]>(ticket.departmentCodes?.length ? ticket.departmentCodes : ticket.departmentCode ? [ticket.departmentCode] : []);
   const [primaryDept, setPrimaryDept] = React.useState<string | null>(ticket.departmentCode ?? null);
 
+  // The ticket object is refreshed in place (other panels, admin controls, background
+  // reloads, sweeps). Keep the local copies in step so a ticket resolved elsewhere
+  // doesn't keep showing its old status here.
+  const ownersKey = (ticket.assigneeIds ?? []).join(",");
+  const deptsKey = (ticket.departmentCodes ?? []).join(",");
+  React.useEffect(() => setStatus(ticket.status), [ticket.status]);
+  React.useEffect(() => setSlaPaused(ticket.slaStatus === "paused"), [ticket.slaStatus]);
+  React.useEffect(() => {
+    setOwnerIds(ticket.assigneeIds?.length ? ticket.assigneeIds : ticket.assigneeId ? [ticket.assigneeId] : []);
+    setPrimaryOwner(ticket.assigneeId ?? null);
+  }, [ownersKey, ticket.assigneeId]);
+  React.useEffect(() => {
+    setDeptCodes(ticket.departmentCodes?.length ? ticket.departmentCodes : ticket.departmentCode ? [ticket.departmentCode] : []);
+    setPrimaryDept(ticket.departmentCode ?? null);
+  }, [deptsKey, ticket.departmentCode]);
+
   /** Persist a change; on failure show why and keep the UI as it was. */
   const save = async (changes: Record<string, unknown>, success: string) => {
     if (readOnly) {
@@ -985,6 +1001,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
               <EscalationLadder
                 ticketId={ticket.id}
                 level={ticket.escalationLevel}
+                refreshKey={`${ticket.status}|${ticket.assigneeId ?? ""}|${ticket.updatedAt ?? ""}`}
                 canManage={currentUser.tier === "admin" || currentUser.tier === "manager"}
                 readOnly={readOnly}
                 ticketClosed={status === "resolved" || status === "closed"}

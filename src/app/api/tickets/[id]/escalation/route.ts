@@ -20,7 +20,9 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
                 m.id as manager_id, m.name as manager_name,
                 l2.id as policy_l2_id, l2.name as policy_l2_name,
                 l3.id as policy_l3_id, l3.name as policy_l3_name,
-                h.id as dept_head_id, h.name as dept_head_name
+                h.id as dept_head_id, h.name as dept_head_name,
+                (select jsonb_object_agg(o.key, e.name) from jsonb_each_text(t.collected_info->'_escalation_owners') o
+                   join iris.employees e on e.id = o.value) as held_by
            from iris.tickets t
            left join iris.employees a on a.id = t.assignee_id
            left join iris.employees l2 on l2.id = t.collected_info->>'_escalation_l2' and l2.is_active
@@ -77,12 +79,26 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
       slaStatus: t.sla_status,
       slaResolutionTarget: t.sla_resolution_target,
       nextEscalationAt,
+      // Who holds each rung: levels already passed show the person who actually held
+      // them (remembered in _escalation_owners: key N = owner just before reaching level N),
+      // the current level shows the current assignee, levels ahead show the policy target.
+      // The reporting manager / dept head are looked up from the CURRENT assignee, so they
+      // are only meaningful for levels the ticket hasn't reached yet.
       ladder: [
-        { level: 0, role: "owner", name: t.assignee_name ?? null },
-        { level: 1, role: t.policy_l2_name ? "escalation owner" : "reporting manager", name: t.policy_l2_name ?? t.manager_name ?? null },
-        { level: 2, role: t.policy_l3_name ? "escalation owner" : "department head", name: t.policy_l3_name ?? t.dept_head_name ?? null },
-        { level: 3, role: "admin", name: null },
-      ].slice(0, Math.max(maxLevel, 3) + 1),
+        { level: 0, role: "owner", planned: null as string | null },
+        { level: 1, role: t.policy_l2_name ? "escalation owner" : "reporting manager", planned: t.policy_l2_name ?? t.manager_name ?? null },
+        { level: 2, role: t.policy_l3_name ? "escalation owner" : "department head", planned: t.policy_l3_name ?? t.dept_head_name ?? null },
+        { level: 3, role: "admin", planned: null },
+      ]
+        .slice(0, Math.max(maxLevel, 3) + 1)
+        .map((r) => {
+          const held: Record<string, string> = t.held_by ?? {};
+          const name =
+            r.level === level ? (t.assignee_name ?? null)
+            : r.level < level ? (held[String(r.level + 1)] ?? null)
+            : r.planned;
+          return { level: r.level, role: r.role, name };
+        }),
       history: logRes.rows.map((r) => ({
         level: r.escalation_level,
         toRole: r.escalated_to_role,
