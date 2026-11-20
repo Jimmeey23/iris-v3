@@ -52,9 +52,41 @@ async function call(cfg: RespondConfig, path: string, body: unknown) {
   return res.json().catch(() => ({}));
 }
 
+type TemplateDef = {
+  name: string;
+  languageCode: string;
+  status: string;
+  components: { type: string; format?: string; text?: string; buttons?: { type: string; text?: string; url?: string }[] }[];
+};
+
+const varCount = (text?: string) => new Set((text ?? "").match(/\{\{\d+\}\}/g) ?? []).size;
+
+/** Approved template definition from respond.io, cached for 10 minutes per channel+name. */
+const templateCache = new Map<string, { at: number; def: TemplateDef | null }>();
+async function getTemplate(cfg: RespondConfig, name: string): Promise<TemplateDef | null> {
+  if (!cfg.channelId) return null;
+  const key = `${cfg.channelId}:${name}`;
+  const hit = templateCache.get(key);
+  if (hit && Date.now() - hit.at < 600_000) return hit.def;
+  const res = await fetch(`${BASE}/space/channel/${cfg.channelId}/template`, {
+    headers: { Authorization: `Bearer ${cfg.apiKey}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`respond.io templates ${res.status}`);
+  const items = ((await res.json()) as { items?: TemplateDef[] }).items ?? [];
+  const def = items.find((t) => t.name === name && t.status === "approved") ?? items.find((t) => t.name === name) ?? null;
+  templateCache.set(key, { at: Date.now(), def });
+  return def;
+}
+
 /**
- * Send an approved WhatsApp template. Creates/updates the contact first so a
- * staff member who has never messaged the business can still receive it.
+ * Send an approved WhatsApp template. `params` are the variables in order:
+ * body variables first, then any URL-button variables (e.g. iris_nudge has
+ * 3 body variables and the ticket id on its "Open Ticket" button).
+ * The language and layout come from the approved template itself, so a
+ * language mismatch in Settings can't break the send.
+ * Creates/updates the contact first so a staff member who has never messaged
+ * the business can still receive it.
  */
 export async function sendWhatsAppTemplate(
   cfg: RespondConfig,
@@ -68,15 +100,40 @@ export async function sendWhatsAppTemplate(
     lastName: to.lastName ?? "",
     phone: to.phone,
   });
+
+  const def = await getTemplate(cfg, template);
+  if (cfg.channelId && !def) throw new Error(`Template "${template}" not found on channel ${cfg.channelId}`);
+  const p = (t: string) => ({ type: "text", text: t.slice(0, 1000) });
+  let components: unknown[];
+  if (def) {
+    let i = 0;
+    components = def.components.map((c) => {
+      if (c.type === "body") {
+        const n = varCount(c.text);
+        const out = { ...c, parameters: params.slice(i, i + n).map(p) };
+        i += n;
+        return out;
+      }
+      if (c.type === "buttons") {
+        return {
+          ...c,
+          buttons: (c.buttons ?? []).map((b) => {
+            if (b.type !== "url" || !varCount(b.url)) return b;
+            return { ...b, parameters: [p(params[i++] ?? "")] };
+          }),
+        };
+      }
+      return c;
+    });
+  } else {
+    components = [{ type: "body", parameters: params.map(p) }];
+  }
+
   return call(cfg, `/contact/${identifier}/message`, {
     ...(cfg.channelId ? { channelId: cfg.channelId } : {}),
     message: {
       type: "whatsapp_template",
-      template: {
-        name: template,
-        languageCode: cfg.language,
-        components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text: text.slice(0, 1000) })) }],
-      },
+      template: { name: template, languageCode: def?.languageCode ?? cfg.language, components },
     },
   });
 }
