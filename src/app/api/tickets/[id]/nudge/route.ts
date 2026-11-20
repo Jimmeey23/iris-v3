@@ -6,7 +6,7 @@ import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-lim
 
 /**
  * Admin-only: send an instant in-app nudge to a ticket's owners (or chosen
- * employees) asking them to close the ticket on priority, plus the iris_nudge
+ * employees) asking them to close the ticket on priority, plus the respondio_nudge
  * WhatsApp template via respond.io ({{1}} first name, {{2}} ticket id,
  * {{3}} title, {{4}} ticket id).
  * Body: { employeeIds?: string[]; message?: string }
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets
         if (!phone) return whatsappSkipped.push({ name: p.name, reason: "no phone number on file" });
         const [firstName, ...rest] = String(p.name ?? "").trim().split(/\s+/);
         try {
-          await sendWhatsAppTemplate(cfg, { phone, firstName: firstName || "there", lastName: rest.join(" ") }, "iris_nudge", [
+          await sendWhatsAppTemplate(cfg, { phone, firstName: firstName || "there", lastName: rest.join(" ") }, "respondio_nudge", [
             firstName || "there",
             t.ticket_id,
             t.title,
