@@ -38,18 +38,55 @@ export function toE164(raw: string | null | undefined): string | null {
   return null;
 }
 
-async function call(cfg: RespondConfig, path: string, body: unknown) {
+class RespondError extends Error {
+  constructor(public status: number, public body: string) {
+    super(`respond.io ${status}: ${body.slice(0, 200)}`);
+  }
+}
+
+async function call(cfg: RespondConfig, path: string, body?: unknown, method = "POST") {
   const res = await fetch(`${BASE}${path}`, {
-    method: "POST",
+    method,
     headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`respond.io ${res.status}: ${text.slice(0, 200)}`);
-  }
+  if (!res.ok) throw new RespondError(res.status, await res.text().catch(() => ""));
   return res.json().catch(() => ({}));
+}
+
+/** First contactId found anywhere in a respond.io error body (e.g. "already connected to a contact"). */
+function contactIdFromError(e: unknown): number | null {
+  if (!(e instanceof RespondError)) return null;
+  const m = e.body.match(/"contactId"\s*:\s*(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * The respond.io identifier to message. An existing contact with this phone is
+ * used as-is (by id); otherwise the contact is created. If respond.io says the
+ * number already belongs to another contact, that contact is used.
+ */
+async function resolveContact(cfg: RespondConfig, to: { phone: string; firstName: string; lastName?: string }) {
+  const byPhone = `phone:${encodeURIComponent(to.phone)}`;
+  try {
+    const found = (await call(cfg, `/contact/${byPhone}`, undefined, "GET")) as { id?: number };
+    if (found?.id) return `id:${found.id}`;
+  } catch (e) {
+    if (!(e instanceof RespondError) || e.status !== 404) throw e;
+  }
+  try {
+    const made = (await call(cfg, `/contact/create_or_update/${byPhone}`, {
+      firstName: to.firstName,
+      lastName: to.lastName ?? "",
+      phone: to.phone,
+    })) as { contactId?: number };
+    return made?.contactId ? `id:${made.contactId}` : byPhone;
+  } catch (e) {
+    const id = contactIdFromError(e);
+    if (id) return `id:${id}`;
+    throw e;
+  }
 }
 
 type TemplateDef = {
@@ -85,8 +122,7 @@ async function getTemplate(cfg: RespondConfig, name: string): Promise<TemplateDe
  * 3 body variables and the ticket id on its "Open Ticket" button).
  * The language and layout come from the approved template itself, so a
  * language mismatch in Settings can't break the send.
- * Creates/updates the contact first so a staff member who has never messaged
- * the business can still receive it.
+ * An existing contact with that phone is reused; otherwise one is created.
  */
 export async function sendWhatsAppTemplate(
   cfg: RespondConfig,
@@ -94,12 +130,7 @@ export async function sendWhatsAppTemplate(
   template: string,
   params: string[],
 ) {
-  const identifier = `phone:${encodeURIComponent(to.phone)}`;
-  await call(cfg, `/contact/create_or_update/${identifier}`, {
-    firstName: to.firstName,
-    lastName: to.lastName ?? "",
-    phone: to.phone,
-  });
+  const identifier = await resolveContact(cfg, to);
 
   const def = await getTemplate(cfg, template);
   if (cfg.channelId && !def) throw new Error(`Template "${template}" not found on channel ${cfg.channelId}`);
