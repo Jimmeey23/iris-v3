@@ -242,7 +242,7 @@ export const ticketsApi = {
     }>(`/api/tickets/${encodeURIComponent(id)}/escalation`),
   /** Admin-only: instant in-app nudge to the ticket's owners (or chosen employees). */
   nudge: async (id: string, body: { employeeIds?: string[]; message?: string } = {}) =>
-    api<{ sent: string[]; skipped: string[] }>(`/api/tickets/${encodeURIComponent(id)}/nudge`, { method: "POST", json: body }),
+    api<{ sent: string[]; skipped: string[]; whatsapp?: string[]; whatsappSkipped?: { name: string; reason: string }[] }>(`/api/tickets/${encodeURIComponent(id)}/nudge`, { method: "POST", json: body }),
   comment: async (id: string, content: string, isInternal = true) => {
     const { comment } = await api(`/api/tickets/${encodeURIComponent(id)}/comments`, { method: "POST", json: { content, isInternal } });
     const t = ALL_TICKETS.find((x) => x.id === id);

@@ -1248,7 +1248,10 @@ function NudgeCard({ ticket, ownerIds }: { ticket: Ticket; ownerIds: string[] })
     try {
       const res = await ticketsApi.nudge(ticket.id, { employeeIds: targets, message: message.trim() || undefined });
       if (res.sent.length) toast.success(`Nudge sent to ${res.sent.join(", ")}`);
-      if (res.skipped.length) toast.warning(`No IRIS login for ${res.skipped.join(", ")}, nudge not delivered`);
+      if (res.skipped.length) toast.warning(`No IRIS login for ${res.skipped.join(", ")}, in-app nudge not delivered`);
+      if (res.whatsapp?.length) toast.success(`WhatsApp sent to ${res.whatsapp.join(", ")}`);
+      if (res.whatsappSkipped?.length)
+        toast.warning(`WhatsApp not sent: ${res.whatsappSkipped.map((w) => `${w.name} (${w.reason})`).join(", ")}`);
       setMessage("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't send nudge");
