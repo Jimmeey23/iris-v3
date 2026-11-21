@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/iris/live-data";
 import { useAppStore } from "@/lib/iris/store";
+import { EquipmentInsights, heatClass, type MonthlyRow } from "@/components/iris/equipment-insights";
 
 type Fault = { id: string; ticket_id: string; title: string; status: string; priority: string; created_at: string; resolved_at: string | null };
 type Item = {
@@ -103,6 +104,7 @@ function groupKey(i: Item, by: GroupBy): { key: string; label: string; order: nu
 
 export function EquipmentView() {
   const [items, setItems] = React.useState<Item[] | null>(null);
+  const [monthly, setMonthly] = React.useState<MonthlyRow[]>([]);
   const [canEdit, setCanEdit] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -125,8 +127,9 @@ export function EquipmentView() {
     setLoading(true);
     setError(null);
     try {
-      const r = await api<{ items: Item[]; canEdit: boolean }>("/api/equipment");
+      const r = await api<{ items: Item[]; monthly?: MonthlyRow[]; canEdit: boolean }>("/api/equipment");
       setItems(r.items);
+      setMonthly(r.monthly ?? []);
       setCanEdit(r.canEdit);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load equipment");
@@ -252,39 +255,9 @@ export function EquipmentView() {
         </div>
       </div>
 
-      {/* KPI tiles - the health ones double as filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {stats.map((s) => {
-          const active = s.health && healthF.has(s.health);
-          const Tag = s.health ? "button" : "div";
-          return (
-            <Tag key={s.label} {...(s.health ? { onClick: () => toggle(setHealthF, s.health!), "aria-pressed": active } : {})}
-              className={cn("iris-card-elevated p-3.5 flex items-start gap-3 text-left transition-all", s.health && "hover:ring-1 hover:ring-primary/30", active && "ring-2 ring-primary/50")}>
-              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", s.tone)}><s.icon className="w-4 h-4" /></div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{s.label}</div>
-                <div className="text-xl font-bold tabular-nums leading-tight">{s.value}</div>
-                <div className="text-[10.5px] text-muted-foreground">{s.sub}</div>
-              </div>
-            </Tag>
-          );
-        })}
-      </div>
-
-      {/* Fleet health bar */}
-      <div className="iris-card-elevated p-3.5 space-y-2">
-        <div className="flex items-center justify-between text-[11px]">
-          <span className="font-semibold">Fleet health</span>
-          <div className="flex gap-3 flex-wrap">
-            {HEALTH_ORDER.map((h) => (
-              <button key={h} onClick={() => toggle(setHealthF, h)} className={cn("flex items-center gap-1.5 text-muted-foreground hover:text-foreground", healthF.has(h) && "text-foreground font-semibold")}>
-                <span className={cn("w-2 h-2 rounded-full", HEALTH[h].dot)} />{HEALTH[h].label} <span className="tabular-nums">{counts[h]}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <HealthBar items={items} className="h-2.5" />
-      </div>
+      <EquipmentInsights items={items} monthly={monthly} healthFilter={healthF}
+        onHealth={(h) => toggle(setHealthF, h)}
+        onOpen={(id) => { setLayout("fleet"); setFocus(id); requestAnimationFrame(() => document.getElementById(`eq-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })); }} />
 
       {unnumbered > 0 && (
         <div className="iris-card p-3 flex items-start gap-2.5 border border-sky-500/30">
@@ -430,6 +403,7 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
   const open = items.reduce((n, i) => n + i.open_faults, 0);
   const replace = items.filter((i) => i.replace_candidate).length;
   const focused = items.find((i) => i.id === focus);
+  const maxFaults = Math.max(1, ...items.filter((i) => !unidentified(i)).map((i) => i.faults_total));
   const byKind = KIND_ORDER.map((k) => ({
     k,
     list: items
@@ -451,6 +425,15 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
         <HealthBar items={items} className="ml-auto h-2 w-40 max-w-full" />
       </header>
       <div className="p-4 space-y-4">
+        <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground">
+          <span>Fewer faults</span>
+          <div className="flex gap-[2px]">
+            {[0, 1, 2, 3, 4, 5].map((n) => <span key={n} className={cn("w-5 h-2.5 rounded-sm", heatClass(n === 0 ? 1 : Math.round(1 + (n / 5) * (maxFaults - 1)), maxFaults))} />)}
+          </div>
+          <span>More faults</span>
+          <span className="ml-3 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />open</span>
+          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" />replace</span>
+        </div>
         {byKind.map(({ k, list }) => {
           const K = KIND[k];
           return (
@@ -460,7 +443,7 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
                 <span className="tabular-nums text-[10.5px]">{list.length}</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {list.map((i) => <Tile key={i.id} item={i} active={focus === i.id} onClick={() => onFocus(i.id)} />)}
+                {list.map((i) => <Tile key={i.id} item={i} max={maxFaults} active={focus === i.id} onClick={() => onFocus(i.id)} />)}
               </div>
             </div>
           );
@@ -476,27 +459,40 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
   );
 }
 
-function Tile({ item: i, active, onClick }: { item: Item; active: boolean; onClick: () => void }) {
+function Tile({ item: i, max, active, onClick }: { item: Item; max: number; active: boolean; onClick: () => void }) {
   const h = health(i);
   const unknown = unidentified(i);
-  const main = i.number !== null ? `#${i.number}` : i.location ?? (i.kind === "ac" ? "AC" : "?");
+  const numbered = i.number !== null;
+  const main = numbered ? String(i.number) : i.location ?? (i.kind === "ac" ? "AC" : "?");
+  const Icon = KIND[i.kind].icon;
   return (
-    <button onClick={onClick} aria-pressed={active}
-      title={`${i.label} · ${i.faults_total} fault${i.faults_total === 1 ? "" : "s"}${i.open_faults ? ` · ${i.open_faults} open` : ""}`}
+    <button id={`eq-${i.id}`} onClick={onClick} aria-pressed={active}
+      title={`${i.label} · ${i.faults_total} fault${i.faults_total === 1 ? "" : "s"}${i.open_faults ? ` · ${i.open_faults} open` : ""}${i.replace_candidate ? " · replace candidate" : ""}`}
       className={cn(
-        "relative rounded-xl border px-2.5 py-2 text-left transition-all hover:-translate-y-px hover:shadow-sm",
-        i.number !== null ? "w-[68px]" : "min-w-[110px] max-w-[180px]",
-        unknown ? "border-dashed bg-muted/40" : "bg-background",
-        active ? "ring-2 ring-primary border-primary/50" : "border-border",
-        i.status === "retired" && "opacity-50",
+        "relative rounded-xl text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
+        numbered ? "w-[58px] h-[58px] flex flex-col items-center justify-center" : "min-w-[120px] max-w-[190px] px-3 py-2",
+        unknown ? "border-2 border-dashed border-border bg-muted/40 text-muted-foreground" : heatClass(i.faults_total, max),
+        active && "ring-2 ring-offset-2 ring-offset-background ring-primary",
+        i.status === "retired" && "opacity-40",
       )}>
-      <span className={cn("absolute top-1.5 right-1.5 w-2 h-2 rounded-full", HEALTH[h].dot)} aria-hidden />
-      <div className={cn("font-semibold leading-tight truncate", i.number !== null ? "text-[16px] tabular-nums" : "text-[12px] pr-3")}>
-        {unknown ? "Unidentified" : main}
-      </div>
-      <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-        {i.faults_total} fault{i.faults_total === 1 ? "" : "s"}{i.open_faults ? <span className="text-amber-600 dark:text-amber-400"> · {i.open_faults} open</span> : null}
-      </div>
+      {h !== "healthy" && (
+        <span className={cn("absolute -top-1 -right-1 w-3 h-3 rounded-full ring-2 ring-background", HEALTH[h].dot)} aria-label={HEALTH[h].label} />
+      )}
+      {numbered ? (
+        <>
+          <Icon className="w-3 h-3 opacity-70" />
+          <span className="text-[17px] font-bold tabular-nums leading-none mt-0.5">{main}</span>
+          <span className="text-[9px] tabular-nums opacity-80 mt-0.5">{i.faults_total}×</span>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5">
+            <Icon className="w-3.5 h-3.5 opacity-70 shrink-0" />
+            <span className="text-[12px] font-semibold truncate">{unknown ? "Unidentified" : main}</span>
+          </div>
+          <div className="text-[10px] tabular-nums opacity-80 mt-0.5">{i.faults_total} fault{i.faults_total === 1 ? "" : "s"}{i.open_faults ? ` · ${i.open_faults} open` : ""}</div>
+        </>
+      )}
     </button>
   );
 }
