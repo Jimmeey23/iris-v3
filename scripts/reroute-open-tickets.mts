@@ -2,7 +2,8 @@
  * Re-route open tickets with the routing rulebook (keyword matching, no AI spend).
  *   npx tsx scripts/reroute-open-tickets.mts          # dry run: prints the changes
  *   npx tsx scripts/reroute-open-tickets.mts --apply  # writes them
- * Skips resolved/closed, info-only, and tickets someone routed by hand.
+ * Skips resolved/closed, info-only, recurrence checks (they belong to the original
+ * reporter) and tickets someone routed by hand.
  */
 import pg from "pg";
 import { decideOwnership } from "../src/lib/iris/ownership-policy.ts";
@@ -16,6 +17,7 @@ const { rows } = await pool.query(`
     from iris.tickets t left join iris.studios s on s.code = t.studio_code
    where t.status not in ('resolved','closed')
      and not ('info-only' = any(t.tags))
+     and not ('recurrence-check' = any(t.tags))
      and coalesce(t.collected_info->'_routing'->>'decided_by','') not in ('manual','manual_reroute')
    order by t.created_at`);
 const names = new Map((await pool.query("select id, name from iris.employees")).rows.map((r) => [r.id, r.name]));
