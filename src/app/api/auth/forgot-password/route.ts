@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { asSystem } from "@/lib/server/db";
+import { asSystemMain as asSystem } from "@/lib/server/db";
 import { sendMail } from "@/lib/server/mailer";
 import { RateLimitError, enforceRateLimit, loginKey } from "@/lib/server/rate-limit";
 import { resetEmail, resetOrigin } from "@/lib/server/password-reset";

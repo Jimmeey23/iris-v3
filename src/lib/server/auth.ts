@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { asSystem } from "./db";
+import { asSystemMain as asSystem } from "./db";
 
 export const SESSION_COOKIE = "iris_session";
 const SEVEN_DAYS = 60 * 60 * 24 * 7;
@@ -15,7 +15,7 @@ export type SessionUser = {
 };
 
 /** Secure cookies on HTTPS (incl. behind a proxy); plain cookies on http://localhost. */
-async function isHttps() {
+export async function isHttps() {
   const h = await headers();
   const proto = h.get("x-forwarded-proto")?.split(",")[0].trim();
   if (proto) return proto === "https";

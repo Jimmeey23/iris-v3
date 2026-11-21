@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireSession } from "@/lib/server/auth";
+import { isSandboxRequest } from "@/lib/server/db";
 import { MomenceError } from "@/lib/server/momence";
 import { runMomenceAction, auditMomenceAction, ACTION_LABELS, type ActionInput } from "@/lib/server/momence-extra";
 
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (await isSandboxRequest()) {
+    return NextResponse.json({ ok: true, sandbox: true, message: "Training sandbox: Momence was not changed (practice only)" });
   }
   if (body?.confirm !== true) return NextResponse.json({ error: "Confirmation required" }, { status: 400 });
   if (!body?.action || !(body.action in ACTION_LABELS)) return NextResponse.json({ error: "Unknown action" }, { status: 400 });

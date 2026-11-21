@@ -187,6 +187,9 @@ async function sendViaSmtp(msg: MailMessage): Promise<MailResult> {
 /** Mailtrap Send API first, SMTP as fallback. Throws when nothing worked. */
 export async function sendMail(msg: MailMessage): Promise<MailResult> {
   if (process.env.NOTIFY_DRY_RUN === "1") return { provider: "dry_run", id: `dry_${Date.now()}` };
+  // Training sandbox: never let practice tickets email real people.
+  const { isSandboxRequest } = await import("./db");
+  if (await isSandboxRequest()) return { provider: "dry_run", id: `sandbox_${Date.now()}` };
   const errors: string[] = [];
   if (process.env.MAILTRAP_API_KEY && process.env.MAILTRAP_FROM_EMAIL) {
     try {

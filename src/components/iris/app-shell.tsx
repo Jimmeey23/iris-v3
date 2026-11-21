@@ -67,6 +67,7 @@ import { RelativeTime } from "./relative-time";
 import { CommandPalette } from "./command-palette";
 import { ProductTour } from "./product-tour";
 import { SlaBreachBanner } from "./sla-breach-banner";
+import { SandboxBanner, SandboxMenuItem } from "./sandbox-banner";
 import { RouteSync } from "./route-sync";
 import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
 import { Member360Lookup } from "./member-360";
@@ -654,6 +655,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button type="button" onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] hover:bg-muted/60">
                 <Command className="w-3.5 h-3.5 text-muted-foreground" />Command palette<kbd className="ml-auto text-[9px] text-muted-foreground">⌘K</kbd>
               </button>
+              <SandboxMenuItem />
               <div className="h-px bg-border my-1" />
               <button type="button" onClick={signOut} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-rose-600 hover:bg-rose-500/5">
                 <LogOut className="w-3.5 h-3.5" />Sign out
@@ -663,6 +665,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
+        <SandboxBanner />
         <RouteSync />
         <SlaBreachBanner />
 

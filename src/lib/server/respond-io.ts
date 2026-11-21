@@ -130,6 +130,9 @@ export async function sendWhatsAppTemplate(
   template: string,
   params: string[],
 ) {
+  // Training sandbox: never message real people from practice tickets.
+  const { isSandboxRequest } = await import("./db");
+  if (await isSandboxRequest()) throw new Error("Training sandbox: WhatsApp messages are not sent");
   const identifier = await resolveContact(cfg, to);
 
   const def = await getTemplate(cfg, template);

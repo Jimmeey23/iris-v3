@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { asSystem, withUser } from "@/lib/server/db";
+import { asSystemMain as asSystem, withUserMain as withUser } from "@/lib/server/db";
 import { dbError, requireSession, setSessionCookie } from "@/lib/server/auth";
 
 export async function POST(request: Request) {

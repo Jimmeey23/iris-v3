@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { asSystem } from "@/lib/server/db";
+import { asSystemMain as asSystem } from "@/lib/server/db";
 import { setSessionCookie } from "@/lib/server/auth";
 import {
   OAUTH_COOKIE,
