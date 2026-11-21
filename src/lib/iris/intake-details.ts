@@ -159,7 +159,7 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
   const p = PRIORITY_CONFIG[s.priority];
 
   // Departments involved: the routed one, plus who else has to act.
-  const involved = new Set<string>(s.department ? [s.department] : []);
+  const involved = new Set<string>([...(s.department ? [s.department] : []), ...(s.routing?.departmentCodes ?? [])]);
   if (s.trainer) involved.add("TRN");
   if (s.member && s.department !== "SCS") involved.add("SCS");
   if (["Repair and Maintenance", "Studio Amenities and Facilities"].includes(s.category ?? "")) involved.add("FAC");
@@ -288,6 +288,7 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
     businessImpact: [d.impact, d.sentiment && `Client mood: ${d.sentiment}`].filter(Boolean).join(" · ") || undefined,
     recommendedResolution: actionSteps.map((x, i) => `${i + 1}. ${x}`).join("\n"),
     tags: [...tags].slice(0, 20),
+    ...(s.routing?.ruleId ? { routingRule: s.routing.ruleId, routingAlso: s.routing.alsoRuleIds ?? [] } : {}),
     extras,
   };
   return { draft, extras };

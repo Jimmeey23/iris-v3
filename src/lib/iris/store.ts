@@ -158,6 +158,9 @@ export interface AgentTicketDraft {
   tags?: string[];
   /** Secondary departments that also need to act. */
   departmentCodes?: string[];
+  /** Routing rulebook pick from intake, re-applied by POST /api/tickets. */
+  routingRule?: string;
+  routingAlso?: string[];
   /** Presentation-only details for the review card (owner, SLA, steps, member profile...). */
   extras?: import("./intake-details").DraftExtras;
 }
@@ -176,6 +179,11 @@ export interface IntakeRouting {
   sla: { priority: "P0" | "P1" | "P2" | "P3"; responseMins: number; resolutionMins: number; slaResponseTarget: string; slaResolutionTarget: string } | null;
   routedByRule: string | null;
   ownershipRule: string | null;
+  /** Routing rulebook pick (lib/iris/ownership-policy.ts) and secondary teams. */
+  ruleId?: string | null;
+  alsoRuleIds?: string[];
+  departmentCodes?: string[];
+  decidedBy?: "ai" | "rules" | null;
 }
 
 export interface IntakeState {

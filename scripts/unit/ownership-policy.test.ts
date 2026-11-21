@@ -1,56 +1,80 @@
 import { describe, expect, it } from "bun:test";
 import { decideOwnership, type PolicyInput } from "../../src/lib/iris/ownership-policy";
 
-const base: PolicyInput = { category: "Scheduling", subcategory: null, title: "x", description: "", studioCode: null, studioCity: null, reporterEmployeeId: null };
-const rr = () => 0;
+const base: PolicyInput = { category: "General", subcategory: null, title: "x", description: "", studioCode: null, studioCity: null, reporterEmployeeId: null };
 
-describe("decideOwnership", () => {
-  it("sends accounts and payments to Saachi and Mitali", () => {
-    const d = decideOwnership({ ...base, category: "Pricing and Memberships", subcategory: "Refund and Cancellation Policy Issue", studioCode: "KH" }, rr);
-    expect(d).toMatchObject({ rule: "accounts", assigneeId: "emp_saachi", ownerIds: ["emp_saachi", "emp_mitali"], departmentCodes: ["PAY"] });
-    expect(decideOwnership({ ...base, title: "Member double charged on Razorpay" }, rr)?.rule).toBe("accounts");
+describe("decideOwnership - keyword fallback", () => {
+  it("sends payments and refunds to Operations: Saachi → Mitali", () => {
+    const d = decideOwnership({ ...base, category: "Pricing and Memberships", subcategory: "Refund and Cancellation Policy Issue", studioCode: "KH" });
+    expect(d).toMatchObject({ rule: "accounts", assigneeId: "emp_saachi", departmentCodes: ["OPS"], escalationChain: ["emp_mitali"], decidedBy: "rules" });
+    expect(decideOwnership({ ...base, title: "Member double charged on Razorpay" })?.rule).toBe("accounts");
   });
 
-  it("sends brand, expansion, licence and legal to Mitali", () => {
-    expect(decideOwnership({ ...base, category: "Brand Feedback", studioCode: "SHQ" }, rr)).toMatchObject({ rule: "brand_legal", assigneeId: "emp_mitali" });
-    expect(decideOwnership({ ...base, title: "Trade licence renewal for Bandra" }, rr)?.assigneeId).toBe("emp_mitali");
-    expect(decideOwnership({ ...base, title: "Franchise expansion enquiry from Pune" }, rr)?.assigneeId).toBe("emp_mitali");
+  it("sends safety, theft, injury and legal to Saachi → Mitali → Jimmeey", () => {
+    const d = decideOwnership({ ...base, title: "Member injured on reformer", studioCode: "SHQ" });
+    expect(d).toMatchObject({ rule: "safety_legal", assigneeId: "emp_saachi", escalationChain: ["emp_mitali", "emp_jimmeey"] });
+    expect(decideOwnership({ ...base, title: "Phone stolen from locker" })?.rule).toBe("safety_legal");
   });
 
-  it("routes facilities by city with the right L2", () => {
-    const mumbai = decideOwnership({ ...base, category: "Repair and Maintenance", subcategory: "PowerCycle Bike Fault", studioCode: "KH" }, rr);
-    expect(mumbai).toMatchObject({ assigneeId: "emp_zahur", escalationL2: "emp_saachi", departmentCodes: ["FAC"] });
-    const blr = decideOwnership({ ...base, category: "Studio Amenities and Facilities", studioCode: "KHB" }, rr);
-    expect(blr).toMatchObject({ assigneeId: "emp_prathap", escalationL2: "emp_shifa" });
-    expect(decideOwnership({ ...base, title: "Housekeeping missed the washroom", studioCode: "CCB" }, rr)?.assigneeId).toBe("emp_prathap");
+  it("routes facilities faults by city with the full chain", () => {
+    const mumbai = decideOwnership({ ...base, category: "Class Experience", subcategory: "Audio Issues", title: "Headset mic out of use with static", studioCode: "KH" });
+    expect(mumbai).toMatchObject({ rule: "facilities", assigneeId: "emp_zahur", escalationChain: ["emp_saachi", "emp_mitali"], departmentCodes: ["OPS"] });
+    const blr = decideOwnership({ ...base, title: "AC not working", studioCode: "KHB" });
+    expect(blr).toMatchObject({ assigneeId: "emp_prathap", escalationChain: ["emp_shifa", "emp_saachi", "emp_mitali"] });
+    expect(decideOwnership({ ...base, title: "Pest control needed", studioCode: "CCB" })?.assigneeId).toBe("emp_prathap");
+    expect(decideOwnership({ ...base, title: "Valet late again", studioCode: "SHQ" })?.assigneeId).toBe("emp_zahur");
   });
 
-  it("assigns studio tickets to the reporter when on the team, else round robin", () => {
-    expect(decideOwnership({ ...base, studioCode: "KH", reporterEmployeeId: "emp_sheetal" }, rr)?.assigneeId).toBe("emp_sheetal");
-    const seen = [0, 1, 2, 3, 4].map((n) => decideOwnership({ ...base, studioCode: "SHQ", reporterEmployeeId: "emp_mitali" }, () => n)?.assigneeId);
-    expect(seen).toEqual(["emp_shipra", "emp_nadiya", "emp_deesha", "emp_imran", "emp_shipra"]);
-    // Someone from the other studio's team doesn't count as "on the team".
-    expect(decideOwnership({ ...base, studioCode: "KH", reporterEmployeeId: "emp_shipra" }, rr)?.rule).toBe("studio_team");
-    expect(decideOwnership({ ...base, studioCode: "KH", reporterEmployeeId: "emp_shipra" }, rr)?.assigneeId).toBe("emp_akshay");
+  it("adds the studio team when a fault hurts members", () => {
+    const d = decideOwnership({ ...base, title: "AC broken", description: "Affecting member experience?: Yes, significantly", studioCode: "SHQ" });
+    expect(d).toMatchObject({ rule: "facilities", assigneeId: "emp_zahur", alsoRules: ["member_sales"], departmentCodes: ["OPS", "SCS"] });
+    expect(d?.ownerIds).toEqual(["emp_zahur", "emp_shipra"]);
   });
 
-  it("keeps the order: accounts beats facilities beats studio team", () => {
-    expect(decideOwnership({ ...base, category: "Repair and Maintenance", title: "Refund for broken bike class", studioCode: "KH" }, rr)?.rule).toBe("accounts");
-    expect(decideOwnership({ ...base, category: "Repair and Maintenance", studioCode: "SHQ", reporterEmployeeId: "emp_imran" }, rr)?.rule).toBe("facilities");
+  it("sends scheduling to Mrigakshi + Vivaran (Mumbai) or Pushyank (Bengaluru), escalating to Anisha", () => {
+    expect(decideOwnership({ ...base, title: "Trainer swap for Saturday", studioCode: "KH" })).toMatchObject({
+      rule: "scheduling", assigneeId: "emp_mrigakshi", ownerIds: ["emp_mrigakshi", "emp_vivaran"], escalationChain: ["emp_anisha"],
+    });
+    expect(decideOwnership({ ...base, title: "New class request: evening barre", studioCode: "KHB" })?.assigneeId).toBe("emp_pushyank");
   });
 
-  it("falls through when no rule applies", () => {
-    expect(decideOwnership({ ...base, studioCode: "KHB" }, rr)).toBeNull();
-    expect(decideOwnership(base, rr)).toBeNull();
+  it("sends anything about a trainer to the training leads", () => {
+    const d = decideOwnership({ ...base, category: "Trainer Feedback", title: "Trainer late to class", studioCode: "SHQ" });
+    expect(d).toMatchObject({ rule: "trainer", assigneeId: "emp_mrigakshi", escalationChain: ["emp_anisha"] });
+    expect(d?.ownerIds).toEqual(["emp_mrigakshi", "emp_vivaran", "emp_anisha", "emp_pushyank"]);
   });
-  it("sends Mumbai class experience / scheduling to Mrigakshi + Vivaran, escalating Anisha then Mitali", () => {
-    const d = decideOwnership({ ...base, category: "Class Experience", subcategory: "Class Variety and Themes", studioCode: "KH" }, rr);
-    expect(d).toMatchObject({ rule: "class_experience", assigneeId: "emp_mrigakshi", ownerIds: ["emp_mrigakshi", "emp_vivaran"], escalationL2: "emp_anisha", escalationL3: "emp_mitali" });
-    expect(decideOwnership({ ...base, departmentCode: "SCH", studioCity: "Mumbai" }, rr)?.rule).toBe("class_experience");
-    // Bengaluru and unknown city fall through to the generic rules.
-    expect(decideOwnership({ ...base, category: "Class Experience", studioCode: "KHB" }, rr)).toBeNull();
-    expect(decideOwnership({ ...base, category: "Class Experience" }, rr)).toBeNull();
-    // Facilities still win.
-    expect(decideOwnership({ ...base, category: "Repair and Maintenance", departmentCode: "SCH", studioCode: "KH" }, rr)?.rule).toBe("facilities");
+
+  it("sends member experience and sales to the studio team lead", () => {
+    expect(decideOwnership({ ...base, title: "Membership transfer request", studioCode: "KH" })).toMatchObject({ assigneeId: "emp_akshay", escalationChain: ["emp_jimmeey", "emp_mitali"] });
+    expect(decideOwnership({ ...base, title: "Discount offer query", studioCode: "SHQ" })?.assigneeId).toBe("emp_shipra");
+    expect(decideOwnership({ ...base, title: "Member complaint about wait", studioCode: "KHB" })).toMatchObject({
+      assigneeId: "emp_prathap", escalationChain: ["emp_shifa", "emp_jimmeey", "emp_mitali"],
+    });
+  });
+
+  it("sends hosted class feedback to marketing", () => {
+    expect(decideOwnership({ ...base, title: "Hosted class feedback from partner", studioCode: "KH" })).toMatchObject({
+      rule: "hosted_class", assigneeId: "emp_shaina", escalationChain: ["emp_reyna", "emp_saachi", "emp_jimmeey"],
+    });
+    expect(decideOwnership({ ...base, title: "Hosted class feedback", studioCode: "KHB" })?.assigneeId).toBe("emp_saachi_jr");
+  });
+
+  it("returns null when nothing matches", () => {
+    expect(decideOwnership({ ...base, title: "hello" })).toBeNull();
+  });
+});
+
+describe("decideOwnership - AI pick", () => {
+  it("uses the AI's rule over keywords, with secondary teams", () => {
+    const d = decideOwnership(
+      { ...base, category: "Class Experience", title: "Class felt rushed", studioCode: "KH" },
+      undefined,
+      { rule: "facilities", also: ["member_sales", "bogus"] },
+    );
+    expect(d).toMatchObject({ rule: "facilities", decidedBy: "ai", assigneeId: "emp_zahur", alsoRules: ["member_sales"], departmentCodes: ["OPS", "SCS"] });
+  });
+
+  it("falls back to keywords when the AI's rule is invalid", () => {
+    expect(decideOwnership({ ...base, title: "AC leaking", studioCode: "KH" }, undefined, { rule: "nonsense" })).toMatchObject({ rule: "facilities", decidedBy: "rules" });
   });
 });

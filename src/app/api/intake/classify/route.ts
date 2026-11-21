@@ -13,7 +13,7 @@ import {
   type AssignableEmployee,
   type RoutingRuleRow,
 } from "@/lib/iris/routing-engine";
-import { decideOwnership } from "@/lib/iris/ownership-policy";
+import { decideOwnership, type AiRouting } from "@/lib/iris/ownership-policy";
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
 import { cleanAiFields, cleanAnswers, resolveSpec } from "@/lib/iris/intake-schema";
 
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       const fields = extractFields(text, trainers);
 
       // ── Routing preview: same order of precedence as POST /api/tickets ──────────
-      const preview = (cand: Candidate, studioCode: string | undefined, title: string | undefined, aiOwner: string | null) => {
+      const preview = (cand: Candidate, studioCode: string | undefined, title: string | undefined, aiOwner: string | null, aiRouting?: AiRouting | null) => {
         const studioCity = studioCode ? studios.find((s) => s.code === studioCode)?.city ?? null : null;
         const routed = evaluateRoutingRules(rulesRes.rows, {
           category: cand.category,
@@ -144,7 +144,8 @@ export async function POST(request: Request) {
             reporterEmployeeId: auth.session.employee_id ?? null,
             departmentCode: department,
           },
-          () => 0, // preview only; the POST advances the round-robin counter
+          () => 0,
+          aiRouting,
         );
         const nameOf = (id: string) => employees.find((e) => e.id === id)?.name ?? id;
         if (policy) {
@@ -197,6 +198,10 @@ export async function POST(request: Request) {
             sla,
             routedByRule: routed.matchedRule?.name ?? null,
             ownershipRule: policy?.label ?? null,
+            ruleId: policy?.rule ?? null,
+            departmentCodes: policy?.departmentCodes ?? (department ? [department] : []),
+            alsoRuleIds: policy?.alsoRules ?? [],
+            decidedBy: policy?.decidedBy ?? null,
           },
         };
       };
@@ -279,6 +284,7 @@ export async function POST(request: Request) {
         resolvedStudio,
         ai.title ?? undefined,
         ai.owner_employee_id,
+        { rule: ai.routing_rule, also: ai.also_routing_rules },
       );
       const confident = ai.confidence >= Math.min(0.9, Math.max(0.4, aiCfg.confidenceThreshold));
 

@@ -210,6 +210,8 @@ type EscalationRow = {
   dept_head_id: string | null;
   policy_l2_id: string | null;
   policy_l3_id: string | null;
+  policy_next_id: string | null;
+  policy_next_name: string | null;
 };
 
 /** What the ticket activity says, naming the tier the ticket actually went to. */
@@ -253,8 +255,10 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
                 m.id  as manager_id, m.name as manager_name,
                 h.id as dept_head_id,
                 l2.id as policy_l2_id,
-                l3.id as policy_l3_id
+                l3.id as policy_l3_id,
+                nx.id as policy_next_id, nx.name as policy_next_name
            from tickets t
+           left join employees nx on nx.id = t.collected_info->'_escalation_chain'->>t.escalation_level and nx.is_active
            left join employees l2 on l2.id = t.collected_info->>'_escalation_l2' and l2.is_active
            left join employees l3 on l3.id = t.collected_info->>'_escalation_l3' and l3.is_active
            left join employees m on m.name = (select e.reporting_manager from employees e where e.id = t.assignee_id)
@@ -289,8 +293,12 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
 
       const nextLevel = decision.nextLevel;
       // Ownership policy can name the level-1 escalation (e.g. facilities: Zahur → Saachi).
-      const targetId = nextLevel === 1 ? (t.policy_l2_id ?? t.manager_id) : nextLevel === 2 ? (t.policy_l3_id ?? t.dept_head_id) : null;
-      const targetRole = nextLevel === 1 ? "manager" : nextLevel === 2 ? "department_head" : "admin";
+      // The routing rulebook's chain (collected_info._escalation_chain) names every level;
+      // older tickets fall back to _escalation_l2/_l3, then manager / department head.
+      const targetId =
+        t.policy_next_id ??
+        (nextLevel === 1 ? (t.policy_l2_id ?? t.manager_id) : nextLevel === 2 ? (t.policy_l3_id ?? t.dept_head_id) : null);
+      const targetRole = t.policy_next_id ? "policy" : nextLevel === 1 ? "manager" : nextLevel === 2 ? "department_head" : "admin";
       const reason = escalationReason(nextLevel, s.afterBreachHours);
 
       // Claim with a conditional update on the exact current level - the idempotency lock.
@@ -320,7 +328,7 @@ export async function applyEscalations({ dry = false }: { dry?: boolean } = {}):
           await client.query(
             `insert into ticket_activities (ticket_id, activity_type, description, actor_name)
              values ($1, 'escalated', $2, 'IRIS')`,
-            [t.id, `${reason} ${targetLabel(nextLevel, t.manager_name)}`],
+            [t.id, `${reason} ${t.policy_next_name ? `Reassigned to ${t.policy_next_name} (routing rulebook level ${nextLevel}).` : targetLabel(nextLevel, t.manager_name)}`],
           );
         }
         await client.query("commit");

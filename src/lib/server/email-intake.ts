@@ -17,7 +17,7 @@ import { matchStudio } from "@/lib/iris/aliases";
 import { notifyTicketEvent } from "./notify";
 import { enrichTicket } from "./ai-enrich";
 import { evaluateRoutingRules, selectBestAssignee, type AssignableEmployee, type RoutingRuleRow } from "@/lib/iris/routing-engine";
-import { decideOwnership } from "@/lib/iris/ownership-policy";
+import { decideOwnership, policyCollectedInfo, type AiRouting } from "@/lib/iris/ownership-policy";
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
 import {
   emailPromptText, htmlToText, isStaffEmail, junkReason, parseAddress, safeFileName, staffDomains, type Address,
@@ -346,6 +346,7 @@ async function fileTicket(i: {
     let department: string | null = null;
     let priority: "P0" | "P1" | "P2" | "P3" = "P2";
     let aiOwner: string | null = null;
+    let aiRouting: AiRouting | null = null;
     let studioCode: string | null = fields.studioCode ?? null;
     let aiTitle: string | null = null;
     let classifiedBy = "rules";
@@ -368,6 +369,7 @@ async function fileTicket(i: {
           department = departments.some((d) => d.code === ai.department_code) ? ai.department_code : m.department ?? known.department;
           priority = ai.priority ?? m.priority;
           aiOwner = ai.owner_employee_id;
+          aiRouting = { rule: ai.routing_rule, also: ai.also_routing_rules };
           aiTitle = ai.title;
           if (!studioCode && studios.some((s) => s.code === ai.studio_code)) studioCode = ai.studio_code;
           classifiedBy = "ai";
@@ -434,30 +436,15 @@ async function fileTicket(i: {
     if (routed.matchedRule) collected._routed_by_rule = routed.matchedRule.name;
 
     const policyInput = { category, subcategory, title, description, studioCode, studioCity, reporterEmployeeId: reporter?.id ?? null, departmentCode: department };
-    let policy = decideOwnership(policyInput, () => 0);
-    if (policy?.roundRobinKey) {
-      const n = Number(
-        (
-          await pool.query(
-            `insert into iris.app_settings (key, value, category) values ($1, '0'::jsonb, 'routing')
-             on conflict (key) do update set value = to_jsonb(coalesce((iris.app_settings.value #>> '{}')::int, -1) + 1), updated_at = now()
-             returning value #>> '{}' as n`,
-            [`roundrobin:${policy.roundRobinKey}`],
-          )
-        ).rows[0]?.n ?? 0,
-      );
-      policy = decideOwnership(policyInput, () => n);
-    }
+    const policy = decideOwnership(policyInput, undefined, aiRouting);
     if (policy) {
       assigneeId = policy.assigneeId;
       ownerIds = policy.ownerIds;
       if (policy.departmentCodes.length) {
-        departmentCodes = [...new Set([...policy.departmentCodes, ...(department ? [department] : [])])];
+        departmentCodes = [...policy.departmentCodes];
         department = policy.departmentCodes[0];
       }
-      collected._ownership_rule = policy.label;
-      if (policy.escalationL2) collected._escalation_l2 = policy.escalationL2;
-      if (policy.escalationL3) collected._escalation_l3 = policy.escalationL3;
+      Object.assign(collected, policyCollectedInfo(policy));
     } else {
       const aiPick = aiOwner ? employees.find((e) => e.id === aiOwner && e.department_code === department) : undefined;
       if (aiPick) assigneeId = aiPick.id;

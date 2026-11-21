@@ -4,6 +4,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { recordAiUsage } from "./ai-usage";
 import { fieldCatalogue } from "@/lib/iris/intake-schema";
+import { ROUTING_GUIDE, ROUTING_RULE_IDS } from "@/lib/iris/ownership-policy";
 
 /**
  * Primary intake classifier: one Claude Haiku call per report, structured output,
@@ -27,6 +28,13 @@ const Result = z.object({
     .string()
     .nullable()
     .describe("Employee id from the Roster best placed to own this, or null if no one clearly fits"),
+  routing_rule: z
+    .enum(ROUTING_RULE_IDS)
+    .nullable()
+    .describe("Primary routing rule from the Routing rulebook: the team that owns and fixes this"),
+  also_routing_rules: z
+    .array(z.enum(ROUTING_RULE_IDS))
+    .describe("Other rulebook teams that must also act or be kept informed (may be empty)"),
   priority: z.enum(["P0", "P1", "P2", "P3"]).nullable(),
   confidence: z.number().min(0).max(1).describe("How sure you are of the category and subcategory, 0 to 1"),
   studio_code: z.string().nullable(),
@@ -65,6 +73,8 @@ const UNCLEAR: AiClassification = {
   subcategory: null,
   department_code: null,
   owner_employee_id: null,
+  routing_rule: null,
+  also_routing_rules: [],
   priority: null,
   confidence: 0,
   studio_code: null,
@@ -113,8 +123,9 @@ For each report decide:
 1. category and subcategory - copy them exactly from the Taxonomy. Classify by what the problem IS, not by words it contains.
    - Class formats (Barre, PowerCycle, Strength, Mat, Cardio Barre, FIT, Back Body Blaze, Recovery...) are also names of classes and rooms. "Can't book into PowerCycle" is a booking problem, not a bike repair. Only choose an equipment repair when a piece of equipment is described as broken, faulty or not working.
    - A client who can book one class type but not another is a booking-system issue.
-2. department_code - the department from Departments that must act on it.
-3. owner_employee_id - the one Roster person in that department best placed to own it (matching skills and studio). Use null if nobody clearly fits; do not guess across departments.
+2. routing_rule - the ONE rule from the Routing rulebook whose team must own and fix this. Route by what actually has to be done, not by the category name: a broken mic or AC during a class is a facilities fault; a member unhappy with a trainer's cueing is trainer; a refund is accounts even if a member complains. A ticket has exactly one primary rule.
+   also_routing_rules - other rulebook teams that must also act or be told. E.g. an AC failure that ruined members' class → routing_rule facilities, also member_sales. A member injured because equipment broke → safety_legal, also facilities. Leave empty when only one team is needed.
+3. department_code - the primary rule's first department. owner_employee_id - the primary owner the rulebook names for the studio's city (Mumbai unless the studio is in Bengaluru), or null if no rule fits.
 4. priority - P0 safety/injury/theft/harassment or a studio unable to run classes; P1 significant disruption to many clients or a whole class; P2 one client's issue; P3 minor or informational.
 5. confidence - honest 0 to 1. Below 0.6 when the report could reasonably fit two subcategories.
 6. answers - fill every field from the Field catalogue that the message states or clearly implies (e.g. "since Monday" → sinceWhen, "two members complained" → membersComplained=Yes). For fields with [options], use one option exactly as written. Never guess: leave out anything the message does not say.
@@ -122,6 +133,9 @@ For each report decide:
 If the report is too vague to classify, set understood=false and ask one short, specific question.
 
 Studios: ${studios}
+
+Routing rulebook (rule id (departments) - scope; owner → escalation chain per city):
+${ROUTING_GUIDE}
 
 Departments:
 ${depts}

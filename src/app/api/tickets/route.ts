@@ -8,7 +8,7 @@ import { sweepAfterResponse } from "@/lib/server/sweeps";
 import { TICKET_LIST_SELECT, attachThreads, fetchTicket, toClientTicket } from "@/lib/server/tickets";
 import { evaluateRoutingRules, selectBestAssignee, type AssignableEmployee, type RoutingRuleRow } from "@/lib/iris/routing-engine";
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
-import { decideOwnership } from "@/lib/iris/ownership-policy";
+import { decideOwnership, policyCollectedInfo } from "@/lib/iris/ownership-policy";
 import { pool } from "@/lib/server/db";
 import { enrichTicket } from "@/lib/server/ai-enrich";
 
@@ -137,41 +137,25 @@ export async function POST(request: Request) {
       let effectiveAssigneeId = str(b.assigneeId, 64);
       let explicitAssigneeIds = strList(b.assigneeIds);
       let departmentCodes = strList(b.departmentCodes);
-      let ownershipRule: string | null = null;
-      let escalationL2: string | null = null;
-      let escalationL3: string | null = null;
+      let policyInfo: Record<string, unknown> | null = null;
       const overrideOwners = b.overrideOwners === true && session.role === "admin";
       if (!overrideOwners) {
-        const policyInput = {
-          category, subcategory, title, description, studioCode, studioCity,
-          reporterEmployeeId: session.employee_id ?? null,
-          departmentCode: effectiveDepartmentCode,
-        };
-        let policy = decideOwnership(policyInput, () => 0);
-        if (policy?.roundRobinKey) {
-          // Atomic per-studio counter (owner connection: app_settings is admin-write under RLS).
-          const n = Number(
-            (
-              await pool.query(
-                `insert into iris.app_settings (key, value, category) values ($1, '0'::jsonb, 'routing')
-                 on conflict (key) do update set value = to_jsonb(coalesce((iris.app_settings.value #>> '{}')::int, -1) + 1), updated_at = now()
-                 returning value #>> '{}' as n`,
-                [`roundrobin:${policy.roundRobinKey}`],
-              )
-            ).rows[0]?.n ?? 0,
-          );
-          policy = decideOwnership(policyInput, () => n);
-        }
+        const policy = decideOwnership(
+          {
+            category, subcategory, title, description, studioCode, studioCity,
+            reporterEmployeeId: session.employee_id ?? null,
+            departmentCode: effectiveDepartmentCode,
+          },
+          undefined,
+          // The intake AI's rulebook pick travels with the draft; keywords are the fallback.
+          { rule: str(b.routingRule, 40), also: strList(b.routingAlso) },
+        );
         if (policy) {
           effectiveAssigneeId = policy.assigneeId;
           explicitAssigneeIds = policy.ownerIds;
-          if (policy.departmentCodes.length) {
-            departmentCodes = [...new Set([...policy.departmentCodes, ...(effectiveDepartmentCode ? [effectiveDepartmentCode] : []), ...departmentCodes])];
-            effectiveDepartmentCode = policy.departmentCodes[0];
-          }
-          ownershipRule = policy.label;
-          escalationL2 = policy.escalationL2;
-          escalationL3 = policy.escalationL3 ?? null;
+          departmentCodes = [...new Set([...policy.departmentCodes, ...departmentCodes])];
+          effectiveDepartmentCode = policy.departmentCodes[0];
+          policyInfo = policyCollectedInfo(policy);
         }
       }
       if (!effectiveAssigneeId && explicitAssigneeIds.length === 0) {
@@ -213,9 +197,7 @@ export async function POST(request: Request) {
       if (routed.matchedRule) {
         collectedInfo._routed_by_rule = routed.matchedRule.name;
       }
-      if (ownershipRule) collectedInfo._ownership_rule = ownershipRule;
-      if (escalationL2) collectedInfo._escalation_l2 = escalationL2;
-      if (escalationL3) collectedInfo._escalation_l3 = escalationL3;
+      if (policyInfo) Object.assign(collectedInfo, policyInfo);
       if (settings["routing.require_acknowledgment"] === true && (effectiveAssigneeId || explicitAssigneeIds.length > 0)) {
         collectedInfo._requires_acknowledgment = true;
       }
