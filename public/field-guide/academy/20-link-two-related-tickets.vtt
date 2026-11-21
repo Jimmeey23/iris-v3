@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:05.125
+When two tickets describe related work, keep both histories and link the records.
+
+00:00:05.125 --> 00:00:10.155
+Open Link Ticket in Resolution Center and search by the other ticket's number or title.
+
+00:00:10.155 --> 00:00:11.875
+Select the matching result.
+
+00:00:11.875 --> 00:00:15.395
+The related ticket number should now appear on the original record.
+
+00:00:15.395 --> 00:00:20.035
+Open that number and check its title to verify that the link goes to the intended issue.

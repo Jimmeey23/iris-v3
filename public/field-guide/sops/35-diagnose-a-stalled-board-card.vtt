@@ -1,0 +1,10 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:05.350
+When a status board looks stalled, open the card rather than assuming nobody is working on it.
+
+00:00:05.350 --> 00:00:10.780
+Read the status and owner together, then inspect the latest resolution note for the dependency.
+
+00:00:10.780 --> 00:00:18.230
+If the next shift still owes a test, record a follow-up naming the check; do not mark the repair resolved just to clear the column.

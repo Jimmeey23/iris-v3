@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/iris/store";
@@ -58,6 +60,7 @@ import {
   Edit2,
   Eye,
   FileText,
+  Film,
   FolderTree,
   Gauge,
   Layers,
@@ -242,7 +245,29 @@ function Md({ text, inline = false }: { text: string; inline?: boolean }) {
  * every guide at any step). Opening a guide shows the reader: a working
  * checklist, what to say, when to escalate and the ticket forms to raise.
  */
+const KnowledgeVideos = dynamic(() => import("./knowledge-videos"), {
+  loading: () => <p role="status" className="p-4 text-sm text-muted-foreground">Loading tutorial library…</p>,
+});
+
 export function KnowledgeBaseView() {
+  const section = useAppStore((s) => s.kbSection);
+  const setSection = useAppStore((s) => s.setKbSection);
+  return (
+    <div className="mx-auto max-w-[1400px] space-y-4 p-4 sm:p-8">
+      <h1 className="text-[22px] font-semibold tracking-tight">Knowledge Base</h1>
+      <Tabs value={section} onValueChange={(v) => setSection(v === "videos" ? "videos" : "guides")}>
+        <TabsList aria-label="Knowledge library">
+          <TabsTrigger value="guides"><BookOpen />Written guides</TabsTrigger>
+          <TabsTrigger value="videos"><Film />Video tutorials</TabsTrigger>
+        </TabsList>
+        <TabsContent value="guides"><KnowledgeArticles /></TabsContent>
+        <TabsContent value="videos"><KnowledgeVideos /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function KnowledgeArticles() {
   const dataVersion = useAppStore((st) => st.dataVersion);
   const tier = useAppStore((st) => st.currentUser?.tier);
   const kbArticleId = useAppStore((st) => st.kbArticleId);
@@ -406,14 +431,14 @@ export function KnowledgeBaseView() {
 
   return (
     <CodeLinkContext.Provider value={codeLinks}>
-      <div ref={topRef} className="p-8 max-w-[1400px] mx-auto space-y-5">
+      <div ref={topRef} className="space-y-5 pt-2">
         <div className="flex items-end justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mb-1">
               <BookOpen className="w-3 h-3" />
               {articles.length} guides · {groups.length} categories · {subcategoryTotal} sub-categories
             </div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Knowledge Base</h1>
+            <h2 className="text-lg font-semibold">Written guides</h2>
             <p className="text-[13px] text-muted-foreground mt-1 max-w-3xl">
               Pick a category, then a sub-category, then the guide that matches the situation. Every guide is a step-by-step checklist with
               what to say, when to escalate and the ticket form to raise.{canEdit ? " Managers can create, edit, duplicate and delete guides." : ""}

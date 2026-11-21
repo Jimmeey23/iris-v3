@@ -1061,31 +1061,9 @@ export interface CommandItem {
   icon: string;
 }
 
-/**
- * Build the searchable index for the ⌘K command palette.
- *
- * COMPUTED ONCE AT MODULE LOAD - this is a module-level const, not a function
- * called on every render. The index depends only on static data (ALL_TICKETS,
- * KNOWLEDGE_ARTICLES, TICKET_TEMPLATES, MEMBERS) so it's stable for the
- * lifetime of the app session. The command palette can use it directly
- * without re-computing on every mount, which saves ~150ms of work each time
- * the palette opens.
- */
-export const COMMAND_INDEX: CommandItem[] = (() => {
+// Static entries can be shared; tickets arrive asynchronously after sign-in.
+const STATIC_COMMANDS: CommandItem[] = (() => {
   const items: CommandItem[] = [];
-
-  // Tickets
-  for (const t of ALL_TICKETS) {
-    items.push({
-      id: `ticket-${t.id}`,
-      type: "ticket",
-      title: t.title,
-      subtitle: `${t.ticketId} · ${t.priority} · ${t.category}`,
-      keywords: [t.ticketId, t.title, t.category, t.subcategory || "", t.affectedClient || ""].filter(Boolean),
-      navigate: { view: "all_tickets", ticketId: t.id },
-      icon: "ticket",
-    });
-  }
 
   // Knowledge articles
   for (const a of KNOWLEDGE_ARTICLES) {
@@ -1152,7 +1130,20 @@ export const COMMAND_INDEX: CommandItem[] = (() => {
   return items;
 })();
 
-/** Backward-compat alias: buildCommandIndex() returns the precomputed index. */
 export function buildCommandIndex(): CommandItem[] {
-  return COMMAND_INDEX;
+  const items: CommandItem[] = [];
+  // Tickets
+  for (const t of ALL_TICKETS) {
+    items.push({
+      id: `ticket-${t.id}`,
+      type: "ticket",
+      title: t.title,
+      subtitle: `${t.ticketId} · ${t.priority} · ${t.category}`,
+      keywords: [t.ticketId, t.title, t.category, t.subcategory || "", t.affectedClient || ""].filter(Boolean),
+      navigate: { view: "all_tickets", ticketId: t.id },
+      icon: "ticket",
+    });
+  }
+
+  return [...items, ...STATIC_COMMANDS];
 }

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { IrisLogo } from "./iris-logo";
 import { AccentRandomizer } from "./accent-randomizer";
 import {
+  Film,
   LayoutDashboard,
   Sparkles,
   Ticket,
@@ -112,6 +113,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const {
     currentView,
     setCurrentView,
+    openKnowledgeVideos,
     sidebarCollapsed,
     toggleSidebar,
     currentUser,
@@ -507,6 +509,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <TooltipContent side="bottom">Toggle theme</TooltipContent>
           </Tooltip>
 
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" onClick={openKnowledgeVideos} aria-label="Open Knowledge video tutorials" className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-background hover:text-foreground">
+                <Film className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Video guides</TooltipContent>
+          </Tooltip>
           <FeedbackButton />
 
           <Popover>

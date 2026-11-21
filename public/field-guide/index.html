@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#131827" />
+    <title>Operations Academy · IRIS</title>
+    <link rel="stylesheet" href="academy.css?edition=sops" />
+  </head>
+  <body>
+    <header>
+      <div class="wrap top">
+        <a
+          href="#film-01"
+          class="brand"
+          aria-label="IRIS Operations Academy home"
+          ><span class="brandmark" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i></span
+          ><strong>IRIS</strong><span class="divider"></span>Operations
+          Academy</a
+        ><span class="edition">FIELD GUIDE &nbsp;/&nbsp; DESKTOP EDITION</span>
+      </div>
+    </header>
+    <main class="wrap">
+      <section class="mast">
+        <div>
+          <p class="kicker">
+            <b></b> TICKET OPERATIONS &nbsp; / &nbsp; SCREEN SERIES
+          </p>
+          <h1>Inside the ticket workspace<span>.</span></h1>
+          <p class="intro">
+            Follow the work on IRIS itself, from the first report to the final
+            equipment check. <a id="browse-sops" href="#film-27">Explore the 25 operations SOPs →</a>
+          </p>
+        </div>
+        <div class="stats">
+          <strong>51 <span>films</span></strong
+          ><small id="runtime">ENGLISH · CLOSED CAPTIONS</small>
+        </div>
+      </section>
+      <div class="layout">
+        <article>
+          <div class="screen">
+            <div class="strip">
+              <span><i></i> WORKSPACE RECORDING</span
+              ><span id="counter">FILM 01 / 51</span>
+            </div>
+            <video
+              id="player"
+              controls
+              playsinline
+              preload="metadata"
+              aria-label="Raise a ticket in AI Assistant"
+              poster="academy/01-raise-a-ticket-ai-assistant.jpg?edit=section-focus"
+              src="academy/01-raise-a-ticket-ai-assistant.mp4?edit=section-focus"
+            >
+              <track
+                kind="captions"
+                srclang="en"
+                label="English"
+                src="academy/01-raise-a-ticket-ai-assistant.vtt"
+              />
+            </video>
+          </div>
+          <div class="reading">
+            <div id="meta" class="kicker">INTAKE</div>
+            <h2 id="title">Raise a ticket · AI Assistant</h2>
+            <div class="info">
+              <span id="verify"
+                >Recorded in the local IRIS training workspace.</span
+              ><a
+                id="download"
+                download
+                href="academy/01-raise-a-ticket-ai-assistant.mp4?edit=section-focus"
+                >↓ Download MP4</a
+              >
+            </div>
+            <div class="section-head">
+              <h3>Lesson chapters</h3>
+              <small>SELECT TO SEEK</small>
+            </div>
+            <div id="chapters"></div>
+            <section id="procedure" hidden aria-labelledby="sop-heading">
+              <div class="section-head"><h3 id="sop-heading">Operating procedure</h3><small>FIELD CHECKLIST</small></div>
+              <strong>Use when</strong><p id="use-when"></p>
+              <ol id="checklist"></ol>
+              <strong>Stop and check</strong><p id="stop-if"></p>
+              <strong>Completion evidence</strong><p id="evidence"></p>
+              <a href="IRIS-operations-SOPs.md" download>Download the 25-SOP handbook</a>
+            </section>
+            <details>
+              <summary>Read the transcript</summary>
+              <div id="transcript"></div>
+            </details>
+            <div class="paging">
+              <button type="button" id="prev">← Previous film</button
+              ><button type="button" id="next">Next film →</button>
+            </div>
+          </div>
+        </article>
+        <aside>
+          <div class="library-head">
+            <div class="kicker">ON DEMAND</div>
+            <h2>Film library</h2>
+          </div>
+          <div class="controls">
+            <label
+              >Find a tutorial<input
+                id="search"
+                type="search"
+                placeholder="Search films or steps…" /></label
+            ><label
+              >Collection<select id="collection">
+                <option value="">All collections</option>
+              </select></label
+            >
+          </div>
+          <div id="count" class="result-count" aria-live="polite"></div>
+          <nav id="films" aria-label="Tutorial films"></nav>
+        </aside>
+      </div>
+      <noscript
+        ><p>
+          The featured film can be played above. Enable JavaScript to browse the
+          film library and jump to chapters.
+        </p></noscript
+      >
+    </main>
+    <footer>
+      <div class="wrap">
+        <strong>IRIS</strong> &nbsp; / &nbsp; OPERATIONS ACADEMY
+        <span>Recorded locally · Training records only</span>
+      </div>
+    </footer>
+    <script type="module" src="academy.js?edition=sops"></script>
+  </body>
+</html>

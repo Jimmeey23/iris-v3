@@ -1,0 +1,10 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.260
+When a repair is waiting on a person, distinguish the work already done from the response still missing.
+
+00:00:06.260 --> 00:00:12.300
+In Status and Assignment, choose Awaiting Response only when that describes the actual blocker.
+
+00:00:12.300 --> 00:00:20.980
+Add a resolution note naming the test and who owes confirmation; verify the saved line so the next shift can act without rereading the whole thread.

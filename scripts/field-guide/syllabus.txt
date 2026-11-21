@@ -1,0 +1,135 @@
+# Title | Collection. Each subsequent line is a chapter label, then its spoken cue.
+Raise a ticket · Form Mode | Intake
+Open Form Mode | Start in AI Assistant and choose Form Mode.
+Describe the fault | Give the ticket a searchable title: headset microphone cuts out. In the description, say which unit failed, what the instructor heard, and what you did to keep the class running.
+Classify and route | Continue to category. Choose Repair and Maintenance, then Audio, Mic and Headphone Malfunction. Check the suggested priority and routing.
+Locate the issue | Select the studio where the fault occurred. Complete any relevant people and detail fields; leave optional information blank if you don't know it.
+Review and create | On the review screen, read the title, category and studio back to yourself. Select Create Ticket just once.
+Verify after reload | Open the new row in All Tickets and note its ticket number. Reloading the workspace shows the same saved record.
+
+Check ticket details | Investigation
+Find the exact record | Two repairs can have very similar titles. In All Tickets, search for the ticket number rather than guessing which repair is yours.
+Read the report | Open the matching row and select Details. Compare the original description with the category and studio before you take action.
+Check ownership | Look under Status and Assignment to find the current owner. The person who reported the problem is not necessarily the person fixing it.
+
+Change status and add a note | Resolution
+Start work | Open the repair in Resolution Center. Start Work moves an open ticket into progress and tells the team someone has picked it up.
+Record the blocker | If you're waiting for the instructor to test a spare microphone, choose Awaiting Response under Status and Assignment.
+Save a handoff | In Resolution Log, choose Note. Record what you tried and who owes the next response, then press Enter. Check that the new entry appears in the log.
+
+Resolve a verified repair | Resolution
+Open the dialog | Resolve a ticket only after you've tested the fix. In Resolution Center, choose Mark Resolved to open the resolution dialog.
+Document the test | The summary is required. Describe the repair and how you verified it; add the root cause if you know it.
+Confirm the result | Select Confirm Resolution. The status badge should now read Resolved. A note alone would not have changed the status.
+
+Read activity and escalation history | Investigation
+Find the exception | When a repair has moved up the reporting chain, start in Escalations and open the ticket.
+Trace the event | Select Activity to read events with their actors and timestamps. Then locate the Escalation Ladder. The highlighted rung is the current level.
+Read the reason | Expand History to see the recorded reason for a past move. A scheduled escalation is not evidence that the move has already happened.
+
+Handle a returned fault | Follow-up
+Identify the original | A recurrence check is a separate follow-up ticket linked to the original repair. Open the day five check and compare the original ticket number and equipment before testing.
+Document the recurrence | If the fault is back, choose Fault returned. Describe what failed again and under what conditions.
+Reopen and verify | Select Reopen with the original ticket number. Open the original from the check and verify that the repair is back with its owner. Don't raise a duplicate.
+
+Navigate the workspace | Orientation
+Start at Overview | Overview gives you a studio-wide starting point. Use the sidebar to open All Tickets when you need the searchable queue rather than the dashboard totals.
+Locate intake | AI Assistant is the place to report a new issue. Templates provides structured forms when you already know the kind of work you're reporting.
+Return to the dashboard | Use the sidebar to return to Overview without changing any ticket.
+
+Choose a personal or team queue | Orientation
+Open your work | Start with My Tickets when you want your own work rather than the entire studio queue. Inspect the owner and the status on a row before opening it.
+See team scope | Switch to Department to see work in your department's queue.
+Search across queues | If you need a ticket outside that view, move to All Tickets and search by its number. Your access permissions still apply.
+
+Triage urgent unassigned work | Queue tools
+Limit the scope | For shift triage, begin in All Tickets with the Open scope selected. Use the high-priority shortcut to isolate priorities zero and one.
+Combine conditions | Add Unassigned to see only urgent work without a primary owner. An empty list means nothing matches both conditions, not that there are no urgent tickets.
+Restore the queue | Clear the filters to restore the queue.
+
+Save a repeatable queue | Queue tools
+Define the queue | If you rebuild the same queue every morning, save the filter instead. In All Tickets, choose the priority shortcut that defines your morning review.
+Save a named view | Open Views and name the current filters. Save the view, then clear the queue filters.
+Recall the view | Open Views again and select the saved name. The matching filter returns without having to rebuild it.
+
+Group by studio and priority | Queue tools
+Group by site | Group the list when you need to compare studios, rather than read one long queue. Use Group to choose Studio. Each section has its own heading and ticket count.
+Add a second level | Use Then by to split each studio by priority.
+Collapse a group | Collapse a section to focus on the next one. Grouping changes how the queue is displayed, not which studio or priority a ticket belongs to.
+
+Sort an intake queue | Queue tools
+Include the right records | Before sorting, check the queue scope. Open excludes completed work, while All includes it.
+Choose the order | Open Sort and choose the order that fits the question you're asking. For an intake review, compare the newest reports with the oldest ones.
+Check the first row | Watch the first row change. Sorting only changes the order; it does not update the status or priority of a ticket.
+
+Inspect the status board | Queue tools
+Read the columns | Use Board to see where open work is accumulating. In All Tickets, select the Board layout and read the status headings above the columns.
+Open a card | Find a card by its ticket number and open it.
+Locate status controls | Use Status and Assignment inside the ticket for a status change. The board is an overview, not a reason to move a repair before the work is actually done.
+
+Compare records in Split view | Queue tools
+Change layout | Split view lets you read records without repeatedly leaving the queue. Choose Split in All Tickets.
+Compare previews | Select a row on the left and check the number, owner and description in the right-hand preview. Select a different row to compare it.
+Open the workspace | When you've found the right issue, use Open ticket to enter its full workspace.
+
+Find reports on the timeline | Investigation
+Browse by date | Use Timeline in All Tickets when the date of a report is a better clue than its title.
+Identify the report | Read the date headings, then the ticket title and status within a group. Open the matching item.
+Follow its history | For changes made after creation, switch to the ticket's Activity tab. The queue timeline groups tickets; Activity explains the history of one ticket.
+
+Read the owner board | Queue tools
+Choose Owners | Select Owners in the queue layouts to compare assignments.
+Compare columns | Each column is a primary owner, with unassigned work shown separately when present.
+Inspect all owners | Open a card and inspect Status and Assignment before handing off the work. The ticket can have more than one owner even though the board groups it by its primary owner.
+
+Post an internal comment | Collaboration
+Read the discussion | Use Comments to leave an internal message about a specific ticket. Read the existing discussion first, so your message adds information instead of repeating the report.
+Post the update | Write the update in the comment box and post it.
+Verify the thread | Check the author and the new entry in the thread. Posting a comment does not resolve the ticket.
+
+Log a follow-up for another shift | Collaboration
+Find the log | A follow-up is useful when another person needs to act after your shift. Open Resolution Center and find Resolution Log.
+Choose the entry type | Change the entry type from Note to Follow-up. Name the person or team responsible and the next check they should make.
+Verify the handoff | Submit the entry and look for the follow-up label in the log. This records a handoff; it does not change the owner.
+
+Tag a ticket | Collaboration
+Choose a label | Tags help describe a ticket without changing its category. In Resolution Center, find Add Tag and enter a short, consistent label for the issue.
+Save the tag | Press Enter to save.
+Verify in Details | Open Details and check that the label appears under Tags. A tag adds context to the record; it is not a new priority or a status change.
+
+Link two related tickets | Collaboration
+Search from the incident | When two tickets describe related work, keep both histories and link the records. Open Link Ticket in Resolution Center and search by the other ticket's number or title.
+Save the relationship | Select the matching result. The related ticket number should now appear on the original record.
+Verify the destination | Open that number and check its title to verify that the link goes to the intended issue.
+
+Read the two SLA clocks | Investigation
+Find SLA Tracking | A ticket has separate targets for first response and resolution. Open its workspace and find SLA Tracking.
+Check first response | Read the first response line to see whether that milestone is complete or still due.
+Check resolution | Then read the resolution target independently. Responding to the reporter can satisfy the first milestone without completing the repair. Use the dates and remaining time rather than relying on color alone.
+
+Escalate with a reason | Escalations
+Check the ladder | Managers and admins can move a ticket up one level in the Escalation Ladder. Check the current rung and the role above it before choosing Escalate.
+Explain and confirm | Explain why the current owner needs help, then confirm the move.
+Verify the new rung | Expand History and check the new level and reason. This is a recorded handoff, not a substitute for describing the underlying fault.
+
+De-escalate after a blocker clears | Escalations
+Check the blocker | If a raised issue can be handled one level lower, first verify that the blocker has been removed.
+Record the reason | In the Escalation Ladder choose De-escalate and enter a reason that the next owner can act on.
+Verify the audit trail | Confirm the move. Check the new highlighted rung and expand History. The earlier escalation remains part of the audit trail.
+
+Pass a recurrence check | Follow-up
+Identify the asset | A successful recurrence check records a test, not a second repair. Open the due check and use the original ticket information to identify the same asset.
+Record the test | Repeat the test that previously reproduced the fault. If the equipment now passes, select No recurrence.
+Read the schedule | Check the recorded outcome, then open the original ticket to see the check schedule. A later check may still be due.
+
+Jump to a ticket with quick search | Orientation
+Open quick search | For a direct jump, open the command palette with Command K on a Mac or Control K on Windows.
+Match the result | Type the ticket number into the search field. Check the title and number on the result before selecting it.
+Verify the workspace | The palette opens the ticket workspace, not just a filtered list. Verify the number in the workspace header before making an update.
+
+Raise a ticket · AI Assistant | Intake
+Describe the incident | Open AI Assistant and describe the incident in the message box. Say which microphone failed, where it happened, and what you heard. Send the report.
+Check the classification | Iris suggests a classification, but you can correct it. For this equipment repair, choose Repair and Maintenance and the audio malfunction subcategory.
+Complete the intake | Check the studio, pick the room, and record the device and the symptom. Answer the marked questions about affected classes, when the problem started, the condition of the equipment, and its impact on members.
+Review and approve | When the required answers are complete, choose Review ticket. Read the draft before selecting Approve and create.
+Verify the saved record | The confirmation now has a ticket number. Open ticket to check the saved record, then reload the page. The same number and issue are still there.

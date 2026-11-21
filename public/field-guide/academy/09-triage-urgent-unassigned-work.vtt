@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.590
+For shift triage, begin in All Tickets with the Open scope selected.
+
+00:00:04.590 --> 00:00:08.910
+Use the high-priority shortcut to isolate priorities zero and one.
+
+00:00:08.910 --> 00:00:12.810
+Add Unassigned to see only urgent work without a primary owner.
+
+00:00:12.810 --> 00:00:18.110
+An empty list means nothing matches both conditions, not that there are no urgent tickets.
+
+00:00:18.110 --> 00:00:20.190
+Clear the filters to restore the queue.

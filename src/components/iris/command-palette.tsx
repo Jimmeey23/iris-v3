@@ -63,8 +63,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
 
-  // Build the search index once
-  const index = React.useMemo(() => buildCommandIndex(), []);
+  // Read the hydrated ticket list when the palette opens, not at module load.
+  const index = React.useMemo(() => open ? buildCommandIndex() : [], [open]);
 
   // Recent selections (persist in sessionStorage for the tab session)
   const [recentIds, setRecentIds] = React.useState<string[]>([]);
