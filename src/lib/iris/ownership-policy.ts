@@ -37,6 +37,7 @@ const BENGALURU = new Set(["KHB", "CCB"]);
 
 export const ROUTING_RULE_IDS = [
   "safety_legal",
+  "refunds",
   "accounts",
   "hosted_class",
   "scheduling",
@@ -113,13 +114,21 @@ const RULES: RuleDef[] = [
       has(/\b(injur\w*|theft|stolen|harass\w*|assault|legal notice|lawyer|lawsuit|consumer court|police)\b/i, i.description),
   },
   {
+    id: "refunds",
+    title: "Refunds",
+    depts: ["OPS", "SCS"],
+    covers: "Any refund request, refund status, refund dispute or partial refund for a member.",
+    team: () => ({ owner: P.saachi, co: [P.jimmeey], esc: [P.mitali], who: "Saachi + Jimmeey → Mitali" }),
+    match: (i) => has(/\brefund\w*\b/i, i.subcategory, i.title),
+  },
+  {
     id: "accounts",
-    title: "Accounts, payments & refunds",
+    title: "Accounts & payments",
     depts: ["OPS"],
-    covers: "Any money movement or accounts work: payments, refunds, double charges, failed or pending transactions, invoices, receipts, GST, EMI, chargebacks, payment links, reconciliation. Handled by Operations, not the accounts team.",
+    covers: "Any other money movement or accounts work: payments, double charges, failed or pending transactions, invoices, receipts, GST, EMI, chargebacks, payment links, reconciliation. Handled by Operations, not the accounts team.",
     team: () => ({ owner: P.saachi, esc: [P.mitali], who: "Saachi → Mitali" }),
     match: (i) =>
-      has(/\b(payments?|refunds?|billing|bill|invoices?|charge[ds]?|double charged|overcharged|debit(ed)?|emi|gst|receipts?|accounts?|finance|razorpay|stripe|upi|credit card|transactions?|chargeback|reconcil\w*)\b/i, i.subcategory, i.title),
+      has(/\b(payments?|billing|bill|invoices?|charge[ds]?|double charged|overcharged|debit(ed)?|emi|gst|receipts?|accounts?|finance|razorpay|stripe|upi|credit card|transactions?|chargeback|reconcil\w*)\b/i, i.subcategory, i.title),
   },
   {
     id: "hosted_class",

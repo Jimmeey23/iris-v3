@@ -161,6 +161,8 @@ export interface AgentTicketDraft {
   /** Routing rulebook pick from intake, re-applied by POST /api/tickets. */
   routingRule?: string;
   routingAlso?: string[];
+  /** True when the user changed department or owner by hand; the server keeps their choice. */
+  manualRouting?: boolean;
   /** Presentation-only details for the review card (owner, SLA, steps, member profile...). */
   extras?: import("./intake-details").DraftExtras;
 }
@@ -218,6 +220,8 @@ export interface IntakeState {
   memberSnapshot?: import("./intake-details").MemberSnapshot | null;
   /** Questions the AI chose when the subcategory has no intake spec. */
   aiFields?: import("./intake-schema").AiFields | null;
+  /** Department / owner the user picked over IRIS's routing. Null fields keep IRIS's pick. */
+  manualRouting?: { departmentCode: string | null; ownerId: string | null } | null;
 }
 
 export interface AIMessage {

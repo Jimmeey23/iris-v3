@@ -139,7 +139,12 @@ export async function POST(request: Request) {
       let departmentCodes = strList(b.departmentCodes);
       let policyInfo: Record<string, unknown> | null = null;
       const overrideOwners = b.overrideOwners === true && session.role === "admin";
-      if (!overrideOwners) {
+      // The person filing picked department / owner by hand in the intake card: keep it.
+      const manualRouting = b.manualRouting === true;
+      if (manualRouting) {
+        policyInfo = { _routing: { decided_by: "manual", department: effectiveDepartmentCode, owner: effectiveAssigneeId } };
+        if (effectiveDepartmentCode) departmentCodes = [...new Set([effectiveDepartmentCode, ...departmentCodes])];
+      } else if (!overrideOwners) {
         const policy = decideOwnership(
           {
             category, subcategory, title, description, studioCode, studioCity,

@@ -4,9 +4,9 @@ import { decideOwnership, type PolicyInput } from "../../src/lib/iris/ownership-
 const base: PolicyInput = { category: "General", subcategory: null, title: "x", description: "", studioCode: null, studioCity: null, reporterEmployeeId: null };
 
 describe("decideOwnership - keyword fallback", () => {
-  it("sends payments and refunds to Operations: Saachi → Mitali", () => {
+  it("sends refunds to Saachi + Jimmeey and payments to Saachi → Mitali", () => {
     const d = decideOwnership({ ...base, category: "Pricing and Memberships", subcategory: "Refund and Cancellation Policy Issue", studioCode: "KH" });
-    expect(d).toMatchObject({ rule: "accounts", assigneeId: "emp_saachi", departmentCodes: ["OPS"], escalationChain: ["emp_mitali"], decidedBy: "rules" });
+    expect(d).toMatchObject({ rule: "refunds", assigneeId: "emp_saachi", ownerIds: ["emp_saachi", "emp_jimmeey"], escalationChain: ["emp_mitali"], decidedBy: "rules" });
     expect(decideOwnership({ ...base, title: "Member double charged on Razorpay" })?.rule).toBe("accounts");
   });
 

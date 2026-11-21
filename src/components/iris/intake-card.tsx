@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MomenceSearchField } from "@/components/iris/momence-search-field";
 import { TrainerAvatar } from "@/components/iris/trainer-photo";
 import { useAppStore, type AgentTicketDraft, type IntakeState } from "@/lib/iris/store";
-import { STUDIOS, STUDIO_MAP, DEPT_MAP, PRIORITY_CONFIG } from "@/lib/iris/types";
+import { STUDIOS, STUDIO_MAP, DEPT_MAP, DEPARTMENTS, EMPLOYEES, EMPLOYEE_MAP, PRIORITY_CONFIG } from "@/lib/iris/types";
 import { roomsFor } from "@/lib/iris/aliases";
 import { api } from "@/lib/iris/live-data";
 import {
@@ -325,20 +325,8 @@ export function IntakeCard({
           </div>
         </Row>
 
-        {state.department && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground pl-[100px]">
-            <span>Routes to <b className="text-foreground font-medium">{DEPT_MAP[state.department]?.name ?? state.department}</b></span>
-            {state.routing?.owner && state.routing.departmentCode === state.department && (
-              <span title={state.routing.ownershipRule ?? OWNER_SOURCE[state.routing.owner.source]}>
-                Owner <b className="text-foreground font-medium">{state.routing.owner.name}</b>
-              </span>
-            )}
-            {state.priority && PRIORITY_CONFIG[state.priority] && (
-              <span>
-                SLA respond {fmtMins(PRIORITY_CONFIG[state.priority].responseMins)} · resolve {fmtMins(PRIORITY_CONFIG[state.priority].resolutionMins)}
-              </span>
-            )}
-          </div>
+        {(state.department || state.manualRouting) && (
+          <RoutingRow state={state} locked={locked} onChange={(manualRouting) => set({ manualRouting })} />
         )}
       </div>
 
@@ -431,6 +419,109 @@ function DetailRow({ field: f, value: v, onChange }: { field: SpecField; value: 
           {dontKnow}
         </div>
       )}
+    </Row>
+  );
+}
+
+/**
+ * Where the ticket goes: IRIS's pick (routing rulebook, AI or keyword), with the
+ * secondary teams, and pickers to change department and owner by hand.
+ */
+function RoutingRow({
+  state,
+  locked,
+  onChange,
+}: {
+  state: IntakeState;
+  locked: boolean;
+  onChange: (m: IntakeState["manualRouting"]) => void;
+}) {
+  const r = state.routing;
+  const manual = state.manualRouting ?? null;
+  const aiDept = state.department;
+  const aiOwner = r?.owner && r.departmentCode === state.department ? r.owner : null;
+  const dept = manual?.departmentCode ?? aiDept;
+  const ownerId = manual?.ownerId ?? (manual?.departmentCode ? null : aiOwner?.id ?? null);
+  const changed = Boolean(manual && (manual.departmentCode || manual.ownerId));
+  const others = (r?.departmentCodes ?? []).filter((c) => c !== dept && DEPT_MAP[c]);
+  const inDept = EMPLOYEES.filter((e) => e.departmentCode === dept).sort((a, b) => a.name.localeCompare(b.name));
+  const rest = EMPLOYEES.filter((e) => e.departmentCode !== dept).sort((a, b) => a.name.localeCompare(b.name));
+  const source = changed
+    ? "Changed by you"
+    : r?.decidedBy === "ai"
+      ? "Picked by IRIS AI"
+      : r?.ownershipRule
+        ? "Standing routing rule"
+        : aiOwner
+          ? OWNER_SOURCE[aiOwner.source]
+          : "IRIS suggestion";
+
+  return (
+    <Row label="Routing">
+      <div className="space-y-1.5">
+        <div className={cn("rounded-md border px-2.5 py-2 text-[11px]", changed ? "border-amber-500/40 bg-amber-500/5" : "border-primary/30 bg-primary/5")}>
+          <div className="flex items-center gap-1.5 font-medium">
+            <Sparkles className="w-3 h-3 text-primary shrink-0" />
+            <span>{source}</span>
+            {changed && !locked && (
+              <button onClick={() => onChange(null)} className="ml-auto text-[10px] text-primary hover:underline">
+                Use IRIS pick
+              </button>
+            )}
+          </div>
+          {r?.ownershipRule && !changed && <div className="text-muted-foreground mt-0.5">{r.ownershipRule}</div>}
+          {others.length > 0 && (
+            <div className="text-muted-foreground mt-0.5">
+              Also sent to: <b className="text-foreground font-medium">{others.map((c) => DEPT_MAP[c]?.name ?? c).join(", ")}</b>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <label className="text-[10px] text-muted-foreground">
+            Department
+            <select
+              className={select}
+              disabled={locked}
+              value={dept ?? ""}
+              onChange={(e) => onChange({ departmentCode: e.target.value || null, ownerId: null })}
+            >
+              {!dept && <option value="">Pick a department</option>}
+              {DEPARTMENTS.map((d) => (
+                <option key={d.code} value={d.code}>{d.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-[10px] text-muted-foreground">
+            Owner
+            <select
+              className={select}
+              disabled={locked}
+              value={ownerId ?? ""}
+              onChange={(e) => onChange({ departmentCode: manual?.departmentCode ?? null, ownerId: e.target.value || null })}
+            >
+              <option value="">Auto (lightest workload)</option>
+              <optgroup label={DEPT_MAP[dept ?? ""]?.name ?? "Department"}>
+                {inDept.map((e) => (
+                  <option key={e.id} value={e.id}>{e.name}{e.id === aiOwner?.id ? " · IRIS pick" : ""}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Other staff">
+                {rest.map((e) => (
+                  <option key={e.id} value={e.id}>{e.name} ({DEPT_MAP[e.departmentCode]?.name ?? e.departmentCode})</option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+        </div>
+        {ownerId && EMPLOYEE_MAP[ownerId] && (
+          <div className="text-[10px] text-muted-foreground">
+            {EMPLOYEE_MAP[ownerId].name} · {EMPLOYEE_MAP[ownerId].role}
+            {state.priority && PRIORITY_CONFIG[state.priority] && (
+              <> · SLA respond {fmtMins(PRIORITY_CONFIG[state.priority].responseMins)} · resolve {fmtMins(PRIORITY_CONFIG[state.priority].resolutionMins)}</>
+            )}
+          </div>
+        )}
+      </div>
     </Row>
   );
 }

@@ -159,7 +159,9 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
   const p = PRIORITY_CONFIG[s.priority];
 
   // Departments involved: the routed one, plus who else has to act.
-  const involved = new Set<string>([...(s.department ? [s.department] : []), ...(s.routing?.departmentCodes ?? [])]);
+  const manual = s.manualRouting && (s.manualRouting.departmentCode || s.manualRouting.ownerId) ? s.manualRouting : null;
+  const dept = manual?.departmentCode ?? s.department;
+  const involved = new Set<string>([...(dept ? [dept] : []), ...(s.routing?.departmentCodes ?? [])]);
   if (s.trainer) involved.add("TRN");
   if (s.member && s.department !== "SCS") involved.add("SCS");
   if (["Repair and Maintenance", "Studio Amenities and Facilities"].includes(s.category ?? "")) involved.add("FAC");
@@ -168,8 +170,8 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
 
   // Predicted owner: available, in the department, covering the studio, lightest load.
   let owner: DraftExtras["owner"];
-  if (s.department) {
-    const pool = EMPLOYEES.filter((e) => e.departmentCode === s.department);
+  if (dept) {
+    const pool = EMPLOYEES.filter((e) => e.departmentCode === dept);
     const ranked = pool
       .map((e) => ({
         e,
@@ -180,19 +182,25 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
       }))
       .sort((a, b) => a.score - b.score);
     const top = ranked[0]?.e;
-    const head = DEPARTMENTS.find((x) => x.code === s.department)?.headId;
-    const routed = s.routing?.owner && s.routing.departmentCode === s.department ? EMPLOYEE_MAP[s.routing.owner.id] : undefined;
+    const head = DEPARTMENTS.find((x) => x.code === dept)?.headId;
+    const routed = manual?.ownerId
+      ? EMPLOYEE_MAP[manual.ownerId]
+      : s.routing?.owner && s.routing.departmentCode === s.department && !manual?.departmentCode
+        ? EMPLOYEE_MAP[s.routing.owner.id]
+        : undefined;
     const pick = routed ?? top ?? (head ? EMPLOYEE_MAP[head] : undefined);
     if (pick) {
       owner = {
         id: pick.id,
         name: pick.name,
         role: pick.role,
-        reason: routed
-          ? s.routing?.ownershipRule ?? (s.routing?.owner?.source === "ai" ? "Suggested by IRIS from skills and studio" : `${DEPT_MAP[s.department]?.name ?? s.department}, ${pick.workload ?? 0}/${pick.maxWorkload ?? "?"} open`)
+        reason: routed && manual?.ownerId
+          ? "Picked by you"
+          : routed
+          ? s.routing?.ownershipRule ?? (s.routing?.owner?.source === "ai" ? "Suggested by IRIS from skills and studio" : `${DEPT_MAP[dept]?.name ?? dept}, ${pick.workload ?? 0}/${pick.maxWorkload ?? "?"} open`)
           : top
-          ? `${DEPT_MAP[s.department]?.name ?? s.department}${s.studioCode && pick.studioCodes?.includes(s.studioCode) ? `, covers ${studio?.name.split(",")[0]}` : ""}, ${pick.workload ?? 0}/${pick.maxWorkload ?? "?"} open`
-          : `Head of ${DEPT_MAP[s.department]?.name ?? s.department} (nobody else in the team)`,
+          ? `${DEPT_MAP[dept]?.name ?? dept}${s.studioCode && pick.studioCodes?.includes(s.studioCode) ? `, covers ${studio?.name.split(",")[0]}` : ""}, ${pick.workload ?? 0}/${pick.maxWorkload ?? "?"} open`
+          : `Head of ${DEPT_MAP[dept]?.name ?? dept} (nobody else in the team)`,
       };
     }
   }
@@ -278,7 +286,7 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
     subcategory: s.subcategory ?? undefined,
     priority: s.priority,
     studioCode: s.studioCode ?? undefined,
-    departmentCode: s.department ?? undefined,
+    departmentCode: dept ?? undefined,
     departmentCodes: departmentsInvolved,
     assigneeId: owner?.id,
     affectedClient: who,
@@ -288,7 +296,11 @@ export function buildRichDraft(s: IntakeState, user: CurrentUser): { draft: Agen
     businessImpact: [d.impact, d.sentiment && `Client mood: ${d.sentiment}`].filter(Boolean).join(" · ") || undefined,
     recommendedResolution: actionSteps.map((x, i) => `${i + 1}. ${x}`).join("\n"),
     tags: [...tags].slice(0, 20),
-    ...(s.routing?.ruleId ? { routingRule: s.routing.ruleId, routingAlso: s.routing.alsoRuleIds ?? [] } : {}),
+    ...(manual
+      ? { manualRouting: true }
+      : s.routing?.ruleId
+        ? { routingRule: s.routing.ruleId, routingAlso: s.routing.alsoRuleIds ?? [] }
+        : {}),
     extras,
   };
   return { draft, extras };
