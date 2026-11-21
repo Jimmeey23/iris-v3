@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { withUser } from "@/lib/server/db";
+import { isSandboxRequest, withUser } from "@/lib/server/db";
 import { requireSession } from "@/lib/server/auth";
 import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import { runTurn } from "@/lib/server/agent";
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: "The AI service is busy. Try again in a moment." }, { status: 503 });
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY && !(await isSandboxRequest())) {
     return NextResponse.json({ error: "The AI assistant isn't configured (ANTHROPIC_API_KEY missing)." }, { status: 503 });
   }
   const raw = await request.text();

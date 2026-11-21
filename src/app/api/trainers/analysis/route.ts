@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { withUser } from "@/lib/server/db";
+import { isSandboxRequest, withUser } from "@/lib/server/db";
+import { MOCK_MODEL, mockLatency, mockTrainerAnalysis } from "@/lib/server/sandbox-ai";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { loadEffectiveAiConfig } from "@/lib/server/ai-config";
 import { recordAiUsage } from "@/lib/server/ai-usage";
@@ -44,6 +45,20 @@ export async function POST(request: NextRequest) {
       if (cached && cached.signature === signature) return NextResponse.json({ analysis: cached.analysis, cached: true });
     }
 
+    // Training sandbox: mock analysis, no API call, no usage recorded.
+    if (await isSandboxRequest()) {
+      await mockLatency();
+      const analysis = { ...base, ...mockTrainerAnalysis(key, base as unknown as Record<string, unknown>), engine: `AI (${MOCK_MODEL})` } as TrainerAnalysis;
+      await withUser(session.user_id, (c) =>
+        c.query(
+          `insert into trainer_analysis (trainer_name, signature, analysis, engine) values ($1, $2, $3, $4)
+           on conflict (trainer_name) do update set signature = excluded.signature, analysis = excluded.analysis,
+             engine = excluded.engine, updated_at = now()`,
+          [key, signature, JSON.stringify(analysis), analysis.engine],
+        ),
+      );
+      return NextResponse.json({ analysis, cached: false });
+    }
     const cfg = await loadEffectiveAiConfig();
     if (!cfg.enabled || cfg.budgetExceeded || !process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ analysis: null, reason: cfg.disabledReason ?? cfg.budgetExceededReason ?? "AI is off" });

@@ -281,28 +281,9 @@ export async function resetSandbox(reporterUserId: string): Promise<{ created: s
     return created;
   }).then(async (created) => {
     // Raise the recurrence checks that are already due, exactly as the sweep does.
-    // One step per parent per transaction: materialize_recurrence_checks() logs an
-    // identical "edited" activity on the parent for each check it raises, and two in
-    // the same transaction (same now()) collide on uq_activities_seed.
-    let raised = 0;
-    for (let round = 0; round < 6; round++) {
-      const n = await asSandboxSystem(async (c) => {
-        await c.query(
-          `update iris.recurrence_checks rc set due_at = rc.due_at + interval '100 years'
-             from (select id, row_number() over (partition by parent_ticket_id order by cycle, step) as rn
-                     from iris.recurrence_checks where status = 'scheduled' and due_at <= now()) d
-            where rc.id = d.id and d.rn > 1`,
-        );
-        const r = Number((await c.query<{ n: number }>("select iris.materialize_recurrence_checks() as n")).rows[0]?.n ?? 0);
-        await c.query(
-          `update iris.recurrence_checks set due_at = due_at - interval '100 years'
-            where status = 'scheduled' and due_at > now() + interval '50 years'`,
-        );
-        return r;
-      });
-      raised += n;
-      if (n === 0) break;
-    }
+    const raised = await asSandboxSystem(async (c) =>
+      Number((await c.query<{ n: number }>("select iris.materialize_recurrence_checks() as n")).rows[0]?.n ?? 0),
+    );
     return { created, recurrenceChecks: raised };
   });
 }

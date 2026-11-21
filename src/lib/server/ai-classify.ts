@@ -159,6 +159,13 @@ export async function aiClassify(
   modelOverride?: string,
   feature: "intake_classify" | "email_intake" = "intake_classify",
 ): Promise<AiClassification> {
+  // Training sandbox: mock triage, no API call, no usage recorded.
+  const { isSandboxRequest } = await import("./db");
+  if (await isSandboxRequest()) {
+    const { mockClassify, mockLatency } = await import("./sandbox-ai");
+    await mockLatency();
+    return mockClassify(text, ctx) as AiClassification;
+  }
   client ??= new Anthropic();
   const model = modelOverride || INTAKE_MODEL;
 

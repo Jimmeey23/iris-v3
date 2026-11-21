@@ -3,6 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { PoolClient } from "pg";
 import { costUsd } from "./ai-pricing";
 import { recordAiUsage } from "./ai-usage";
+import { isSandboxRequest } from "./db";
+import { mockAgentMessage, mockLatency } from "./sandbox-ai";
 import { searchMembers, getMemberDetails, searchSessions, listTrainers, configuredRegions } from "./momence";
 import { getMemberBookings, getMemberPayments, getSessionRoster, getMemberNotes } from "./momence-extra";
 
@@ -434,11 +436,17 @@ export async function runTurn(
   ];
 
   let reply = "";
+  const sandbox = await isSandboxRequest();
   const turnUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     let response: Anthropic.Message;
-    const call = (model: string) =>
-      anthropic().messages.create({
+    const call = async (model: string): Promise<Anthropic.Message> => {
+      // Training sandbox: scripted assistant that drives the real tools; no API call.
+      if (sandbox) {
+        await mockLatency(400, 900);
+        return mockAgentMessage({ messages });
+      }
+      return anthropic().messages.create({
         model,
         max_tokens: 16000,
         system: [{ type: "text", text: systemPrompt(ref), cache_control: { type: "ephemeral" } }],
@@ -447,6 +455,7 @@ export async function runTurn(
         // Older models (e.g. Haiku 4.5) reject the effort parameter with a 400.
         ...(supportsEffort(model) ? { output_config: { effort: "low" } } : {}),
       } as Anthropic.MessageCreateParamsNonStreaming);
+    };
     try {
       response = await call(activeModel);
     } catch (primaryErr) {
@@ -471,7 +480,7 @@ export async function runTurn(
     turnUsage.cacheWrite += u.cache_creation_input_tokens ?? 0;
     turnUsage.cost += cost;
     // Own connection: billed usage must be kept even if this turn later fails and rolls back.
-    await recordAiUsage({ userId, model: response.model ?? MODEL, usage: u, cost, feature: "assistant_chat", detail: userText });
+    if (!sandbox) await recordAiUsage({ userId, model: response.model ?? MODEL, usage: u, cost, feature: "assistant_chat", detail: userText });
 
     const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")

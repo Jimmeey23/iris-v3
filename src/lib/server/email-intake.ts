@@ -133,6 +133,13 @@ async function readEmail(
   system = READ_SYSTEM,
   log: { feature: "email_intake" | "pasted_report"; userId: string | null; detail: string } = { feature: "email_intake", userId: null, detail: "Inbound email" },
 ): Promise<EmailReadT | null> {
+  // Training sandbox: mock read, no API call, no usage recorded.
+  const { isSandboxRequest } = await import("./db");
+  if (await isSandboxRequest()) {
+    const { mockReadReport, mockLatency } = await import("./sandbox-ai");
+    await mockLatency();
+    return mockReadReport(prompt) as EmailReadT;
+  }
   anthropic ??= new Anthropic();
   const model = INTAKE_MODEL;
   const response = await anthropic.messages.parse({
