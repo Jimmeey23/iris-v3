@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { asSystem } from "@/lib/server/db";
+import { asSystemMain as asSystem } from "@/lib/server/db";
 import { clearSessionCookie, forgetSession, getSessionToken } from "@/lib/server/auth";
 
 export async function POST() {

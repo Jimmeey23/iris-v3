@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { asSystem } from "@/lib/server/db";
+import { asSystemMain as asSystem } from "@/lib/server/db";
 import { dbError, setSessionCookie } from "@/lib/server/auth";
 import { RateLimitError, enforceRateLimit, loginKey } from "@/lib/server/rate-limit";
 
