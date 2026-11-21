@@ -46,8 +46,20 @@ export function draftFromIntake(s: IntakeState): AgentTicketDraft {
   return buildRichDraft(s, useAppStore.getState().currentUser).draft;
 }
 
-const select =
-  "h-8 px-2 text-[12px] rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/40 w-full";
+/** One look for every text box, select and search in the card. */
+const control =
+  "h-9 w-full px-3 text-[12.5px] rounded-lg border border-input bg-background shadow-xs transition-colors placeholder:text-muted-foreground/70 hover:border-foreground/20 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed";
+const select = cn(control, "appearance-none pr-8 cursor-pointer");
+
+/** Native select with a quiet custom arrow (the browser's default one is huge in Safari/Chrome). */
+function Sel({ className, children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="relative min-w-0">
+      <select {...props} className={cn(select, className)}>{children}</select>
+      <ChevronDown className="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+    </div>
+  );
+}
 
 function Row({ label, need, done, children }: { label: string; need?: Need; done?: boolean; children: React.ReactNode }) {
   return (
@@ -79,7 +91,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Picked({ icon: Icon, text, sub, onClear, avatar }: { icon: React.ComponentType<{ className?: string }>; text: string; sub?: string; onClear: () => void; avatar?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/5 text-[12px]">
+    <div className="h-9 flex items-center gap-2 px-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-[12.5px]">
       {avatar ?? <Icon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
       <span className="font-medium truncate">{text}</span>
       {sub && <span className="text-[10px] text-muted-foreground truncate">{sub}</span>}
@@ -194,15 +206,15 @@ export function IntakeCard({
         <Row label="Category" need="required" done={!!state.category}>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative">
-              <select className={select} value={state.category ?? ""} onChange={(e) => e.target.value && chooseCategory(e.target.value)}>
+              <Sel value={state.category ?? ""} onChange={(e) => e.target.value && chooseCategory(e.target.value)}>
                 <option value="">Choose category…</option>
                 {state.taxonomy.map((c) => (
                   <option key={c.category} value={c.category}>{c.category}</option>
                 ))}
-              </select>
+              </Sel>
             </div>
-            <select
-              className={select}
+            <Sel
+             
               value={state.subcategory ?? ""}
               disabled={!cat}
               onChange={(e) => chooseCategory(state.category!, e.target.value || null)}
@@ -211,7 +223,7 @@ export function IntakeCard({
               {cat?.subcategories.map((s) => (
                 <option key={s.name} value={s.name}>{s.name}</option>
               ))}
-            </select>
+            </Sel>
           </div>
         </Row>
 
@@ -225,10 +237,7 @@ export function IntakeCard({
                 <button
                   key={s.code}
                   onClick={() => set({ studioCode: state.studioCode === s.code ? null : s.code })}
-                  className={cn(
-                    "px-2.5 py-1 rounded-full border text-[11px]",
-                    state.studioCode === s.code ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50",
-                  )}
+                  className={chip(state.studioCode === s.code)}
                 >
                   {s.name.split(",")[0]}
                 </button>
@@ -244,10 +253,7 @@ export function IntakeCard({
                 <button
                   key={r}
                   onClick={() => set({ area: state.area === r ? null : r })}
-                  className={cn(
-                    "px-2.5 py-1 rounded-full border text-[11px]",
-                    state.area === r ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50",
-                  )}
+                  className={chip(state.area === r)}
                 >
                   {r}
                 </button>
@@ -272,6 +278,7 @@ export function IntakeCard({
               <>
                 {state.clientNameHint && <div className="text-[10px] text-muted-foreground mb-1">You mentioned “{state.clientNameHint}” - pick the right person:</div>}
                 <MomenceSearchField
+                  compact
                   type="momence_member"
                   placeholder={state.clientNameHint ? `Search “${state.clientNameHint}” in Momence` : undefined}
                   onSelect={(e) => e.id && void pickMember(e.id, e.name)}
@@ -295,7 +302,7 @@ export function IntakeCard({
                     Use {state.trainerNameHint}
                   </button>
                 )}
-                <MomenceSearchField type="momence_trainer" onSelect={(e) => e.id && set({ trainer: { id: e.id, name: e.name } })} />
+                <MomenceSearchField compact type="momence_trainer" onSelect={(e) => e.id && set({ trainer: { id: e.id, name: e.name } })} />
               </>
             )}
           </Row>
@@ -307,6 +314,7 @@ export function IntakeCard({
               <Picked icon={Calendar} text={state.session.name} sub={state.session.subtitle} onClear={() => set({ session: null })} />
             ) : (
               <MomenceSearchField
+                  compact
                 type="momence_session"
                 placeholder={state.classFormat ? `Search “${state.classFormat}” classes` : undefined}
                 onSelect={(e) => e.id && set({ session: { id: e.id, name: e.name, subtitle: e.subtitle } })}
@@ -322,7 +330,7 @@ export function IntakeCard({
                 <button
                   key={w}
                   onClick={() => set({ when: state.when === w ? null : w })}
-                  className={cn("px-2.5 py-1 rounded-full border text-[11px]", state.when === w ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50")}
+                  className={chip(state.when === w)}
                 >
                   {w}
                 </button>
@@ -332,7 +340,7 @@ export function IntakeCard({
                 aria-label="Date it happened"
                 max={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => e.target.value && set({ when: new Date(e.target.value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) })}
-                className="h-7 px-2 text-[11px] rounded-md border border-input bg-background"
+                className="h-7 px-2.5 text-[11.5px] rounded-full border border-border bg-background hover:border-primary/50"
               />
               {state.when && !WHEN_CHIPS.includes(state.when as (typeof WHEN_CHIPS)[number]) && (
                 <span className="text-[11px] font-medium text-primary">{state.when}</span>
@@ -360,8 +368,8 @@ export function IntakeCard({
                 onClick={() => set({ priority: p, prioritySuggested: false })}
                 title={PRIORITY_CONFIG[p].description}
                 className={cn(
-                  "px-2.5 py-1 rounded-full border text-[11px]",
-                  state.priority === p ? cn(PRIORITY_CONFIG[p].bg, PRIORITY_CONFIG[p].text, "border-current font-semibold") : "border-border",
+                  "h-7 px-3 inline-flex items-center rounded-full border text-[11.5px] transition-colors",
+                  state.priority === p ? cn(PRIORITY_CONFIG[p].bg, PRIORITY_CONFIG[p].text, "border-current font-semibold") : "border-border bg-background hover:border-primary/50",
                 )}
               >
                 {PRIORITY_CONFIG[p].label}
@@ -424,13 +432,23 @@ export function IntakeCard({
 }
 
 const chip = (on: boolean) =>
-  cn("px-2.5 py-1 rounded-full border text-[11px]", on ? "border-primary bg-primary/10 text-primary font-medium" : "border-border hover:border-primary/50");
+  cn(
+    "h-7 px-3 inline-flex items-center rounded-full border text-[11.5px] transition-colors",
+    on ? "border-primary bg-primary text-primary-foreground font-medium shadow-xs" : "border-border bg-background hover:border-primary/50 hover:bg-primary/5",
+  );
 
 /** One schema question, rendered by its kind. "Don't know" always counts as an answer. */
 function DetailRow({ field: f, value: v, onChange }: { field: SpecField; value: string; onChange: (v: string) => void }) {
   const unknown = v === UNKNOWN;
   const dontKnow = (
-    <button onClick={() => onChange(unknown ? "" : UNKNOWN)} className={cn(chip(unknown), "border-dashed")} title="Counts as answered">
+    <button
+      onClick={() => onChange(unknown ? "" : UNKNOWN)}
+      title="Counts as answered"
+      className={cn(
+        "h-7 px-2.5 inline-flex items-center rounded-full border border-dashed text-[11px] shrink-0 transition-colors",
+        unknown ? "border-foreground/40 bg-muted text-foreground font-medium" : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30",
+      )}
+    >
       {UNKNOWN}
     </button>
   );
@@ -445,14 +463,14 @@ function DetailRow({ field: f, value: v, onChange }: { field: SpecField; value: 
           {dontKnow}
         </div>
       ) : (
-        <div className="flex items-start gap-1.5">
+        <div className="flex items-start gap-2">
           {f.kind === "textarea" ? (
             <textarea
               value={unknown ? "" : v}
               onChange={(e) => onChange(e.target.value)}
               placeholder={f.placeholder ?? f.ask}
               rows={2}
-              className="flex-1 min-w-0 px-2 py-1.5 text-[12px] rounded-md border border-input bg-background resize-y focus:outline-none focus:ring-2 focus:ring-ring/40"
+              className={cn(control, "h-auto flex-1 min-w-0 py-2 leading-snug resize-none min-h-[60px] max-h-48 [field-sizing:content]")}
             />
           ) : (
             <input
@@ -460,7 +478,7 @@ function DetailRow({ field: f, value: v, onChange }: { field: SpecField; value: 
               value={unknown ? "" : v}
               onChange={(e) => onChange(e.target.value)}
               placeholder={f.placeholder ?? f.ask}
-              className={cn(select, "flex-1 min-w-0")}
+              className={cn(control, "flex-1 min-w-0")}
             />
           )}
           {dontKnow}
@@ -527,11 +545,11 @@ function RoutingRow({
             </div>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <label className="text-[10px] text-muted-foreground">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label className="block space-y-1 text-[10.5px] font-medium text-muted-foreground">
             Department
-            <select
-              className={select}
+            <Sel
+             
               disabled={locked}
               value={dept ?? ""}
               onChange={(e) => onChange({ departmentCode: e.target.value || null, ownerId: null })}
@@ -540,12 +558,12 @@ function RoutingRow({
               {DEPARTMENTS.map((d) => (
                 <option key={d.code} value={d.code}>{d.name}</option>
               ))}
-            </select>
+            </Sel>
           </label>
-          <label className="text-[10px] text-muted-foreground">
+          <label className="block space-y-1 text-[10.5px] font-medium text-muted-foreground">
             Owner
-            <select
-              className={select}
+            <Sel
+             
               disabled={locked}
               value={ownerId ?? ""}
               onChange={(e) => onChange({ departmentCode: manual?.departmentCode ?? null, ownerId: e.target.value || null })}
@@ -561,7 +579,7 @@ function RoutingRow({
                   <option key={e.id} value={e.id}>{e.name} ({DEPT_MAP[e.departmentCode]?.name ?? e.departmentCode})</option>
                 ))}
               </optgroup>
-            </select>
+            </Sel>
           </label>
         </div>
         {ownerId && EMPLOYEE_MAP[ownerId] && (

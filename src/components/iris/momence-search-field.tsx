@@ -91,8 +91,11 @@ export function MomenceSearchField({
   placeholder,
   onSelect,
   sessionTypes,
+  compact,
 }: {
   type: "momence_member" | "momence_session" | "momence_trainer";
+  /** Form-sized input (h-9) to sit in line with other fields. */
+  compact?: boolean;
   placeholder?: string;
   onSelect: (entity: MomenceEntity) => void;
   /** Momence session types to search, e.g. ["private"] for hosted classes. */
@@ -233,7 +236,12 @@ export function MomenceSearchField({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => (query || type !== "momence_member") && setShowResults(true)}
           placeholder={placeholder || (type === "momence_member" ? "Search members by name, email or phone" : type === "momence_session" ? "Search classes by name, trainer or studio" : "Search trainers")}
-          className="w-full h-11 pl-10 pr-20 text-[13px] rounded-xl border border-violet-500/30 bg-card focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all placeholder:text-muted-foreground"
+          className={cn(
+            "w-full pl-10 pr-20 bg-card focus:outline-none transition-all placeholder:text-muted-foreground",
+            compact
+              ? "h-9 text-[12.5px] rounded-lg border border-input focus:border-primary/50 focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/70"
+              : "h-11 text-[13px] rounded-xl border border-violet-500/30 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20",
+          )}
         />
       </div>
 
