@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:03.090
+Resolve a ticket only after you've tested the fix.
+
+00:00:03.090 --> 00:00:07.440
+In Resolution Center, choose Mark Resolved to open the resolution dialog.
+
+00:00:07.440 --> 00:00:08.980
+The summary is required.
+
+00:00:08.980 --> 00:00:13.390
+Describe the repair and how you verified it; add the root cause if you know it.
+
+00:00:13.390 --> 00:00:15.330
+Select Confirm Resolution.
+
+00:00:15.330 --> 00:00:17.870
+The status badge should now read Resolved.
+
+00:00:17.870 --> 00:00:20.300
+A note alone would not have changed the status.

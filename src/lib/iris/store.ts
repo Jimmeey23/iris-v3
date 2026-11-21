@@ -79,6 +79,9 @@ interface AppState {
   openTemplate: (code: string) => void;
 
   // Knowledge Base drill-down: Category → Sub-category → Guide (an open guide implies its own place)
+  kbSection: "guides" | "videos";
+  setKbSection: (section: "guides" | "videos") => void;
+  openKnowledgeVideos: () => void;
   kbNav: KnowledgeNav;
   setKbNav: (nav: KnowledgeNav) => void;
   // Knowledge base article to show when the Knowledge Base view is open
@@ -272,6 +275,7 @@ export const useAppStore = create<AppState>()(
       setCurrentView: (view) =>
         set({
           currentView: view,
+          kbSection: "guides",
           selectedTicketId: null,
           kbArticleId: null,
           kbNav: { category: null, subcategory: null },
@@ -354,11 +358,14 @@ export const useAppStore = create<AppState>()(
         set({ currentView: "templates", selectedTicketId: null, templateNav: { category: null, subcategory: null, templateCode: code } }),
 
       kbNav: { category: null, subcategory: null },
+      kbSection: "guides",
+      setKbSection: (kbSection) => set({ kbSection }),
+      openKnowledgeVideos: () => set({ currentView: "knowledge_base", selectedTicketId: null, kbSection: "videos" }),
       setKbNav: (nav) => set({ kbNav: nav }),
       kbArticleId: null,
       setKbArticleId: (id) => set({ kbArticleId: id }),
       openKnowledgeArticle: (id) =>
-        set({ currentView: "knowledge_base", selectedTicketId: null, kbArticleId: id, kbNav: { category: null, subcategory: null } }),
+        set({ currentView: "knowledge_base", kbSection: "guides", selectedTicketId: null, kbArticleId: id, kbNav: { category: null, subcategory: null } }),
     }),
     {
       name: "iris-app-state-v2",

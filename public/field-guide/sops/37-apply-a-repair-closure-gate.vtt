@@ -1,0 +1,10 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:05.190
+Before closing a repair, compare the original symptom with the conditions of the test.
+
+00:00:05.190 --> 00:00:13.330
+Open Mark Resolved and write the repair and the observed test result in the summary; enter a root cause only if the evidence supports it.
+
+00:00:13.330 --> 00:00:20.205
+Confirm Resolution and read the new badge, because entering a summary without confirming is not a completed status change.

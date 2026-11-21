@@ -4,6 +4,10 @@ A Next.js 16 App Router workspace for studio operations — tickets, routing, SL
 escalation, notifications, the Momence member/session catalogue, an AI assistant — on
 Neon Postgres with row-level security enforced by the database itself.
 
+## Operations Academy
+
+Knowledge → Video tutorials (also available from the toolbar film icon) opens **51 narrated desktop tutorials**, including 25 operations SOPs with decision checks and completion evidence. Start with *Raise a ticket · AI Assistant* or use *Raise a ticket · Form Mode* for structured intake. The searchable library includes chapter links, English captions, transcripts and individual MP4 downloads. See the [recording and verification guide](scripts/field-guide/README.md).
+
 ## Stack
 
 | Layer      | Choice                                                                 |

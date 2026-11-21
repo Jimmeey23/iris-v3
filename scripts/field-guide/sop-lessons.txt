@@ -1,0 +1,138 @@
+# Collection: Operations SOPs. Each beat is a locator-action range from one authenticated capture, a chapter title, a checklist prompt and the voiceover.
+27 | Recurrence handling: decide, record and verify
+6:0-2 | Identify the check | Match check → original → equipment | Start on the day five check, not the original repair. There are two numbers here. Match the original ticket, the equipment, and the symptom before you touch an outcome.
+6:2 | Reconstruct the test | Test the reported condition | Read the repair history. For this microphone, the cable was replaced because moving it interrupted the audio. Test that condition on the same unit according to your studio procedure. Silence from the reporter is not a test. If you cannot verify the result, leave the check open and arrange a test.
+6:3-4 | Record a failed check | Unit + trigger + observed symptom | Here the sound cuts out again. Choose Fault returned. In the note, identify mic five, describe the movement that triggered the dropout, and say what you observed.
+6:5-7 | Verify the reopened repair | Match the reopened number | Check the number on Reopen before confirming. Follow Open back to the original and verify its number and reopened state. Keep the evidence on that repair rather than creating another ticket.
+24:0-2 | Compare the pass branch | Separate example: Bike 12 | Now compare a separate check for bike twelve. The reported symptom was a click during climbs.
+24:3-4 | Record a passed check | Pass only after the actual test | Once the same bike has been tested and the symptom has not returned, select No recurrence.
+24:5-7 | Inspect the schedule | Current outcome ≠ next check | Look for the saved outcome, open the original, and read the schedule. A pass applies to this check; it is not evidence that a later check has already been done.
+
+28 | Form Mode: from fault report to saved record
+1:0-1 | Choose the intake path | Structured entry • Form Mode | Use Form Mode when you know the issue and want to enter it field by field. Start in AI Assistant, then switch to Form Mode before typing.
+1:2 | Write a searchable title | Equipment + failure | Write a title that names the equipment and the failure. Headset microphone cuts out is more useful in a queue than please help.
+1:3 | Capture evidence | Unit + symptom + workaround | In the description, separate observation from diagnosis. Record which unit failed, the movement that caused the sound to drop, and the spare used to keep class running. Do not call the cable defective unless someone has verified it.
+1:4-8 | Validate routing | Category → subtype → priority | Choose Next. Under Repair and Maintenance, pick Audio, Mic and Headphone Malfunction. Read the suggested priority in light of the actual disruption.
+1:9-12 | Specify the location and people | Use the affected studio | On the location step, select the studio where the equipment failed, not the office filing the report. Work through the people and detail steps. Do not invent an instructor or a member to fill an optional field.
+1:13-14 | Authorize one submission | Compare the draft with the report | At Review and Submit, compare the title, category and studio with your original report. If anything disagrees, go back before creating the ticket. Select Create Ticket once.
+1:15-18 | Verify persistence | Same number after reload | In All Tickets, open the new row, note the ticket number, and reload. The same number and title are your evidence that the report was saved.
+
+29 | AI Assistant: validate the draft before approval
+26:0-1 | Describe one incident | Studio + unit + observation | Open AI Assistant and describe one incident in plain language. Include the studio, the exact equipment, what happened, and what kept the class running. In this report, mic four loses audio when the instructor turns.
+26:2-3 | Audit the suggestion | An intake card is not a ticket | Send the report and wait for the assistant's intake card. Treat the classification as a suggestion. The text says microphone, but the suggested category is not the repair route this incident needs.
+26:4-5 | Correct the classification | Read both classification fields | Choose Repair and Maintenance, then Audio, Mic and Headphone Malfunction. Check the selected studio against the report.
+26:6-8 | Identify the failed equipment | Area → device → symptom | Identify the area as Barre Studio, the device as Headset mic, and the problem as Cutting out.
+26:9-12 | Record operational impact | Answer from facts, not guesses | Answer the remaining questions from the incident, not from a guess. The next class, when it started, whether the unit is in use, and the impact on the member experience are different facts.
+26:13-14 | Review the draft | Stop if the draft disagrees | Select Review ticket. This is still a draft. Read its title, routing and issue details; correct a mismatch before approval.
+26:15-17 | Approve and open | Wait for the created number | Select Approve and create once. Wait for the created ticket number before opening the record.
+26:18-20 | Verify the saved record | Match the header after reload | Compare the ticket header with the draft, then reload and confirm the same number persists. A completed chat exchange by itself is not proof of a saved ticket.
+
+30 | Prevent a duplicate repair report
+2:0-1 | Search first | Look for the supplied identifier | Before raising a second microphone report, search All Tickets using the equipment or ticket number already supplied.
+14:1-4 | Compare candidates | Studio + asset + symptom | In Split view, compare the studio, asset and failure condition, not just two similar titles.
+17:0-4 | Add evidence once | Same incident → existing thread | If the existing record is the same incident, open it and add the new observation to Comments instead of submitting another repair.
+
+31 | Shift opening: reconcile urgent work and ownership
+9:0-2 | Build the intersection | Open + urgent + unassigned | At shift opening, select the Open scope, then combine the urgent priority shortcut with Unassigned.
+9:3 | Interpret an empty result | Empty only within this scope | Read the result as an intersection: a blank list does not mean that every urgent ticket has an owner in every scope.
+9:4,16:0-3 | Validate ownership | Verify the owner on the record | Clear the filters, switch to Owners, and inspect the primary owner on the individual ticket before handing it over.
+
+32 | Validate a saved morning review
+10:0-1 | Define the population | Start from known filters | To make tomorrow's review reproducible, start with a clean queue and apply the priority shortcut.
+10:2-6 | Test the saved filter | Name it, save it, clear it | Save the current filters under a name that describes the review, then clear them to test the saved view rather than the current screen.
+10:7-9,9:2 | Verify the recalled condition | Priority is not ownership | Recall the name and check the priority indicator; if you need unassigned work as well, apply that condition explicitly.
+
+33 | Compare studio backlogs without miscounting
+11:0-2 | Read studio totals | Read counts within a group | For a studio workload review, first group the queue by Studio and read each heading and count.
+11:3-5 | Compare nested priorities | A collapsed row is not gone | Use Then by to compare priority inside a single studio; collapsing a group only hides its rows.
+12:0-4 | Check the denominator | Scope selects; sort orders | Before reporting a backlog, inspect the scope and sort order so a display choice is not mistaken for a change in workload.
+
+34 | Reconstruct an incident from a date
+15:0-2 | Find the report | Date group + matching title | When a colleague remembers the day but not the number, switch the queue to Timeline and match the date group and ticket title.
+15:3-4 | Separate event dates | Actor + action + timestamp | Open the candidate and read Activity for the event, actor and time, rather than treating the report date as the time of the repair.
+2:3-4 | Cross-check identity | Confirm studio and equipment | Use Details to confirm the studio and equipment before quoting that history.
+
+35 | Diagnose a stalled board card
+13:0-3 | Inspect the card | A column is a starting point | When a status board looks stalled, open the card rather than assuming nobody is working on it.
+2:5,3:8 | Read the dependency | Status + owner + last note | Read the status and owner together, then inspect the latest resolution note for the dependency.
+18:2-5 | Give the next shift a test | Record the action, not a false closure | If the next shift still owes a test, record a follow-up naming the check; do not mark the repair resolved just to clear the column.
+
+36 | Put a repair on hold with evidence
+3:0-2 | Establish what changed | Work performed vs response owed | When a repair is waiting on a person, distinguish the work already done from the response still missing.
+3:3-4 | Record the blocker | Use the status that matches reality | In Status and Assignment, choose Awaiting Response only when that describes the actual blocker.
+3:5-8 | Leave a verifiable note | Name the test and who owes it | Add a resolution note naming the test and who owes confirmation; verify the saved line so the next shift can act without rereading the whole thread.
+
+37 | Apply a repair closure gate
+2:3-4 | Set the acceptance test | Test the original symptom | Before closing a repair, compare the original symptom with the conditions of the test.
+4:1-3 | Document the repair | Evidence first; cause only if known | Open Mark Resolved and write the repair and the observed test result in the summary; enter a root cause only if the evidence supports it.
+4:4-5 | Confirm the state change | Read the saved badge | Confirm Resolution and read the new badge, because entering a summary without confirming is not a completed status change.
+
+38 | Write a handover the next shift can execute
+2:5 | Establish responsibility | Who owns the next action? | For an evening handover, read the current status and identify who is responsible before writing.
+18:1-4 | Create the follow-up | Shift + equipment + next action | In Resolution Log choose Follow-up, name the shift, the equipment and the next action, then submit.
+18:5,2:5 | Verify two facts | Saved follow-up ≠ reassignment | Read the saved entry back and check the owner separately; a follow-up records work to do but does not transfer responsibility.
+
+39 | Investigate a reported missed response
+21:0-2 | Locate the response clock | Read the named milestone | If a reporter says nobody responded, open the exact ticket and locate the first response line under SLA Tracking.
+21:3-4 | Separate the resolution target | Response is not resolution | Read that target separately from the resolution target; a response can be complete while repair work is still due.
+15:3-4 | Reconcile the evidence | Corroborate the event in Activity | Compare the clocks with Activity before explaining which milestone was met and what remains outstanding.
+
+40 | Escalate a decision that the owner cannot make
+22:0 | Check the current rung | Identify the missing authority | When a technician needs approval beyond the current level, inspect the highlighted rung before escalating.
+22:1-2 | State the decision | Say what approval is needed | Use Escalate inside the ladder and record the decision needed, not simply the word urgent.
+22:3-5 | Audit the move | Confirm level and saved reason | Confirm the proposed level, then expand History and check the reason; a future escalation time is not a recorded move.
+
+41 | Return authority after an approval
+23:0 | Confirm the blocker cleared | Can the local owner proceed? | After approval arrives, check the current level and whether the local owner can now continue.
+23:1-2 | Give the reason | Document what changed | Choose De-escalate and state what changed, such as approval of the replacement part.
+23:3-5 | Check the lower rung | Authority changed; repair remains | Confirm the lower level and inspect History; lowering the escalation does not resolve the equipment fault.
+
+42 | Audit a disputed escalation
+5:0-1 | Identify the record | Open the specific exception | To audit a disputed escalation, open the specific ticket from Escalations rather than relying on a queue count.
+5:2-5 | Reconcile two histories | Sequence in Activity; reason in History | Read Activity for the sequence of events, then expand ladder History for the reason behind the move.
+5:6,22:0 | Explain the decision | Position alone is not a reason | Compare that reason with the current rung; the latest position alone cannot tell you why a previous decision was made.
+
+43 | Trace a parts dependency without merging tickets
+20:0 | Keep the work distinct | Repair and stock have different histories | When the spare cable has its own work order, keep the repair and stock request as separate records.
+20:1-4 | Create the relationship | Match the other number and title | Search from Link Related Ticket using the other number, select the matching title, and check that the linked number appears.
+20:5-6 | Verify the destination | Open the linked work order | Open the link to verify its destination before telling a colleague the dependency is documented.
+
+44 | Separate a desk update from an action request
+17:0-1 | Read before posting | Avoid repeating the thread | For a front desk update, first read Comments so you do not repeat an earlier message.
+17:2-4 | Record the change | Concrete observation + author | Post the concrete change, such as the spare being ready, and verify it appears with its author.
+18:2-5 | Assign a next check in writing | Discussion is not a status change | If another shift must perform a test, put that action in a resolution follow-up as well; do not rely on a discussion message to change status.
+
+45 | Distinguish a tracking tag from a routing category
+19:0-1 | Choose the vocabulary | Use a consistent test label | Use a tag when a cross-cutting label such as sound check would help colleagues recognise the work.
+19:2-5 | Save and verify the label | Check Tags under Details | Add the short label in Resolution Center, press Enter and verify it under Details.
+26:4-5 | Recognize a routing correction | Tagging cannot reroute intake | Compare it with the category: a tag can describe a test, but it cannot correct a wrongly routed intake.
+
+46 | Recover a ticket hidden by scope or filters
+8:0-2 | Check the queue boundary | Personal vs department scope | When a ticket seems missing, check whether you are in My Tickets or the department queue.
+8:3,9:4,2:1 | Reset and search | Clear conditions; enter exact number | Move to All Tickets, clear filters and search for the exact number before assuming the record was lost.
+2:2-4 | Verify the match | Match the title, not just the row | Open the match and verify the title; a different queue changes what you see, not the underlying repair.
+
+47 | Use a ticket number for a live handoff
+25:0-1 | Search precisely | Use the number from the handoff | During a live handoff, open quick search and enter the ticket number rather than an ambiguous equipment name.
+25:2-4 | Read the result and header | Match before discussing the case | Read the matching result before opening it, then compare the workspace header with the number you were given.
+2:3-5 | Validate location and owner | Studio + current owner | Use Details to verify the studio and owner before discussing the case.
+
+48 | Choose the right record before documenting work
+14:0-4 | Compare before opening | Read both previews | When two tickets look similar, select them in Split view and compare their descriptions without leaving the list.
+20:2-4 | Separate asset from task | Same microphone, different work | Distinguish the failed microphone from the separate replacement cable request; different work can share equipment and staff.
+20:5-6 | Enter the right workspace | Confirm the title before writing | Open the right record before adding a note so the evidence stays with the incident it describes.
+
+49 | Bike recurrence: certify a tested pass
+24:0-2 | Match the original bike | Verify unit and original symptom | For a passed bike check, start by matching the original ticket number and the reported pedal noise.
+24:3-4 | Apply the pass gate | Unavailable is not a pass | Only after the same unit has been tested should you select No recurrence; if the bike is unavailable, leave the check open.
+24:5-7 | Check the schedule | Current result vs later appointment | Verify the outcome on the check and open the original schedule to distinguish this result from a future appointment.
+
+50 | Microphone recurrence: reopen with diagnostic evidence
+6:0-2 | Confirm recurrence | Read the original repair history | For a failed microphone check, read the original history before deciding whether this is the same fault.
+6:3-4 | Describe the returned symptom | Trigger + observation, not a guess | Choose Fault returned and describe the repeated symptom and the condition that triggers it; do not substitute an unverified cause.
+6:5-7 | Route back to the repair | Verify the original ticket number | Confirm Reopen against the original number and verify the destination instead of filing a second microphone repair.
+
+51 | Shift sign-off: deliver an actionable case summary
+25:0-4 | Find the exact record | Start with a durable identifier | Before ending a shift, test the handoff as if you were the incoming lead.
+2:5,18:5 | Name the outstanding work | Owner + state + next action | Open the ticket by number, verify its status and owner, and read the latest follow-up for the next action.
+22:0,22:4-5 | State the outstanding decision | Consult the rung and the reason | If the work is escalated, compare the current rung with its history so you can say who needs to decide what, rather than just reporting that the ticket is open.

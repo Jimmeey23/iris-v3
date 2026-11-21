@@ -65,3 +65,6 @@ db/import/
 .env
 .env.*
 !.env.example
+
+# Python media authoring tools
+__pycache__/

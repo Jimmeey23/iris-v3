@@ -1,0 +1,13 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:03.640
+Select Owners in the queue layouts to compare assignments.
+
+00:00:03.640 --> 00:00:08.790
+Each column is a primary owner, with unassigned work shown separately when present.
+
+00:00:08.790 --> 00:00:13.170
+Open a card and inspect Status and Assignment before handing off the work.
+
+00:00:13.170 --> 00:00:17.815
+The ticket can have more than one owner even though the board groups it by its primary owner.
