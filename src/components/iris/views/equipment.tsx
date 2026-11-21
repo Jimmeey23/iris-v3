@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/iris/live-data";
 import { useAppStore } from "@/lib/iris/store";
-import { EquipmentInsights, type MonthlyRow } from "@/components/iris/equipment-insights";
 
 type Fault = { id: string; ticket_id: string; title: string; status: string; priority: string; created_at: string; resolved_at: string | null };
 type Item = {
@@ -104,7 +103,6 @@ function groupKey(i: Item, by: GroupBy): { key: string; label: string; order: nu
 
 export function EquipmentView() {
   const [items, setItems] = React.useState<Item[] | null>(null);
-  const [monthly, setMonthly] = React.useState<MonthlyRow[]>([]);
   const [canEdit, setCanEdit] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -127,9 +125,8 @@ export function EquipmentView() {
     setLoading(true);
     setError(null);
     try {
-      const r = await api<{ items: Item[]; monthly?: MonthlyRow[]; canEdit: boolean }>("/api/equipment");
+      const r = await api<{ items: Item[]; canEdit: boolean }>("/api/equipment");
       setItems(r.items);
-      setMonthly(r.monthly ?? []);
       setCanEdit(r.canEdit);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load equipment");
@@ -207,16 +204,8 @@ export function EquipmentView() {
   }
 
   const studios = [...new Map(items.map((i) => [i.studio_code, i.studio_name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  const numberedFaults = items.filter((i) => !unidentified(i)).reduce((n, i) => n + i.faults_total, 0);
-  const unnumbered = items.filter(unidentified).reduce((n, i) => n + i.faults_total, 0);
   const counts = { replace: 0, open: 0, healthy: 0 } as Record<Health, number>;
   for (const i of items) counts[health(i)]++;
-  const stats = [
-    { label: "Tracked items", value: items.length, sub: `${items.filter((i) => i.status === "in_service").length} in service`, icon: Wrench, tone: "text-violet-500 bg-violet-500/10" },
-    { label: "Open faults", value: items.reduce((n, i) => n + i.open_faults, 0), sub: `${counts.open + counts.replace} units affected`, icon: XCircle, tone: "text-amber-500 bg-amber-500/10", health: "open" as Health },
-    { label: "Replace candidates", value: counts.replace, sub: "3+ faults in 90d or 2+ failed re-checks", icon: AlertTriangle, tone: "text-rose-500 bg-rose-500/10", health: "replace" as Health },
-    { label: "Faults · 90 days", value: items.reduce((n, i) => n + i.faults_90d, 0), sub: `${items.reduce((n, i) => n + i.faults_total, 0)} all-time`, icon: Clock, tone: "text-sky-500 bg-sky-500/10" },
-  ];
 
   const filtersActive = query || kind !== "all" || studio !== "all" || statusF !== "all" || healthF.size || hideRetired;
   const clearFilters = () => { setQuery(""); setKind("all"); setStudio("all"); setStatusF("all"); setHealthF(new Set()); setHideRetired(false); };
@@ -237,37 +226,25 @@ export function EquipmentView() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-4">
       {/* Header */}
-      <div className="flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground mb-1">
-            <Wrench className="w-3 h-3 text-violet-500" /> Studio equipment · Live from repair tickets
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <Wrench className="w-5 h-5" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Equipment</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Every bike, microphone and AC system, its fault history and re-check results - so repeat failures get replaced, not patched again.</p>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight leading-tight">Equipment</h1>
+            <p className="text-[12px] text-muted-foreground">Bikes, mics, speakers and AC in every studio, with their repair history.</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={exportCsv} disabled={!shown.length}>
-            <Download className="w-3.5 h-3.5 mr-1.5" />Export CSV
+            <Download className="w-3.5 h-3.5 mr-1.5" />Export
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}Refresh
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={load} disabled={loading} title="Refresh" aria-label="Refresh">
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
           </Button>
         </div>
       </div>
-
-      <EquipmentInsights items={items} monthly={monthly} healthFilter={healthF}
-        onHealth={(h) => toggle(setHealthF, h)}
-        onOpen={(id) => { setLayout("fleet"); setFocus(id); requestAnimationFrame(() => document.getElementById(`eq-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })); }} />
-
-      {unnumbered > 0 && (
-        <div className="iris-card p-3 flex items-start gap-2.5 border border-sky-500/30">
-          <HelpCircle className="w-4 h-4 text-sky-500 mt-0.5 shrink-0" />
-          <div className="text-[12px]">
-            <span className="font-semibold">{unnumbered} of {unnumbered + numberedFaults} faults don't say which bike or mic.</span>{" "}
-            <span className="text-muted-foreground">IRIS read the title, description and intake answers of each one and found no bike number or mic location, so they sit under “Unidentified” per studio. Ask teams to name the unit (e.g. “Bike 7”, “mic in Studio 2”) - IRIS picks it up automatically.</span>
-          </div>
-        </div>
-      )}
 
       {/* Controls */}
       <div className="iris-card-elevated p-3 space-y-2.5 sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-background/85">
@@ -282,12 +259,23 @@ export function EquipmentView() {
           <Select value={statusF} onChange={(v) => setStatusF(v as typeof statusF)} label="Status" options={[["all", "Any status"], ...Object.entries(STATUS)]} />
         </div>
         <div className="flex items-center gap-2 flex-wrap text-[12px]">
-          <span className="flex items-center gap-1 text-muted-foreground"><Layers className="w-3.5 h-3.5" />Group</span>
+          {(["open", "replace"] as Health[]).map((h) => (
+            <button key={h} onClick={() => toggle(setHealthF, h)} aria-pressed={healthF.has(h)}
+              className={cn("h-7 px-2.5 rounded-full border inline-flex items-center gap-1.5 transition-colors",
+                healthF.has(h) ? HEALTH[h].chip + " font-semibold" : "border-border text-muted-foreground hover:text-foreground")}>
+              <span className={cn("w-2 h-2 rounded-full", HEALTH[h].dot)} />{HEALTH[h].label}
+              <span className="tabular-nums">{counts[h]}</span>
+            </button>
+          ))}
+          {layout === "fleet" && <FaultScale />}
+          {layout !== "fleet" && <>
+          <span className="flex items-center gap-1 text-muted-foreground ml-1"><Layers className="w-3.5 h-3.5" />Group</span>
           <Select value={groupBy} onChange={(v) => { setGroupBy(v as GroupBy); setCollapsed(new Set()); }} label="Group by"
             options={[["studio", "Studio"], ["city", "City"], ["kind", "Type"], ["health", "Health"], ["none", "No grouping"]]} />
           <span className="flex items-center gap-1 text-muted-foreground ml-1"><ArrowDownUp className="w-3.5 h-3.5" />Sort</span>
           <Select value={sortBy} onChange={(v) => setSortBy(v as SortBy)} label="Sort by"
             options={[["risk", "Highest risk"], ["faults", "Most faults"], ["recent", "Latest fault"], ["repair", "Slowest repair"], ["label", "Name"]]} />
+          </>}
           <label className="flex items-center gap-1.5 text-muted-foreground cursor-pointer ml-1">
             <input type="checkbox" checked={hideRetired} onChange={(e) => setHideRetired(e.target.checked)} className="accent-[var(--primary)]" />Hide retired
           </label>
@@ -412,9 +400,9 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
   })).filter((g) => g.list.length);
   return (
     <section className="iris-card-elevated overflow-hidden">
-      <header className="px-4 py-3 flex items-center gap-3 flex-wrap border-b border-border bg-muted/30">
+      <header className="px-5 py-3.5 flex items-center gap-3 flex-wrap border-b border-border">
         <div className="min-w-0">
-          <div className="text-[14px] font-semibold leading-tight">{name}</div>
+          <div className="text-[15px] font-semibold leading-tight">{name}</div>
           <div className="text-[11px] text-muted-foreground">{city} · {items.length} tracked unit{items.length === 1 ? "" : "s"}</div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -422,27 +410,17 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
           {open > 0 && <Chip tone={HEALTH.open.chip}>{open} open</Chip>}
           {!replace && !open && <Chip tone={HEALTH.healthy.chip}>All healthy</Chip>}
         </div>
-        <HealthBar items={items} className="ml-auto h-2 w-40 max-w-full" />
       </header>
-      <div className="p-4 space-y-4">
-        <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground">
-          <span>Fewer faults</span>
-          <div className="flex gap-[2px]">
-            {HEAT_TEXT.map((c) => <span key={c} className={cn("w-5 h-2.5 rounded-sm bg-current", c)} />)}
-          </div>
-          <span>More faults</span>
-          <span className="ml-3 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />open</span>
-          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" />replace</span>
-        </div>
+      <div className="p-5 space-y-5">
         {byKind.map(({ k, list }) => {
           const K = KIND[k];
           return (
-            <div key={k} className="grid gap-2 md:grid-cols-[140px_minmax(0,1fr)] items-start">
-              <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground pt-2">
+            <div key={k} className="space-y-2">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <K.icon className="w-4 h-4" />{K.label}
                 <span className="tabular-nums text-[10.5px]">{list.length}</span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 {list.map((i) => <Tile key={i.id} item={i} max={maxFaults} active={focus === i.id} onClick={() => onFocus(i.id)} />)}
               </div>
             </div>
@@ -714,5 +692,16 @@ function EditField({ label, value, disabled, onSave, multiline, required }: {
         <Input value={v} disabled={disabled} onChange={(e) => setV(e.target.value)} onBlur={commit} className="h-8 text-[12px]" />
       )}
     </label>
+  );
+}
+
+/** Colour key for the equipment tiles. */
+function FaultScale() {
+  return (
+    <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+      Fewer faults
+      <span className="flex gap-[2px]">{HEAT_TEXT.map((c) => <span key={c} className={cn("w-4 h-2 rounded-sm bg-current", c)} />)}</span>
+      More
+    </span>
   );
 }

@@ -24,25 +24,14 @@ export async function GET() {
         if (list.length < 12) list.push(f);
         byItem.set(f.equipment_id, list);
       }
-      // Faults per month and type for the last 12 months (a ticket naming two bikes counts once per type).
-      const monthly = (
-        await c.query(
-          `select to_char(date_trunc('month', t.created_at at time zone 'Asia/Kolkata'), 'YYYY-MM') as month, e.kind,
-                  count(distinct t.id)::int as n
-             from equipment_tickets et join tickets t on t.id = et.ticket_id join equipment e on e.id = et.equipment_id
-            where t.created_at >= date_trunc('month', now()) - interval '11 months'
-            group by 1, 2 order by 1`,
-        )
-      ).rows as Array<{ month: string; kind: string; n: number }>;
-      const list = items.map((i) => ({
+      return items.map((i) => ({
         ...i,
         avg_repair_h: i.avg_repair_h === null ? null : Number(i.avg_repair_h),
         replace_candidate: i.faults_90d >= 3 || i.rechecks_failed >= 2,
         faults: (byItem.get(i.id) ?? []).map(({ equipment_id: _e, ...f }) => f),
       }));
-      return { list, monthly };
     });
-    return NextResponse.json({ items: data.list, monthly: data.monthly, canEdit: auth.session.role !== "executive" });
+    return NextResponse.json({ items: data, canEdit: auth.session.role !== "executive" });
   } catch (err) {
     return dbError(err);
   }
