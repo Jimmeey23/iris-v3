@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/iris/live-data";
 import { useAppStore } from "@/lib/iris/store";
-import { EquipmentInsights, heatClass, type MonthlyRow } from "@/components/iris/equipment-insights";
+import { EquipmentInsights, type MonthlyRow } from "@/components/iris/equipment-insights";
 
 type Fault = { id: string; ticket_id: string; title: string; status: string; priority: string; created_at: string; resolved_at: string | null };
 type Item = {
@@ -428,7 +428,7 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
         <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground">
           <span>Fewer faults</span>
           <div className="flex gap-[2px]">
-            {[0, 1, 2, 3, 4, 5].map((n) => <span key={n} className={cn("w-5 h-2.5 rounded-sm", heatClass(n === 0 ? 1 : Math.round(1 + (n / 5) * (maxFaults - 1)), maxFaults))} />)}
+            {HEAT_TEXT.map((c) => <span key={c} className={cn("w-5 h-2.5 rounded-sm bg-current", c)} />)}
           </div>
           <span>More faults</span>
           <span className="ml-3 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />open</span>
@@ -459,40 +459,72 @@ function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
   );
 }
 
+/** Silhouettes drawn in currentColor so the heat colour fills the shape itself. */
+function Silhouette({ kind, className }: { kind: Item["kind"]; className?: string }) {
+  const common = { viewBox: "0 0 64 48", className, "aria-hidden": true } as const;
+  switch (kind) {
+    case "bike": // stationary spin bike: flywheel, frame, saddle, bars, base
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="46" cy="30" r="9" fill="currentColor" fillOpacity="0.25" />
+          <path d="M14 42h40M18 42l8-18M26 24l20 6M26 24l-4-10M17 14h10M46 30l-2-18M40 12h9" />
+          <circle cx="30" cy="31" r="2.5" fill="currentColor" />
+        </svg>
+      );
+    case "mic": // headset mic
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 30V24a14 14 0 0 1 28 0v6" />
+          <rect x="13" y="26" width="8" height="13" rx="3" fill="currentColor" fillOpacity="0.25" />
+          <rect x="43" y="26" width="8" height="13" rx="3" fill="currentColor" fillOpacity="0.25" />
+          <path d="M17 39c0 4 5 6 12 6" />
+          <circle cx="31" cy="45" r="2.6" fill="currentColor" />
+        </svg>
+      );
+    case "audio": // speaker cabinet
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="18" y="4" width="28" height="40" rx="4" fill="currentColor" fillOpacity="0.15" />
+          <circle cx="32" cy="14" r="4" />
+          <circle cx="32" cy="31" r="8" fill="currentColor" fillOpacity="0.25" />
+          <circle cx="32" cy="31" r="2" fill="currentColor" />
+        </svg>
+      );
+    default: // split AC unit with airflow
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="6" y="6" width="52" height="20" rx="4" fill="currentColor" fillOpacity="0.15" />
+          <path d="M12 20h40" />
+          <path d="M18 32c-2 4 2 6 0 10M32 32c-2 4 2 6 0 10M46 32c-2 4 2 6 0 10" />
+        </svg>
+      );
+  }
+}
+
+/** Heat colour as text colour, so it paints the silhouette. Same ramp as the legend. */
+const HEAT_TEXT = ["text-[#86b6ef]", "text-[#6da7ec]", "text-[#3987e5]", "text-[#2a78d6]", "text-[#256abf]", "text-[#184f95]"];
+const heatText = (f: number, max: number) =>
+  f === 0 ? "text-muted-foreground/50" : HEAT_TEXT[Math.min(HEAT_TEXT.length - 1, Math.floor(((f - 1) / Math.max(1, max - 1)) * (HEAT_TEXT.length - 1)))];
+
 function Tile({ item: i, max, active, onClick }: { item: Item; max: number; active: boolean; onClick: () => void }) {
   const h = health(i);
   const unknown = unidentified(i);
-  const numbered = i.number !== null;
-  const main = numbered ? String(i.number) : i.location ?? (i.kind === "ac" ? "AC" : "?");
-  const Icon = KIND[i.kind].icon;
+  const name = unknown ? "Unidentified" : i.number !== null ? `#${i.number}` : i.location ?? (i.kind === "ac" ? "AC" : "-");
   return (
     <button id={`eq-${i.id}`} onClick={onClick} aria-pressed={active}
       title={`${i.label} · ${i.faults_total} fault${i.faults_total === 1 ? "" : "s"}${i.open_faults ? ` · ${i.open_faults} open` : ""}${i.replace_candidate ? " · replace candidate" : ""}`}
       className={cn(
-        "relative rounded-xl text-left transition-all hover:-translate-y-0.5 hover:shadow-md",
-        numbered ? "w-[58px] h-[58px] flex flex-col items-center justify-center" : "min-w-[120px] max-w-[190px] px-3 py-2",
-        unknown ? "border-2 border-dashed border-border bg-muted/40 text-muted-foreground" : heatClass(i.faults_total, max),
+        "relative w-[92px] h-[92px] shrink-0 rounded-2xl border bg-background flex flex-col items-center justify-center gap-0.5 px-1.5 transition-all hover:-translate-y-0.5 hover:shadow-md",
+        unknown ? "border-dashed border-2" : "border-border",
         active && "ring-2 ring-offset-2 ring-offset-background ring-primary",
         i.status === "retired" && "opacity-40",
       )}>
       {h !== "healthy" && (
-        <span className={cn("absolute -top-1 -right-1 w-3 h-3 rounded-full ring-2 ring-background", HEALTH[h].dot)} aria-label={HEALTH[h].label} />
+        <span className={cn("absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-background", HEALTH[h].dot)} aria-label={HEALTH[h].label} />
       )}
-      {numbered ? (
-        <>
-          <Icon className="w-3 h-3 opacity-70" />
-          <span className="text-[17px] font-bold tabular-nums leading-none mt-0.5">{main}</span>
-          <span className="text-[9px] tabular-nums opacity-80 mt-0.5">{i.faults_total}×</span>
-        </>
-      ) : (
-        <>
-          <div className="flex items-center gap-1.5">
-            <Icon className="w-3.5 h-3.5 opacity-70 shrink-0" />
-            <span className="text-[12px] font-semibold truncate">{unknown ? "Unidentified" : main}</span>
-          </div>
-          <div className="text-[10px] tabular-nums opacity-80 mt-0.5">{i.faults_total} fault{i.faults_total === 1 ? "" : "s"}{i.open_faults ? ` · ${i.open_faults} open` : ""}</div>
-        </>
-      )}
+      <Silhouette kind={i.kind} className={cn("w-12 h-9", unknown ? "text-muted-foreground/40" : heatText(i.faults_total, max))} />
+      <span className={cn("w-full text-center truncate font-semibold leading-tight", i.number !== null ? "text-[14px] tabular-nums" : "text-[11px]")}>{name}</span>
+      <span className="text-[9.5px] tabular-nums text-muted-foreground leading-none">{i.faults_total} fault{i.faults_total === 1 ? "" : "s"}</span>
     </button>
   );
 }
