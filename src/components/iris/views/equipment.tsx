@@ -116,6 +116,7 @@ export function EquipmentView() {
   const [sortBy, setSortBy] = React.useState<SortBy>("risk");
   const [layout, setLayout] = React.useState<"fleet" | "list" | "grid">("fleet");
   const [focus, setFocus] = React.useState<string | null>(null);
+  const [board, setBoard] = React.useState<string | null>(null);
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
   const [open, setOpen] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
@@ -315,23 +316,33 @@ export function EquipmentView() {
         )}
       </div>
 
-      {layout === "fleet" && (
-        <div className="space-y-4">
-          {studios
-            .filter(([code]) => shown.some((i) => i.studio_code === code))
-            .map(([code, name]) => (
-              <StudioFloor key={code} name={name} items={shown.filter((i) => i.studio_code === code)}
-                focus={focus} onFocus={(id) => setFocus((f) => (f === id ? null : id))}
-                canEdit={canEdit} onUpdate={update} />
-            ))}
-          {!shown.length && (
+      {layout === "fleet" && (() => {
+        const nav = studios
+          .map(([code, name]) => ({ code, name, items: shown.filter((i) => i.studio_code === code) }))
+          .filter((x) => x.items.length);
+        if (!nav.length) {
+          return (
             <div className="iris-card text-center py-16 space-y-2">
               <Search className="w-5 h-5 text-muted-foreground mx-auto" />
               <div className="text-[13px] text-muted-foreground">No equipment matches.</div>
+              {filtersActive ? <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={clearFilters}>Clear filters</Button> : null}
             </div>
-          )}
-        </div>
-      )}
+          );
+        }
+        const current = nav.find((x) => x.code === board) ?? [...nav].sort((a, b) => riskScore(b.items) - riskScore(a.items))[0];
+        const unit = items.find((i) => i.id === focus && i.studio_code === current.code) ?? null;
+        return (
+          <div className={cn("grid gap-4 items-start", unit ? "lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_360px]" : "lg:grid-cols-[230px_minmax(0,1fr)]")}>
+            <StudioNav studios={nav} current={current.code} onPick={(c) => { setBoard(c); setFocus(null); }} />
+            <StudioBoard name={current.name} items={current.items} focus={focus} onFocus={(id) => setFocus((f) => (f === id ? null : id))} />
+            {unit && (
+              <div className="lg:col-span-2 xl:col-span-1 xl:sticky xl:top-[88px]">
+                <UnitPanel item={unit} canEdit={canEdit} onClose={() => setFocus(null)} onUpdate={(c) => update(unit.id, c)} />
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Groups */}
       {layout !== "fleet" && <div className="space-y-5">
@@ -378,62 +389,180 @@ export function EquipmentView() {
   );
 }
 
-/**
- * One studio laid out like the floor: bikes as numbered tiles in order, mics and
- * speakers by location, AC last. Unidentified units sit at the end of each row.
- * Clicking a tile opens its full card underneath.
- */
-function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
-  name: string; items: Item[]; focus: string | null; onFocus: (id: string) => void;
-  canEdit: boolean; onUpdate: (id: string, c: Partial<Item>) => void;
-}) {
-  const city = items[0]?.city;
-  const open = items.reduce((n, i) => n + i.open_faults, 0);
-  const replace = items.filter((i) => i.replace_candidate).length;
-  const focused = items.find((i) => i.id === focus);
-  const maxFaults = Math.max(1, ...items.filter((i) => !unidentified(i)).map((i) => i.faults_total));
-  const byKind = KIND_ORDER.map((k) => ({
-    k,
-    list: items
-      .filter((i) => i.kind === k)
-      .sort((a, b) => Number(unidentified(a)) - Number(unidentified(b)) || (a.number ?? 999) - (b.number ?? 999) || (a.location ?? "").localeCompare(b.location ?? "")),
-  })).filter((g) => g.list.length);
+const attention = (list: Item[]) => ({
+  open: list.reduce((n, i) => n + i.open_faults, 0),
+  replace: list.filter((i) => i.replace_candidate).length,
+});
+
+/** Left rail: one row per studio with what needs attention there. */
+function StudioNav({ studios, current, onPick }: { studios: Array<{ code: string; name: string; items: Item[] }>; current: string; onPick: (code: string) => void }) {
   return (
-    <section className="iris-card-elevated overflow-hidden">
-      <header className="px-5 py-3.5 flex items-center gap-3 flex-wrap border-b border-border">
-        <div className="min-w-0">
-          <div className="text-[15px] font-semibold leading-tight">{name}</div>
-          <div className="text-[11px] text-muted-foreground">{city} · {items.length} tracked unit{items.length === 1 ? "" : "s"}</div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {replace > 0 && <Chip tone={HEALTH.replace.chip}>{replace} replace</Chip>}
-          {open > 0 && <Chip tone={HEALTH.open.chip}>{open} open</Chip>}
-          {!replace && !open && <Chip tone={HEALTH.healthy.chip}>All healthy</Chip>}
-        </div>
-      </header>
-      <div className="p-5 space-y-5">
-        {byKind.map(({ k, list }) => {
-          const K = KIND[k];
-          return (
-            <div key={k} className="space-y-2">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <K.icon className="w-4 h-4" />{K.label}
-                <span className="tabular-nums text-[10.5px]">{list.length}</span>
-              </div>
-              <div className="flex flex-wrap gap-2.5">
-                {list.map((i) => <Tile key={i.id} item={i} max={maxFaults} active={focus === i.id} onClick={() => onFocus(i.id)} />)}
-              </div>
+    <nav aria-label="Studios" className="iris-card-elevated p-2 flex lg:flex-col gap-1 overflow-x-auto lg:sticky lg:top-[88px]">
+      <div className="hidden lg:block px-2.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Studios</div>
+      {studios.map((s) => {
+        const a = attention(s.items);
+        const on = s.code === current;
+        return (
+          <button key={s.code} onClick={() => onPick(s.code)} aria-current={on ? "page" : undefined}
+            className={cn("shrink-0 lg:w-full text-left rounded-lg px-2.5 py-2 transition-colors",
+              on ? "bg-primary/10 text-primary" : "hover:bg-muted/60")}>
+            <div className="flex items-center gap-2">
+              <span className={cn("text-[12.5px] truncate", on ? "font-semibold" : "font-medium text-foreground")}>{s.name.split(",")[0]}</span>
+              <span className="ml-auto flex items-center gap-1">
+                {a.replace > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-semibold flex items-center justify-center tabular-nums" title={`${a.replace} replace candidate${a.replace === 1 ? "" : "s"}`}>{a.replace}</span>}
+                {a.open > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold flex items-center justify-center tabular-nums" title={`${a.open} open fault${a.open === 1 ? "" : "s"}`}>{a.open}</span>}
+              </span>
             </div>
+            <div className="text-[10.5px] text-muted-foreground mt-0.5">
+              {s.items[0]?.city} · {s.items.length} unit{s.items.length === 1 ? "" : "s"}
+            </div>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** Middle: the studio's equipment, one card per type. Attention first, then numbered order. */
+function StudioBoard({ name, items, focus, onFocus }: { name: string; items: Item[]; focus: string | null; onFocus: (id: string) => void }) {
+  const a = attention(items);
+  const maxFaults = Math.max(1, ...items.filter((i) => !unidentified(i)).map((i) => i.faults_total));
+  const groups = KIND_ORDER.map((k) => {
+    const list = items.filter((i) => i.kind === k);
+    return {
+      k,
+      known: list.filter((i) => !unidentified(i)).sort((x, y) => (x.number ?? 999) - (y.number ?? 999) || (x.location ?? "").localeCompare(y.location ?? "")),
+      unknown: list.filter(unidentified),
+      open: list.reduce((n, i) => n + i.open_faults, 0),
+    };
+  }).filter((g) => g.known.length + g.unknown.length);
+  return (
+    <div className="space-y-4 min-w-0">
+      <div className="flex items-end justify-between gap-3 flex-wrap px-1">
+        <div>
+          <h2 className="text-[17px] font-semibold tracking-tight leading-tight">{name}</h2>
+          <p className="text-[12px] text-muted-foreground">
+            {items.length} units ·{" "}
+            {a.open || a.replace
+              ? <>{a.open > 0 && <span className="text-amber-600 dark:text-amber-400 font-medium">{a.open} open fault{a.open === 1 ? "" : "s"}</span>}{a.open > 0 && a.replace > 0 && " · "}{a.replace > 0 && <span className="text-rose-600 dark:text-rose-400 font-medium">{a.replace} to replace</span>}</>
+              : <span className="text-emerald-600 dark:text-emerald-400 font-medium">everything working</span>}
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-4 2xl:grid-cols-2">
+        {groups.map((g) => {
+          const K = KIND[g.k];
+          return (
+            <section key={g.k} className={cn("iris-card-elevated overflow-hidden", g.k === "bike" && "2xl:col-span-2")}>
+              <header className="px-4 py-2.5 flex items-center gap-2 border-b border-border bg-muted/30">
+                <K.icon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-[13px] font-semibold">{K.label}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums">{g.known.length + g.unknown.length}</span>
+                {g.open > 0 && <Chip tone={HEALTH.open.chip}>{g.open} open</Chip>}
+              </header>
+              <div className="p-4 space-y-3">
+                {g.known.length > 0 && (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2.5">
+                    {g.known.map((i) => <Tile key={i.id} item={i} max={maxFaults} active={focus === i.id} onClick={() => onFocus(i.id)} />)}
+                  </div>
+                )}
+                {g.unknown.map((i) => (
+                  <button key={i.id} id={`eq-${i.id}`} onClick={() => onFocus(i.id)} aria-pressed={focus === i.id}
+                    className={cn("w-full flex items-center gap-3 rounded-xl border-2 border-dashed px-3 py-2 text-left hover:bg-muted/40 transition-colors",
+                      focus === i.id ? "border-primary/60 bg-primary/5" : "border-border")}>
+                    <Silhouette kind={i.kind} className="w-8 h-6 text-muted-foreground/50 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] font-medium">Unit not named</div>
+                      <div className="text-[10.5px] text-muted-foreground">{i.faults_total} report{i.faults_total === 1 ? "" : "s"} didn't say which {g.k === "bike" ? "bike" : "unit"}{i.open_faults ? ` · ${i.open_faults} open` : ""}</div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            </section>
           );
         })}
       </div>
-      {focused && (
-        <div className="border-t border-border p-3 bg-muted/20">
-          <EquipmentCard item={focused} layout="list" canEdit={canEdit} expanded onToggle={() => onFocus(focused.id)}
-            selected={false} onSelect={() => {}} onUpdate={(c) => onUpdate(focused.id, c)} />
+    </div>
+  );
+}
+
+/** Right: everything about one unit. */
+function UnitPanel({ item: i, canEdit, onClose, onUpdate }: { item: Item; canEdit: boolean; onClose: () => void; onUpdate: (c: Partial<Item>) => void }) {
+  const h = health(i);
+  const rechecks = i.rechecks_passed + i.rechecks_failed;
+  const stats: Array<[string, string | number, boolean?]> = [
+    ["Faults", i.faults_total],
+    ["Last 90 days", i.faults_90d, i.faults_90d >= 3],
+    ["Open now", i.open_faults, i.open_faults > 0],
+    ["Avg repair", hours(i.avg_repair_h)],
+    ["Re-checks", rechecks ? `${i.rechecks_passed}✓ ${i.rechecks_failed}✗` : "-", i.rechecks_failed > 0],
+    ["Last fault", ago(i.last_fault_at)],
+  ];
+  return (
+    <aside className="iris-card-elevated overflow-hidden" aria-label={`${i.label} details`}>
+      <div className="p-4 flex items-start gap-3 border-b border-border">
+        <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center shrink-0">
+          <Silhouette kind={i.kind} className={cn("w-11 h-8", unidentified(i) ? "text-muted-foreground/50" : "text-primary")} />
         </div>
-      )}
-    </section>
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-semibold leading-tight">{unidentified(i) ? `${KIND[i.kind].label} - unit not named` : i.label}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">{i.studio_name.split(",")[0]}{i.location ? ` · ${i.location}` : ""}</div>
+          <div className="flex gap-1.5 mt-1.5 flex-wrap">
+            <Chip tone={HEALTH[h].chip}>{HEALTH[h].label}</Chip>
+            {i.status !== "in_service" && <Chip tone="bg-muted text-muted-foreground border-border">{STATUS[i.status]}</Chip>}
+          </div>
+        </div>
+        <button onClick={onClose} aria-label="Close" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted"><X className="w-4 h-4" /></button>
+      </div>
+      <div className="grid grid-cols-3 border-b border-border">
+        {stats.map(([l, v, warn], n) => (
+          <div key={l} className={cn("px-3 py-2.5", n % 3 !== 2 && "border-r border-border", n < 3 && "border-b border-border")}>
+            <div className="text-[9.5px] uppercase tracking-wider text-muted-foreground">{l}</div>
+            <div className={cn("text-[15px] font-semibold tabular-nums", warn && "text-rose-600 dark:text-rose-400")}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="p-4 space-y-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Repair history</div>
+        {i.faults.length === 0 && <div className="text-[12px] text-muted-foreground">No faults recorded.</div>}
+        <div className="space-y-1.5 max-h-[320px] overflow-y-auto iris-scrollbar pr-1">
+          {i.faults.map((f) => {
+            const closed = isClosed(f.status);
+            return (
+              <button key={f.id} onClick={() => useAppStore.getState().selectTicket(f.id)}
+                className="w-full text-left rounded-lg border border-border px-3 py-2 hover:border-primary/40 hover:bg-muted/40 transition-colors">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("w-2 h-2 rounded-full shrink-0", closed ? "bg-emerald-500" : "bg-amber-500")} />
+                  <span className="font-mono text-[10.5px] text-muted-foreground">{f.ticket_id}</span>
+                  <span className="ml-auto text-[10.5px] text-muted-foreground">{date(f.created_at)}</span>
+                </div>
+                <div className="text-[12px] leading-snug mt-1 line-clamp-2">{f.title}</div>
+              </button>
+            );
+          })}
+          {i.faults_total > i.faults.length && <div className="text-[11px] text-muted-foreground px-1">…and {i.faults_total - i.faults.length} earlier</div>}
+        </div>
+      </div>
+      <details className="border-t border-border group">
+        <summary className="px-4 py-2.5 text-[12px] font-medium cursor-pointer flex items-center gap-1.5 list-none">
+          <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />Unit details
+        </summary>
+        <div className="px-4 pb-4 space-y-2.5">
+          <EditField key={`l-${i.id}`} label="Label" value={i.label} disabled={!canEdit} required onSave={(v) => onUpdate({ label: v })} />
+          <label className="block">
+            <div className="text-[10px] text-muted-foreground mb-1">Status</div>
+            <select value={i.status} disabled={!canEdit} onChange={(e) => onUpdate({ status: e.target.value as Item["status"] })}
+              className="h-8 w-full px-2 text-[12px] rounded-md border border-input bg-background disabled:opacity-60">
+              {Object.entries(STATUS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+          <EditField key={`m-${i.id}`} label="Model" value={i.model} disabled={!canEdit} onSave={(v) => onUpdate({ model: v })} />
+          <EditField key={`s-${i.id}`} label="Serial number" value={i.serial} disabled={!canEdit} onSave={(v) => onUpdate({ serial: v })} />
+          <EditField key={`n-${i.id}`} label="Notes" value={i.notes} disabled={!canEdit} multiline onSave={(v) => onUpdate({ notes: v })} />
+        </div>
+      </details>
+    </aside>
   );
 }
 
@@ -492,7 +621,7 @@ function Tile({ item: i, max, active, onClick }: { item: Item; max: number; acti
     <button id={`eq-${i.id}`} onClick={onClick} aria-pressed={active}
       title={`${i.label} · ${i.faults_total} fault${i.faults_total === 1 ? "" : "s"}${i.open_faults ? ` · ${i.open_faults} open` : ""}${i.replace_candidate ? " · replace candidate" : ""}`}
       className={cn(
-        "relative w-[92px] h-[92px] shrink-0 rounded-2xl border bg-background flex flex-col items-center justify-center gap-0.5 px-1.5 transition-all hover:-translate-y-0.5 hover:shadow-md",
+        "relative w-full aspect-square shrink-0 rounded-2xl border bg-background flex flex-col items-center justify-center gap-0.5 px-1.5 transition-all hover:-translate-y-0.5 hover:shadow-md",
         unknown ? "border-dashed border-2" : "border-border",
         active && "ring-2 ring-offset-2 ring-offset-background ring-primary",
         i.status === "retired" && "opacity-40",
