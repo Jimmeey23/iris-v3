@@ -5,7 +5,8 @@ import { z } from "zod";
 import type { PoolClient } from "pg";
 import { recordAiUsage } from "./ai-usage";
 import { loadEffectiveAiConfig } from "./ai-config";
-import { asSystem } from "./db";
+import { asSystem, isSandboxRequest } from "./db";
+import { MOCK_MODEL, mockEnrichment, mockLatency } from "./sandbox-ai";
 import { CATEGORY_MAP } from "@/lib/iris/constants";
 
 /**
@@ -40,7 +41,7 @@ const Result = z.object({
   subcategory: z.string().describe("Best subcategory of that category, copied exactly from the Taxonomy"),
   confidence: z.number().min(0).max(1).describe("How sure you are of category + subcategory, 0 to 1"),
 });
-type Enrichment = z.infer<typeof Result>;
+type Enrichment = z.infer<typeof Result> & { model?: string };
 
 export type TicketAi = {
   v: number;
@@ -120,7 +121,12 @@ export function isGeneratedTitle(title: string, category: string | null, subcate
 
 let client: Anthropic | null = null;
 
-async function callModel(text: string, userId: string | null, ticketId: string): Promise<Enrichment | null> {
+async function callModel(text: string, userId: string | null, ticketId: string, row?: Record<string, any>): Promise<Enrichment | null> {
+  // Training sandbox: mock answer, no API call, no usage recorded.
+  if (await isSandboxRequest()) {
+    await mockLatency();
+    return { ...mockEnrichment(text, { category: row?.category ?? null, subcategory: row?.subcategory ?? null, studio: row?.studio, affected_client: row?.affected_client, description: row?.description, title: row?.title }), model: MOCK_MODEL };
+  }
   client ??= new Anthropic();
   const response = await client.messages.parse({
     model: ENRICH_MODEL,
@@ -146,7 +152,7 @@ function toTicketAi(e: Enrichment, current: { category: string | null; subcatego
   const differs = e.category !== current.category || e.subcategory !== current.subcategory;
   return {
     v: ENRICH_VERSION,
-    model: ENRICH_MODEL,
+    model: e.model ?? ENRICH_MODEL,
     at: new Date().toISOString(),
     title: clip(e.title, 120),
     summary: clip(e.summary, 800),
@@ -172,7 +178,8 @@ export type EnrichOutcome = "enriched" | "skipped" | "disabled" | "failed";
  */
 export async function enrichTicket(ticketId: string, opts: { userId?: string | null; force?: boolean; dryRun?: boolean } = {}): Promise<{ outcome: EnrichOutcome; ai?: TicketAi; retitled?: boolean }> {
   const cfg = await loadEffectiveAiConfig().catch(() => null);
-  if (!cfg?.enabled || cfg.budgetExceeded || !process.env.ANTHROPIC_API_KEY) return { outcome: "disabled" };
+  const sandbox = await isSandboxRequest();
+  if (!cfg?.enabled || (!sandbox && (cfg.budgetExceeded || !process.env.ANTHROPIC_API_KEY))) return { outcome: "disabled" };
   const autoSetting = await asSystem((c) =>
     c.query("select value from iris.app_settings where key = 'ai.auto_enrich'").then((r) => r.rows[0]?.value),
   ).catch(() => undefined);
@@ -196,7 +203,7 @@ export async function enrichTicket(ticketId: string, opts: { userId?: string | n
 
   let e: Enrichment | null;
   try {
-    e = await callModel(ticketText(t), opts.userId ?? null, ticketId);
+    e = await callModel(ticketText(t), opts.userId ?? null, ticketId, t);
   } catch (err) {
     console.warn("[ai-enrich] failed:", err instanceof Error ? err.message : err);
     return { outcome: "failed" };

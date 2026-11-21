@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { warmMomenceSessions } from "@/lib/server/momence";
-import { withUser } from "@/lib/server/db";
+import { isSandboxRequest, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import { classify, extractFields, taxonomy, type Candidate } from "@/lib/server/intake";
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
   try {
     const aiCfg = await loadEffectiveAiConfig();
-    const allowAi = b.allowAi !== false && Boolean(process.env.ANTHROPIC_API_KEY) && aiCfg.enabled && aiCfg.autoTriage;
+    const allowAi = b.allowAi !== false && (Boolean(process.env.ANTHROPIC_API_KEY) || (await isSandboxRequest())) && aiCfg.enabled && aiCfg.autoTriage;
 
     // Raw pasted context (a copied email/thread, WhatsApp chat, call notes): read it the
     // same way forwarded emails are read, then classify the core issue it contains.
