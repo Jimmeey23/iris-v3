@@ -4,7 +4,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import {
   AirVent, AlertTriangle, ArrowDownUp, Bike, CheckCircle2, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Clock,
-  Download, HelpCircle, LayoutGrid, Layers, List, Loader2, Mic, RefreshCw, Search, ShieldCheck, Wrench, X, XCircle,
+  Download, Grid3x3, HelpCircle, LayoutGrid, Layers, List, Loader2, Mic, RefreshCw, Search, ShieldCheck, Speaker, Wrench, X, XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,9 @@ type Item = {
   studio_code: string;
   studio_name: string;
   city: string;
-  kind: "bike" | "mic" | "ac";
+  kind: "bike" | "mic" | "audio" | "ac";
   number: number | null;
+  location: string | null;
   label: string;
   model: string | null;
   serial: string | null;
@@ -43,6 +44,7 @@ type SortBy = "risk" | "faults" | "recent" | "repair" | "label";
 const KIND = {
   bike: { label: "Bikes", icon: Bike },
   mic: { label: "Microphones", icon: Mic },
+  audio: { label: "Speakers & music", icon: Speaker },
   ac: { label: "AC", icon: AirVent },
 } as const;
 
@@ -85,12 +87,15 @@ const SORTERS: Record<SortBy, (a: Item, b: Item) => number> = {
 };
 
 const HEALTH_ORDER: Health[] = ["replace", "open", "healthy"];
+const KIND_ORDER: Item["kind"][] = ["bike", "mic", "audio", "ac"];
+/** Couldn't tell which unit: no number and no location. */
+const unidentified = (i: Item) => i.kind !== "ac" && i.number === null && !i.location;
 
 function groupKey(i: Item, by: GroupBy): { key: string; label: string; order: number } {
   switch (by) {
     case "studio": return { key: i.studio_code, label: i.studio_name, order: 0 };
     case "city": return { key: i.city || "-", label: i.city || "Unknown city", order: 0 };
-    case "kind": return { key: i.kind, label: KIND[i.kind].label, order: ["bike", "mic", "ac"].indexOf(i.kind) };
+    case "kind": return { key: i.kind, label: KIND[i.kind].label, order: KIND_ORDER.indexOf(i.kind) };
     case "health": { const h = health(i); return { key: h, label: HEALTH[h].label, order: HEALTH_ORDER.indexOf(h) }; }
     default: return { key: "all", label: "All equipment", order: 0 };
   }
@@ -109,7 +114,8 @@ export function EquipmentView() {
   const [hideRetired, setHideRetired] = React.useState(false);
   const [groupBy, setGroupBy] = React.useState<GroupBy>("studio");
   const [sortBy, setSortBy] = React.useState<SortBy>("risk");
-  const [layout, setLayout] = React.useState<"list" | "grid">("list");
+  const [layout, setLayout] = React.useState<"fleet" | "list" | "grid">("fleet");
+  const [focus, setFocus] = React.useState<string | null>(null);
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
   const [open, setOpen] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
@@ -198,8 +204,8 @@ export function EquipmentView() {
   }
 
   const studios = [...new Map(items.map((i) => [i.studio_code, i.studio_name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  const numberedFaults = items.filter((i) => i.number !== null || i.kind === "ac").reduce((n, i) => n + i.faults_total, 0);
-  const unnumbered = items.filter((i) => i.number === null && i.kind !== "ac").reduce((n, i) => n + i.faults_total, 0);
+  const numberedFaults = items.filter((i) => !unidentified(i)).reduce((n, i) => n + i.faults_total, 0);
+  const unnumbered = items.filter(unidentified).reduce((n, i) => n + i.faults_total, 0);
   const counts = { replace: 0, open: 0, healthy: 0 } as Record<Health, number>;
   for (const i of items) counts[health(i)]++;
   const stats = [
@@ -215,7 +221,7 @@ export function EquipmentView() {
   const allSelected = shown.length > 0 && shown.every((i) => selected.has(i.id));
 
   const exportCsv = () => {
-    const cols = ["label", "kind", "studio_name", "city", "status", "model", "serial", "faults_total", "faults_90d", "open_faults", "avg_repair_h", "rechecks_passed", "rechecks_failed", "replace_candidate", "last_fault_at", "notes"] as const;
+    const cols = ["label", "kind", "location", "studio_name", "city", "status", "model", "serial", "faults_total", "faults_90d", "open_faults", "avg_repair_h", "rechecks_passed", "rechecks_failed", "replace_candidate", "last_fault_at", "notes"] as const;
     const esc = (v: unknown) => { const s = v === null || v === undefined ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
     const csv = [cols.join(","), ...shown.map((i) => cols.map((c) => esc(i[c])).join(","))].join("\n");
     const a = document.createElement("a");
@@ -284,8 +290,8 @@ export function EquipmentView() {
         <div className="iris-card p-3 flex items-start gap-2.5 border border-sky-500/30">
           <HelpCircle className="w-4 h-4 text-sky-500 mt-0.5 shrink-0" />
           <div className="text-[12px]">
-            <span className="font-semibold">{unnumbered} of {unnumbered + numberedFaults} faults didn't say which bike or mic.</span>{" "}
-            <span className="text-muted-foreground">They're grouped under “unnumbered” per studio, so repeat failures on one unit stay hidden. Ask teams to include the number (e.g. “Bike 7”) - IRIS picks it up automatically.</span>
+            <span className="font-semibold">{unnumbered} of {unnumbered + numberedFaults} faults don't say which bike or mic.</span>{" "}
+            <span className="text-muted-foreground">IRIS read the title, description and intake answers of each one and found no bike number or mic location, so they sit under “Unidentified” per studio. Ask teams to name the unit (e.g. “Bike 7”, “mic in Studio 2”) - IRIS picks it up automatically.</span>
           </div>
         </div>
       )}
@@ -298,7 +304,7 @@ export function EquipmentView() {
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search label, model, serial, notes, ticket…" aria-label="Search equipment" className="h-8 pl-8 text-[12px]" />
           </div>
           <Segmented value={kind} onChange={setKind} label="Equipment type"
-            options={[{ v: "all", l: "All" }, ...(["bike", "mic", "ac"] as const).map((k) => ({ v: k, l: KIND[k].label, icon: KIND[k].icon }))]} />
+            options={[{ v: "all", l: "All" }, ...KIND_ORDER.map((k) => ({ v: k, l: KIND[k].label, icon: KIND[k].icon }))]} />
           <Select value={studio} onChange={setStudio} label="Studio" options={[["all", "All studios"], ...studios]} />
           <Select value={statusF} onChange={(v) => setStatusF(v as typeof statusF)} label="Status" options={[["all", "Any status"], ...Object.entries(STATUS)]} />
         </div>
@@ -321,6 +327,7 @@ export function EquipmentView() {
               {allOpen ? <ChevronsDownUp className="w-3.5 h-3.5" /> : <ChevronsUpDown className="w-3.5 h-3.5" />}
             </IconBtn>
             <div className="flex rounded-md border border-border overflow-hidden" role="group" aria-label="Layout">
+              <IconBtn title="Studio floor" active={layout === "fleet"} onClick={() => setLayout("fleet")} flat><Grid3x3 className="w-3.5 h-3.5" /></IconBtn>
               <IconBtn title="List" active={layout === "list"} onClick={() => setLayout("list")} flat><List className="w-3.5 h-3.5" /></IconBtn>
               <IconBtn title="Grid" active={layout === "grid"} onClick={() => setLayout("grid")} flat><LayoutGrid className="w-3.5 h-3.5" /></IconBtn>
             </div>
@@ -347,8 +354,26 @@ export function EquipmentView() {
         )}
       </div>
 
+      {layout === "fleet" && (
+        <div className="space-y-4">
+          {studios
+            .filter(([code]) => shown.some((i) => i.studio_code === code))
+            .map(([code, name]) => (
+              <StudioFloor key={code} name={name} items={shown.filter((i) => i.studio_code === code)}
+                focus={focus} onFocus={(id) => setFocus((f) => (f === id ? null : id))}
+                canEdit={canEdit} onUpdate={update} />
+            ))}
+          {!shown.length && (
+            <div className="iris-card text-center py-16 space-y-2">
+              <Search className="w-5 h-5 text-muted-foreground mx-auto" />
+              <div className="text-[13px] text-muted-foreground">No equipment matches.</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Groups */}
-      <div className="space-y-5">
+      {layout !== "fleet" && <div className="space-y-5">
         {groups.map((g) => {
           const isCollapsed = collapsed.has(g.key);
           const gOpen = g.items.reduce((n, i) => n + i.open_faults, 0);
@@ -387,8 +412,92 @@ export function EquipmentView() {
             {filtersActive ? <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={clearFilters}>Clear filters</Button> : null}
           </div>
         )}
-      </div>
+      </div>}
     </div>
+  );
+}
+
+/**
+ * One studio laid out like the floor: bikes as numbered tiles in order, mics and
+ * speakers by location, AC last. Unidentified units sit at the end of each row.
+ * Clicking a tile opens its full card underneath.
+ */
+function StudioFloor({ name, items, focus, onFocus, canEdit, onUpdate }: {
+  name: string; items: Item[]; focus: string | null; onFocus: (id: string) => void;
+  canEdit: boolean; onUpdate: (id: string, c: Partial<Item>) => void;
+}) {
+  const city = items[0]?.city;
+  const open = items.reduce((n, i) => n + i.open_faults, 0);
+  const replace = items.filter((i) => i.replace_candidate).length;
+  const focused = items.find((i) => i.id === focus);
+  const byKind = KIND_ORDER.map((k) => ({
+    k,
+    list: items
+      .filter((i) => i.kind === k)
+      .sort((a, b) => Number(unidentified(a)) - Number(unidentified(b)) || (a.number ?? 999) - (b.number ?? 999) || (a.location ?? "").localeCompare(b.location ?? "")),
+  })).filter((g) => g.list.length);
+  return (
+    <section className="iris-card-elevated overflow-hidden">
+      <header className="px-4 py-3 flex items-center gap-3 flex-wrap border-b border-border bg-muted/30">
+        <div className="min-w-0">
+          <div className="text-[14px] font-semibold leading-tight">{name}</div>
+          <div className="text-[11px] text-muted-foreground">{city} · {items.length} tracked unit{items.length === 1 ? "" : "s"}</div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {replace > 0 && <Chip tone={HEALTH.replace.chip}>{replace} replace</Chip>}
+          {open > 0 && <Chip tone={HEALTH.open.chip}>{open} open</Chip>}
+          {!replace && !open && <Chip tone={HEALTH.healthy.chip}>All healthy</Chip>}
+        </div>
+        <HealthBar items={items} className="ml-auto h-2 w-40 max-w-full" />
+      </header>
+      <div className="p-4 space-y-4">
+        {byKind.map(({ k, list }) => {
+          const K = KIND[k];
+          return (
+            <div key={k} className="grid gap-2 md:grid-cols-[140px_minmax(0,1fr)] items-start">
+              <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground pt-2">
+                <K.icon className="w-4 h-4" />{K.label}
+                <span className="tabular-nums text-[10.5px]">{list.length}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {list.map((i) => <Tile key={i.id} item={i} active={focus === i.id} onClick={() => onFocus(i.id)} />)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {focused && (
+        <div className="border-t border-border p-3 bg-muted/20">
+          <EquipmentCard item={focused} layout="list" canEdit={canEdit} expanded onToggle={() => onFocus(focused.id)}
+            selected={false} onSelect={() => {}} onUpdate={(c) => onUpdate(focused.id, c)} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Tile({ item: i, active, onClick }: { item: Item; active: boolean; onClick: () => void }) {
+  const h = health(i);
+  const unknown = unidentified(i);
+  const main = i.number !== null ? `#${i.number}` : i.location ?? (i.kind === "ac" ? "AC" : "?");
+  return (
+    <button onClick={onClick} aria-pressed={active}
+      title={`${i.label} · ${i.faults_total} fault${i.faults_total === 1 ? "" : "s"}${i.open_faults ? ` · ${i.open_faults} open` : ""}`}
+      className={cn(
+        "relative rounded-xl border px-2.5 py-2 text-left transition-all hover:-translate-y-px hover:shadow-sm",
+        i.number !== null ? "w-[68px]" : "min-w-[110px] max-w-[180px]",
+        unknown ? "border-dashed bg-muted/40" : "bg-background",
+        active ? "ring-2 ring-primary border-primary/50" : "border-border",
+        i.status === "retired" && "opacity-50",
+      )}>
+      <span className={cn("absolute top-1.5 right-1.5 w-2 h-2 rounded-full", HEALTH[h].dot)} aria-hidden />
+      <div className={cn("font-semibold leading-tight truncate", i.number !== null ? "text-[16px] tabular-nums" : "text-[12px] pr-3")}>
+        {unknown ? "Unidentified" : main}
+      </div>
+      <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+        {i.faults_total} fault{i.faults_total === 1 ? "" : "s"}{i.open_faults ? <span className="text-amber-600 dark:text-amber-400"> · {i.open_faults} open</span> : null}
+      </div>
+    </button>
   );
 }
 
@@ -397,7 +506,7 @@ function riskScore(items: Item[]) {
 }
 
 function EquipmentCard({ item: i, layout, canEdit, expanded, onToggle, selected, onSelect, onUpdate }: {
-  item: Item; layout: "list" | "grid"; canEdit: boolean; expanded: boolean; onToggle: () => void;
+  item: Item; layout: "list" | "grid" | "fleet"; canEdit: boolean; expanded: boolean; onToggle: () => void;
   selected: boolean; onSelect: () => void; onUpdate: (c: Partial<Item>) => void;
 }) {
   const Icon = KIND[i.kind].icon;
@@ -423,7 +532,7 @@ function EquipmentCard({ item: i, layout, canEdit, expanded, onToggle, selected,
                 {i.status !== "in_service" && <Chip tone="bg-muted text-muted-foreground border-border">{STATUS[i.status]}</Chip>}
               </div>
               <div className="text-[11px] text-muted-foreground break-words">
-                {i.studio_name}{i.city ? `, ${i.city}` : ""}{i.model ? ` · ${i.model}` : ""}{i.serial ? ` · SN ${i.serial}` : ""}
+                {i.studio_name}{i.city ? `, ${i.city}` : ""}{i.location ? ` · ${i.location}` : ""}{i.model ? ` · ${i.model}` : ""}{i.serial ? ` · SN ${i.serial}` : ""}
               </div>
               <div className="text-[10.5px] text-muted-foreground mt-0.5">Last fault {ago(i.last_fault_at)}</div>
             </div>

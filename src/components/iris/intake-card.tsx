@@ -51,13 +51,29 @@ const select =
 
 function Row({ label, need, done, children }: { label: string; need?: Need; done?: boolean; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[92px_1fr] gap-2 items-start">
-      <div className="text-[11px] text-muted-foreground pt-1.5 flex items-center gap-1">
-        {label}
-        {need === "required" && !done && <span className="text-rose-500" title="Required">*</span>}
+    <div className="grid grid-cols-1 sm:grid-cols-[132px_minmax(0,1fr)] gap-x-3 gap-y-1 items-start py-1">
+      <div className="text-[11.5px] font-medium text-foreground/70 sm:pt-1.5 flex items-start gap-1.5 leading-snug">
+        <span
+          className={cn(
+            "mt-[5px] w-1.5 h-1.5 rounded-full shrink-0",
+            done ? "bg-emerald-500" : need === "required" ? "bg-rose-500" : "bg-border",
+          )}
+          title={done ? "Answered" : need === "required" ? "Required" : "Optional"}
+        />
+        <span>{label}</span>
       </div>
       <div className="min-w-0">{children}</div>
     </div>
+  );
+}
+
+/** Small heading that splits the form into readable blocks. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-border/70 bg-background/60 px-3.5 py-2.5">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{title}</div>
+      <div className="divide-y divide-border/50">{children}</div>
+    </section>
   );
 }
 
@@ -126,20 +142,39 @@ export function IntakeCard({
 
   return (
     <div>
-      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 bg-muted/30">
-        <ClipboardList className="w-4 h-4 text-primary" />
-        <div className="text-[12px] font-semibold">Here's what I picked up</div>
-        <span className="ml-auto text-[10px] text-muted-foreground">
+      <div className="px-4 pt-3 pb-2.5 border-b border-border bg-muted/30 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <ClipboardList className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold leading-tight">Here's what I picked up</div>
+            <div className="text-[10.5px] text-muted-foreground">
+              {state.detectedBy === "ai" ? "Classified with AI" : "Detected from your message"} · edit anything below
+            </div>
+          </div>
           {state.category && prog.total > 0 && (
-            <b className={cn("mr-1.5 font-semibold", prog.done === prog.total ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
-              {prog.done}/{prog.total} captured ·
-            </b>
+            <span
+              className={cn(
+                "ml-auto text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-full",
+                prog.done === prog.total ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-background border border-border",
+              )}
+            >
+              {prog.done}/{prog.total} answered
+            </span>
           )}
-          {state.detectedBy === "ai" ? "classified with AI" : "detected from your message"} · edit anything
-        </span>
+        </div>
+        {state.category && prog.total > 0 && (
+          <div className="h-1 rounded-full bg-border overflow-hidden">
+            <div
+              className={cn("h-full transition-all", prog.done === prog.total ? "bg-emerald-500" : "bg-primary")}
+              style={{ width: `${Math.round((prog.done / prog.total) * 100)}%` }}
+            />
+          </div>
+        )}
       </div>
 
-      <div className={cn("p-4 space-y-2.5", locked && "opacity-60 pointer-events-none")}>
+      <div className={cn("p-3 sm:p-4 space-y-3", locked && "opacity-60 pointer-events-none")}>
         {!state.category && state.suggestions.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pb-1">
             <span className="text-[11px] text-muted-foreground w-full">Which fits best?</span>
@@ -155,6 +190,7 @@ export function IntakeCard({
           </div>
         )}
 
+        <Section title="What it is">
         <Row label="Category" need="required" done={!!state.category}>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative">
@@ -179,6 +215,9 @@ export function IntakeCard({
           </div>
         </Row>
 
+        </Section>
+
+        <Section title="Where, who & when">
         {(needs.studio || state.studioCode) && (
           <Row label="Studio" need={needs.studio} done={!!state.studioCode}>
             <div className="flex flex-wrap gap-1.5">
@@ -302,10 +341,17 @@ export function IntakeCard({
           </Row>
         )}
 
-        {state.category && detailFields.map((f) => (
+        </Section>
+
+        {state.category && detailFields.length > 0 && (
+          <Section title="What happened">
+        {detailFields.map((f) => (
           <DetailRow key={f.key} field={f} value={state.details?.[f.key] ?? ""} onChange={(v) => setDetail(f.key, v)} />
         ))}
+          </Section>
+        )}
 
+        <Section title="Priority & routing">
         <Row label="Priority">
           <div className="flex flex-wrap items-center gap-1.5">
             {(["P0", "P1", "P2", "P3"] as const).map((p) => (
@@ -328,6 +374,7 @@ export function IntakeCard({
         {(state.department || state.manualRouting) && (
           <RoutingRow state={state} locked={locked} onChange={(manualRouting) => set({ manualRouting })} />
         )}
+        </Section>
       </div>
 
       <div className="px-4 py-3 border-t border-border flex flex-wrap items-center gap-2">
@@ -469,7 +516,11 @@ function RoutingRow({
               </button>
             )}
           </div>
-          {r?.ownershipRule && !changed && <div className="text-muted-foreground mt-0.5">{r.ownershipRule}</div>}
+          {!changed && (
+            <div className="text-muted-foreground mt-0.5">
+              {r?.ownershipRule ?? `Default team for ${state.subcategory ?? state.category ?? "this type"}. Change it below if it belongs elsewhere.`}
+            </div>
+          )}
           {others.length > 0 && (
             <div className="text-muted-foreground mt-0.5">
               Also sent to: <b className="text-foreground font-medium">{others.map((c) => DEPT_MAP[c]?.name ?? c).join(", ")}</b>
