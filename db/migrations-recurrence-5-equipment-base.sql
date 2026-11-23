@@ -1,3 +1,4 @@
+-- Runs after migrations-recurrence-1..4 (uses recurrence_kind and recurrence_checks).
 -- ============================================================================
 -- Equipment register: every bike, microphone and AC system per studio, with its
 -- fault history, so "Bike #8 has failed 3 times this quarter" is visible and a
@@ -126,7 +127,8 @@ create trigger trg_link_ticket_equipment
 -- ---------------------------------------------------------------------------
 -- Health per item. A replacement candidate: 3+ faults in 90 days, or 2+ failed re-checks.
 -- ---------------------------------------------------------------------------
-create or replace view iris.v_equipment_health with (security_invoker = true) as
+drop view if exists iris.v_equipment_health; -- re-run safe: refs adds columns later
+create view iris.v_equipment_health with (security_invoker = true) as
 select e.id, e.studio_code, s.name as studio_name, s.city, e.kind, e.number, e.label, e.model, e.serial,
        e.status, e.notes, e.auto_created,
        count(t.id)::int                                                              as faults_total,
@@ -154,4 +156,4 @@ grant select on iris.v_equipment_health to iris_app;
 insert into iris.equipment_tickets (equipment_id, ticket_id)
 select v_id, id from (select t.id, iris.equipment_for_ticket(t) as v_id from iris.tickets t) x
  where v_id is not null
-on conflict (ticket_id) do nothing;
+on conflict do nothing;
