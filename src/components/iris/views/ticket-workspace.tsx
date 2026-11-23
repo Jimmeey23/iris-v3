@@ -1139,16 +1139,41 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[10px] font-medium text-muted-foreground">First Response</span>
-                      <span className="text-[10px] font-semibold tabular-nums">{ticket.firstResponseAt ? "Completed" : formatDateTime(ticket.slaResponseTarget || ticket.createdAt)}</span>
+                      <span className="text-[10px] font-semibold tabular-nums">{ticket.firstResponseAt ? formatDateTime(ticket.firstResponseAt) : formatDateTime(ticket.slaResponseTarget || ticket.createdAt)}</span>
                     </div>
-                    <SLAProgressBar createdAt={ticket.createdAt} targetDate={ticket.slaResponseTarget || ticket.createdAt} breached={ticket.slaStatus === "breached"} />
+                    <SLAProgressBar
+                      createdAt={ticket.createdAt}
+                      targetDate={ticket.slaResponseTarget || ticket.createdAt}
+                      completedAt={ticket.firstResponseAt}
+                      overdueLabel="Response overdue"
+                      completedLabel="Responded"
+                    />
+                    {!ticket.firstResponseAt && !infoOnly && !readOnly && !["resolved", "closed"].includes(ticket.status) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 h-7 w-full text-[11px]"
+                        disabled={busy}
+                        onClick={() => void save({ acknowledge: true }, "Acknowledged: first response recorded")}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                        Acknowledge
+                      </Button>
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[10px] font-medium text-muted-foreground">Resolution</span>
                       <span className="text-[10px] font-semibold tabular-nums">{formatDateTime(ticket.slaResolutionTarget || ticket.createdAt)}</span>
                     </div>
-                    <SLAProgressBar createdAt={ticket.createdAt} targetDate={ticket.slaResolutionTarget || ticket.createdAt} breached={ticket.slaStatus === "breached"} />
+                    <SLAProgressBar
+                      createdAt={ticket.createdAt}
+                      targetDate={ticket.slaResolutionTarget || ticket.createdAt}
+                      breached={ticket.slaStatus === "breached"}
+                      completedAt={ticket.resolvedAt}
+                      overdueLabel="Resolution overdue"
+                      completedLabel="Resolved"
+                    />
                   </div>
                 </div>
               </div>

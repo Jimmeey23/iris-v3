@@ -60,7 +60,36 @@ export function SLABadge({ status, targetDate }: { status: SLAStatus; targetDate
   );
 }
 
-export function SLAProgressBar({ createdAt, targetDate, breached }: { createdAt: string | Date; targetDate: string | Date; breached?: boolean }) {
+function formatLateness(ms: number) {
+  const mins = Math.max(0, Math.round(ms / 60_000));
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+/**
+ * One SLA clock. While running it counts down and turns red once overdue.
+ * Once `completedAt` is set the clock is history: green if it met the target,
+ * grey "… late" if it did not. A met-late clock is a record, not an alarm.
+ */
+export function SLAProgressBar({
+  createdAt,
+  targetDate,
+  breached,
+  completedAt,
+  overdueLabel = "Breached",
+  completedLabel = "Done",
+}: {
+  createdAt: string | Date;
+  targetDate: string | Date;
+  breached?: boolean;
+  completedAt?: string | Date | null;
+  overdueLabel?: string;
+  completedLabel?: string;
+}) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
@@ -84,10 +113,29 @@ export function SLAProgressBar({ createdAt, targetDate, breached }: { createdAt:
   const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
   const isBreached = breached || elapsed > total;
 
+  if (completedAt) {
+    const done = typeof completedAt === "string" ? new Date(completedAt) : completedAt;
+    const lateMs = done.getTime() - target.getTime();
+    const late = lateMs > 60_000;
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-[9px] font-medium">
+          <span className="text-muted-foreground">{late ? `${completedLabel} late` : `${completedLabel} on time`}</span>
+          <span className={cn(late ? "text-muted-foreground" : "text-emerald-500")}>
+            {late ? `${completedLabel} ${formatLateness(lateMs)} late` : `${completedLabel} on time`}
+          </span>
+        </div>
+        <div className="h-0.5 rounded-full bg-muted overflow-hidden">
+          <div className={cn("h-full rounded-full w-full", late ? "bg-muted-foreground/40" : "bg-emerald-500")} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-[9px] font-medium">
-        <span className="text-muted-foreground">{isBreached ? "Breached" : `${Math.round(pct)}%`}</span>
+        <span className={cn(isBreached ? "text-rose-500 font-semibold" : "text-muted-foreground")}>{isBreached ? overdueLabel : `${Math.round(pct)}%`}</span>
         <span className={cn(isBreached ? "text-rose-500" : pct > 80 ? "text-amber-500" : "text-emerald-500")}>
           {formatTimeRemaining(target)}
         </span>

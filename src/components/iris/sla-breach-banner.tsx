@@ -17,6 +17,9 @@ type Breach = {
   title: string;
   priority: string;
   slaResolutionTarget: string | null;
+  slaResponseTarget?: string | null;
+  /** "response": first response overdue and still waiting; "resolution": past the resolution target. */
+  kind?: "response" | "resolution";
   pendingRequest: { id: string; hours: number; requestedAt: string } | null;
 };
 type Approval = {
@@ -102,7 +105,7 @@ export function SlaBreachBanner() {
   }, [refresh]);
 
   // A dismissal is tied to the SLA target, so a ticket that breaches again shows again.
-  const keyOf = (b: Breach) => `${b.id}:${b.slaResolutionTarget ?? ""}`;
+  const keyOf = (b: Breach) => `${b.id}:${b.kind ?? "resolution"}:${b.slaResolutionTarget ?? ""}`;
   const visible = breaches.filter((b) => !dismissed.has(keyOf(b)));
   const dismiss = (b: Breach) => {
     const next = new Set(dismissed);
@@ -141,7 +144,7 @@ export function SlaBreachBanner() {
             </span>
             <div className="flex-1 min-w-[220px]">
               <div className="text-[14px] font-semibold leading-tight">
-                {breaches.length} of your ticket{breaches.length === 1 ? " has" : "s have"} breached SLA
+                {breaches.length} of your ticket{breaches.length === 1 ? " has" : "s have"} past SLA
               </div>
               <div className="text-[11.5px] text-white/85">
                 Reply and resolve, or ask your reporting manager for more time. This stays until every ticket is resolved or back within SLA.
@@ -161,7 +164,7 @@ export function SlaBreachBanner() {
                   <span className="font-mono text-white/80 shrink-0">{b.ticketId ?? b.id.slice(0, 8)}</span>
                   <span className="flex-1 min-w-[140px] truncate">{b.title}</span>
                   <span className="shrink-0 rounded-full bg-white text-red-700 px-2 py-0.5 text-[11px] font-bold tabular-nums">
-                    {lateBy(b.slaResolutionTarget, now)}
+                    {b.kind === "response" ? `Response overdue ${lateBy(b.slaResponseTarget ?? null, now)}` : lateBy(b.slaResolutionTarget, now)}
                   </span>
                   <button
                     onClick={() => selectTicket(b.id)}

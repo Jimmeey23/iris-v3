@@ -23,12 +23,17 @@ export async function GET() {
     const breaches = await withUser(session.user_id, async (c) =>
       (
         await c.query(
-          `select t.id, t.ticket_id, t.title, t.priority, t.sla_resolution_target,
+          `select t.id, t.ticket_id, t.title, t.priority, t.sla_resolution_target, t.sla_response_target,
+                  (t.sla_resolution_target < now() or t.sla_status = 'breached') as resolution_overdue,
                   r.id as request_id, r.hours as request_hours, r.created_at as requested_at
              from tickets t
              left join sla_extension_requests r on r.ticket_id = t.id and r.status = 'pending'
             where t.status not in ('resolved', 'closed')
-              and (t.sla_status = 'breached' or t.sla_resolution_target < now())
+              -- Only what someone can still act on: an overdue resolution, or a first
+              -- response that is overdue and still not given. A late response that has
+              -- since been given is history, not an alarm.
+              and (t.sla_status = 'breached' or t.sla_resolution_target < now()
+                   or (t.first_response_at is null and t.sla_response_target < now()))
               and (t.assignee_id = $1 or $1 = any(coalesce(t.assignee_ids, '{}')))
             order by t.sla_resolution_target asc nulls last
             limit 200`,
@@ -59,6 +64,8 @@ export async function GET() {
         title: r.title,
         priority: r.priority,
         slaResolutionTarget: r.sla_resolution_target ? new Date(r.sla_resolution_target).toISOString() : null,
+        slaResponseTarget: r.sla_response_target ? new Date(r.sla_response_target).toISOString() : null,
+        kind: r.resolution_overdue ? "resolution" : "response",
         pendingRequest: r.request_id
           ? { id: r.request_id, hours: r.request_hours, requestedAt: new Date(r.requested_at).toISOString() }
           : null,

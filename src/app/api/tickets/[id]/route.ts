@@ -139,7 +139,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       }),
     );
     sets.push(`collected_info = coalesce(collected_info, '{}'::jsonb) || $${vals.length}::jsonb`);
-    sets.push("first_response_at = coalesce(first_response_at, now())");
+    // The reporter acknowledging their own ticket is not a first response.
+    vals.push(auth.session.user_id);
+    sets.push(
+      `first_response_at = case when created_by_user_id is distinct from $${vals.length}::uuid then coalesce(first_response_at, now()) else first_response_at end`,
+    );
   }
   // Reopening clears the resolution timestamp so SLA and reports treat it as live again.
   if (b.status !== undefined && !["resolved", "closed"].includes(b.status)) sets.push("resolved_at = null");
