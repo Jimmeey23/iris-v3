@@ -48,30 +48,35 @@ export function useVisibleInterval(fn: () => void, ms: number, enabled = true) {
 const listeners = new Set<() => void>();
 let clockTimer: number | null = null;
 let clockNow = Date.now();
+function tick() {
+  clockNow = Date.now();
+  listeners.forEach((l) => l());
+}
 function ensureClock() {
   if (clockTimer !== null || typeof window === "undefined") return;
   clockTimer = window.setInterval(() => {
     if (document.visibilityState !== "visible") return;
-    clockNow = Date.now();
-    listeners.forEach((l) => l());
+    tick();
   }, 30_000);
+  // The clock was stopped (no subscribers), so its value may be stale. Refresh it on the
+  // next task, never synchronously inside subscribe: changing the snapshot there makes
+  // React re-render and re-subscribe in a loop (React error #185).
+  if (Date.now() - clockNow > 1_000) window.setTimeout(tick, 0);
 }
+/** Stable identity: an inline subscribe would make React re-subscribe on every render. */
+function subscribeClock(cb: () => void) {
+  listeners.add(cb);
+  ensureClock();
+  return () => {
+    listeners.delete(cb);
+    if (!listeners.size && clockTimer !== null) {
+      window.clearInterval(clockTimer);
+      clockTimer = null;
+    }
+  };
+}
+const getClock = () => clockNow;
+const getServerClock = () => 0;
 export function useSharedClock(): number {
-  return React.useSyncExternalStore(
-    (cb) => {
-      // Refresh the snapshot on first subscribe so a long-idle clock isn't stale.
-      if (!listeners.size) clockNow = Date.now();
-      listeners.add(cb);
-      ensureClock();
-      return () => {
-        listeners.delete(cb);
-        if (!listeners.size && clockTimer !== null) {
-          window.clearInterval(clockTimer);
-          clockTimer = null;
-        }
-      };
-    },
-    () => clockNow,
-    () => 0,
-  );
+  return React.useSyncExternalStore(subscribeClock, getClock, getServerClock);
 }
