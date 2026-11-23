@@ -115,16 +115,76 @@ export function addSlaMinutes(
   return new Date(utcMs);
 }
 
+function buildSchedule(businessHours?: BusinessHoursMap | null): Record<DayName, DayWindow | null> | null {
+  const source = businessHours && Object.keys(businessHours).length > 0 ? businessHours : DEFAULT_BUSINESS_HOURS;
+  const schedule = {} as Record<DayName, DayWindow | null>;
+  let anyOpen = false;
+  for (const d of DAY_NAMES) {
+    schedule[d] = parseBusinessWindow(source[d] ?? DEFAULT_BUSINESS_HOURS[d]);
+    if (schedule[d]) anyOpen = true;
+  }
+  return anyOpen ? schedule : null;
+}
+
+/**
+ * Adds `days` business days to `start`: the target is the same IST time of day on
+ * the Nth open studio day after `start`, clamped to that day's closing time. A ticket
+ * raised while the studio is closed starts counting from the next opening time.
+ * "5 business days" therefore means exactly that, not 5 x (hours per day) of minutes.
+ * Falls back to calendar days when every day is Closed.
+ */
+export function addSlaBusinessDays(start: Date, days: number, businessHours?: BusinessHoursMap | null): Date {
+  const n = Math.max(1, Math.round(days));
+  const schedule = buildSchedule(businessHours);
+  if (!schedule) return new Date(start.getTime() + n * 86_400_000);
+
+  const dayIdx = (istDay: number) => (((istDay + 4) % 7) + 7) % 7; // 1970-01-01 was Thursday
+  const winFor = (istDay: number) => schedule[DAY_NAMES[dayIdx(istDay)]];
+
+  let istMins = Math.floor(start.getTime() / 60_000) + IST_OFFSET_MINS;
+  let day = Math.floor(istMins / 1440);
+  let minuteOfDay = istMins - day * 1440;
+
+  // Normalise the start into open hours.
+  for (let guard = 0; guard < 14; guard++) {
+    const w = winFor(day);
+    if (w && minuteOfDay < w.closeMin) {
+      if (minuteOfDay < w.openMin) minuteOfDay = w.openMin;
+      break;
+    }
+    day++;
+    minuteOfDay = 0;
+  }
+
+  // Step forward N open days.
+  let counted = 0;
+  for (let guard = 0; counted < n && guard < 400; guard++) {
+    day++;
+    if (winFor(day)) counted++;
+  }
+  const w = winFor(day)!;
+  const finalMin = Math.min(Math.max(minuteOfDay, w.openMin), w.closeMin);
+  istMins = day * 1440 + finalMin;
+  return new Date((istMins - IST_OFFSET_MINS) * 60_000);
+}
+
 export function computeSlaTargets(opts: {
   createdAt?: Date;
   responseTargetMins: number;
   resolutionTargetMins: number;
+  /** When set, wins over the matching *Mins value and counts open studio days. */
+  responseTargetDays?: number | null;
+  resolutionTargetDays?: number | null;
   businessHoursOnly: boolean;
   businessHours?: BusinessHoursMap | null;
 }): { slaResponseTarget: string; slaResolutionTarget: string } {
   const base = opts.createdAt ?? new Date();
-  const resp = addSlaMinutes(base, opts.responseTargetMins, opts.businessHoursOnly, opts.businessHours);
-  const res = addSlaMinutes(base, opts.resolutionTargetMins, opts.businessHoursOnly, opts.businessHours);
+  const resp = opts.responseTargetDays
+    ? addSlaBusinessDays(base, opts.responseTargetDays, opts.businessHours)
+    : addSlaMinutes(base, opts.responseTargetMins, opts.businessHoursOnly, opts.businessHours);
+  const res = opts.resolutionTargetDays
+    ? addSlaBusinessDays(base, opts.resolutionTargetDays, opts.businessHours)
+    : addSlaMinutes(base, opts.resolutionTargetMins, opts.businessHoursOnly, opts.businessHours);
   return {
     slaResponseTarget: resp.toISOString(),
     slaResolutionTarget: res.toISOString(),

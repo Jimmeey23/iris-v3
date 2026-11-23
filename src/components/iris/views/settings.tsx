@@ -1862,7 +1862,7 @@ function SLASettings() {
     <>
       <SettingsCard
         title="SLA Targets"
-        description="Response and resolution targets per priority, in minutes. When 'Business hours only' is on, SLA timers skip closed studio hours in IST."
+        description="Response and resolution targets per priority. Set business days to count whole open studio days (e.g. 5 business days); leave blank to use minutes. When 'Business hours only' is on, timers skip closed studio hours in IST. Changes apply to new tickets."
       >
         <ReadOnlyNote show={!isAdmin} />
         <div className="space-y-3">
@@ -1911,6 +1911,26 @@ function SLASettings() {
                       value={d.escalation_threshold_mins}
                       disabled={!isAdmin}
                       onSave={(v) => mins(v) && patch("sla_definitions", d.priority, { escalation_threshold_mins: v })}
+                    />
+                  </Field>
+                  <Field label="First response (business days)">
+                    <AutoInput
+                      type="number"
+                      min={1}
+                      placeholder="use mins"
+                      value={d.response_target_days ?? ""}
+                      disabled={!isAdmin}
+                      onSave={(v) => (v === "" || mins(v)) && patch("sla_definitions", d.priority, { response_target_days: v === "" ? null : v })}
+                    />
+                  </Field>
+                  <Field label="Resolution (business days)">
+                    <AutoInput
+                      type="number"
+                      min={1}
+                      placeholder="use mins"
+                      value={d.resolution_target_days ?? ""}
+                      disabled={!isAdmin}
+                      onSave={(v) => (v === "" || mins(v)) && patch("sla_definitions", d.priority, { resolution_target_days: v === "" ? null : v })}
                     />
                   </Field>
                   <label className="flex items-end gap-1.5 text-[11px] pb-1.5">

@@ -139,7 +139,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       }),
     );
     sets.push(`collected_info = coalesce(collected_info, '{}'::jsonb) || $${vals.length}::jsonb`);
-    sets.push("first_response_at = coalesce(first_response_at, now())");
+    // The reporter acknowledging their own ticket is not a first response.
+    vals.push(auth.session.user_id);
+    sets.push(
+      `first_response_at = case when created_by_user_id is distinct from $${vals.length}::uuid then coalesce(first_response_at, now()) else first_response_at end`,
+    );
   }
   // Reopening clears the resolution timestamp so SLA and reports treat it as live again.
   if (b.status !== undefined && !["resolved", "closed"].includes(b.status)) sets.push("resolved_at = null");
@@ -214,9 +218,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
           c.query<{
             response_target_mins: number;
             resolution_target_mins: number;
+            response_target_days: number | null;
+            resolution_target_days: number | null;
             business_hours_only: boolean;
           }>(
-            "select response_target_mins, resolution_target_mins, business_hours_only from sla_definitions where priority = $1 limit 1",
+            "select response_target_mins, resolution_target_mins, response_target_days, resolution_target_days, business_hours_only from sla_definitions where priority = $1 limit 1",
             [b.priority],
           ),
           c.query("select value from app_settings where key = 'sla.business_hours'"),
@@ -227,6 +233,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
             createdAt: cur.created_at ? new Date(cur.created_at) : new Date(),
             responseTargetMins: Number(def.response_target_mins),
             resolutionTargetMins: Number(def.resolution_target_mins),
+            responseTargetDays: def.response_target_days,
+            resolutionTargetDays: def.resolution_target_days,
             businessHoursOnly: Boolean(def.business_hours_only),
             businessHours: (bhRes.rows[0]?.value ?? null) as BusinessHoursMap | null,
           });
