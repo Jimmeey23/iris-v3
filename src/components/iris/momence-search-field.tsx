@@ -1,5 +1,6 @@
 "use client";
 import { absUrl } from "@/lib/iris/utils";
+import { readJson } from "@/lib/iris/live-data";
 
 import * as React from "react";
 import { TrainerAvatar } from "./trainer-photo";
@@ -24,7 +25,7 @@ async function searchMomence(type: "momence_member" | "momence_session" | "momen
   const path = type === "momence_member" ? "members" : type === "momence_session" ? "sessions" : "trainers";
   const extra = sessionTypes?.length ? `&types=${encodeURIComponent(sessionTypes.join(","))}` : "";
   const res = await fetch(new URL(`/api/momence/${path}?q=${encodeURIComponent(q)}${extra}`, window.location.origin), { cache: "no-store" });
-  const j = await res.json().catch(() => ({}));
+  const j = await readJson(res);
   if (!res.ok) throw new Error(j.error || `Momence search failed (${res.status})`);
   if (type === "momence_member") {
     return (j.members ?? []).map((m: any) => ({
@@ -71,9 +72,9 @@ function SessionRosterLine({ id }: { id: string }) {
   React.useEffect(() => {
     const ac = new AbortController();
     fetch(absUrl(`/api/momence/sessions/${encodeURIComponent(id)}/roster`), { signal: ac.signal, cache: "no-store" })
-      .then((x) => x.json())
+      .then((x) => readJson(x))
       .then((j) => setR(j.data ?? "na"))
-      .catch(() => {});
+      .catch((e) => { if (!ac.signal.aborted) setR("na"); });
     return () => ac.abort();
   }, [id]);
   if (r === "na") return null;
@@ -108,6 +109,12 @@ export function MomenceSearchField({
   const [selected, setSelected] = React.useState<MomenceEntity | null>(null);
   const [showResults, setShowResults] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  // The fetch effect reads the open state through a ref so toggling the dropdown doesn't
+  // itself retrigger a search; `focusTick` is the explicit "list on focus" trigger.
+  const showRef = React.useRef(false);
+  const [focusTick, setFocusTick] = React.useState(0);
+  React.useEffect(() => { showRef.current = showResults; }, [showResults]);
+  const listId = React.useId();
 
   const [error, setError] = React.useState<string | null>(null);
 
@@ -122,7 +129,7 @@ export function MomenceSearchField({
       setError(null);
       return;
     }
-    if (type !== "momence_member" && !q && !showResults) return;
+    if (type !== "momence_member" && !q && !showRef.current) return;
     // Stale responses are ignored rather than aborted: some browser
     // extensions wrap fetch and surface aborts as uncaught errors.
     let stale = false;
@@ -134,7 +141,7 @@ export function MomenceSearchField({
         .finally(() => { if (!stale) setSearching(false); });
     }, 350);
     return () => { stale = true; clearTimeout(t); };
-  }, [query, type, showResults, typesKey]);
+  }, [query, type, typesKey, focusTick]);
 
   const handleSelect = (entity: MomenceEntity) => {
     setSelected(entity);
@@ -187,6 +194,8 @@ export function MomenceSearchField({
               Verified
             </div>
             <button
+              type="button"
+              aria-label={`Clear selected ${iconName.toLowerCase()}`}
               onClick={handleClear}
               className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
@@ -234,7 +243,18 @@ export function MomenceSearchField({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => (query || type !== "momence_member") && setShowResults(true)}
+          onFocus={() => {
+            if (query || type !== "momence_member") {
+              showRef.current = true;
+              setShowResults(true);
+              setFocusTick((n) => n + 1);
+            }
+          }}
+          role="combobox"
+          aria-expanded={showResults}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-label={placeholder || `Search Momence ${iconName.toLowerCase()}s`}
           placeholder={placeholder || (type === "momence_member" ? "Search members by name, email or phone" : type === "momence_session" ? "Search classes by name, trainer or studio" : "Search trainers")}
           className={cn(
             "w-full pl-10 pr-20 bg-card focus:outline-none transition-all placeholder:text-muted-foreground",
@@ -247,7 +267,7 @@ export function MomenceSearchField({
 
       {/* Results dropdown */}
       {showResults && (query.trim() || results.length > 0 || error) && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 iris-card-elevated max-h-[280px] overflow-y-auto iris-scrollbar iris-scale-in">
+        <div id={listId} role="listbox" aria-label={`${iconName} results`} className="absolute top-full left-0 right-0 mt-1.5 z-50 iris-card-elevated max-h-[280px] overflow-y-auto iris-scrollbar iris-scale-in">
           {searching && results.length === 0 && (
             <div className="p-4 text-center text-[12px] text-muted-foreground flex items-center justify-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
@@ -280,6 +300,9 @@ export function MomenceSearchField({
               {results.map((entity) => (
                 <button
                   key={entity.id}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
                   onClick={() => handleSelect(entity)}
                   className="w-full flex items-center gap-3 p-2.5 hover:bg-violet-500/5 transition-colors text-left border-b border-border last:border-0 group"
                 >

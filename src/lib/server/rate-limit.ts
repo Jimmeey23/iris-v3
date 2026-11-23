@@ -55,9 +55,13 @@ export function invalidateRateLimitConfigCache() {
  * Counts one request against `bucket` for `identity` and throws RateLimitError once
  * the window is full. Runs as the database owner: buckets cover anonymous callers too.
  */
-export async function enforceRateLimit(bucket: RateLimitBucket, identity: string): Promise<{ remaining: number }> {
+export async function enforceRateLimit(
+  bucket: RateLimitBucket,
+  identity: string,
+  opts: { max?: number } = {},
+): Promise<{ remaining: number }> {
   const limit = RATE_LIMITS[bucket];
-  const maxAllowed = await effectiveBucketMax(bucket);
+  const maxAllowed = opts.max ?? (await effectiveBucketMax(bucket));
   const key = rateLimitKey(bucket, identity);
   const now = new Date();
 
@@ -88,6 +92,25 @@ export async function enforceRateLimit(bucket: RateLimitBucket, identity: string
     );
   }
   return { remaining: Math.max(0, maxAllowed - used) };
+}
+
+/**
+ * Best-effort client IP that a caller cannot choose. Platform headers first
+ * (x-vercel-forwarded-for, x-real-ip); then the RIGHT-most x-forwarded-for entry,
+ * which is the one appended by our own proxy - the left-most is client-supplied.
+ */
+export function clientIp(req: Request): string | null {
+  const h = req.headers;
+  const candidates = [
+    h.get("x-vercel-forwarded-for")?.split(",")[0],
+    h.get("x-real-ip"),
+    h.get("x-forwarded-for")?.split(",").pop(),
+  ];
+  for (const c of candidates) {
+    const v = c?.trim();
+    if (v && /^[0-9a-fA-F:.]{2,45}$/.test(v)) return v;
+  }
+  return null;
 }
 
 /** Identity for a signed-in caller. */

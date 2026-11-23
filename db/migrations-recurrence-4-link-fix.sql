@@ -6,7 +6,7 @@
 --  "Edited related tickets" activities at the same now(), which violate
 --  uq_activities_seed, so the whole run rolled back and no check was ever raised.
 --  The original is now linked once, after the loop, with all its new checks.
--- Re-runnable. Depends on migrations-recurrence-v2.sql / -routing.sql.
+-- Re-runnable. Depends on migrations-recurrence-2-v2.sql / -3-routing.sql.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION iris.materialize_recurrence_checks()

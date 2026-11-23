@@ -164,6 +164,8 @@ export const RATE_LIMITS = {
   login: { max: 10, windowSeconds: 300 },
   /** "Forgot password" requests, keyed by IP and email; each one sends an email. */
   "password-reset": { max: 5, windowSeconds: 900 },
+  /** Test / preview emails from the notification settings. */
+  "email-test": { max: 10, windowSeconds: 600 },
 } as const satisfies Record<string, Limit>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

@@ -96,6 +96,9 @@ export async function PUT(request: Request) {
   }
 }
 
+/** Audit entries younger than this are never purgeable, whatever the caller asks for. */
+const MIN_PURGE_DAYS = 90;
+
 /** Admin action: prune audit log entries older than `audit.retention_days`. */
 export async function DELETE(req: NextRequest) {
   const auth = await requireSession({ admin: true });
@@ -103,14 +106,20 @@ export async function DELETE(req: NextRequest) {
   const daysParam = Number(req.nextUrl.searchParams.get("olderThanDays"));
   try {
     const days = await withUser(auth.session.user_id, async (c) => {
-      if (Number.isFinite(daysParam) && daysParam >= 7) return Math.round(daysParam);
+      if (Number.isFinite(daysParam) && daysParam >= MIN_PURGE_DAYS) return Math.round(daysParam);
       const row = (await c.query("select value from app_settings where key = 'audit.retention_days'")).rows[0];
       const v = Number(row?.value);
-      return Number.isFinite(v) && v >= 7 ? Math.round(v) : 365;
+      return Number.isFinite(v) && v >= MIN_PURGE_DAYS ? Math.round(v) : 365;
     });
     const res = await pool.query(
       "delete from iris.audit_log where created_at < now() - make_interval(days => $1::int)",
       [days],
+    );
+    // The purge itself is a fresh row, so it survives the delete above and is itself audited.
+    await pool.query(
+      `insert into iris.audit_log (actor_user_id, actor_name, action, entity_type, entity_id, after_state)
+       values ($1, $2, 'audit_purged', 'audit_log', null, $3::jsonb)`,
+      [auth.session.user_id, auth.session.email, JSON.stringify({ olderThanDays: days, pruned: res.rowCount ?? 0 })],
     );
     return NextResponse.json({ ok: true, pruned: res.rowCount ?? 0, retentionDays: days });
   } catch (err) {

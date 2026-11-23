@@ -11,6 +11,7 @@ import { api, ApiError, loadAll } from "@/lib/iris/live-data";
 import { loadLibrary } from "@/lib/iris/library-api";
 import { useAppStore, type CurrentUser, type ViewName } from "@/lib/iris/store";
 import { useSettingsStore } from "@/lib/iris/settings-store";
+import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
 
 type Me = {
   userId: string;
@@ -27,6 +28,13 @@ type Phase = "checking" | "login" | "forgot" | "reset" | "change_password" | "lo
 
 /** A reset link lands on /?reset=<token>. Read once, then removed from the address bar. */
 let takenResetToken: string | null | undefined;
+/** Drop the previous person's data and navigation so the next sign-in can't see it. */
+function resetClientSession() {
+  ALL_TICKETS.length = 0;
+  useAppStore.setState({ selectedTicketId: null, currentView: "overview" });
+  useAppStore.getState().bumpData();
+}
+
 function takeResetToken(): string | null {
   if (typeof window === "undefined") return null;
   if (takenResetToken !== undefined) return takenResetToken; // StrictMode runs initializers twice
@@ -84,10 +92,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
     setPhase("loading");
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         loadAll(),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 45000)),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error("The workspace took too long to respond. Please try again.")), 45000);
+        }),
       ]);
       // Apply user's persisted landing view & sidebar state unless deep-linking to a ticket
       // A link to a specific page or ticket wins over the landing-view preference.
@@ -106,16 +117,19 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load data");
       setPhase("error");
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, [setCurrentUser]);
 
   React.useEffect(() => {
     // A reset link skips the session check: the person is signed out by definition.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off routing on mount
     if (resetToken) setPhase("reset");
     else boot();
     const onSignedOut = () => {
-      if (!(process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true")) setPhase("login");
+      if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_IRIS_PREVIEW_MODE === "true") return;
+      resetClientSession();
+      setPhase("login");
     };
     window.addEventListener("iris:signed-out", onSignedOut);
     return () => window.removeEventListener("iris:signed-out", onSignedOut);
@@ -123,6 +137,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   const signOut = React.useCallback(async () => {
     await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+    resetClientSession();
     setPhase("login");
   }, []);
 

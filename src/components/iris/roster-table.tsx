@@ -4,6 +4,7 @@ import * as React from "react";
 import { Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { absUrl } from "@/lib/iris/utils";
+import { readJson } from "@/lib/iris/live-data";
 import { ATTENDANCE, INTEREST, parseRoster, type RosterRow } from "@/lib/iris/roster-field";
 
 type RosterApi = {
@@ -35,7 +36,7 @@ export function RosterTable({ sessionId, value, onChange }: { sessionId: string 
     loadedFor.current = sessionId;
     setState("loading");
     fetch(absUrl(`/api/momence/sessions/${encodeURIComponent(sessionId)}/roster?all=1`), { cache: "no-store" })
-      .then((r) => r.json() as Promise<RosterApi>)
+      .then((r) => readJson<RosterApi>(r))
       .then((j) => {
         if (stale) return;
         if (!j.data) throw new Error(j.error ?? (j.unavailable ? "Momence doesn't allow reading this class roster." : "Couldn't load the roster."));

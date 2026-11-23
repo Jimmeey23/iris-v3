@@ -33,7 +33,7 @@ export type NotifyExtra = {
   comment?: { author?: string | null; content: string; isInternal?: boolean } | null;
   /** Extra employee ids to notify (watchers). */
   watcherEmployeeIds?: string[];
-  /** Overrides the dedupe discriminator (default: minute bucket). */
+  /** Overrides the dedupe discriminator (default: minute bucket; unique per call for assignment events). */
   dedupe?: string;
   /** SLA extension request context (requested / decided events). */
   extension?: {
@@ -190,7 +190,14 @@ async function deliver(
     const senderName = typeof settings["notifications.sender_name"] === "string" ? settings["notifications.sender_name"] : undefined;
     const replyTo = typeof settings["notifications.reply_to"] === "string" ? settings["notifications.reply_to"] : undefined;
 
-    const bucket = extra.dedupe ?? String(Math.floor(Date.now() / 60_000));
+    // Default: a minute bucket. Events that are distinct occurrences (a second reassignment or
+    // added owner in the same minute) get a unique discriminator instead, so they are never
+    // swallowed; callers can still pass their own (e.g. comment:<id>, sla:<target>).
+    const bucket =
+      extra.dedupe ??
+      (event === "ticket_assigned" || event === "owner_added" || event === "department_added"
+        ? `${extra.addedOwnerIds?.join(",") ?? t.assigneeId ?? ""}:${extra.addedDepartmentCodes?.join(",") ?? ""}:${Date.now()}`
+        : String(Math.floor(Date.now() / 60_000)));
     const summary: DeliverSummary = { event, recipients: recipients.length, inApp: 0, email: 0, queued: 0, skipped: 0 };
     const dry = extra.dryRun || process.env.NOTIFY_DRY_RUN === "1";
     const viaOutbox = settings["ops.email_via_outbox"] !== false;
@@ -321,7 +328,7 @@ async function finish(
   error?: string,
 ) {
   await c.query(
-    "update email_log set status = $2, provider = $3, provider_id = $4, error = $5, sent_at = case when $2 = 'sent' then now() else null end where dedupe_key = $1",
+    "update email_log set status = $2, provider = $3, provider_id = $4, error = $5, sent_at = case when $2 = 'sent' then now() else null end where dedupe_key = $1 and (status = 'pending' or $2 <> 'queued')",
     [key, status, provider, providerId ?? null, error ?? null],
   );
 }

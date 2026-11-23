@@ -1,5 +1,6 @@
 "use client";
 import { absUrl } from "@/lib/iris/utils";
+import { readJson } from "@/lib/iris/live-data";
 
 import * as React from "react";
 import { TrainerAvatar } from "@/components/iris/trainer-photo";
@@ -130,7 +131,7 @@ export function MomenceView() {
     setStatusLoading(true);
     try {
       const r = await fetch(absUrl("/api/momence/status"), { cache: "no-store" });
-      if (r.ok) setStatus(await r.json());
+      if (r.ok) setStatus(await readJson(r));
     } catch {
       /* offline safe */
     } finally {
@@ -160,10 +161,18 @@ export function MomenceView() {
     return () => clearTimeout(t);
   }, [memberQuery]);
 
+  const configuredRegionCount = status?.configuredRegions.length;
+  // Latest-request-wins: a slow earlier response must not overwrite a newer page/region/query.
+  const membersReq = React.useRef(0);
+  const sessionsReq = React.useRef(0);
+
   const loadMembers = React.useCallback(async () => {
-    if (status && status.configuredRegions.length === 0) {
+    const reqId = ++membersReq.current;
+    if (configuredRegionCount === 0) {
       setMembers([]);
       setMemberTotal(0);
+      setSelectedMember(null);
+      setMembersLoading(false);
       return;
     }
     setMembersLoading(true);
@@ -177,21 +186,21 @@ export function MomenceView() {
         ...(debouncedMemberQuery.trim() ? { q: debouncedMemberQuery.trim() } : {}),
       });
       const r = await fetch(absUrl(`/api/momence/members?${qs.toString()}`), { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
+      const j = await readJson(r);
+      if (reqId !== membersReq.current) return;
       if (!r.ok) throw new Error(j.error || `Failed to load members (${r.status})`);
       const rows = (j.members ?? []) as LiveMemberSummary[];
       setMembers(rows);
       setMemberTotal(Number(j.totalCount ?? rows.length));
-      setSelectedMember((cur) => {
-        if (cur && rows.some((m) => m.id === cur.id)) return rows.find((m) => m.id === cur.id)!;
-        return cur ?? rows[0] ?? null;
-      });
+      // Keep the selection only if it is on this page/region; otherwise fall to the first row.
+      setSelectedMember((cur) => (cur && rows.find((m) => m.id === cur.id)) || rows[0] || null);
     } catch (e) {
+      if (reqId !== membersReq.current) return;
       setMembersError(e instanceof Error ? e.message : "Could not reach Momence API");
     } finally {
-      setMembersLoading(false);
+      if (reqId === membersReq.current) setMembersLoading(false);
     }
-  }, [region, memberPage, debouncedMemberQuery, status]);
+  }, [region, memberPage, debouncedMemberQuery, configuredRegionCount]);
 
   React.useEffect(() => {
     if (!statusLoading) void Promise.resolve().then(() => loadMembers());
@@ -212,8 +221,10 @@ export function MomenceView() {
   }, [sessionQuery]);
 
   const loadSessions = React.useCallback(async () => {
-    if (status && status.configuredRegions.length === 0) {
+    const reqId = ++sessionsReq.current;
+    if (configuredRegionCount === 0) {
       setSessions([]);
+      setSessionsLoading(false);
       return;
     }
     setSessionsLoading(true);
@@ -241,17 +252,19 @@ export function MomenceView() {
         ...(debouncedSessionQuery.trim() ? { q: debouncedSessionQuery.trim() } : {}),
       });
       const r = await fetch(absUrl(`/api/momence/sessions?${qs.toString()}`), { cache: "no-store" });
-      const j = await r.json().catch(() => ({}));
+      const j = await readJson(r);
+      if (reqId !== sessionsReq.current) return;
       if (!r.ok) throw new Error(j.error || "Failed to load sessions");
       const list = (j.sessions ?? []) as LiveSessionSummary[];
       setSessions(list);
       setSelectedSessionId((cur) => (cur && list.some((x) => x.id === cur) ? cur : (list[0]?.id ?? null)));
     } catch (e) {
+      if (reqId !== sessionsReq.current) return;
       setSessionsError(e instanceof Error ? e.message : "Failed to load sessions");
     } finally {
-      setSessionsLoading(false);
+      if (reqId === sessionsReq.current) setSessionsLoading(false);
     }
-  }, [region, sessionWindow, debouncedSessionQuery, status]);
+  }, [region, sessionWindow, debouncedSessionQuery, configuredRegionCount]);
 
   React.useEffect(() => {
     if (!statusLoading && activeTab === "sessions") {
@@ -1065,7 +1078,7 @@ function LiveTrainersSection({ region, configured }: { region: RegionFilter; con
       try {
         const qs = new URLSearchParams({ region, ...(q.trim() ? { q: q.trim() } : {}) });
         const r = await fetch(absUrl(`/api/momence/trainers?${qs.toString()}`), { cache: "no-store" });
-        const j = await r.json().catch(() => ({}));
+        const j = await readJson(r);
         if (!r.ok) throw new Error(j.error || "Failed to load instructors");
         if (!cancelled) setTrainers(j.trainers ?? []);
       } catch (e) {
@@ -1224,7 +1237,7 @@ function LiveWebhooksAndHealthSection({
     setProbing(true);
     try {
       const r = await fetch(absUrl("/api/momence/meta?what=capabilities"), { cache: "no-store" });
-      const j = await r.json();
+      const j = await readJson(r);
       if (j.data) {
         setCaps(j.data);
         toast.success("Momence endpoint capability check complete");

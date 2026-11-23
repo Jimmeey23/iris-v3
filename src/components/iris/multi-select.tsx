@@ -32,6 +32,7 @@ export function MultiSelect({
   size?: "sm" | "md";
 }) {
   const [open, setOpen] = React.useState(false);
+  const listId = React.useId();
   const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? v;
   const toggle = (v: string) => {
     if (value.includes(v)) onChange(value.filter((x) => x !== v));
@@ -45,6 +46,8 @@ export function MultiSelect({
           role="combobox"
           aria-expanded={open}
           aria-haspopup="listbox"
+          aria-controls={listId}
+          aria-label={placeholder}
           tabIndex={disabled ? -1 : 0}
           onKeyDown={(e) => {
             if (disabled) return;
@@ -88,7 +91,7 @@ export function MultiSelect({
           <ChevronsUpDown className="ml-auto w-3 h-3 shrink-0 text-muted-foreground" />
         </div>
       </PopoverTrigger>
-      <PopoverContent align="start" className="p-0 w-[--radix-popover-trigger-width] min-w-[220px]">
+      <PopoverContent id={listId} align="start" className="p-0 w-[--radix-popover-trigger-width] min-w-[220px]">
         <Command>
           <CommandInput placeholder="Search…" className="h-8 text-[12px]" />
           <CommandList>

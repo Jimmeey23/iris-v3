@@ -1,5 +1,5 @@
 "use client";
-import { absUrl } from "@/lib/iris/utils";
+import { api } from "@/lib/iris/live-data";
 
 import * as React from "react";
 import { toast } from "sonner";
@@ -145,6 +145,7 @@ export function EmailTemplatesView() {
 
   const [statusData, setStatusData] = React.useState<EmailServiceStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = React.useState(true);
+  const [statusError, setStatusError] = React.useState<string | null>(null);
   const [sendingTest, setSendingTest] = React.useState(false);
   const [testDialogOpen, setTestDialogOpen] = React.useState<"notification" | "digest" | null>(null);
   const [customRecipient, setTestRecipient] = React.useState("");
@@ -155,33 +156,18 @@ export function EmailTemplatesView() {
   const loadStatus = React.useCallback(async () => {
     setLoadingStatus(true);
     try {
-      const res = await fetch(absUrl("/api/notifications/email"), { cache: "no-store" });
-      if (res.ok) {
-        const json = (await res.json()) as EmailServiceStatus;
-        setStatusData(json);
-      }
-    } catch {
-      /* preview / offline safe */
+      setStatusData(await api<EmailServiceStatus>("/api/notifications/email"));
+      setStatusError(null);
+    } catch (e) {
+      setStatusError(e instanceof Error ? e.message : "Couldn't load the email service status.");
     } finally {
       setLoadingStatus(false);
     }
   }, []);
 
   React.useEffect(() => {
-    let active = true;
-    fetch(absUrl("/api/notifications/email"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: EmailServiceStatus | null) => {
-        if (active && json) setStatusData(json);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (active) setLoadingStatus(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+    void loadStatus();
+  }, [loadStatus]);
 
   const selectedEntry =
     NOTIFICATION_EMAIL_CATALOG.find((t) => t.code === selectedCode) ?? NOTIFICATION_EMAIL_CATALOG[0];
@@ -272,20 +258,18 @@ export function EmailTemplatesView() {
     return map;
   }, [statusData?.rules]);
 
-  const isRuleEmailEnabled = (ruleName: string) => {
-    const row = ruleByEventName.get(ruleName);
-    return row ? row.email : true;
+  /** null while the rules are unknown (not loaded / failed); a missing row means no rule, i.e. off. */
+  const isRuleEmailEnabled = (ruleName: string): boolean | null => {
+    if (!statusData) return null;
+    return ruleByEventName.get(ruleName)?.email ?? false;
   };
 
   const handleToggleRule = async (ruleName: string, nextVal: boolean) => {
     try {
-      const res = await fetch(absUrl("/api/notifications/email"), {
+      await api("/api/notifications/email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "toggle_rule", eventName: ruleName, email: nextVal }),
+        json: { action: "toggle_rule", eventName: ruleName, email: nextVal },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update rule");
       toast.success(`${ruleName}: email notifications ${nextVal ? "enabled" : "disabled"}`);
       void loadStatus();
     } catch (e) {
@@ -306,15 +290,8 @@ export function EmailTemplatesView() {
               event: selectedEntry.event,
               ticketId: selectedTicketId,
             };
-      const res = await fetch(absUrl("/api/notifications/email"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error || "Email dispatch failed");
-      } else if (json.dryRun) {
+      const json = await api("/api/notifications/email", { method: "POST", json: payload });
+      if (json.dryRun) {
         toast.success(`Dry-run verified (${json.subject}) - logged to delivery ledger`);
         setTestDialogOpen(null);
       } else {
@@ -331,13 +308,10 @@ export function EmailTemplatesView() {
 
   const handleSaveOverride = async (key: string, override: EmailTemplateOverride) => {
     try {
-      const res = await fetch(absUrl("/api/notifications/email"), {
+      const json = await api("/api/notifications/email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "save_override", key, override }),
+        json: { action: "save_override", key, override },
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to save template customization");
       setStatusData((prev) => (prev ? { ...prev, overrides: json.overrides } : prev));
       setEditingKey(null);
       toast.success("Email template customization saved");
@@ -348,13 +322,10 @@ export function EmailTemplatesView() {
 
   const handleSaveSchedule = async (schedule: EmailServiceStatus["digestSchedule"]) => {
     try {
-      const res = await fetch(absUrl("/api/notifications/email"), {
+      const json = await api("/api/notifications/email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "save_schedule", schedule }),
+        json: { action: "save_schedule", schedule },
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to save schedule");
       setStatusData((prev) => (prev ? { ...prev, digestSchedule: json.digestSchedule } : prev));
       setScheduleOpen(false);
       toast.success("Digest schedule saved");
@@ -365,13 +336,7 @@ export function EmailTemplatesView() {
 
   const handleOutboxAction = async (action: "drain_outbox" | "retry_failed", outboxId?: string) => {
     try {
-      const res = await fetch(absUrl("/api/notifications/email"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, outboxId }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Outbox operation failed");
+      const json = await api("/api/notifications/email", { method: "POST", json: { action, outboxId } });
       if (action === "drain_outbox") {
         toast.success(
           `Outbox drained: ${json.summary.succeeded} sent, ${json.summary.retrying} retrying, ${json.summary.failed} failed`,
@@ -417,6 +382,19 @@ export function EmailTemplatesView() {
           </Button>
         </div>
       </div>
+
+      {statusError && (
+        <div role="alert" className="iris-card p-3 border-l-4 border-l-rose-500 flex items-center justify-between flex-wrap gap-3 text-[12px]">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+            Couldn't load email service status: {statusError}. Delivery stats and rule toggles are unavailable.
+          </span>
+          <Button variant="outline" className="h-7 text-[11px]" onClick={() => void loadStatus()} disabled={loadingStatus}>
+            <RefreshCw className={cn("w-3 h-3 mr-1.5", loadingStatus && "animate-spin")} />
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Live Email Service Health Banner */}
       <div
@@ -589,7 +567,7 @@ export function EmailTemplatesView() {
                               : "bg-muted text-muted-foreground",
                           )}
                         >
-                          {enabled ? "On" : "Off"}
+                          {enabled === null ? "—" : enabled ? "On" : "Off"}
                         </span>
                       </div>
                       <div className="text-[10.5px] text-muted-foreground line-clamp-2 pl-4">{item.description}</div>
@@ -618,7 +596,8 @@ export function EmailTemplatesView() {
                   {isAdmin && (
                     <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground mr-2 cursor-pointer">
                       <Switch
-                        checked={isRuleEmailEnabled(selectedEntry.ruleName)}
+                        checked={isRuleEmailEnabled(selectedEntry.ruleName) === true}
+                        disabled={isRuleEmailEnabled(selectedEntry.ruleName) === null}
                         onCheckedChange={(v) => handleToggleRule(selectedEntry.ruleName, v)}
                       />
                       <span>Send Email</span>

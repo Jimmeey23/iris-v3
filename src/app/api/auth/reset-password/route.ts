@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { asSystemMain as asSystem } from "@/lib/server/db";
 import { dbError, setSessionCookie } from "@/lib/server/auth";
-import { RateLimitError, enforceRateLimit, loginKey } from "@/lib/server/rate-limit";
+import { RateLimitError, clientIp, enforceRateLimit, loginKey } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (newPassword.length < 10) {
     return NextResponse.json({ error: "New password must be at least 10 characters" }, { status: 400 });
   }
-  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
+  const ip = clientIp(request);
   try {
     await enforceRateLimit("password-reset", loginKey(ip, "reset"));
   } catch (e) {

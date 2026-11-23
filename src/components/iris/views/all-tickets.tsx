@@ -7,6 +7,7 @@ import { STUDIOS, DEPARTMENTS, EMPLOYEES, EMPLOYEE_MAP, Priority } from "@/lib/i
 import { PriorityBadge, StatusBadge, SLABadge, StudioBadge } from "../badges";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
+import { RelativeTime } from "@/components/iris/relative-time";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -569,7 +570,7 @@ function TicketCard({ t, onSelect, dense }: { t: Ticket; onSelect: (id: string) 
       <div className="text-[12.5px] font-medium leading-snug line-clamp-2 mb-2">{t.title}</div>
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
         {studio && <StudioBadge studioCode={studio.code} />}
-        <span className="ml-auto">{formatRelativeTime(t.updatedAt)}</span>
+        <RelativeTime className="ml-auto" date={t.updatedAt} />
       </div>
       {!dense && (
         <>
@@ -598,6 +599,7 @@ function Board({ tickets, columns, columnOf, label, onSelect, avatars }: {
 }) {
   const by = new Map<string, Ticket[]>(columns.map((c) => [c, []]));
   for (const t of tickets) by.get(columnOf(t))?.push(t);
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   return (
     <div className="flex gap-3 overflow-x-auto iris-scrollbar pb-2">
       {columns.map((c) => {
@@ -612,8 +614,13 @@ function Board({ tickets, columns, columnOf, label, onSelect, avatars }: {
               <Badge variant="secondary" className="h-4 px-1.5 text-[10px] ml-auto tabular-nums">{list.length}</Badge>
             </div>
             <div className="p-2 space-y-2 overflow-y-auto iris-scrollbar">
-              {list.slice(0, 60).map((t) => <TicketCard key={t.id} t={t} onSelect={onSelect} dense />)}
-              {list.length > 60 && <div className="text-[10px] text-center text-muted-foreground py-1">+{list.length - 60} more</div>}
+              {(expanded[c] ? list : list.slice(0, 60)).map((t) => <TicketCard key={t.id} t={t} onSelect={onSelect} dense />)}
+              {list.length > 60 && (
+                <button type="button" onClick={() => setExpanded((e) => ({ ...e, [c]: !e[c] }))}
+                  className="w-full text-[10px] text-center text-muted-foreground hover:text-foreground py-1">
+                  {expanded[c] ? "Show fewer" : `+${list.length - 60} more`}
+                </button>
+              )}
               {!list.length && <div className="text-[11px] text-center text-muted-foreground py-6">Nothing here</div>}
             </div>
           </div>
@@ -624,13 +631,17 @@ function Board({ tickets, columns, columnOf, label, onSelect, avatars }: {
 }
 
 function Timeline({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: string) => void }) {
+  const [limit, setLimit] = React.useState(400);
   const days = new Map<string, Ticket[]>();
-  for (const t of [...tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 400)) {
+  for (const t of [...tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit)) {
     const k = new Date(t.createdAt).toDateString();
     days.set(k, [...(days.get(k) ?? []), t]);
   }
   return (
     <div className="iris-card p-4">
+      {tickets.length > limit && (
+        <div className="mb-3 text-[11px] text-muted-foreground">Showing the {limit} most recent of {tickets.length} tickets.</div>
+      )}
       {[...days.entries()].map(([day, list]) => (
         <div key={day} className="relative pl-6 pb-5 last:pb-0 border-l border-border ml-2">
           <span className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-primary" />
@@ -651,24 +662,27 @@ function Timeline({ tickets, onSelect }: { tickets: Ticket[]; onSelect: (id: str
           </div>
         </div>
       ))}
+      <ShowMore shown={Math.min(limit, tickets.length)} total={tickets.length} onMore={() => setLimit((l) => l + 400)} />
     </div>
   );
 }
 
 function Split({ tickets, preview, setPreview, onOpen }: { tickets: Ticket[]; preview: string | null; setPreview: (id: string) => void; onOpen: (id: string) => void }) {
   const t = tickets.find((x) => x.id === preview) ?? tickets[0];
+  const [limit, setLimit] = React.useState(300);
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       <div className="iris-card overflow-hidden max-h-[74vh] overflow-y-auto iris-scrollbar divide-y divide-border">
-        {tickets.slice(0, 300).map((x) => (
+        {tickets.slice(0, limit).map((x) => (
           <button key={x.id} onClick={() => setPreview(x.id)} onDoubleClick={() => onOpen(x.id)}
             className={cn("w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors", x.id === t?.id && "bg-primary/[.07] shadow-[inset_3px_0_0_0_var(--primary)]")}>
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              <span className="font-mono">{x.ticketId}</span><PriorityBadge priority={x.priority} /><span className="ml-auto">{formatRelativeTime(x.updatedAt)}</span>
+              <span className="font-mono">{x.ticketId}</span><PriorityBadge priority={x.priority} /><RelativeTime className="ml-auto" date={x.updatedAt} />
             </div>
             <div className="text-[12.5px] font-medium truncate mt-0.5">{x.title}</div>
           </button>
         ))}
+        <ShowMore shown={Math.min(limit, tickets.length)} total={tickets.length} onMore={() => setLimit((l) => l + 300)} />
       </div>
       {t && (
         <div className="iris-card p-5 max-h-[74vh] overflow-y-auto iris-scrollbar">

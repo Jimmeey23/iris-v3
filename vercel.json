@@ -12,7 +12,7 @@
     },
     {
       "path": "/api/cron/sla",
-      "schedule": "30 2 * * *"
+      "schedule": "30 3 * * *"
     },
     {
       "path": "/api/cron/trainer-reviews",

@@ -105,7 +105,7 @@ const kw = (...words: string[]) =>
   "(" + words.map((w) => `(t.category || ' ' || coalesce(t.subcategory,'') || ' ' || t.title) ilike '%${w}%'`).join(" or ") + ")";
 
 const fmtDate = (d: unknown) =>
-  d ? new Date(d as string).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-";
+  d ? new Date(d as string).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" }) : "-";
 const num = (v: unknown) => (v === null || v === undefined ? "-" : Number(v));
 
 // ── Spec kinds ──────────────────────────────────────────────────────────────
@@ -200,8 +200,8 @@ async function runTrend(c: PoolClient, days: number | null, s: TrendSpec) {
   )).rows;
   const label = (d: Date) =>
     s.bucket === "month"
-      ? new Date(d).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
-      : new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+      ? new Date(d).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", month: "short", year: "numeric" })
+      : new Date(d).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
   const total = rows.reduce((n, r) => n + r.created, 0);
   const peak = rows.reduce<(typeof rows)[number] | null>((m, r) => (!m || r.created > m.created ? r : m), null);
   return {
@@ -288,10 +288,10 @@ export const REPORT_SPECS: Record<string, Spec> = {
   "RPT-024": { kind: "list", where: `${OPEN} and t.sla_resolution_target between now() and now() + interval '4 hours'`, order: "t.sla_resolution_target asc" },
   "RPT-025": { kind: "trend", bucket: "month", where: "t.resolved_at is not null" },
   "RPT-026": table(
-    `select to_char(date_trunc('month', t.created_at), 'Mon YYYY') as month, count(*)::int as responded,
+    `select to_char(date_trunc('month', t.created_at at time zone 'Asia/Kolkata'), 'Mon YYYY') as month, count(*)::int as responded,
             round(avg(${FR_H})::numeric, 1) as avg_h
        from v_tickets_full t where ${RANGE} and t.first_response_at is not null
-      group by date_trunc('month', t.created_at) order by date_trunc('month', t.created_at)`,
+      group by date_trunc('month', t.created_at at time zone 'Asia/Kolkata') order by date_trunc('month', t.created_at at time zone 'Asia/Kolkata')`,
     ["Month", "Responded", "Avg first response (h)"],
     { chart: "line" },
   ),
@@ -299,10 +299,10 @@ export const REPORT_SPECS: Record<string, Spec> = {
   "RPT-028": { kind: "group", dim: "t.studio_name", label: "Studio" },
   "RPT-029": { kind: "group", dim: "coalesce(t.assignee_name, 'Unassigned')", label: "Employee" },
   "RPT-030": table(
-    `select to_char(date_trunc('month', t.created_at), 'Mon YYYY') as month, count(*)::int as tickets,
+    `select to_char(date_trunc('month', t.created_at at time zone 'Asia/Kolkata'), 'Mon YYYY') as month, count(*)::int as tickets,
             count(*) filter (where t.escalation_level > 0)::int as escalated,
             round(100.0 * count(*) filter (where t.escalation_level > 0) / nullif(count(*), 0), 1) as rate
-       from v_tickets_full t where ${RANGE} group by date_trunc('month', t.created_at) order by date_trunc('month', t.created_at)`,
+       from v_tickets_full t where ${RANGE} group by date_trunc('month', t.created_at at time zone 'Asia/Kolkata') order by date_trunc('month', t.created_at at time zone 'Asia/Kolkata')`,
     ["Month", "Tickets", "Escalated", "Escalation rate %"],
     { chart: "line" },
   ),
@@ -432,14 +432,14 @@ export const REPORT_SPECS: Record<string, Spec> = {
     { chart: "bar" },
   ),
   "RPT-080": table(
-    `select to_char(date_trunc('day', created_at), 'DD Mon') as day, round(sum(cost_usd)::numeric, 4) as cost_usd, count(*)::int as calls
-       from ai_usage u where ($1::int is null or u.created_at >= now() - make_interval(days => $1::int)) group by date_trunc('day', created_at) order by date_trunc('day', created_at)`,
+    `select to_char(date_trunc('day', created_at at time zone 'Asia/Kolkata'), 'DD Mon') as day, round(sum(cost_usd)::numeric, 4) as cost_usd, count(*)::int as calls
+       from ai_usage u where ($1::int is null or u.created_at >= now() - make_interval(days => $1::int)) group by date_trunc('day', created_at at time zone 'Asia/Kolkata') order by date_trunc('day', created_at at time zone 'Asia/Kolkata')`,
     ["Day", "Cost (USD)", "Calls"],
     { chart: "line" },
   ),
   "RPT-081": table(
-    `select to_char(date_trunc('day', created_at), 'DD Mon') as day, sum(input_tokens + output_tokens)::int as tokens
-       from ai_usage u where ($1::int is null or u.created_at >= now() - make_interval(days => $1::int)) group by date_trunc('day', created_at) order by date_trunc('day', created_at)`,
+    `select to_char(date_trunc('day', created_at at time zone 'Asia/Kolkata'), 'DD Mon') as day, sum(input_tokens + output_tokens)::int as tokens
+       from ai_usage u where ($1::int is null or u.created_at >= now() - make_interval(days => $1::int)) group by date_trunc('day', created_at at time zone 'Asia/Kolkata') order by date_trunc('day', created_at at time zone 'Asia/Kolkata')`,
     ["Day", "Tokens"],
     { chart: "line" },
   ),

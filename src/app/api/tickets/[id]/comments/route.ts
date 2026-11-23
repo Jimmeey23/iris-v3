@@ -35,6 +35,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/tickets
       return rows[0];
     });
     notifyTicketEvent("comment_added", { id, title: "" }, session, {
+      dedupe: `comment:${comment.id}`,
       comment: { author: comment.author, content: comment.content, isInternal: comment.isInternal },
     });
     return NextResponse.json({ comment }, { status: 201 });

@@ -1,5 +1,6 @@
 import "server-only";
-import { pool } from "./db";
+import type { PoolClient } from "pg";
+import { isSandboxRequest, mainPool as pool } from "./db";
 import { sendMail, mailConfigured } from "./mailer";
 import {
   OUTBOX_MAX_ATTEMPTS,
@@ -45,6 +46,9 @@ export type EnqueueOptions = {
 
 /** Queue one mail for delivery. Returns the outbox row id. */
 export async function enqueueEmail(msg: OutboxMail, opts: EnqueueOptions = {}): Promise<string> {
+  // Training sandbox: never queue real mail. The outbox lives in the real database
+  // (so sweeps always drain production's), and sandbox people may have real addresses.
+  if (await isSandboxRequest()) return "sandbox-skipped";
   const { rows } = await pool.query<{ id: string }>(
     `insert into iris.outbox (kind, status, payload, email_log_id)
      values ('email', 'pending', $1::jsonb, $2)
@@ -107,6 +111,31 @@ async function releaseStuck(now: Date): Promise<number> {
   }
 }
 
+async function handleSendFailure(client: PoolClient, job: { id: string; email_log_id: string | null }, attempt: number, err: unknown, summary: DeliverSummary) {
+  const error = err instanceof Error ? err.message : String(err);
+  try {
+    if (outboxGivesUp(attempt)) {
+      await client.query(
+        `update outbox set status = 'failed', last_error = $2, next_attempt_at = null, updated_at = now() where id = $1`,
+        [job.id, error],
+      );
+      if (job.email_log_id) {
+        await client.query(`update email_log set status = 'failed', error = $2 where id = $1`, [job.email_log_id, error]);
+      }
+      summary.failed++;
+    } else {
+      await client.query(
+        `update outbox set status = 'pending', last_error = $2, next_attempt_at = now() + interval '1 millisecond' * $3, updated_at = now() where id = $1`,
+        [job.id, error, outboxBackoffMs(attempt)],
+      );
+      summary.retrying++;
+    }
+  } catch (bookkeepingError) {
+    // The claim's lease still covers the row; releaseStuck will pick it up.
+    console.error(`[outbox] failure bookkeeping for ${job.id}:`, bookkeepingError);
+  }
+}
+
 /**
  * Drain due rows. `limit` keeps the batch small when riding on a user's request;
  * the cron route is what clears a genuine backlog with a larger budget.
@@ -146,37 +175,32 @@ export async function deliverPending({ limit = 10 }: { limit?: number } = {}): P
       );
       if (!claimed.rowCount) continue;
 
+      let res: Awaited<ReturnType<typeof sendMail>>;
       try {
         if (!mailConfigured()) throw new Error("No mail provider configured (MAILTRAP_API_KEY / MAILTRAP_SMTP_*)");
-        const res = await sendMail(job.payload);
-        await client.query(
-          `update outbox set status = 'sent', last_error = null, next_attempt_at = null, updated_at = now() where id = $1`,
-          [job.id],
-        );
-        if (job.email_log_id) {
-          await client.query(
-            `update email_log set status = 'sent', provider = $2, provider_id = $3, sent_at = now() where id = $1`,
-            [job.email_log_id, res.provider, res.id ?? null],
-          );
-        }
-        summary.succeeded++;
+        res = await sendMail(job.payload);
       } catch (err) {
-        const error = err instanceof Error ? err.message : String(err);
-        if (outboxGivesUp(attempt)) {
+        await handleSendFailure(client, job, attempt, err, summary);
+        continue;
+      }
+      // The mail is gone: bookkeeping trouble from here on must never reschedule (and so
+      // re-send) it. Retry once, then leave it for the logs.
+      summary.succeeded++;
+      for (let tryNo = 0; tryNo < 2; tryNo++) {
+        try {
           await client.query(
-            `update outbox set status = 'failed', last_error = $2, next_attempt_at = null, updated_at = now() where id = $1`,
-            [job.id, error],
+            `update outbox set status = 'sent', last_error = null, next_attempt_at = null, updated_at = now() where id = $1`,
+            [job.id],
           );
           if (job.email_log_id) {
-            await client.query(`update email_log set status = 'failed', error = $2 where id = $1`, [job.email_log_id, error]);
+            await client.query(
+              `update email_log set status = 'sent', provider = $2, provider_id = $3, sent_at = now() where id = $1`,
+              [job.email_log_id, res.provider, res.id ?? null],
+            );
           }
-          summary.failed++;
-        } else {
-          await client.query(
-            `update outbox set status = 'pending', last_error = $2, next_attempt_at = now() + interval '1 millisecond' * $3, updated_at = now() where id = $1`,
-            [job.id, error, outboxBackoffMs(attempt)],
-          );
-          summary.retrying++;
+          break;
+        } catch (bookkeepingError) {
+          console.error(`[outbox] sent ${job.id} but bookkeeping failed:`, bookkeepingError);
         }
       }
     }

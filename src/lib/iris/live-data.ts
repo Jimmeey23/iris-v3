@@ -39,6 +39,15 @@ export async function api<T = any>(url: string, init?: RequestInit & { json?: un
   return data as T;
 }
 
+/**
+ * Safe replacement for a bare `res.json()` on a raw fetch: tolerates empty/HTML bodies and
+ * raises the signed-out event on 401 exactly like api() does.
+ */
+export async function readJson<T = any>(res: Response): Promise<T> {
+  if (res.status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("iris:signed-out"));
+  return (await res.json().catch(() => ({}))) as T;
+}
+
 /** 22-char url-safe id for the ticket-creation idempotency key. */
 function cryptoIdempotencyKey(): string {
   const c = globalThis.crypto;
@@ -206,9 +215,9 @@ export const ticketsApi = {
     // A view that retries the *same* logical submission should pass its own stable key
     // via body.idempotencyKey so the replay is honoured.
     const keyed = {
+      ...body,
       idempotencyKey:
         typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : cryptoIdempotencyKey(),
-      ...body,
     };
     const res = await api<{ ticket: any; locked?: boolean }>("/api/tickets", {
       method: "POST",

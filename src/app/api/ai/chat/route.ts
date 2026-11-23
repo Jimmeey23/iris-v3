@@ -8,6 +8,34 @@ import { loadEffectiveAiConfig } from "@/lib/server/ai-config";
 
 export const maxDuration = 120;
 
+const MAX_HISTORY_TURNS = 40;
+const MAX_MESSAGE_CHARS = 8000;
+
+/**
+ * The client stores the transcript and echoes it back, so none of it is trusted: keep
+ * only plain text (never client-forged tool_use / tool_result blocks), cap each message
+ * and keep the last MAX_HISTORY_TURNS. The conversation must open on a user turn.
+ */
+function sanitizeHistory(raw: { role: "user" | "assistant"; content?: unknown }[]): Anthropic.MessageParam[] {
+  const out: Anthropic.MessageParam[] = [];
+  for (const m of raw.slice(-MAX_HISTORY_TURNS)) {
+    const text =
+      typeof m.content === "string"
+        ? m.content
+        : Array.isArray(m.content)
+          ? m.content
+              .filter((b): b is { type: "text"; text: string } => !!b && b.type === "text" && typeof b.text === "string")
+              .map((b) => b.text)
+              .join("\n")
+          : "";
+    const trimmed = text.slice(0, MAX_MESSAGE_CHARS).trim();
+    if (!trimmed) continue;
+    if (out.length === 0 && m.role !== "user") continue;
+    out.push({ role: m.role, content: trimmed });
+  }
+  return out;
+}
+
 export async function POST(request: Request) {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
@@ -34,10 +62,11 @@ export async function POST(request: Request) {
   }
   const message = typeof body.message === "string" ? body.message.trim().slice(0, 8000) : "";
   if (!message) return NextResponse.json({ error: "Message is empty" }, { status: 400 });
-  const history = Array.isArray(body.history) ? (body.history as Anthropic.MessageParam[]) : [];
-  if (history.some((m) => !m || (m.role !== "user" && m.role !== "assistant"))) {
+  const rawHistory = Array.isArray(body.history) ? (body.history as unknown[]) : [];
+  if (rawHistory.some((m) => !m || typeof m !== "object" || ((m as { role?: unknown }).role !== "user" && (m as { role?: unknown }).role !== "assistant"))) {
     return NextResponse.json({ error: "Invalid conversation history" }, { status: 400 });
   }
+  const history = sanitizeHistory(rawHistory as { role: "user" | "assistant"; content?: unknown }[]);
 
   try {
     const aiCfg = await loadEffectiveAiConfig();
