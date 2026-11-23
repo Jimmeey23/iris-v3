@@ -23,6 +23,10 @@ import { Pool, type PoolClient } from "pg";
  */
 
 export const SANDBOX_COOKIE = "iris_sandbox";
+/** Access level an admin is practising as inside the sandbox (admin | manager | executive). */
+export const SANDBOX_TIER_COOKIE = "iris_sandbox_tier";
+export type SandboxTier = "admin" | "manager" | "executive";
+export const SANDBOX_TIERS: readonly SandboxTier[] = ["admin", "manager", "executive"];
 const SESSION_COOKIE = "iris_session";
 
 const globalForPool = globalThis as unknown as { irisPool?: Pool; irisSandboxPool?: Pool };
@@ -106,6 +110,21 @@ export async function isSandboxRequest(): Promise<boolean> {
   }
   if (!sandboxOn || !token) return false;
   return tokenIsAdmin(token);
+}
+
+/**
+ * The access level to apply for this request: the tier an admin picked when entering
+ * the training sandbox, or null outside the sandbox (use the real role).
+ */
+export async function sandboxTier(): Promise<SandboxTier | null> {
+  if (!(await isSandboxRequest())) return null;
+  try {
+    const { cookies } = await import("next/headers");
+    const v = (await cookies()).get(SANDBOX_TIER_COOKIE)?.value as SandboxTier | undefined;
+    return v && SANDBOX_TIERS.includes(v) ? v : "admin";
+  } catch {
+    return null;
+  }
 }
 
 async function currentPool(): Promise<Pool> {
