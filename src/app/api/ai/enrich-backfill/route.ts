@@ -10,6 +10,7 @@ export const maxDuration = 300;
  * Admin-only: enrich tickets that have no enrichment yet, oldest first.
  *   GET                         → how many are left
  *   POST { limit, dryRun }      → process up to `limit` (max 100) per call.
+ *   POST { tickets: [...] }     → re-run just these tickets (ids or numbers like "P57-90029").
  * dryRun (default true) returns what would change without saving or retitling anything.
  */
 export async function GET() {
@@ -37,8 +38,11 @@ export async function POST(request: Request) {
   const limit = Math.max(1, Math.min(100, Number(b.limit) || 20));
   const dryRun = b.dryRun !== false;
 
+  const wanted: string[] = Array.isArray(b.tickets) ? b.tickets.map(String).slice(0, 100) : [];
   const ids = await asSystem(async (c) =>
-    (
+    wanted.length
+      ? (await c.query("select id from iris.tickets where id = any($1) or ticket_id = any($1)", [wanted])).rows.map((r) => r.id as string)
+      : (
       await c.query(
         `select id from iris.tickets
           where coalesce((collected_info->'_ai'->>'v')::int, 0) < $1
@@ -54,7 +58,7 @@ export async function POST(request: Request) {
   for (const id of ids) {
     const r = await enrichTicket(id, { userId: auth.session.user_id, dryRun, force: true });
     if (r.outcome === "disabled") return NextResponse.json({ error: "AI is switched off or over budget in Settings → AI.", results }, { status: 503 });
-    results.push({ id, outcome: r.outcome, retitled: r.retitled ?? false, title: r.ai?.title, suggestion: r.ai?.suggestion ?? null });
+    results.push({ id, outcome: r.outcome, retitled: r.retitled ?? false, title: r.ai?.title, suggestion: r.ai?.suggestion ?? null, resolution: r.ai?.resolution ?? null });
   }
   return NextResponse.json({ dryRun, processed: results.length, results });
 }

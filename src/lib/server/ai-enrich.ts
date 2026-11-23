@@ -8,6 +8,7 @@ import { loadEffectiveAiConfig } from "./ai-config";
 import { asSystem, isSandboxRequest } from "./db";
 import { MOCK_MODEL, mockEnrichment, mockLatency } from "./sandbox-ai";
 import { CATEGORY_MAP } from "@/lib/iris/constants";
+import { QUESTION_IDS, questionLibraryText, type StoredResolutionChoice } from "@/lib/iris/resolution-questions";
 
 /**
  * Ticket enrichment: one Claude Haiku call per ticket that (1) writes a clean title,
@@ -23,7 +24,8 @@ import { CATEGORY_MAP } from "@/lib/iris/constants";
  */
 
 export const ENRICH_MODEL = process.env.IRIS_ENRICH_MODEL || "claude-haiku-5-5";
-export const ENRICH_VERSION = 1;
+/** v2: also picks the close-out questions (resolution). The backfill re-runs tickets below this. */
+export const ENRICH_VERSION = 2;
 /** A different category is only suggested at or above this confidence. */
 const SUGGEST_AT = 0.8;
 const MAX_INPUT_CHARS = 6000;
@@ -40,6 +42,13 @@ const Result = z.object({
   category: z.string().describe("Best category, copied exactly from the Taxonomy"),
   subcategory: z.string().describe("Best subcategory of that category, copied exactly from the Taxonomy"),
   confidence: z.number().min(0).max(1).describe("How sure you are of category + subcategory, 0 to 1"),
+  resolution_questions: z
+    .array(z.enum(QUESTION_IDS))
+    .describe("2-3 ids from the Close-out question library that whoever resolves THIS ticket must answer, most important first"),
+  custom_resolution_question: z
+    .string()
+    .nullable()
+    .describe("At most one extra free-text close-out question when nothing in the library covers a key fact for this ticket; otherwise null"),
 });
 type Enrichment = z.infer<typeof Result> & { model?: string };
 
@@ -55,6 +64,8 @@ export type TicketAi = {
   unknowns: string[];
   originalTitle?: string;
   suggestion?: { category: string; subcategory: string; confidence: number; status: "pending" | "accepted" | "dismissed" } | null;
+  /** Close-out questions picked for this ticket; read by getResolutionQuestions(). */
+  resolution?: StoredResolutionChoice | null;
 };
 
 const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -76,10 +87,15 @@ Rules:
 - facts: short label + value pairs for things stated in the text (Member, Amount, Package, Valid till, Class, Trainer, Staff involved…). Keep amounts with ₹. Leave out routing metadata the ticket already shows (owner, department, "Reported by", email subject, issue type, studio) and anything obvious from the title. At most 8.
 - unknowns: at most 4 short items staff need to act and the text doesn't give (e.g. "Membership expiry date"). Empty if nothing important is missing.
 - category / subcategory: classify by what the problem IS. Copy both exactly from the Taxonomy. Class formats (Barre, PowerCycle, Strength…) are also class and room names: "can't book PowerCycle" is a booking issue, not a bike repair. confidence below 0.6 when two subcategories fit equally.
+- resolution_questions: pick the 2-3 questions from the Close-out question library that best prove THIS ticket was handled properly, in order of importance. Match what the problem actually is (a lost item → item_status, checks_done, member_informed; a broken bike → fixed_by, cost, verified; a refund → txn_ref, amount, member_informed). Never pick a question that cannot apply (no Momence booking question for a lost item or a repair).
+- custom_resolution_question: only when a fact essential to closing this ticket is not covered by the library, one short question (max 120 characters). Otherwise null.
 - Write in British/Indian English. Members' personal details stay as written; do not add any.
 
 Taxonomy:
-${tax}`;
+${tax}
+
+Close-out question library (id: question [options]):
+${questionLibraryText()}`;
 }
 
 function ticketText(t: {
@@ -167,6 +183,26 @@ function toTicketAi(e: Enrichment, current: { category: string | null; subcatego
       validPair && differs && e.confidence >= SUGGEST_AT
         ? { category: e.category, subcategory: e.subcategory, confidence: Math.round(e.confidence * 100) / 100, status: "pending" }
         : null,
+    resolution: resolutionChoice(e, current, validPair),
+  };
+}
+
+/** Valid library ids only, deduped, 2-3; null when the model gave too few to be useful. */
+function resolutionChoice(
+  e: Enrichment,
+  current: { category: string | null; subcategory: string | null },
+  validPair: boolean,
+): StoredResolutionChoice | null {
+  const known = new Set<string>(QUESTION_IDS);
+  const ids = [...new Set((e.resolution_questions ?? []).filter((id) => known.has(id)))].slice(0, 3);
+  const custom = clip(e.custom_resolution_question, 160) || null;
+  if (ids.length + (custom ? 1 : 0) < 2) return null;
+  return {
+    ids,
+    custom,
+    category: current.category,
+    subcategory: current.subcategory,
+    suggestedCategory: validPair ? e.category : null,
   };
 }
 

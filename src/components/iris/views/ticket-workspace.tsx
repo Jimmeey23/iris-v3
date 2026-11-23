@@ -19,7 +19,7 @@ import { TicketAiCard } from "../ticket-ai-card";
 import { AdminEditableEntry } from "../ticket-entry-admin";
 import { LinkTicketDialog } from "../link-ticket-dialog";
 import { TicketStatusBanner } from "../ticket-status-banner";
-import { getResolutionQuestions, resolutionAnswersComplete, formatResolutionAnswers, isInfoOnlyTicket } from "@/lib/iris/resolution-questions";
+import { getResolutionQuestions, resolutionAnswersComplete, formatResolutionAnswers, isInfoOnlyTicket, type StoredResolutionChoice } from "@/lib/iris/resolution-questions";
 import { ALL_TICKETS } from "@/lib/iris/sample-tickets";
 import { formatRelativeTime, formatDateTime, getInitials, getAvatarColor } from "@/lib/iris/utils";
 import { cn } from "@/lib/utils";
@@ -156,7 +156,15 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   const [resolutionActions, setResolutionActions] = React.useState("");
   const [resolutionRootCause, setResolutionRootCause] = React.useState("");
   const resolutionQuestions = React.useMemo(
-    () => getResolutionQuestions({ category: ticket.category, subcategory: ticket.subcategory, title: ticket.title, departmentCode: getDepartment(ticket)?.code }),
+    () =>
+      getResolutionQuestions({
+        // Picked by the AI when the ticket was enriched; keyword rules if absent or stale.
+        ai: ((ticket.collectedInfo as Record<string, unknown> | undefined)?._ai as { resolution?: StoredResolutionChoice } | undefined)?.resolution ?? null,
+        category: ticket.category,
+        subcategory: ticket.subcategory,
+        title: ticket.title,
+        departmentCode: getDepartment(ticket)?.code,
+      }),
     [ticket],
   );
   const [resolutionAnswers, setResolutionAnswers] = React.useState<Record<string, string>>({});
