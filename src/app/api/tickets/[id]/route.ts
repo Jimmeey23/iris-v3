@@ -173,7 +173,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     }
     if (b.unlock === true) sets.push("metadata = metadata - 'legacy_import' - 'lock_assignment' - 'sla_exempt'");
   }
-  if (!sets.length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  // extendSlaHours adds its SQL further down, so an extend-only request is still an update.
+  if (!sets.length && extendHours <= 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   try {
     let before: BeforeSnapshot | null = null;
@@ -264,6 +265,13 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
         // The target moved into the future: a breached/at-risk clock is live again. The
         // calculate_sla trigger re-derives the precise value on the next status change.
         sets.push(`sla_status = case when sla_status = 'paused' then 'paused' else 'on_track' end`);
+        // An unmet, overdue first response gets the same extra time, or the breach never clears.
+        if (!sets.some((x) => x.startsWith("sla_response_target"))) {
+          vals.push(extendHours);
+          sets.push(
+            `sla_response_target = case when first_response_at is null and sla_response_target < now() then now() + make_interval(hours => $${vals.length}::int) else sla_response_target end`,
+          );
+        }
       }
 
       vals.push(id);

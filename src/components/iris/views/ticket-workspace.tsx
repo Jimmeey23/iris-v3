@@ -168,7 +168,9 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
     [ticket],
   );
   const [resolutionAnswers, setResolutionAnswers] = React.useState<Record<string, string>>({});
-  const answersComplete = resolutionAnswersComplete(resolutionQuestions, resolutionAnswers);
+  // Recurrence-check tickets: the questions and summary are optional.
+  const isRecurrenceCheck = Boolean(ticket.tags?.includes("recurrence-check"));
+  const answersComplete = isRecurrenceCheck || resolutionAnswersComplete(resolutionQuestions, resolutionAnswers);
   const infoOnly = isInfoOnlyTicket(ticket);
   const [extensionHours, setExtensionHours] = React.useState(4);
   const [extensionReason, setExtensionReason] = React.useState("");
@@ -308,10 +310,13 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
   );
 
   const handleResolve = async () => {
-    if (!resolutionNote.trim() || !answersComplete || busy) return;
+    if ((!resolutionNote.trim() && !isRecurrenceCheck) || !answersComplete || busy) return;
     const summary = [
-      resolutionNote.trim(),
-      formatResolutionAnswers(resolutionQuestions, resolutionAnswers),
+      resolutionNote.trim() || "Recurrence check completed.",
+      formatResolutionAnswers(
+        isRecurrenceCheck ? resolutionQuestions.filter((q) => (resolutionAnswers[q.id] ?? "").trim()) : resolutionQuestions,
+        resolutionAnswers,
+      ),
       resolutionRootCause.trim() ? `Root cause: ${resolutionRootCause.trim()}` : "",
       resolutionActions.trim() ? `Actions taken: ${resolutionActions.trim()}` : "",
     ]
@@ -738,7 +743,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                           )}
                         </div>
                         <div>
-                          <label className="text-[11px] font-semibold mb-1 block">Resolution Summary *</label>
+                          <label className="text-[11px] font-semibold mb-1 block">Resolution Summary{isRecurrenceCheck ? " (optional)" : " *"}</label>
                           <textarea
                             value={resolutionNote}
                             onChange={(e) => setResolutionNote(e.target.value)}
@@ -771,7 +776,7 @@ export function TicketWorkspace({ ticket }: { ticket: Ticket }) {
                         <Button variant="outline" size="sm" className="h-8 text-[12px]" onClick={() => setShowResolveDialog(false)} disabled={busy}>Cancel</Button>
                         <div className="flex-1" />
                         {!answersComplete && <span className="text-[10.5px] text-amber-600 dark:text-amber-400">Answer all required questions</span>}
-                        <Button size="sm" className="h-8 text-[12px]" onClick={handleResolve} disabled={busy || !resolutionNote.trim() || !answersComplete}>
+                        <Button size="sm" className="h-8 text-[12px]" onClick={handleResolve} disabled={busy || (!resolutionNote.trim() && !isRecurrenceCheck) || !answersComplete}>
                           <CheckCircle2 className="w-3 h-3 mr-1" />
                           {busy ? "Resolving…" : "Confirm Resolution"}
                         </Button>

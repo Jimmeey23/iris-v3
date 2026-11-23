@@ -153,7 +153,7 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
       );
       toast.success(
         outcome === "clear"
-          ? r.next_day ? `Recorded. Next check on day ${r.next_day}.` : "Recorded. All checks passed."
+          ? r.next_day ? `Recorded. Next check in ${r.next_day} days.` : "Recorded. All checks passed."
           : `Recorded. ${r.parent_ticket} has been reopened.`,
       );
       setMode("idle");
@@ -198,7 +198,7 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
         ) : (
           <div className="space-y-2">
             <label className="block">
-              <span className="text-[11px] font-medium text-muted-foreground">What came back? This goes on the original ticket.</span>
+              <span className="text-[11px] font-medium text-muted-foreground">What came back? Optional, goes on the original ticket.</span>
               <textarea
                 autoFocus
                 value={note}
@@ -209,7 +209,7 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
               />
             </label>
             <div className="flex gap-2">
-              <Button size="sm" className="h-8 text-[12px] bg-rose-600 hover:bg-rose-700 text-white" disabled={busy || !note.trim()} onClick={() => record("returned")}>
+              <Button size="sm" className="h-8 text-[12px] bg-rose-600 hover:bg-rose-700 text-white" disabled={busy} onClick={() => record("returned")}>
                 {busy ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5 mr-1.5" />}
                 Reopen {mine.parent_ticket}
               </Button>
