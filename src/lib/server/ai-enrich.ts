@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { PoolClient } from "pg";
 import { recordAiUsage } from "./ai-usage";
 import { loadEffectiveAiConfig } from "./ai-config";
-import { asSystem, isSandboxRequest } from "./db";
+import { asSystem, isSandboxRequest, mainPool } from "./db";
 import { MOCK_MODEL, mockEnrichment, mockLatency } from "./sandbox-ai";
 import { CATEGORY_MAP } from "@/lib/iris/constants";
 import { QUESTION_IDS, questionLibraryText, type StoredResolutionChoice } from "@/lib/iris/resolution-questions";
@@ -212,7 +212,16 @@ export type EnrichOutcome = "enriched" | "skipped" | "disabled" | "failed";
  * Enrich one ticket. Runs as the system role (called after the response is sent, or from
  * the admin backfill). `force` re-runs a ticket that already has an enrichment.
  */
-export async function enrichTicket(ticketId: string, opts: { userId?: string | null; force?: boolean; dryRun?: boolean } = {}): Promise<{ outcome: EnrichOutcome; ai?: TicketAi; retitled?: boolean }> {
+export async function enrichTicket(
+  ticketId: string,
+  opts: {
+    userId?: string | null;
+    force?: boolean;
+    dryRun?: boolean;
+    /** Only (re)pick the close-out questions; keep the existing summary, title and suggestion. */
+    resolutionOnly?: boolean;
+  } = {},
+): Promise<{ outcome: EnrichOutcome; ai?: TicketAi; retitled?: boolean }> {
   const cfg = await loadEffectiveAiConfig().catch(() => null);
   const sandbox = await isSandboxRequest();
   if (!cfg?.enabled || (!sandbox && (cfg.budgetExceeded || !process.env.ANTHROPIC_API_KEY))) return { outcome: "disabled" };
@@ -246,8 +255,11 @@ export async function enrichTicket(ticketId: string, opts: { userId?: string | n
   }
   if (!e) return { outcome: "failed" };
 
-  const ai = toTicketAi(e, t);
-  const retitle = Boolean(ai.title) && isGeneratedTitle(t.title, t.category, t.subcategory);
+  const prev = t.collected_info?._ai as TicketAi | undefined;
+  const fresh = toTicketAi(e, t);
+  const partial = Boolean(opts.resolutionOnly && prev?.summary);
+  const ai: TicketAi = partial ? { ...prev!, v: ENRICH_VERSION, resolution: fresh.resolution } : fresh;
+  const retitle = !partial && Boolean(ai.title) && isGeneratedTitle(t.title, t.category, t.subcategory);
   if (retitle) ai.originalTitle = t.title;
   if (opts.dryRun) return { outcome: "enriched", ai, retitled: retitle };
 
@@ -261,4 +273,35 @@ export async function enrichTicket(ticketId: string, opts: { userId?: string | n
     ),
   );
   return { outcome: "enriched", ai, retitled: retitle };
+}
+
+/**
+ * Safety net for open tickets that never got close-out questions from the AI: tickets the
+ * database creates itself (recurrence checks), ones filed while AI was off or over budget,
+ * or enriched before questions were picked (v1). A few per run, newest first. Tickets that
+ * already have an AI summary only get their questions picked; the rest are fully enriched.
+ * Never in the training sandbox (its sweeps run against the real database's tickets).
+ */
+export async function enrichOpenBacklog(limit = 5): Promise<number> {
+  if (await isSandboxRequest()) return 0;
+  const rows = (
+    await mainPool.query<{ id: string; has_ai: boolean }>(
+      `select id, (collected_info->'_ai'->>'summary') is not null as has_ai
+         from iris.tickets
+        where status not in ('resolved', 'closed')
+          and coalesce((collected_info->'_ai'->>'v')::int, 0) < $1
+          and coalesce(collected_info->>'sourceRef', '') !~ '^(fillout|zite):'
+          and not ('info-only' = any(coalesce(tags, '{}')))
+        order by created_at desc
+        limit $2`,
+      [ENRICH_VERSION, limit],
+    )
+  ).rows;
+  let done = 0;
+  for (const r of rows) {
+    const res = await enrichTicket(r.id, { force: true, resolutionOnly: r.has_ai });
+    if (res.outcome === "disabled") break;
+    if (res.outcome === "enriched") done++;
+  }
+  return done;
 }

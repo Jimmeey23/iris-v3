@@ -13,7 +13,7 @@ export const maxDuration = 300;
  *   POST { enabled: true, tier } → enter the sandbox practising as admin | manager | executive
  *   POST { enabled: false }      → leave the sandbox
  *   POST { tier }                → change the practice access level while inside
- *   POST { action: "reset" }     → wipe sandbox tickets and re-seed the mock set
+ *   POST { action: "reset" }     → wipe sandbox tickets and copy the live tickets (source: "mock" for the scripted set)
  * The sandbox is a separate database (SANDBOX_DATABASE_URL); nothing here
  * touches the real tickets.
  */
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (!sandboxConfigured()) {
     return NextResponse.json({ error: "The training sandbox is not set up (SANDBOX_DATABASE_URL is missing)" }, { status: 503 });
   }
-  const body = (await req.json().catch(() => ({}))) as { enabled?: boolean; action?: string; tier?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { enabled?: boolean; action?: string; tier?: unknown; source?: unknown };
   const jar = await cookies();
 
   const tier = body.tier === undefined ? undefined : (SANDBOX_TIERS as readonly string[]).includes(String(body.tier)) ? (body.tier as SandboxTier) : null;
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     // Only from inside the sandbox, so a reset is always a deliberate act there.
     if (!(await isSandboxRequest())) return NextResponse.json({ error: "Switch on the training sandbox first" }, { status: 400 });
     try {
-      const result = await resetSandbox(auth.session.user_id);
+      const result = await resetSandbox(auth.session.user_id, { source: body.source === "mock" ? "mock" : "live" });
       // The reset re-copies people from the real database (admin role included); re-apply the practice tier.
       const current = await sandboxTier();
       if (current) await applySandboxTier(auth.session.user_id, current);
