@@ -147,13 +147,17 @@ export function RecurrencePanel({ ticketId, readOnly }: { ticketId: string; read
   const record = async (outcome: "clear" | "returned") => {
     setBusy(true);
     try {
-      const r = await api<{ parent_ticket: string; parent_ticket_id: string; next_day: number | null }>(
+      const r = await api<{ parent_ticket: string; parent_ticket_id: string; next_day: number | null; pending?: number }>(
         `/api/tickets/${encodeURIComponent(ticketId)}/recurrence`,
         { method: "POST", json: { outcome, note } },
       );
       toast.success(
         outcome === "clear"
-          ? r.next_day ? `Recorded. Next check on day ${r.next_day}.` : "Recorded. All checks passed."
+          ? r.next_day
+            ? `Recorded. Next check on day ${r.next_day}.`
+            : r.pending
+              ? "Recorded. The earlier check is still waiting for an outcome."
+              : "Recorded. All checks passed."
           : `Recorded. ${r.parent_ticket} has been reopened.`,
       );
       setMode("idle");
