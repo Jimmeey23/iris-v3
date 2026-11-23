@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { asSystemMain as asSystem } from "./db";
+import { asSystemMain as asSystem, sandboxTier } from "./db";
 
 export const SESSION_COOKIE = "iris_session";
 const SEVEN_DAYS = 60 * 60 * 24 * 7;
@@ -62,7 +62,19 @@ export function clearSessionCache() {
   sessionCache.clear();
 }
 
+/**
+ * The signed-in user. Inside the training sandbox, `role` is the access level the admin
+ * chose to practise as, so every role check behaves exactly as it would for that tier.
+ * Use getRealSession() for the few checks that must see the real role (sandbox controls).
+ */
 export async function getSession(): Promise<SessionUser | null> {
+  const user = await getRealSession();
+  if (!user) return user;
+  const tier = await sandboxTier();
+  return tier ? { ...user, role: tier } : user;
+}
+
+export async function getRealSession(): Promise<SessionUser | null> {
   const token = await getSessionToken();
   if (!token) return null;
   const hit = sessionCache.get(token);
@@ -83,10 +95,10 @@ export async function getSession(): Promise<SessionUser | null> {
  * For API routes: returns the session, or a 401/403 response to return as-is.
  * Users who must change their password can only reach the routes that allow it.
  */
-export async function requireSession(opts: { allowPasswordChange?: boolean; admin?: boolean; manager?: boolean } = {}) {
+export async function requireSession(opts: { allowPasswordChange?: boolean; admin?: boolean; manager?: boolean; realRole?: boolean } = {}) {
   let session: SessionUser | null;
   try {
-    session = await getSession();
+    session = opts.realRole ? await getRealSession() : await getSession();
   } catch (err) {
     // Database unreachable (timeouts, network blips): answer cleanly instead of crashing the route.
     console.error("[auth] session lookup failed:", err instanceof Error ? err.message || err.name : err);
