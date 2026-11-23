@@ -59,6 +59,9 @@ function sampleValue(f: TemplateField): string | boolean | string[] {
       return "2";
     case "date":
       return "2026-11-08";
+    case "roster":
+      // A roster is stored as JSON rows of booked guests.
+      return JSON.stringify([{ name: "Sample Guest", attendance: "Attended" }]);
     default:
       return `Sample ${f.label}`;
   }

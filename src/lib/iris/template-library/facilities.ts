@@ -281,10 +281,15 @@ export const FACILITIES_TEMPLATES = defineTemplates("Facilities", [
       "Move classes out of the affected room if needed.",
       "Get the electrician's report before restoring power.",
     ],
+    done: [
+      "The electrician has fixed it and given a written report; power is restored safely.",
+      "Any room or socket taken out of use is back in use, or still tagged with a date.",
+      "Cost and electrician name are on the ticket.",
+    ],
     f: [
       pick("electricalIssue", "Problem", ["Power trip / MCB tripping", "Sparking / burning smell", "Socket not working", "Partial power loss", "Full power outage"], true),
       check("areaIsolated", "Area isolated / power switched off at the DB", true),
-      check("safetyRisk", "Immediate safety risk"),
+      pick("safetyRisk", "Is anyone at risk right now?", ["Yes - sparking / burning smell / exposed wire", "No - fault only"], true),
       check("electricianCalled", "Electrician called"),
     ],
   },
