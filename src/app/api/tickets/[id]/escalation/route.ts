@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { pool } from "@/lib/server/db";
+import { pool, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 
 /**
@@ -10,9 +10,16 @@ import { dbError, requireSession } from "@/lib/server/auth";
 export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id]/escalation">) {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
-  const { id } = await ctx.params;
+  const { id: rawId } = await ctx.params;
 
   try {
+    // Visibility check through RLS first: the queries below run as the owner role,
+    // so without this any signed-in user could read any ticket's escalation chain.
+    const id: string | undefined = await withUser(auth.session.user_id, async (c) =>
+      (await c.query("select id from iris.tickets where id = $1 or ticket_id = $1", [rawId])).rows[0]?.id,
+    );
+    if (!id) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     const [ticketRes, logRes, settingsRes] = await Promise.all([
       pool.query(
         `select t.id, t.status, t.sla_status, t.sla_resolution_target, t.escalation_level,
@@ -31,7 +38,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
                                       and m.is_active and not m.exclude_from_escalation
            left join iris.departments d on d.code = t.department_code
            left join iris.employees h on h.id = d.head_employee_id and h.is_active and not h.exclude_from_escalation
-          where t.id = $1 or t.ticket_id = $1`,
+          where t.id = $1`,
         [id],
       ),
       pool.query(
@@ -41,7 +48,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/tickets/[id
            left join iris.employees e on e.id = l.escalated_to_employee_id
            left join iris.users u on u.id = l.escalated_by_user_id
            left join iris.employees emp on emp.id = u.employee_id
-          where l.ticket_id = (select id from iris.tickets where id = $1 or ticket_id = $1)
+          where l.ticket_id = $1
           order by l.escalated_at desc
           limit 50`,
         [id],

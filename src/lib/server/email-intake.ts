@@ -237,7 +237,13 @@ export async function processInboundMessage(logId: string, ref: { messageId: str
       }
     }
 
-    const staff = isStaffEmail(from.email, staffDomains());
+    // Headers like X-Original-Sender / Reply-To / From are trivially forged, so only treat the
+    // sender as staff (reporter = that employee) when the receiving server recorded a DKIM or
+    // DMARC pass for a staff domain. Otherwise the email is filed as a member email.
+    const staff = isStaffEmail(from.email, staffDomains()) && senderAuthenticated(msg.headers ?? null, staffDomains());
+    if (isStaffEmail(from.email, staffDomains()) && !staff) {
+      console.warn("[email-intake] staff-looking sender without DKIM/DMARC pass; filing as non-staff", from.email);
+    }
     const prompt = emailPromptText({ from: from.name ? `${from.name} <${from.email}>` : from.email, subject, text, attachments: files.map((f) => f.filename ?? "file") });
 
     const aiCfg = await loadEffectiveAiConfig();
@@ -597,4 +603,26 @@ async function storeAttachments(ticketId: string, files: MailtrapAttachment[]) {
     await asSystem((c) => c.query("update iris.tickets set attachments = attachments || $2::text[] where id = $1", [ticketId, links]));
   }
   return { saved, skipped };
+}
+
+/**
+ * True when an Authentication-Results header shows `dmarc=pass` or `dkim=pass` for one of
+ * `domains` (header.from / header.d / header.i). Google Groups re-sign relayed mail with
+ * the group's domain, so group forwards from staff still pass.
+ */
+function senderAuthenticated(headers: Record<string, unknown> | null, domains: string[]): boolean {
+  if (!headers) return false;
+  const values: string[] = [];
+  for (const [k, v] of Object.entries(headers)) {
+    if (k.toLowerCase() !== "authentication-results" && k.toLowerCase() !== "arc-authentication-results") continue;
+    for (const x of Array.isArray(v) ? v : [v]) if (x != null) values.push(String(x).toLowerCase());
+  }
+  const doms = domains.map((d) => d.toLowerCase().replace(/^@/, "")).filter(Boolean);
+  const inDomain = (d: string) => doms.some((s) => d === s || d.endsWith(`.${s}`));
+  for (const v of values) {
+    for (const m of v.matchAll(/\b(dkim|dmarc)=pass\b[^;]*?\bheader\.(?:d|i|from)=@?([a-z0-9.-]+)/g)) {
+      if (inDomain(m[2])) return true;
+    }
+  }
+  return false;
 }

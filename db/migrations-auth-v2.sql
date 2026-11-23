@@ -172,3 +172,7 @@ end $$;
 -- Only the API's owner connection calls these (asSystem), never iris_app.
 revoke all on function iris.issue_session(uuid, inet, text, text) from public;
 revoke all on function iris.login_google(text, text, text, text, text[], text[], inet, text) from public;
+-- `revoke ... from public` does not undo the schema-wide `grant execute ... to iris_app`
+-- (schema.part.sql), so revoke the direct grant too: these can mint a session for any user.
+revoke all on function iris.issue_session(uuid, inet, text, text) from iris_app;
+revoke all on function iris.login_google(text, text, text, text, text[], text[], inet, text) from iris_app;

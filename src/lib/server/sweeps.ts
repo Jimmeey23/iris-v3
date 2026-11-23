@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { pool } from "./db";
+import { mainPool as pool } from "./db";
 import { notifyTicketEventNow } from "./notify";
 import { deliverPending } from "./outbox";
 import { sendWeeklyDigests } from "./weekly-digest";

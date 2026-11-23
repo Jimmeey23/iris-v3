@@ -1,5 +1,5 @@
 import "server-only";
-import { pool } from "./db";
+import { isSandboxRequest, mainPool as pool } from "./db";
 import { sendMail, mailConfigured } from "./mailer";
 import {
   OUTBOX_MAX_ATTEMPTS,
@@ -45,6 +45,9 @@ export type EnqueueOptions = {
 
 /** Queue one mail for delivery. Returns the outbox row id. */
 export async function enqueueEmail(msg: OutboxMail, opts: EnqueueOptions = {}): Promise<string> {
+  // Training sandbox: never queue real mail. The outbox lives in the real database
+  // (so sweeps always drain production's), and sandbox people may have real addresses.
+  if (await isSandboxRequest()) return "sandbox-skipped";
   const { rows } = await pool.query<{ id: string }>(
     `insert into iris.outbox (kind, status, payload, email_log_id)
      values ('email', 'pending', $1::jsonb, $2)

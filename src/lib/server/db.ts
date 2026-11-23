@@ -41,7 +41,7 @@ function createPool(connectionString: string | undefined, name: string) {
   });
 }
 
-function getMainPool(): Pool {
+export function getMainPool(): Pool {
   if (!globalForPool.irisPool) {
     globalForPool.irisPool = createPool(process.env.NEON_DATABASE_URL, "NEON_DATABASE_URL");
   }
@@ -185,6 +185,18 @@ export function withUserMain<T>(userId: string, fn: (c: PoolClient) => Promise<T
 export function asSystemMain<T>(fn: (c: PoolClient) => Promise<T>) {
   return inTransaction(getMainPool(), fn, SYSTEM_PRELUDE);
 }
+/**
+ * The real database's pool, ignoring the sandbox cookie. Background machinery
+ * (sweeps, outbox drain) must use this: a sweep piggy-backed on a sandbox admin's
+ * request would otherwise drain the sandbox outbox and skip production's.
+ */
+export const mainPool: Pool = new Proxy({} as Pool, {
+  get(_target, prop) {
+    const instance = getMainPool();
+    const val = Reflect.get(instance, prop, instance);
+    return typeof val === "function" ? val.bind(instance) : val;
+  },
+});
 /** Always the sandbox database (admin sandbox tooling only). */
 export function asSandboxSystem<T>(fn: (c: PoolClient) => Promise<T>) {
   return inTransaction(getSandboxPool(), fn, SYSTEM_PRELUDE);

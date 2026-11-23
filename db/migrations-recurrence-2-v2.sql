@@ -6,7 +6,7 @@
 --  * Check <-> original are linked both ways via related_ticket_ids.
 --  * Check description/metadata carry the original's creation and resolution
 --    date AND time.
--- Re-runnable. Depends on migrations-recurrence-checks.sql.
+-- Re-runnable. Depends on migrations-recurrence-1-checks.sql.
 -- ============================================================================
 
 create or replace function iris.recurrence_on_status()

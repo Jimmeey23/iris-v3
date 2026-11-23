@@ -4,6 +4,7 @@ import { dbError, requireSession } from "@/lib/server/auth";
 import { fromAddress, mailConfigured, mailTransportMode, sendMail } from "@/lib/server/mailer";
 import { deliverPending, retryFailed } from "@/lib/server/outbox";
 import { RULE_EVENT, type NotifyEvent } from "@/lib/iris/notify-events";
+import { RateLimitError, enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import {
   renderDigestEmail,
   renderNotificationEmail,
@@ -255,9 +256,31 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "send_test" || action === "send_digest") {
+      if (!isManagerOrAdmin) return NextResponse.json({ error: "Manager or admin access required" }, { status: 403 });
       const to = String(body.to ?? session.email ?? "").trim();
       if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
         return NextResponse.json({ error: "Provide a valid recipient email address" }, { status: 400 });
+      }
+      // Test mail only goes to your own address or an active colleague, never outside.
+      if (to.toLowerCase() !== String(session.email ?? "").toLowerCase()) {
+        const staff = await pool.query(
+          `select 1 from iris.users u where lower(u.email::text) = lower($1) and u.is_active
+           union all
+           select 1 from iris.employees e where lower(e.email) = lower($1) and e.is_active
+           limit 1`,
+          [to],
+        );
+        if (!staff.rowCount) {
+          return NextResponse.json({ error: "Test emails can only go to an active staff address" }, { status: 400 });
+        }
+      }
+      try {
+        await enforceRateLimit("email-test", userKey(session.user_id));
+      } catch (e) {
+        if (e instanceof RateLimitError) {
+          return NextResponse.json({ error: "Too many test emails. Try again shortly." }, { status: 429 });
+        }
+        throw e;
       }
 
       const origin = (process.env.NEXT_PUBLIC_APP_URL?.trim() || req.nextUrl.origin || "http://localhost:3000").replace(

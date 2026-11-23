@@ -194,8 +194,7 @@ NEON_DATABASE_URL=... CRON_SECRET=... MAILTRAP_API_KEY=... NODE_ENV=production \
   node .next/standalone/server.js   # listens on :3000
 ```
 
-`Caddyfile` reverse-proxies :81 → :3000 with forwarded headers (used by the sandbox
-preview); in production terminate TLS at your proxy and keep
+In production terminate TLS at your proxy and keep
 `X-Forwarded-Proto` correct — the session cookie flips to `secure` based on it.
 
 ## Backups
