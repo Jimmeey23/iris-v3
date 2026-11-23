@@ -59,6 +59,8 @@ function ensureClock() {
 export function useSharedClock(): number {
   return React.useSyncExternalStore(
     (cb) => {
+      // Refresh the snapshot on first subscribe so a long-idle clock isn't stale.
+      if (!listeners.size) clockNow = Date.now();
       listeners.add(cb);
       ensureClock();
       return () => {

@@ -38,12 +38,13 @@ export async function POST(req: Request) {
 
   const url = new URL(req.url);
   // Header preferred; ?token= for tools (Zite flows) that can't set custom headers.
-  const supplied =
+  const headerSecret =
     req.headers.get("x-fillout-webhook-secret") ??
     req.headers.get("x-webhook-secret") ??
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    url.searchParams.get("token") ??
-    "";
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const querySecret = headerSecret ? null : url.searchParams.get("token");
+  if (querySecret) console.warn("[fillout webhook] deprecated ?token= used; send the X-Fillout-Webhook-Secret header instead.");
+  const supplied = headerSecret ?? querySecret ?? "";
   if (!supplied || !secretMatches(supplied, expected)) {
     return NextResponse.json({ error: "Invalid webhook secret." }, { status: 401 });
   }

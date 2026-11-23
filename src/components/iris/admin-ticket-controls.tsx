@@ -91,7 +91,11 @@ export function AdminTicketControls({
             >
               <CheckCircle2 className="w-3 h-3 mr-1" /> Resolve
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => run({ status: "closed" }, "Ticket closed")}>
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() =>
+              ticket.resolutionSummary || ticket.status === "resolved"
+                ? run({ status: "closed" }, "Ticket closed")
+                : toast.error("Add a resolution summary first - use Mark Resolved or the summary card.")
+            }>
               <XCircle className="w-3 h-3 mr-1" /> Close
             </Button>
           </>

@@ -73,6 +73,7 @@ export function SlaBreachBanner() {
   const [now, setNow] = React.useState(() => Date.now());
   const [askFor, setAskFor] = React.useState<Breach | null>(null);
   const [tick, setTick] = React.useState(0);
+  const [deciding, setDeciding] = React.useState<Set<string>>(new Set());
 
   React.useEffect(() => {
     let cancelled = false;
@@ -111,12 +112,20 @@ export function SlaBreachBanner() {
   };
 
   const decide = async (a: Approval, decision: "approved" | "rejected") => {
+    if (deciding.has(a.id)) return;
+    setDeciding((s) => new Set(s).add(a.id));
     try {
       await api(`/api/sla-extensions/${a.id}`, { method: "POST", json: { decision } });
       toast.success(decision === "approved" ? `Added ${a.hours}h to ${a.ticketRef ?? "the ticket"}` : "Request declined");
       setTick((t) => t + 1);
     } catch (e) {
       toast.error((e as Error).message);
+    } finally {
+      setDeciding((s) => {
+        const next = new Set(s);
+        next.delete(a.id);
+        return next;
+      });
     }
   };
 
@@ -126,7 +135,7 @@ export function SlaBreachBanner() {
     <>
       {breaches.length > 0 && (
         <div role="alert" className="iris-sla-banner relative z-10 shrink-0 text-white bg-gradient-to-r from-red-800 to-red-600">
-          <div className="flex items-center gap-3 px-5 py-2.5 flex-wrap">
+          <div className="flex items-center gap-3 px-3 sm:px-5 py-2.5 flex-wrap">
             <span className="iris-sla-siren grid place-items-center w-8 h-8 rounded-full bg-white/20 shrink-0">
               <AlertTriangle className="w-4 h-4" />
             </span>
@@ -146,11 +155,11 @@ export function SlaBreachBanner() {
             </button>
           </div>
           {visible.length > 0 && (
-            <ul className="max-h-[132px] overflow-y-auto bg-black/20 px-5 py-1 iris-sla-scroll">
+            <ul className="max-h-[132px] overflow-y-auto bg-black/20 px-3 sm:px-5 py-1 iris-sla-scroll">
               {visible.map((b) => (
-                <li key={b.id} className="flex items-center gap-3 py-1.5 text-[12px] border-t border-white/15 first:border-t-0">
+                <li key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-[12px] border-t border-white/15 first:border-t-0">
                   <span className="font-mono text-white/80 shrink-0">{b.ticketId ?? b.id.slice(0, 8)}</span>
-                  <span className="flex-1 min-w-0 truncate">{b.title}</span>
+                  <span className="flex-1 min-w-[140px] truncate">{b.title}</span>
                   <span className="shrink-0 rounded-full bg-white text-red-700 px-2 py-0.5 text-[11px] font-bold tabular-nums">
                     {lateBy(b.slaResolutionTarget, now)}
                   </span>
@@ -188,27 +197,31 @@ export function SlaBreachBanner() {
 
       {approvals.length > 0 && (
         <div className="shrink-0 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-300/70 text-amber-950 dark:text-amber-100">
-          <div className="px-5 pt-2 text-[12px] font-semibold">
+          <div className="px-3 sm:px-5 pt-2 text-[12px] font-semibold">
             {approvals.length} request{approvals.length === 1 ? "" : "s"} for more SLA time need your approval
           </div>
-          <ul className="max-h-[96px] overflow-y-auto px-5 pb-1.5">
+          <ul className="max-h-[96px] overflow-y-auto px-3 sm:px-5 pb-1.5">
             {approvals.map((a) => (
-              <li key={a.id} className="flex items-center gap-3 py-1 text-[12px]">
+              <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1 text-[12px]">
                 <button onClick={() => selectTicket(a.ticket)} className="font-mono shrink-0 underline-offset-2 hover:underline">
                   {a.ticketRef ?? a.ticket.slice(0, 8)}
                 </button>
-                <span className="flex-1 min-w-0 truncate">
+                <span className="flex-1 min-w-[160px] truncate">
                   <b>{a.requesterName ?? "Owner"}</b> asks +{a.hours}h: {a.reason}
                 </span>
                 <button
+                  type="button"
+                  disabled={deciding.has(a.id)}
                   onClick={() => decide(a, "approved")}
-                  className="shrink-0 inline-flex items-center gap-1 rounded-md bg-emerald-600 text-white px-2.5 py-1 text-[11px] font-semibold hover:bg-emerald-700"
+                  className="shrink-0 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1 rounded-md bg-emerald-600 text-white px-2.5 py-1 text-[11px] font-semibold hover:bg-emerald-700"
                 >
                   <Check className="w-3 h-3" /> Approve
                 </button>
                 <button
+                  type="button"
+                  disabled={deciding.has(a.id)}
                   onClick={() => decide(a, "rejected")}
-                  className="shrink-0 rounded-md border border-amber-400 px-2.5 py-1 text-[11px] font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                  className="shrink-0 disabled:opacity-50 disabled:pointer-events-none rounded-md border border-amber-400 px-2.5 py-1 text-[11px] font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40"
                 >
                   Decline
                 </button>
@@ -295,6 +308,8 @@ export function ExtensionRequestDialog({
               {HOUR_OPTIONS.map((h) => (
                 <button
                   key={h}
+                  type="button"
+                  aria-pressed={hours === h}
                   onClick={() => setHours(h)}
                   className={cn(
                     "h-8 px-3 rounded-lg border text-[12px] font-medium",

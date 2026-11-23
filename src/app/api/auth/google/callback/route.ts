@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { asSystemMain as asSystem } from "@/lib/server/db";
 import { setSessionCookie } from "@/lib/server/auth";
+import { clientIp } from "@/lib/server/rate-limit";
 import {
   OAUTH_COOKIE,
   allowedEmailDomains,
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     return fail("oauth_failed");
   }
 
-  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
+  const ip = clientIp(request);
   try {
     const rows = await asSystem(async (c) => {
       // Sign-in policy edited in Settings → Users & Access wins; env is the fallback.

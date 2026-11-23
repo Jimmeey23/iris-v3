@@ -38,7 +38,12 @@ export function RouteSync() {
     const ref = pendingTicket.current;
     if (!ref) return;
     const t = ALL_TICKETS.find((x) => x.id === ref || x.ticketId === ref);
-    if (!t) return;
+    if (!t) {
+      // Tickets have loaded (dataVersion > 0) but the linked one isn't there: stop waiting,
+      // otherwise the state->URL sync below stays blocked forever.
+      if (dataVersion > 0 || ALL_TICKETS.length > 0) pendingTicket.current = null;
+      return;
+    }
     pendingTicket.current = null;
     const st = useAppStore.getState();
     const ticketViews = ["all_tickets", "my_tickets", "department_queue", "escalations"];

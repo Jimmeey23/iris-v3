@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { asSystemMain as asSystem } from "@/lib/server/db";
 import { sendMail } from "@/lib/server/mailer";
-import { RateLimitError, enforceRateLimit, loginKey } from "@/lib/server/rate-limit";
+import { RateLimitError, clientIp, enforceRateLimit, loginKey } from "@/lib/server/rate-limit";
 import { resetEmail, resetOrigin } from "@/lib/server/password-reset";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const email = String(body.email ?? "").trim().toLowerCase().slice(0, 254);
   if (!email) return NextResponse.json({ error: "Enter your work email." }, { status: 400 });
 
-  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
+  const ip = clientIp(request);
   try {
     await enforceRateLimit("password-reset", loginKey(ip, email));
     await enforceRateLimit("password-reset", loginKey(ip, "*"));

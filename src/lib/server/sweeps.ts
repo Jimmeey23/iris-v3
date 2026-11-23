@@ -52,12 +52,29 @@ async function claim(job: SweepJob): Promise<boolean> {
   return (rowCount ?? 0) > 0;
 }
 
+/** Gives a claim back after failed work: backdated so the job is retried in ~5 minutes
+ *  rather than waiting out its whole window. Best effort. */
+async function releaseClaim(job: SweepJob): Promise<void> {
+  const seconds = SWEEP_WINDOWS[job];
+  await pool
+    .query(
+      `update iris.app_settings set updated_at = now() - interval '1 second' * greatest($2::int - 300, 0) where key = $1`,
+      [sweepClaimKey(job), seconds],
+    )
+    .catch(() => {});
+}
+
 /** Runs `work` if the claim is free. Failures are logged and swallowed: background work
  *  hanging off somebody else's request must never turn their 200 into a 500. */
 async function run(job: SweepJob, work: () => Promise<unknown>): Promise<boolean> {
   try {
     if (!(await claim(job))) return false;
-    await work();
+    try {
+      await work();
+    } catch (error) {
+      await releaseClaim(job);
+      throw error;
+    }
     return true;
   } catch (error) {
     console.error(`[sweep] ${job}:`, error);
@@ -175,15 +192,37 @@ export async function runSlaSweep({ dry = false }: { dry?: boolean } = {}): Prom
     ).rows;
     await client.query("commit");
 
-    for (const [event, list] of [
-      ["sla_breached", breached],
-      ["sla_at_risk", atRisk],
+    // The status flip above is already committed, so a notification that fails (or a process
+    // that dies right here) must not be lost: also pick up recently breached / at-risk tickets
+    // that have no notification row for their current SLA target and send those now.
+    const recoveryQuery = (status: "breached" | "at_risk", event: string) =>
+      client.query<{ id: string; target: string }>(
+        `select t.id, t.sla_resolution_target as target
+           from tickets t
+          where ${open} and t.sla_status = '${status}'
+            and t.sla_resolution_target > now() - interval '7 days'
+            and not exists (
+              select 1 from email_log l
+               where l.ticket_id = t.id and l.event = '${event}'
+                 and l.dedupe_key like '%:sla:' || to_char(t.sla_resolution_target at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || ':%')
+          limit 50`,
+      );
+    const pending = new Map<string, { event: "sla_breached" | "sla_at_risk"; id: string; target: string }>();
+    for (const [event, status, list] of [
+      ["sla_breached", "breached", breached],
+      ["sla_at_risk", "at_risk", atRisk],
     ] as const) {
-      for (const r of list) {
-        await notifyTicketEventNow(event, { id: r.id, title: "" }, null, {
-          dedupe: `sla:${new Date(r.target).toISOString()}`,
-        });
+      for (const r of list) pending.set(`${event}:${r.id}`, { event, id: r.id, target: r.target });
+      try {
+        for (const r of (await recoveryQuery(status, event)).rows) pending.set(`${event}:${r.id}`, { event, id: r.id, target: r.target });
+      } catch (e) {
+        console.error("[sweep] sla recovery query failed:", e);
       }
+    }
+    for (const r of pending.values()) {
+      await notifyTicketEventNow(r.event, { id: r.id, title: "" }, null, {
+        dedupe: `sla:${new Date(r.target).toISOString()}`,
+      });
     }
     return { breached, atRisk, dry };
   } catch (err) {

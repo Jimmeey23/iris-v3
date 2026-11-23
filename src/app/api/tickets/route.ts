@@ -198,7 +198,9 @@ export async function POST(request: Request) {
       }
 
       const collectedInfo: Record<string, unknown> =
-        b.collectedInfo && typeof b.collectedInfo === "object" ? { ...(b.collectedInfo as Record<string, unknown>) } : {};
+        b.collectedInfo && typeof b.collectedInfo === "object" && !Array.isArray(b.collectedInfo)
+          ? Object.fromEntries(Object.entries(b.collectedInfo as Record<string, unknown>).filter(([k]) => !k.startsWith("_")))
+          : {};
       if (routed.matchedRule) {
         collectedInfo._routed_by_rule = routed.matchedRule.name;
       }
@@ -288,6 +290,26 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ticket }, { status: 201 });
   } catch (err) {
+    // A concurrent request with the same key won the insert race: replay the first ticket.
+    if (idempotencyKey && (err as { code?: string })?.code === "23505" && (err as { constraint?: string }).constraint === "uq_tickets_idempotency") {
+      const existing = await asSystem(async (c) => {
+        const { rows } = await c.query(`select id from tickets where created_by_user_id = $1 and idempotency_key = $2`, [
+          session.user_id,
+          idempotencyKey,
+        ]);
+        return rows[0]?.id ? await fetchTicket(c, rows[0].id as string) : null;
+      }).catch(() => null);
+      if (existing) {
+        const headers = idempotentReplayHeader(idempotencyKey);
+        if (category === "Trainer Feedback" && session.role !== "admin") {
+          return NextResponse.json(
+            { ticket: { id: existing.id, ticketId: existing.ticketId, title: existing.title, category: existing.category, status: existing.status }, locked: true },
+            { headers },
+          );
+        }
+        return NextResponse.json({ ticket: existing }, { headers });
+      }
+    }
     return dbError(err);
   }
 }

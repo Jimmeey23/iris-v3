@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { ROUTE_SEGMENTS } from "./src/lib/iris/routes";
 
 /**
  * Content-Security-Policy, ported from iris-ai-v2.
@@ -15,8 +16,8 @@ import type { NextConfig } from "next";
  * if that trade-off changes. 'unsafe-eval' is only needed by React's dev tooling.
  *
  * Unlike v2 there are no third-party embeds, so the policy ships enforced straight
- * away; the Report-Only mirror is kept alongside — with no report-uri it costs
- * nothing, and flipping a single header is the fastest rollback if something breaks.
+ * away. (A Report-Only duplicate of the same policy was removed: with no report-uri
+ * it only added header bytes. Re-add one when trialling a stricter policy.)
  */
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -45,20 +46,18 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "microphone=(self), autoplay=(self), camera=(), geolocation=()" },
   { key: "Content-Security-Policy", value: csp },
-  { key: "Content-Security-Policy-Report-Only", value: csp },
 ];
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  reactStrictMode: false,
-  allowedDevOrigins: ["*.e2b.app"],
+  reactStrictMode: true,
   poweredByHeader: false,
   turbopack: { root: process.cwd() },
   serverExternalPackages: ["pg"],
   // Every view has its own URL (src/lib/iris/routes.ts). They all serve the one static
   // app page, so deep links cost no serverless invocation; the client picks the view.
   async rewrites() {
-    const views = "dashboard|ai|tickets|my-tickets|department|escalations|trainers|equipment|radar|analytics|knowledge-base|templates|reports|momence|email-templates|settings";
+    const views = ROUTE_SEGMENTS.join("|");
     return [{ source: `/:view(${views})/:rest*`, destination: "/" }];
   },
   async headers() {

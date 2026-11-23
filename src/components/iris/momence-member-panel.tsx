@@ -29,7 +29,6 @@ export function useMomenceSection<T = any>(url: string | null, deps: unknown[] =
       .then(({ ok, j }) => setState(ok ? { ...j, loading: false } : { error: j.error ?? "Request failed", loading: false }))
       .catch((e) => e.name !== "AbortError" && setState({ error: "Network error", loading: false }));
     return () => ac.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, nonce, ...deps]);
   return { ...state, reload: () => setNonce((n) => n + 1) };
 }

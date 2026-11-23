@@ -3,6 +3,7 @@ import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
 import { toast } from "sonner";
+import { useConfirm } from "../confirm-dialog";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
@@ -110,6 +111,8 @@ function useSettingsData() {
   const [error, setError] = React.useState<string | null>(null);
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const pending = React.useRef(0);
+  const failed = React.useRef(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   const load = React.useCallback(async () => {
     try {
@@ -147,14 +150,17 @@ function useSettingsData() {
   }, [load]);
 
   const track = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    if (pending.current === 0) failed.current = false;
     pending.current++;
-    setSaveState("saving");
+    if (!failed.current) setSaveState("saving");
     try {
       const out = await fn();
-      if (--pending.current === 0) setSaveState("saved");
+      // An earlier failure in the same burst stays visible; don't flip it to "saved".
+      if (--pending.current === 0 && !failed.current) setSaveState("saved");
       return out;
     } catch (e) {
       pending.current--;
+      failed.current = true;
       setSaveState("error");
       throw e;
     }
@@ -165,7 +171,10 @@ function useSettingsData() {
   };
 
   const patch: Ctx["patch"] = async (r, key, changes) => {
-    const before = data;
+    // Remember only the fields this call touches, so a failure reverts that row's fields
+    // and not concurrent edits to other rows/keys.
+    const prevRow = (data?.[r] as Row[] | undefined)?.find((x) => x[PK[r]] === key);
+    const previous = Object.fromEntries(Object.keys(changes).map((k) => [k, prevRow?.[k]]));
     setData((d) => d && { ...d, [r]: (d[r] as Row[]).map((x) => (x[PK[r]] === key ? { ...x, ...changes } : x)) });
     try {
       const { row } = await track(() => api(`/api/settings/${r}`, { method: "PATCH", json: { key, changes } }));
@@ -180,7 +189,7 @@ function useSettingsData() {
       afterWrite(r);
       return true;
     } catch (e) {
-      setData(before);
+      setData((d) => d && { ...d, [r]: (d[r] as Row[]).map((x) => (x[PK[r]] === key ? { ...x, ...previous } : x)) });
       toast.error(e instanceof Error ? e.message : "Couldn't save");
       return false;
     }
@@ -201,7 +210,7 @@ function useSettingsData() {
   };
 
   const remove: Ctx["remove"] = async (r, key, label) => {
-    if (!window.confirm(`Remove ${label}? This can't be undone.`)) return;
+    if (!(await confirm({ title: `Remove ${label}?`, description: "This can't be undone.", confirmLabel: "Remove" }))) return;
     try {
       await track(() => api(`/api/settings/${r}?key=${encodeURIComponent(key)}`, { method: "DELETE" }));
       setData(
@@ -224,7 +233,8 @@ function useSettingsData() {
   const setting = (key: string) => data?.app_settings.find((s) => s.key === key)?.value;
 
   const saveSetting: Ctx["saveSetting"] = async (key, value) => {
-    const before = data;
+    const prevEntry = data?.app_settings.find((s) => s.key === key);
+    const prevWorkspace = useAppStore.getState().workspaceSettings[key];
     setData((d) => {
       if (!d) return d;
       const exists = d.app_settings.some((s) => s.key === key);
@@ -245,12 +255,21 @@ function useSettingsData() {
         reloadReference().catch(() => {});
       }
     } catch (e) {
-      setData(before);
+      // Revert just this key, in both the settings bundle and the app store.
+      setData((d) =>
+        d && {
+          ...d,
+          app_settings: prevEntry
+            ? d.app_settings.map((s) => (s.key === key ? prevEntry : s))
+            : d.app_settings.filter((s) => s.key !== key),
+        },
+      );
+      useAppStore.getState().setWorkspaceSettings({ [key]: prevWorkspace });
       toast.error(e instanceof Error ? e.message : "Couldn't save");
     }
   };
 
-  return { data, setData, error, saveState, load, patch, create, remove, setting, saveSetting };
+  return { data, setData, error, saveState, load, patch, create, remove, setting, saveSetting, confirmDialog };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -740,6 +759,7 @@ export function SettingsView() {
 
   return (
     <SettingsCtx.Provider value={ctx}>
+      {s.confirmDialog}
       <div className="settings-workspace max-w-[1500px] mx-auto px-4 sm:px-8 py-8 sm:py-10">
         <div className="flex flex-wrap items-end gap-4 mb-8">
           <div className="flex-1 min-w-[240px]">
@@ -2460,14 +2480,11 @@ function NotificationsSettings() {
     if (!to) return toast.error("No email on current session");
     setTestingEmail(true);
     try {
-      const res = await fetch(absUrl("/api/notifications/email"), {
+      const json = await api<{ transport?: string }>("/api/notifications/email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send_test", to, event: "ticket_created" }),
+        json: { action: "send_test", to, event: "ticket_created" },
       });
-      const json = await res.json();
-      if (!res.ok) toast.error(json.error || "Email test failed");
-      else toast.success(`Test email dispatched (${json.transport}) to ${to}`);
+      toast.success(`Test email dispatched (${json.transport}) to ${to}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Test dispatch failed");
     } finally {
@@ -2843,6 +2860,7 @@ function AuditLogsSettings() {
   const { data, isAdmin, setting, saveSetting, reload } = useS();
   const [q, setQ] = React.useState("");
   const [pruning, setPruning] = React.useState(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   const logs = data.audit_log.filter(
     (l) => !q || `${l.action} ${l.actor} ${l.entity_type} ${l.entity_id}`.toLowerCase().includes(q.toLowerCase()),
@@ -2865,7 +2883,7 @@ function AuditLogsSettings() {
 
   const handlePrune = async () => {
     const days = Number(setting("audit.retention_days") ?? 365);
-    if (!window.confirm(`Permanently delete audit log entries older than ${days} days?`)) return;
+    if (!(await confirm({ title: "Delete old audit entries?", description: `Permanently delete audit log entries older than ${days} days. This cannot be undone.`, confirmLabel: "Delete" }))) return;
     setPruning(true);
     try {
       const res = await api<{ pruned: number; retentionDays: number }>(
@@ -2882,6 +2900,8 @@ function AuditLogsSettings() {
   };
 
   return (
+    <>
+    {confirmDialog}
     <SettingsCard
       title="Audit Log"
       description="Recorded actions across sign-ins, ticket changes, and settings updates (filtered by retention window)."
@@ -2966,5 +2986,6 @@ function AuditLogsSettings() {
         </table>
       </div>
     </SettingsCard>
+    </>
   );
 }

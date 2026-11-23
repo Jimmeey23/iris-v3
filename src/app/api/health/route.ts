@@ -18,17 +18,37 @@ export const dynamic = "force-dynamic";
  */
 const n = (value: unknown) => Number(value ?? 0);
 
+// The public answer is polled by monitors; one database ping per ~10s per instance is plenty.
+const PING_TTL_MS = 10_000;
+let pingCache: { at: number; ok: boolean } | null = null;
+async function pingDb() {
+  if (pingCache && Date.now() - pingCache.at < PING_TTL_MS) return pingCache.ok;
+  try {
+    await pool.query("select 1");
+    pingCache = { at: Date.now(), ok: true };
+  } catch (error) {
+    console.error("[health] database check failed:", error instanceof Error ? error.message : error);
+    pingCache = { at: Date.now(), ok: false };
+  }
+  return pingCache.ok;
+}
+
 export async function GET() {
   const meta = {
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
     env: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
   };
   try {
-    await pool.query("select 1");
     const user = await getSession().catch(() => null);
     if (user?.role !== "admin") {
-      return NextResponse.json({ ok: true, db: "up", ...meta }, { headers: { "Cache-Control": "no-store" } });
+      // Commit SHA is only for signed-in callers; the public answer is just up/down.
+      const up = await pingDb();
+      return NextResponse.json(
+        { ok: up, db: up ? "up" : "down", ...(user ? meta : { env: meta.env }) },
+        { status: up ? 200 : 503, headers: { "Cache-Control": "no-store" } },
+      );
     }
+    await pool.query("select 1");
 
     const [outbox, escalations, sweeps] = await Promise.all([
       pool.query<{ pending: number; sending: number; failed: number; oldest_pending: string | null }>(
@@ -80,6 +100,6 @@ export async function GET() {
     );
   } catch (error) {
     console.error("[health] database check failed:", error instanceof Error ? error.message : error);
-    return NextResponse.json({ ok: false, db: "down", ...meta }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, db: "down", env: meta.env }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }

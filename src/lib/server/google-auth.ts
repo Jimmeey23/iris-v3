@@ -30,7 +30,7 @@ export function allowedEmailDomains(): string[] {
 
 /** Individual addresses outside those domains that may self-provision. */
 export function allowedEmails(): string[] {
-  return (process.env.ALLOWED_EMAILS ?? "jimmeeygondaa@gmail.com")
+  return (process.env.ALLOWED_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);

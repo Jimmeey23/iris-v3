@@ -312,16 +312,44 @@ const CACHE_PAST_DAYS = 30;
 const CACHE_FUTURE_DAYS = 14;
 const SESSION_TTL = 10 * 60_000;
 
-/** All pages of /host/sessions for one region: first page, then the rest in parallel. */
-async function fetchSessionWindow(r: Region, from: Date, to: Date): Promise<SessionSummary[]> {
-  const params = { pageSize: 100, startAfter: from.toISOString(), startBefore: to.toISOString(), sortBy: "startsAt", sortOrder: "ASC" };
-  const first = await get(r, "/host/sessions", { ...params, page: 0 });
-  const total = Math.min(first.pagination?.totalCount ?? 0, 3000);
-  const pages = Math.ceil(total / 100);
-  const rest = await Promise.all(
-    Array.from({ length: Math.max(0, pages - 1) }, (_, i) => get(r, "/host/sessions", { ...params, page: i + 1 }).catch(() => ({ payload: [] }))),
+const PAGE_CONCURRENCY = 4;
+
+/** GET with up to two retries on 429 / 5xx, backing off 400ms then 1s. */
+async function getWithRetry(r: Region, path: string, params: Params) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await get(r, path, params);
+    } catch (e) {
+      const status = e instanceof MomenceError ? e.status : 0;
+      if (attempt >= 2 || !(status === 429 || status >= 500)) throw e;
+      await new Promise((res) => setTimeout(res, attempt === 0 ? 400 : 1000));
+    }
+  }
+}
+
+/**
+ * Every page of /host/sessions for one region: first page, then the rest with bounded
+ * concurrency. A page that still fails after retries fails the whole region, so a
+ * truncated list is never mistaken for a complete one (and never cached).
+ */
+async function fetchAllSessionPages(r: Region, params: Params, maxTotal: number): Promise<SessionSummary[]> {
+  const first = await getWithRetry(r, "/host/sessions", { ...params, page: 0 });
+  const pages = Math.ceil(Math.min(first.pagination?.totalCount ?? 0, maxTotal) / 100);
+  const rest: any[] = new Array(Math.max(0, pages - 1));
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(PAGE_CONCURRENCY, rest.length) }, async () => {
+      while (next < rest.length) {
+        const i = next++;
+        rest[i] = await getWithRetry(r, "/host/sessions", { ...params, page: i + 1 });
+      }
+    }),
   );
   return [first, ...rest].flatMap((j) => (j.payload ?? []).map((x: any) => toSession(r, x)));
+}
+
+function fetchSessionWindow(r: Region, from: Date, to: Date): Promise<SessionSummary[]> {
+  return fetchAllSessionPages(r, { pageSize: 100, startAfter: from.toISOString(), startBefore: to.toISOString(), sortBy: "startsAt", sortOrder: "ASC" }, 3000);
 }
 
 /**
@@ -338,12 +366,17 @@ export async function recentSessions(): Promise<SessionSummary[]> {
       const results = await Promise.allSettled(configuredRegions().map((r) => fetchSessionWindow(r, from, to)));
       const list = results.flatMap((x) => (x.status === "fulfilled" ? x.value : []));
       if (!list.length && results.length && results.every((x) => x.status === "rejected")) throw (results[0] as PromiseRejectedResult).reason;
-      g.momenceSessionCache = { at: Date.now(), list };
+      // A region that failed leaves a partial list: serve it, but don't cache it as complete.
+      if (results.every((x) => x.status === "fulfilled")) g.momenceSessionCache = { at: Date.now(), list };
       return list;
     })().finally(() => { g.momenceSessionLoad = undefined; });
   }
-  // Serve stale data while a refresh is in flight.
-  return c ? c.list : g.momenceSessionLoad;
+  // Serve stale data while a refresh is in flight; its failure must not become an unhandled rejection.
+  if (c) {
+    g.momenceSessionLoad.catch(() => {});
+    return c.list;
+  }
+  return g.momenceSessionLoad;
 }
 
 /** Start loading the session cache in the background (e.g. when a chat starts). */
@@ -360,15 +393,12 @@ async function privateSessions(): Promise<SessionSummary[]> {
   const results = await Promise.allSettled(
     configuredRegions().map(async (r) => {
       const params = { pageSize: 100, startAfter: from.toISOString(), startBefore: to.toISOString(), sortBy: "startsAt", sortOrder: "DESC", "types[]": "private" };
-      const first = await get(r, "/host/sessions", { ...params, page: 0 });
-      const pages = Math.ceil(Math.min(first.pagination?.totalCount ?? 0, 1000) / 100);
-      const rest = await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, i) => get(r, "/host/sessions", { ...params, page: i + 1 }).catch(() => ({ payload: [] }))));
-      return [first, ...rest].flatMap((j) => (j.payload ?? []).map((x: any) => toSession(r, x)));
+      return fetchAllSessionPages(r, params, 1000);
     }),
   );
   const list = results.flatMap((x) => (x.status === "fulfilled" ? x.value : [])).sort((a, b) => b.startsAt.localeCompare(a.startsAt));
   if (!list.length && results.length && results.every((x) => x.status === "rejected")) throw (results[0] as PromiseRejectedResult).reason;
-  g.momencePrivateCache = { at: Date.now(), list };
+  if (results.every((x) => x.status === "fulfilled")) g.momencePrivateCache = { at: Date.now(), list };
   return list;
 }
 

@@ -157,25 +157,28 @@ async function readEmail(
 
 // ── Event log (iris.webhook_events) ──────────────────────────────────────────
 
-/** Claims a message once. Returns the log row id, or null if it was already handled. */
+/** How long a 'processing' claim is trusted before a redelivery may take it over (the worker died). */
+const CLAIM_STALE_MINUTES = 10;
+
+/**
+ * Claims a message once. Returns the log row id, or null if it was already handled or is
+ * being handled right now. Atomic: one row per (provider, message_id) is enforced by the
+ * unique partial index in migrations-reliability-3-intake-dedupe.sql, and a redelivery may
+ * only take over a 'failed' row or a 'processing' row older than CLAIM_STALE_MINUTES.
+ */
 export async function claimMessage(ref: { eventId: string; messageId: string; inboxId: string | null }, headers: Record<string, unknown>) {
   return asSystem(async (c) => {
-    const dupe = (
-      await c.query(
-        `select id from iris.webhook_events
-          where provider = $1 and payload->>'message_id' = $2 and status in ('processing', 'processed', 'ignored')
-          limit 1`,
-        [PROVIDER, ref.messageId],
-      )
-    ).rows[0];
-    if (dupe) return null;
-    return (
-      await c.query(
-        `insert into iris.webhook_events (provider, event_type, payload, headers, status)
-         values ($1, 'inbound.message_received', $2::jsonb, $3::jsonb, 'processing') returning id`,
-        [PROVIDER, JSON.stringify({ message_id: ref.messageId, inbox_id: ref.inboxId, event_id: ref.eventId }), JSON.stringify(headers)],
-      )
-    ).rows[0].id as string;
+    const { rows } = await c.query(
+      `insert into iris.webhook_events (provider, event_type, payload, headers, status)
+       values ($1, 'inbound.message_received', $2::jsonb, $3::jsonb, 'processing')
+       on conflict (provider, (payload->>'message_id')) where payload->>'message_id' is not null
+       do update set status = 'processing', processing_error = null, received_at = now(), headers = excluded.headers
+         where webhook_events.status = 'failed'
+            or (webhook_events.status = 'processing' and webhook_events.received_at < now() - interval '1 minute' * $4)
+       returning id`,
+      [PROVIDER, JSON.stringify({ message_id: ref.messageId, inbox_id: ref.inboxId, event_id: ref.eventId }), JSON.stringify(headers), CLAIM_STALE_MINUTES],
+    );
+    return (rows[0]?.id as string | undefined) ?? null;
   });
 }
 
@@ -183,7 +186,7 @@ async function finish(logId: string, status: "processed" | "ignored" | "failed",
   await asSystem((c) =>
     c.query(
       `update iris.webhook_events
-          set status = $2, processing_error = $3, ticket_id = $4, processed_at = now(), payload = payload || $5::jsonb
+          set status = $2, processing_error = $3, ticket_id = coalesce($4, ticket_id), processed_at = now(), payload = payload || $5::jsonb
         where id = $1`,
       [logId, status, error, ticketId, JSON.stringify(extra)],
     ),
@@ -227,7 +230,7 @@ export async function processInboundMessage(logId: string, ref: { messageId: str
       const seen = await asSystem(async (c) =>
         (await c.query(
           `select ticket_id from iris.webhook_events
-            where provider = $1 and id <> $2 and payload->>'rfc_message_id' = $3 and status = 'processed' limit 1`,
+            where provider = $1 and id <> $2 and payload->>'rfc_message_id' = $3 and (status = 'processed' or ticket_id is not null) limit 1`,
           [PROVIDER, logId, msg.rfc_message_id],
         )).rows[0],
       );
@@ -270,8 +273,27 @@ export async function processInboundMessage(logId: string, ref: { messageId: str
       console.error("[email-intake] momence lookup failed", (e as Error).message);
       return null;
     });
-    const ticketId = await fileTicket({ from, staff, subject, text, read, aiOn: aiOn && aiCfg.autoTriage, received: msg.received_at ?? null, momence });
-    const stored = await storeAttachments(ticketId, files);
+    // A retry of a message whose ticket was already filed (a later step threw) must not refile it.
+    const resumed = (
+      await asSystem((c) => c.query("select ticket_id from iris.webhook_events where id = $1", [logId]))
+    ).rows[0]?.ticket_id as string | null | undefined;
+    const ticketId =
+      resumed ??
+      (await fileTicket({ from, staff, subject, text, read, aiOn: aiOn && aiCfg.autoTriage, received: msg.received_at ?? null, momence }));
+    if (!resumed) {
+      // Recorded straight away (with the rfc id, for the duplicate check) so a failure below keeps the link.
+      await asSystem((c) =>
+        c.query("update iris.webhook_events set ticket_id = $2, payload = payload || $3::jsonb where id = $1", [
+          logId,
+          ticketId,
+          JSON.stringify(meta),
+        ]),
+      );
+    }
+    const hasAttachments = resumed
+      ? Number((await asSystem((c) => c.query("select count(*)::int as n from iris.ticket_attachments where ticket_id = $1", [ticketId]))).rows[0]?.n) > 0
+      : false;
+    const stored = hasAttachments ? { saved: [] as string[], skipped: [] as string[] } : await storeAttachments(ticketId, files);
 
     await asSystem(async (c) => {
       const lines = [
@@ -284,7 +306,8 @@ export async function processInboundMessage(logId: string, ref: { messageId: str
       ].filter((l) => l !== null);
       await c.query(
         `insert into iris.ticket_activities (ticket_id, activity_type, description, actor_name, metadata)
-         values ($1, 'email_received', $2, $3, $4::jsonb)`,
+         select $1, 'email_received', $2, $3, $4::jsonb
+          where not exists (select 1 from iris.ticket_activities where ticket_id = $1 and activity_type = 'email_received')`,
         [ticketId, lines.join("\n"), from.name ?? from.email, JSON.stringify({ ...meta, staff, mailtrap_message_id: ref.messageId })],
       );
     });

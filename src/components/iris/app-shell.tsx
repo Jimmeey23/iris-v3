@@ -2,6 +2,8 @@
 import { absUrl } from "@/lib/iris/utils";
 
 import * as React from "react";
+import { toast } from "sonner";
+import { useShallow } from "zustand/react/shallow";
 import { FeedbackButton } from "./feedback-dialog";
 import { useAppStore, ViewName } from "@/lib/iris/store";
 import { useSettingsStore } from "@/lib/iris/settings-store";
@@ -70,6 +72,7 @@ import { SlaBreachBanner } from "./sla-breach-banner";
 import { SandboxBanner, SandboxMenuItem } from "./sandbox-banner";
 import { RouteSync } from "./route-sync";
 import { useVisibleInterval } from "@/lib/iris/use-visible-interval";
+import { readJson } from "@/lib/iris/live-data";
 import { Member360Lookup } from "./member-360";
 import { OnlineUsers } from "./online-users";
 
@@ -122,7 +125,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     workspaceSettings,
     dataVersion,
     selectTicket,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((s) => ({
+      currentView: s.currentView,
+      setCurrentView: s.setCurrentView,
+      openKnowledgeVideos: s.openKnowledgeVideos,
+      sidebarCollapsed: s.sidebarCollapsed,
+      toggleSidebar: s.toggleSidebar,
+      currentUser: s.currentUser,
+      workspaceName: s.workspaceName,
+      workspaceSettings: s.workspaceSettings,
+      dataVersion: s.dataVersion,
+      selectTicket: s.selectTicket,
+    })),
+  );
   const inAppPref = useSettingsStore((s) => s.notificationChannels.inApp);
   const inAppAlertsActive = workspaceSettings["notifications.in_app_enabled"] !== false && inAppPref !== false;
   const { signOut } = useAuth();
@@ -147,8 +163,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const { loadAll } = await import("@/lib/iris/live-data");
       await loadAll();
       useAppStore.getState().bumpData();
-    } catch {
-      /* keep what we have */
+    } catch (e) {
+      // Keep what we have, but say so (once per click, not per poll).
+      toast.error(e instanceof Error ? `Couldn't refresh: ${e.message}` : "Couldn't refresh data");
     } finally {
       setRefreshing(false);
     }
@@ -199,8 +216,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const loadNotifications = React.useCallback(async () => {
     try {
       const res = await fetch(absUrl("/api/notifications?limit=20"), { cache: "no-store" });
+      const data = await readJson(res);
       if (!res.ok) return;
-      const data = await res.json();
       setNotifications(data.notifications ?? []);
       setUnreadCount(data.unreadCount ?? 0);
     } catch {
@@ -216,11 +233,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setNotifications((list) => list.map((n) => (body.all || body.ids?.includes(n.id) ? { ...n, isRead: true } : n)));
     setUnreadCount((c) => (body.all ? 0 : Math.max(0, c - (body.ids?.length ?? 0))));
     try {
-      await fetch(absUrl("/api/notifications"), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await fetch(absUrl("/api/notifications"), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) {
+        await readJson(res);
+        throw new Error(`Request failed (${res.status})`);
+      }
     } catch {
+      // Roll back the optimistic read state by reloading the server's truth.
       void loadNotifications();
     }
   }, [loadNotifications]);
+
+  // Header status pill reflects /api/health instead of always claiming "Operational".
+  const [health, setHealth] = React.useState<"unknown" | "ok" | "degraded">("unknown");
+  const checkHealth = React.useCallback(async () => {
+    try {
+      const res = await fetch(absUrl("/api/health"), { cache: "no-store" });
+      const j = await readJson<{ ok?: boolean }>(res);
+      setHealth(res.ok && j.ok !== false ? "ok" : "degraded");
+    } catch {
+      setHealth("degraded");
+    }
+  }, []);
+  React.useEffect(() => {
+    void checkHealth();
+  }, [checkHealth]);
+  useVisibleInterval(() => void checkHealth(), 60_000);
 
   const handleNotificationClick = (n: BellNotification) => {
     if (!n.isRead) void markRead({ ids: [n.id] });
@@ -231,18 +269,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="flex h-dvh w-full overflow-hidden bg-background">
       {/* Mount the accent randomizer - applies a random data-accent attribute on every load */}
       <AccentRandomizer />
+      {/* Phones: an expanded sidebar overlays the page (it keeps a 60px icon rail in the
+          layout) and a backdrop closes it, instead of squeezing the main column. */}
+      {!sidebarCollapsed && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          tabIndex={-1}
+          onClick={toggleSidebar}
+          className="md:hidden fixed inset-0 z-20 bg-black/40"
+        />
+      )}
       {/* Sidebar */}
+      <div className={cn("relative shrink-0 z-30 transition-[width] duration-200 ease-out", sidebarCollapsed ? "w-[60px]" : "w-[240px] max-md:w-[60px]")}>
       <aside
         className={cn(
-          "iris-app-sidebar flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 ease-out relative z-30",
-          sidebarCollapsed ? "w-[60px]" : "w-[240px]"
+          "iris-app-sidebar flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 ease-out relative z-30 h-full",
+          sidebarCollapsed ? "w-[60px]" : "w-[240px] max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:shadow-2xl"
         )}
       >
         {/* Logo */}
         <button
+          type="button"
+          aria-label="IRIS home"
           onClick={() => setCurrentView("overview")}
           className="flex items-center gap-3 px-4 h-14 border-b border-sidebar-border shrink-0 hover:bg-sidebar-accent/50 transition-colors"
         >
@@ -265,6 +317,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* New Issue */}
         <div className="px-3 pt-3 pb-2 shrink-0">
           <button
+            type="button"
+            aria-label="New issue"
             onClick={() => setCurrentView("ai_assistant")}
             className={cn(
               "w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium px-3 py-2 transition-opacity hover:opacity-90",
@@ -299,9 +353,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <TooltipTrigger asChild>
                           <button
                             data-tour={`nav-${item.id}`}
-                            onClick={() => setCurrentView(item.id)}
+                            type="button"
+                            aria-label={badgeCount ? `${item.label}, ${badgeCount} open` : item.label}
+                            aria-current={isActive ? "page" : undefined}
+                            onClick={() => {
+                              setCurrentView(item.id);
+                              // Phone overlay: close after navigating.
+                              if (!sidebarCollapsed && window.matchMedia("(max-width: 767px)").matches) toggleSidebar();
+                            }}
                             className={cn(
-                              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors",
+                              "relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors",
                               isActive
                                 ? "bg-primary/10 text-primary"
                                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -378,9 +439,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
+                  type="button"
+                  aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                   onClick={() => {
                     const next = !sidebarCollapsed;
                     toggleSidebar();
+                    // On phones the sidebar is a temporary overlay: don't overwrite the desktop preference.
+                    if (window.matchMedia("(max-width: 767px)").matches) return;
                     useSettingsStore.getState().update("sidebarCollapsed", next);
                     void useSettingsStore.getState().saveToServer({ sidebarCollapsed: next }).catch(() => {});
                   }}
@@ -394,6 +459,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </aside>
+      </div>
 
       {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
@@ -446,14 +512,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Right cluster: status + actions, pinned to extreme right */}
           <div className="ml-auto flex items-center gap-1.5 lg:gap-2 shrink-0">
-          <div className="hidden 2xl:flex whitespace-nowrap items-center gap-1.5 h-8 px-2.5 rounded-full border border-emerald-500/25 bg-emerald-500/5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-            <span className="iris-live-dot" />
-            Operational
-          </div>
+          {health !== "unknown" && (
+            <div
+              role="status"
+              title={health === "ok" ? "Server and database are reachable" : "The server or database isn't responding. Changes may not save."}
+              className={cn(
+                "whitespace-nowrap items-center gap-1.5 h-8 px-2.5 rounded-full border text-[10px] font-medium",
+                health === "ok"
+                  ? "hidden 2xl:flex border-emerald-500/25 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+                  : "flex border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400",
+              )}
+            >
+              {health === "ok" ? <span className="iris-live-dot" /> : <AlertTriangle className="w-3 h-3" />}
+              {health === "ok" ? "Operational" : "Degraded"}
+            </div>
+          )}
 
           <button
             type="button"
             data-tour="new-issue"
+            aria-label="New issue"
             onClick={() => setCurrentView("ai_assistant")}
             className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg whitespace-nowrap shrink-0 bg-primary text-primary-foreground text-[12px] font-medium shadow-[0_6px_16px_-8px_var(--primary)] hover:brightness-110 transition"
           >
@@ -497,6 +575,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Toggle theme"
                 className="h-7 w-7 rounded-lg hover:bg-background"
                 onClick={() => {
                   const next = theme === "dark" ? "light" : "dark";

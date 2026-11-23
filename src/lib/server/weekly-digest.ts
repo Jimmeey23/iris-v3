@@ -223,7 +223,9 @@ export async function sendWeeklyDigests({ force = false, onlyUserId }: { force?:
       await enqueueEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text, category: "weekly_digest" }, { emailLogId: claimed.rows[0].id });
       queued++;
     } catch (err) {
-      await pool.query("update iris.email_log set status = 'failed', error = $2 where dedupe_key = $1", [key, err instanceof Error ? err.message.slice(0, 300) : "build failed"]);
+      // Drop the claim so the next run retries instead of a 'failed' row blocking the digest all week.
+      console.error("[digest] build/enqueue failed", r.user_id, err instanceof Error ? err.message : err);
+      await pool.query("delete from iris.email_log where dedupe_key = $1 and status <> 'sent'", [key]).catch(() => {});
     }
   }
   return { queued, week };

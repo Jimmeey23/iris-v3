@@ -128,14 +128,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     // Both would assign sla_resolution_target in one UPDATE, which Postgres rejects.
     return NextResponse.json({ error: "Send either extendSlaHours or slaResolutionTarget, not both" }, { status: 400 });
   }
-  if (Number.isFinite(b.extendSlaHours) && b.extendSlaHours > 0) {
-    // Extend from now when the target has already passed, so the extension is real time.
-    vals.push(Math.min(168, b.extendSlaHours));
-    sets.push(`sla_resolution_target = greatest(coalesce(sla_resolution_target, now()), now()) + make_interval(hours => $${vals.length}::int)`);
-    // The target moved into the future: a breached/at-risk clock is live again. The
-    // calculate_sla trigger re-derives the precise value on the next status change.
-    sets.push(`sla_status = case when sla_status = 'paused' then 'paused' else 'on_track' end`);
-  }
+  const extendHours = Number.isFinite(b.extendSlaHours) && b.extendSlaHours > 0 ? Math.min(168, Math.floor(b.extendSlaHours)) : 0;
   if (b.acknowledge === true) {
     vals.push(
       JSON.stringify({
@@ -195,7 +188,9 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
         throw Object.assign(new Error("Imported legacy tickets are closed and read-only"), { code: "P0001" });
       }
       // Resolving needs a resolution summary: sent with this request or already on the ticket.
-      if (b.status === "resolved" && cur.status !== "resolved" && !(b.resolutionSummary?.trim?.() || cur.resolution_summary)) {
+      // Closing straight from a live status resolves it too, so it needs the same summary.
+      const resolving = b.status === "resolved" ? cur.status !== "resolved" : b.status === "closed" && !["resolved", "closed"].includes(cur.status);
+      if (resolving && !(b.resolutionSummary?.trim?.() || cur.resolution_summary)) {
         throw Object.assign(new Error("A resolution summary is required to resolve a ticket"), { code: "P0001" });
       }
 
@@ -209,6 +204,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
       }
 
       // Recompute SLA targets when priority changes (unless admin passed explicit slaResolutionTarget)
+      let extended = false;
       if (b.priority && b.priority !== cur.priority && b.slaResolutionTarget === undefined) {
         const [slaRes, bhRes] = await Promise.all([
           c.query<{
@@ -230,9 +226,32 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
             businessHoursOnly: Boolean(def.business_hours_only),
             businessHours: (bhRes.rows[0]?.value ?? null) as BusinessHoursMap | null,
           });
+          // Keep time already granted through approved extension requests.
+          const approvedHours = Number(
+            (
+              await c.query("select coalesce(sum(hours), 0) as h from sla_extension_requests where ticket_id = $1 and status = 'approved'", [id])
+            ).rows[0]?.h ?? 0,
+          );
+          let resolutionTarget = new Date(targets.slaResolutionTarget);
+          if (approvedHours > 0) resolutionTarget = new Date(resolutionTarget.getTime() + approvedHours * 3600_000);
+          // An extension in the same request is applied on top of the recomputed target.
+          if (extendHours > 0) {
+            resolutionTarget = new Date(Math.max(resolutionTarget.getTime(), Date.now()) + extendHours * 3600_000);
+            extended = true;
+          }
           set("sla_response_target", targets.slaResponseTarget);
-          set("sla_resolution_target", targets.slaResolutionTarget);
+          set("sla_resolution_target", resolutionTarget);
         }
+      }
+      if (extendHours > 0 && !extended) {
+        // Extend from now when the target has already passed, so the extension is real time.
+        vals.push(extendHours);
+        sets.push(`sla_resolution_target = greatest(coalesce(sla_resolution_target, now()), now()) + make_interval(hours => $${vals.length}::int)`);
+      }
+      if (extendHours > 0) {
+        // The target moved into the future: a breached/at-risk clock is live again. The
+        // calculate_sla trigger re-derives the precise value on the next status change.
+        sets.push(`sla_status = case when sla_status = 'paused' then 'paused' else 'on_track' end`);
       }
 
       vals.push(id);
