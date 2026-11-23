@@ -116,7 +116,21 @@ const FALLBACK: ResolutionQuestion[] = [
   { id: "prevent", label: "What will stop this from happening again?", kind: "text", placeholder: "Write 'Nothing needed' if it was a one-off" },
 ];
 
+/**
+ * Close-out questions the ticket's AI enrichment picked (collected_info._ai.resolution).
+ * Chosen from QUESTION_LIBRARY by id, plus at most one custom free-text question, for the
+ * category the ticket had (or the AI suggested) at the time.
+ */
+export type StoredResolutionChoice = {
+  ids: string[];
+  custom: string | null;
+  category: string | null;
+  subcategory: string | null;
+  suggestedCategory?: string | null;
+};
+
 type TicketLike = {
+  ai?: StoredResolutionChoice | null;
   category?: string | null;
   subcategory?: string | null;
   title?: string | null;
@@ -124,9 +138,48 @@ type TicketLike = {
   department?: string | null;
 };
 
+/** Every question any rule can ask, by id: the menu the AI picks from. */
+export const QUESTION_LIBRARY: Record<string, ResolutionQuestion> = (() => {
+  const lib: Record<string, ResolutionQuestion> = {};
+  for (const q of [...RULES.flatMap((r) => r.questions), ...FALLBACK]) lib[q.id] ??= q;
+  return lib;
+})();
+export const QUESTION_IDS = Object.keys(QUESTION_LIBRARY) as [string, ...string[]];
+
+/** The library as prompt text: "id: label [options]". Stable order for prompt caching. */
+export function questionLibraryText(): string {
+  return QUESTION_IDS.map((id) => {
+    const q = QUESTION_LIBRARY[id];
+    return `${id}: ${q.label}${q.options ? ` [${q.options.join(" / ")}]` : " (free text)"}`;
+  }).join("\n");
+}
+
+/** The AI's stored choice, if it still fits the ticket's current category. */
+function fromStored(t: TicketLike): ResolutionQuestion[] | null {
+  const c = t.ai;
+  if (!c?.ids?.length) return null;
+  // Picked for this category, or for the category the AI itself suggested and staff accepted.
+  // Recategorised by hand to something else: the choice no longer applies.
+  const fits = !t.category || c.category === t.category || (c.suggestedCategory != null && c.suggestedCategory === t.category);
+  if (!fits) return null;
+  const qs = c.ids.map((id) => QUESTION_LIBRARY[id]).filter(Boolean);
+  const custom = c.custom?.trim();
+  if (custom) qs.push({ id: "ai_custom", label: custom.slice(0, 160), kind: "text" });
+  return qs.length >= 2 ? qs.slice(0, 4) : null;
+}
+
 const STRONG_TITLE = /\binjured\b|injury (during|in|at|while)|accident|incident report|first aid|theft|stolen|\blost\b|left behind/i;
 
 export function getResolutionQuestions(t: TicketLike): ResolutionQuestion[] {
+  // The AI read the whole ticket when it was filed; prefer its choice. Keyword rules are
+  // the fallback for older tickets, AI off / over budget, or a manual recategorisation.
+  const stored = fromStored(t);
+  if (stored) return stored;
+  return keywordQuestions(t);
+}
+
+/** Keyword rules: category, then title, then department. */
+export function keywordQuestions(t: TicketLike): ResolutionQuestion[] {
   const dept = (t.departmentCode ?? t.department ?? "").toUpperCase();
   const category = [t.category, t.subcategory].filter(Boolean).join(" ");
   const title = t.title ?? "";

@@ -1,4 +1,5 @@
 import "server-only";
+import { keywordQuestions } from "@/lib/iris/resolution-questions";
 import type Anthropic from "@anthropic-ai/sdk";
 import { CATEGORY_MAP } from "@/lib/iris/constants";
 import type { RoutingRuleId } from "@/lib/iris/ownership-policy";
@@ -150,6 +151,11 @@ export function mockEnrichment(text: string, current: { category: string | null;
     category: tri?.category ?? current.category ?? "Miscellaneous",
     subcategory: tri?.subcategory ?? current.subcategory ?? "",
     confidence: tri?.confidence ?? 0.5,
+    // Same picks the keyword rules make, so training shows realistic close-out questions.
+    resolution_questions: keywordQuestions({ category: current.category, subcategory: current.subcategory, title: current.title })
+      .map((q) => q.id)
+      .slice(0, 3),
+    custom_resolution_question: null,
   };
 }
 

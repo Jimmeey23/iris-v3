@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { asSystem, withUser } from "@/lib/server/db";
 import { dbError, requireSession } from "@/lib/server/auth";
 import { enforceRateLimit, userKey } from "@/lib/server/rate-limit";
 import { fetchTicket } from "@/lib/server/tickets";
+import { enrichTicket } from "@/lib/server/ai-enrich";
 import { notifyTicketEvent, statusEvent } from "@/lib/server/notify";
 import { computeSlaTargets, type BusinessHoursMap } from "@/lib/iris/sla-calculator";
 
@@ -172,15 +173,18 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
 
   try {
     let before: BeforeSnapshot | null = null;
+    const prevCategory: { category?: string | null; subcategory?: string | null } = {};
     const ticket = await withUser(auth.session.user_id, async (c) => {
       const cur = (
         await c.query(
-          "select metadata, status, priority, assignee_id, assignee_ids, department_codes, escalation_level, sla_status, created_at, resolution_summary from tickets where id = $1 for update",
+          "select metadata, status, priority, assignee_id, assignee_ids, department_codes, escalation_level, sla_status, created_at, resolution_summary, category, subcategory from tickets where id = $1 for update",
           [id],
         )
       ).rows[0];
       before = cur ?? null;
       if (!cur) return null;
+      prevCategory.category = cur.category;
+      prevCategory.subcategory = cur.subcategory;
       if (!isAdmin && cur.metadata?.lock_assignment && (b.assigneeId !== undefined || b.assigneeIds !== undefined)) {
         throw Object.assign(new Error("Imported legacy tickets can't be reassigned"), { code: "P0001" });
       }
@@ -294,6 +298,13 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     });
     if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (before) notifyPatchChanges(before, ticket, auth.session);
+    // Recategorised by hand: re-read the ticket so its close-out questions fit the new
+    // category (until then the keyword rules apply). One small AI call, after the response.
+    if ("category" in prevCategory && (prevCategory.category !== ticket.category || prevCategory.subcategory !== ticket.subcategory)) {
+      const ticketId = ticket.id;
+      const userId = auth.session.user_id;
+      after(() => enrichTicket(ticketId, { userId, force: true }).then(() => undefined, () => undefined));
+    }
     return NextResponse.json({ ticket });
   } catch (err) {
     return dbError(err);
