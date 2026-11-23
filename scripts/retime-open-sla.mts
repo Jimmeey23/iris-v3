@@ -12,11 +12,29 @@
 import pg from "pg";
 import { computeSlaTargets, type BusinessHoursMap } from "../src/lib/iris/sla-calculator.ts";
 
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+// Load .env from the repo (or, in a git worktree, the main checkout) unless already set.
+if (!process.env.NEON_DATABASE_URL && !process.env.DATABASE_URL) {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  for (const f of [path.join(root, ".env"), path.resolve(root, "../../../.env")]) {
+    if (existsSync(f)) {
+      process.loadEnvFile(f);
+      break;
+    }
+  }
+}
+const url = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+if (!url) {
+  console.error("No NEON_DATABASE_URL / DATABASE_URL set and no .env found.");
+  process.exit(1);
+}
+
 const apply = process.argv.includes("--apply");
-const pool = new pg.Pool({
-  connectionString: process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+const pool = new pg.Pool({ connectionString: url, ssl: local ? false : { rejectUnauthorized: false } });
 
 const defs = new Map(
   (await pool.query(
