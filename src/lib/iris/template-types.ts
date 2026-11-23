@@ -250,8 +250,90 @@ export interface TemplateSpec {
   sum?: string;
   /** Handling playbook steps for the assignee. */
   act: string[];
+  /** "Resolved when" checklist; defaults to RESOLVED_WHEN for the ticket's category. */
+  done?: string[];
   /** The preset form's scenario fields. */
   f: TemplateField[];
+}
+
+/**
+ * What "resolved" means, per taxonomy category: the proof whoever closes the ticket must
+ * have. Shown under the playbook steps on every template that doesn't define its own, and
+ * lines up with the close-out questions in resolution-questions.ts.
+ */
+export const RESOLVED_WHEN: Record<string, string[]> = {
+  "Repair and Maintenance": [
+    "The fix is tested on site (a trainer test-rides or uses it) and it is back in use.",
+    "Anything taken out of use is unblocked in Momence and the 'Do not use' tag removed.",
+    "Who fixed it, the cost and any vendor job / part number are on the ticket.",
+  ],
+  "Studio Amenities and Facilities": [
+    "The amenity is back to standard and checked on site.",
+    "Any purchase or vendor request is raised, with cost noted.",
+    "Members who complained have been told.",
+  ],
+  "Safety and Security": [
+    "Nobody is at risk and the area is safe; the incident report is complete.",
+    "Everyone involved has been followed up, and management has signed off.",
+    "Corrective action is agreed with an owner and date.",
+  ],
+  "Theft and Lost Items": [
+    "The item's outcome is recorded (returned, awaiting collection, not found, police complaint number).",
+    "What was checked (CCTV window, lockers, lost & found, staff asked) is on the ticket.",
+    "The member has been told the outcome.",
+  ],
+  "Pricing and Memberships": [
+    "The change is made in Momence and exactly what changed is noted (dates, credits, plan).",
+    "Any exception has the Memberships Manager's approval on the ticket.",
+    "The member has it confirmed in writing.",
+  ],
+  Scheduling: [
+    "The schedule or booking is correct in Momence.",
+    "Every affected member and trainer has been told.",
+  ],
+  "Class Experience": [
+    "The member has been contacted and what was offered is recorded.",
+    "The root cause is addressed with the trainer or studio team.",
+  ],
+  "Trainer Feedback": [
+    "The feedback has been discussed with the trainer and an action agreed with a review date.",
+    "The member who raised it has been updated.",
+  ],
+  "Customer Service and Communication": [
+    "The member has been contacted personally and what was offered or agreed is recorded.",
+    "Staff involved have been briefed; any process change has an owner.",
+  ],
+  "Operating Systems": [
+    "The fix is applied and the person who reported it confirms it works.",
+    "Any vendor case ID and the fix are noted on the ticket.",
+  ],
+  "Tech Issues": [
+    "The person affected confirms it works.",
+    "Any charge or booking the fault caused has been corrected in Momence.",
+  ],
+  "Brand Feedback": [
+    "Marketing has seen it and the decision (change / no change, owner) is recorded.",
+    "The member has had a reply if they asked for one.",
+  ],
+  "Internal Operations & Admin": ["The task is done or owned with a due date, and records are filed on the ticket."],
+  Miscellaneous: ["The person who raised it confirms it is sorted, and any follow-up has an owner."],
+};
+
+/** Numbered playbook steps followed by the "Resolved when" checklist. */
+export function playbookText(steps: string[], done: string[] | undefined): string {
+  const body = steps.map((a, i) => `${i + 1}. ${a}`).join("\n");
+  return done?.length ? `${body}\n\nResolved when:\n${done.map((d) => `• ${d}`).join("\n")}` : body;
+}
+
+/** Splits playbook text back into its steps and its "Resolved when" checklist. */
+export function splitPlaybook(text: string | null | undefined): { steps: string[]; done: string[] } {
+  const [body, tail = ""] = (text ?? "").split(/\n\s*Resolved when:\s*\n?/i);
+  const lines = (t: string) =>
+    t
+      .split("\n")
+      .map((l) => l.trim().replace(/^(\d+[.)]|[-•*])\s*/, ""))
+      .filter(Boolean);
+  return { steps: lines(body), done: lines(tail) };
 }
 
 export function defineTemplates(category: string, specs: TemplateSpec[]): TicketTemplate[] {
@@ -282,7 +364,7 @@ export function defineTemplates(category: string, specs: TemplateSpec[]): Ticket
       defaultSeverity: SEVERITY_BY_PRIORITY[s.prio],
       suggestedAssigneeRole: s.role,
       requiredFields: s.f.filter((f) => f.required).map((f) => f.id),
-      recommendedActions: s.act.map((a, i) => `${i + 1}. ${a}`).join("\n"),
+      recommendedActions: playbookText(s.act, s.done ?? RESOLVED_WHEN[s.map[0]]),
       estimatedResolutionHours: s.hrs,
       form,
     };

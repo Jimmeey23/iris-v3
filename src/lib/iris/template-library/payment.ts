@@ -111,7 +111,7 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
     code: "TPL-005",
     title: "Refund Request - Membership",
     sub: "Refunds",
-    dept: "PAY", prio: "P2", role: "Finance Manager", hrs: 72,
+    dept: "PAY", prio: "P2", role: "Finance Manager", hrs: 48,
     desc: "Member is requesting a refund for a membership or package purchase.",
     map: REFUND, outcome: "Refund / credit", sys: "Momence",
     act: [
@@ -119,6 +119,11 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
       "Check the refund policy and usage (classes attended since purchase).",
       "Calculate the refundable amount; refunds above the approval limit go to ‘Refund Processing - Authorization Required’.",
       "Process via the original payment method, record the refund in Momence and send the reference to the member.",
+    ],
+    done: [
+      "The refund is processed to the original payment method and recorded in Momence.",
+      "The refund reference (Razorpay rfnd_… / UTR) and amount are on the ticket and sent to the member.",
+      "Approval is on the ticket for anything above the limit.",
     ],
     f: [
       F.memberName(),
@@ -128,6 +133,8 @@ export const PAYMENT_TEMPLATES = defineTemplates("Payment", [
       pick("refundReason", "Reason", ["Duplicate charge", "Service not delivered", "Cancellation within the refund window", "Billing error", "Medical / relocation", "Member request"], true),
       pick("refundType", "Refund type", ["Full", "Partial", "Credit to account"], true),
       F.txnRef(true),
+      F.paymentMethod(),
+      text("approvedBy", "Approved by (if above your limit)"),
     ],
   },
   {

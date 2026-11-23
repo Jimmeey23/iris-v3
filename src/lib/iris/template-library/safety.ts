@@ -66,6 +66,8 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
       "Give first aid / arrange medical care.",
       "Record how it happened and fix the hazard.",
       "Arrange class cover and medical leave; HR handles insurance / reimbursement.",
+      "File the staff incident report the same day, with witnesses and photos of the hazard.",
+      "Check in with the employee before they return and agree any light duties.",
     ],
     f: [
       F.employeeName(),
@@ -100,13 +102,17 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
     code: "TPL-044",
     title: "Fire Safety Equipment Check",
     sub: "Fire & Emergency Preparedness",
-    dept: "FAC", prio: "P1", role: "Facilities Manager", hrs: 24,
+    dept: "FAC", prio: "P2", role: "Facilities Manager", hrs: 48,
     desc: "Fire safety equipment needs inspection, refill or maintenance.",
     map: ["Repair and Maintenance", "Fire Safety Compliance"], outcome: "Fix the issue", by: "Raised during a walkthrough / audit",
     act: [
       "Inspect the equipment and tag anything out of date.",
       "Book the fire-safety vendor for refills / repairs.",
       "Update the fire-safety register (needed for licence / NOC renewal).",
+    ],
+    done: [
+      "Every extinguisher / alarm is in date and tagged, with the vendor's service certificate on the ticket.",
+      "The fire-safety register is updated (needed for licence / NOC renewal).",
     ],
     f: [
       pick("equipmentType", "Equipment", ["Fire extinguishers", "Smoke detectors", "Fire alarm panel", "Emergency lights", "Sprinklers", "Exit signage"], true),
@@ -345,7 +351,7 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
     code: "TPL-229",
     title: "Harassment Report (Member or Staff)",
     sub: "Harassment & Personal Safety",
-    dept: "MGT", prio: "P0", role: "Studio Director", hrs: 24,
+    dept: "MGT", prio: "P0", role: "Studio Director", hrs: 12,
     desc: "Someone reports harassment - verbal, physical, sexual, online or stalking - involving members, staff or visitors.",
     map: [SS, "Harassment Reports"], outcome: "Escalate to management",
     act: [
@@ -354,6 +360,11 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
       "Escalate to the Studio Director / HR within 2 hours; staff complaints follow the POSH policy (Internal Committee).",
       "Preserve evidence (CCTV, messages); involve the police if requested or required.",
       "Support the reporter, follow up, and make sure there is no retaliation.",
+    ],
+    done: [
+      "The person who reported it is safe and has been followed up; no retaliation.",
+      "Studio Director / HR (or the POSH Internal Committee for staff) has recorded a decision.",
+      "Evidence is preserved and the file is need-to-know only.",
     ],
     f: [
       text("reporterName", "Person reporting", true),
@@ -395,11 +406,17 @@ export const SAFETY_TEMPLATES = defineTemplates("Safety & Security", [
       "Collect the waiver and correct the booking / charge.",
       "Reinforce desk checks: every attendee checked in and waiver signed before entering the studio.",
     ],
+    done: [
+      "The waiver is signed and the class is charged, deducted or waived with approval.",
+      "The desk team has been reminded of the check-in rule.",
+    ],
     f: [
-      text("visitorName", "Visitor name"),
+      text("visitorName", "Visitor name", true),
+      text("visitorPhone", "Visitor phone", false, "For the waiver and any charge"),
       pick("walkinIssue", "What happened?", ["Joined a class without booking", "No waiver signed", "Used someone else's booking", "Desk didn't verify ID"], true),
       F.classFormat(false),
       check("waiverCollected", "Waiver collected afterwards"),
+      pick("settledAs", "How the class was settled", ["Charged drop-in", "Deducted from their package", "Waived (manager approved)", "Not yet settled"], true),
     ],
   },
 ]);

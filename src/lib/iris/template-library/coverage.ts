@@ -20,8 +20,16 @@ import {
   type TemplateField,
   type TemplatePriority,
   type TicketTemplate,
+  playbookText,
+  RESOLVED_WHEN,
 } from "../template-types";
 
+const HOURS_BY_PRIORITY: Record<TemplatePriority, number> = {
+  P0: PRIORITY_SLA_HOURS.critical,
+  P1: PRIORITY_SLA_HOURS.high,
+  P2: PRIORITY_SLA_HOURS.medium,
+  P3: PRIORITY_SLA_HOURS.low,
+};
 const PRIORITY: Record<ReturnType<typeof inferPriority>, TemplatePriority> = { critical: "P0", high: "P1", medium: "P2", low: "P3" };
 
 /** Used when a category has no hand-written template to borrow a department / role from. */
@@ -131,6 +139,246 @@ const CATEGORY_STEPS: Record<string, string[]> = {
 
 const GENERIC_STEPS = CATEGORY_STEPS.Miscellaneous;
 
+/**
+ * Sub-category rules, first match wins. The per-category steps above are the fallback;
+ * these fix the cases where one category holds very different situations (theft vs a lost
+ * water bottle, an idea vs an incident, studio speakers vs online streaming) and where the
+ * category's usual department or priority is wrong for the sub-category.
+ */
+type SubRule = {
+  match: RegExp;
+  dept?: string;
+  role?: string;
+  prio?: TemplatePriority;
+  outcome?: RequestedOutcome;
+  /** What the situation is and when to use this template (replaces the generic line). */
+  desc?: string;
+  steps?: string[];
+  done?: string[];
+  /** A suggestion or preference, not an incident: nothing is required beyond the idea itself. */
+  idea?: boolean;
+};
+
+const THEFT_STEPS = [
+  "Make sure the member is safe and calm; do not accuse or confront anyone.",
+  "Note exactly what was taken, its value, where and when it was last seen, and who was around.",
+  "Ask Facilities to save the CCTV for that window today, before it is overwritten.",
+  "Inform the studio manager; offer the member help filing a police complaint and record their choice.",
+  "Agree what will change (locker checks, staff watch at busy times) and tell the member the outcome.",
+];
+const THEFT_DONE = [
+  "CCTV for the window is saved or reviewed, and what it showed is noted.",
+  "The member's choice on a police complaint is recorded (and the FIR number if filed).",
+  "The member has been told the outcome and any change made.",
+];
+
+const SUB_RULES: SubRule[] = [
+  {
+    match: /staff theft|items taken from trainer|payment held by staff|cash deposit discrepancy/i,
+    dept: "MGT", role: "Studio Manager", prio: "P0", outcome: "Escalate to management",
+    desc: "Money or belongings may have been taken or held back by a staff member. Handle discreetly: only the studio manager and HR should see the details.",
+    steps: [
+      "Tell the studio manager straight away; do not discuss it with the team or confront the person.",
+      "Secure the evidence: cash count, Momence / POS records, CCTV for the window.",
+      "Record the facts only (amounts, times, who had access) - no conclusions.",
+      "Studio manager and HR decide the next step (statement, suspension, recovery).",
+    ],
+    done: [
+      "Evidence is secured and the facts are recorded.",
+      "HR and management have decided and recorded the outcome.",
+      "Any money owed to a member or the studio is recovered or refunded, with the reference noted.",
+    ],
+  },
+  {
+    match: /theft|stolen/i,
+    dept: "MGT", role: "Studio Manager", prio: "P1", outcome: "Escalate to management",
+    desc: "A member's or the studio's belongings are believed stolen at the studio. Not for items simply left behind - use lost & found for those.",
+    steps: THEFT_STEPS, done: THEFT_DONE,
+  },
+  {
+    match: /missing towels/i,
+    dept: "FAC", role: "Facilities Manager", prio: "P2", outcome: "Fix the issue",
+    desc: "Towels are running short or disappearing. Count what was issued against what came back before assuming theft.",
+    steps: [
+      "Count towels in stock, in laundry and issued today.",
+      "Compare with the opening count and the laundry log.",
+      "Restock from the backup or order more so classes are covered.",
+      "If the gap keeps recurring, start an issue / return log at the desk.",
+    ],
+    done: ["Counts are reconciled and stock is back to the class requirement.", "Any order raised is noted with quantity and cost."],
+  },
+  {
+    match: /lost|forgetting|misplaced|shoes\/workout gear/i,
+    dept: "OPS", role: "Studio Manager", prio: "P3", outcome: "Action the request",
+    desc: "Something was left behind or misplaced at the studio. If it may have been stolen, use the theft template instead.",
+  },
+  {
+    match: /harassment|abusive|disruptive|trespass/i,
+    dept: "MGT", role: "Studio Manager", prio: "P0", outcome: "Escalate to management",
+    desc: "Someone has been harassed, threatened or made unsafe, or a person is behaving abusively or is somewhere they shouldn't be. Keep the details confidential.",
+    steps: [
+      "Make everyone safe: separate the people involved; call building security or 112 if there is any threat.",
+      "Inform the studio manager immediately. If a staff member is involved, inform HR / the POSH committee.",
+      "Record what happened in the reporter's words, with time, place, witnesses and CCTV reference.",
+      "Studio manager decides on a warning, ban or membership suspension in Momence, and tells the person in writing.",
+      "Check in with the person affected within 24 hours and record what support was offered.",
+    ],
+    done: [
+      "The people affected are safe and have been followed up.",
+      "The decision (warning, ban, suspension, police) is recorded and actioned in Momence.",
+      "Only those who need to know have the details.",
+    ],
+  },
+  {
+    match: /physical discomfort|cramping|dizziness/i,
+    dept: "TRN", role: "Training Manager", prio: "P1", outcome: "Fix the issue",
+    desc: "A member felt unwell or uncomfortable during class (cramp, dizziness, nausea). For an actual injury, use the client injury report.",
+    steps: [
+      "Stop the member, sit them down, give water and stay with them; call 108 if symptoms don't settle.",
+      "Note the symptoms, class, time and what they were doing.",
+      "Trainer checks the member before they leave and advises them to see a doctor if needed.",
+      "Call the member the next day and record how they are.",
+    ],
+    done: ["The member was checked on the next day and how they are is recorded.", "The trainer's account and any change to cueing or modifications are noted."],
+  },
+  {
+    match: /camera surveillance|cctv/i,
+    dept: "FAC", role: "Facilities Manager", prio: "P2", outcome: "Fix the issue",
+    desc: "A CCTV camera, the recorder or footage access isn't working.",
+    steps: [
+      "Check which cameras are down and whether the recorder (DVR / NVR) is recording.",
+      "Restart the recorder and check power / network to the affected cameras.",
+      "Call the CCTV vendor if not back within the day; note the job number.",
+      "Confirm all cameras record and footage can be played back.",
+    ],
+    done: ["Every camera records and playback works.", "The vendor job number and cost are noted."],
+  },
+  {
+    match: /music system|music volume|speaker/i,
+    dept: "FAC", role: "Facilities Manager", prio: "P2", outcome: "Fix the issue",
+    desc: "In-studio sound is too loud, too quiet or cutting out during classes.",
+    steps: [
+      "Check the volume limits on the amplifier and mixer against the studio standard.",
+      "Test each speaker and the trainer mic channel.",
+      "Call the AV vendor for faults the team can't fix; note the job number.",
+      "Confirm with the next class's trainer that sound is right.",
+    ],
+    done: ["Sound is at the studio standard, confirmed by a trainer.", "Any vendor job number and cost are noted."],
+  },
+  {
+    match: /streaming|virtual class video/i,
+    dept: "ITS", role: "IT & Systems Lead", prio: "P2", outcome: "Fix the issue",
+    desc: "Online / virtual class video or streaming is buffering, poor quality or failing.",
+  },
+  {
+    match: /website|social media/i,
+    dept: "MKT", role: "Marketing Manager", prio: "P3", outcome: "Fix the issue",
+    desc: "Something on the website or social media isn't working, is wrong, or a message hasn't been answered.",
+    steps: [
+      "Capture the page / post, device and a screenshot of what's wrong.",
+      "Fix it, or raise it with the web or social agency with the screenshot.",
+      "Reply to any member who reported it.",
+    ],
+    done: ["The page or post is fixed and checked on mobile.", "Anyone who reported it has had a reply."],
+  },
+  {
+    match: /cash counting machine/i,
+    dept: "FAC", role: "Facilities Manager", prio: "P2", outcome: "Fix the issue",
+    desc: "The cash counting machine at the desk isn't working or counts wrongly.",
+  },
+  {
+    match: /class capacity|overcrowding in class/i,
+    dept: "SCH", role: "Scheduling Lead", prio: "P1", outcome: "Action the request",
+    desc: "A class is over capacity, members are being turned away, or the room is too full to train safely.",
+    steps: [
+      "Check booked count against the room's safe capacity in Momence.",
+      "For today: move the class to a bigger room, open the waitlist, or add a slot if a trainer is free.",
+      "Tell members who were turned away and offer the next slot.",
+      "Review the grid so the class has the right capacity going forward.",
+    ],
+    done: ["The class is within safe capacity in Momence.", "Members affected have been offered another slot."],
+  },
+  {
+    match: /compensation for service/i,
+    dept: "SCS", role: "Client Servicing Lead", prio: "P2", outcome: "Action the request",
+    desc: "A member is owed goodwill (a class credit, extension or refund) because the service fell short.",
+    steps: [
+      "Confirm what went wrong and what the member is asking for.",
+      "Decide the goodwill within your limit; anything above it needs the Client Servicing Lead's approval.",
+      "Add the credit / extension in Momence, or raise the refund with Payments.",
+      "Confirm it to the member in writing.",
+    ],
+    done: ["The goodwill is applied in Momence (or refund raised) with the amount noted.", "Approval is on the ticket when it was above your limit.", "The member has it in writing."],
+  },
+  {
+    match: /cancellation \/ discontinuation/i,
+    dept: "MEM", role: "Memberships Manager", prio: "P2", outcome: "Action the request",
+    desc: "A member wants to cancel or stop their membership. Check the notice period and whether a freeze or transfer would suit them better.",
+    steps: [
+      "Call the member and understand why; offer a freeze or transfer if it fits - no pressure.",
+      "Check the plan's notice period and any dues in Momence.",
+      "Process the cancellation in Momence with the end date and reason.",
+      "Stop any auto-debit and confirm the end date in writing.",
+    ],
+    done: ["Cancellation is processed in Momence with the end date.", "Any auto-debit is stopped.", "The member has the end date in writing."],
+  },
+  {
+    match: /over-promising|miscommunication on offers|knowledge of membership policies|tandc/i,
+    dept: "SCS", role: "Client Servicing Lead", prio: "P2", outcome: "Fix the issue",
+    desc: "A member was told something that isn't right - an offer, policy or promise that doesn't match what we deliver.",
+    steps: [
+      "Record exactly what was promised or said, by whom and when.",
+      "Check it against the current offer / policy and decide whether to honour it.",
+      "Call the member with the correct position and any goodwill.",
+      "Brief or coach the staff member and fix the source (script, post, T&Cs wording).",
+    ],
+    done: ["The member has the correct position and any goodwill is applied.", "The staff member is briefed and the source wording is corrected."],
+  },
+  {
+    match: /competitor solicitation|poaching/i,
+    dept: "MGT", role: "Studio Manager", prio: "P1", outcome: "Escalate to management",
+    desc: "Someone (often a trainer or ex-staff member) is soliciting our members for a competitor.",
+    steps: [
+      "Collect the evidence: screenshots, messages, which members were approached and by whom.",
+      "Inform the studio manager and HR; do not confront the person.",
+      "HR checks the contract terms and decides the action.",
+      "Reassure affected members if needed.",
+    ],
+    done: ["Evidence is on the ticket.", "HR's decision is recorded."],
+  },
+  {
+    match: /themed classes|challenges and rewards|sustainable|charging stations|background music selection|music preferences|decor|child-friendly|lighting preferences|scent|coffee and refreshments|merchandise|member recognition|brand (positioning|perception|event)|collaborations|additional (classes|waiting area)|seating|session length|weekend vs|class frequency|class duration|trainer preferences|feedback fatigue|lockers needed|perception of pricing/i,
+    prio: "P3", outcome: "Information only", idea: true,
+  },
+];
+
+function ruleFor(subcategory: string): SubRule | undefined {
+  return SUB_RULES.find((r) => r.match.test(subcategory));
+}
+
+/** Questions about how the client felt only belong where a client was part of it. */
+const NO_CLIENT_VOICE = new Set(["Repair and Maintenance", "Studio Amenities and Facilities", "Operating Systems", "Tech Issues", "Internal Operations & Admin"]);
+const CLIENT_VOICE_KEYS = new Set(["verbatim", "sentiment"]);
+
+/** One plain line on when to use a generated template, per category. */
+const CATEGORY_WHEN: Record<string, (sub: string) => string> = {
+  "Repair and Maintenance": (s) => `Something at the studio needs repair or servicing: ${s}. Say where it is, whether it's safe to use, and since when.`,
+  "Studio Amenities and Facilities": (s) => `An amenity isn't up to standard: ${s}. Say what's missing or wrong and whether members noticed.`,
+  "Operating Systems": (s) => `A studio system or tool isn't working: ${s}. Include the exact error, who's affected and a screenshot.`,
+  "Tech Issues": (s) => `A tech problem affecting members or staff: ${s}. Include the device, the exact error and a screenshot.`,
+  "Pricing and Memberships": (s) => `A membership or pricing request or question: ${s}. Link the member in Momence and say what they're asking for.`,
+  Scheduling: (s) => `A schedule or class request: ${s}. Say which class / slot, what should change and who asked.`,
+  "Class Experience": (s) => `Feedback about a class: ${s}. Say which class, trainer and what happened.`,
+  "Trainer Feedback": (s) => `Feedback about a trainer: ${s}. Say which class and what was observed; it's shared with the trainer privately.`,
+  "Customer Service and Communication": (s) => `A member's experience with our team: ${s}. Say who they dealt with and what they want now.`,
+  "Brand Feedback": (s) => `Feedback about the brand: ${s}. Capture it in the member's words, with where they saw it.`,
+  "Safety and Security": (s) => `A safety or security concern: ${s}. If anyone is at risk right now, make them safe first.`,
+  "Theft and Lost Items": (s) => `${s}. Record the item, where and when it was last seen.`,
+  "Internal Operations & Admin": (s) => `An internal task or request: ${s}. Say what's needed, by when and who needs it.`,
+  Miscellaneous: (s) => `${s}. Say what happened, where, and who it affects.`,
+};
+
+
 /** FNV-1a, base 36: stable short code from the taxonomy pair. */
 function codeFor(category: string, subcategory: string) {
   let h = 0x811c9dc5;
@@ -180,9 +428,15 @@ function mostCommon<T>(values: T[]): T | undefined {
 const PADDING = ["actionsTaken", "sinceWhen", "memberImpact", "photoTaken", "managerInformed"];
 const MIN_FIELDS = 4;
 const MAX_FIELDS = 10;
+const MAX_REQUIRED = 5;
 
-function formFields(category: string, subcategory: string): TemplateField[] {
-  const fields = specFor(category, subcategory).map(fieldFromSpec).filter((f): f is TemplateField => f !== null);
+function formFields(category: string, subcategory: string, idea = false): TemplateField[] {
+  const fields = specFor(category, subcategory)
+    .filter((k) => !(NO_CLIENT_VOICE.has(category) && CLIENT_VOICE_KEYS.has(k.replace(/^\?/, ""))))
+    .map(fieldFromSpec)
+    .filter((f): f is TemplateField => f !== null);
+  // An idea only needs the idea itself; every other question is optional.
+  if (idea) fields.forEach((f, i) => (f.required = i === 0));
   for (const key of PADDING) {
     if (fields.length >= MIN_FIELDS) break;
     if (fields.some((f) => f.id === key)) continue;
@@ -190,6 +444,9 @@ function formFields(category: string, subcategory: string): TemplateField[] {
     if (f) fields.push(f);
   }
   const out = fields.slice(0, MAX_FIELDS);
+  // Only what staff can answer in the first minute is required; the rest stays optional.
+  let required = 0;
+  for (const f of out) if (f.required && ++required > MAX_REQUIRED) f.required = false;
   // Every form needs at least one answer before it can be filed.
   if (!out.some((f) => f.required)) {
     const first = out.find((f) => f.type === "textarea" || f.type === "text") ?? out[0];
@@ -212,27 +469,40 @@ export function coverageTemplates(existing: readonly TicketTemplate[]): TicketTe
 
     for (const subcategory of subs) {
       if (covered.has(`${category}|${subcategory}`)) continue;
+      const rule = ruleFor(subcategory);
       const pri = inferPriority(subcategory);
-      const prio = PRIORITY[pri];
-      const fields = formFields(category, subcategory);
+      const prio = rule?.prio ?? PRIORITY[pri];
+      const fields = formFields(category, subcategory, rule?.idea);
       // Some sub-category names exist under two categories ("Engagement with Clients").
-      let title = subcategory.replace(/\/$/, "");
+      let title = subcategory.replace(/\/$/, "").replace(/TandC/g, "T&Cs");
       if (titles.has(title.toLowerCase())) title = `${title} (${category})`;
       titles.add(title.toLowerCase());
-      const description = `Report a ${category.toLowerCase()} issue about ${subcategory.replace(/\/$/, "").toLowerCase()}: capture the details below so the right team can act on it first time.`;
+      const subName = subcategory.replace(/\/$/, "").replace(/TandC/g, "T&Cs");
+      const description =
+        rule?.desc ??
+        (rule?.idea
+          ? `A suggestion or preference about ${subName.toLowerCase()}. Capture the idea and who asked; it goes to the owning team to consider.`
+          : (CATEGORY_WHEN[category] ?? CATEGORY_WHEN.Miscellaneous)(subName));
+      const ideaSteps = [
+        "Capture the suggestion in the member's (or staff member's) words, and how many people asked.",
+        "Share it with the owning team at their next review.",
+        "Record the decision (do it / later / no) and tell whoever asked.",
+      ];
+      const playSteps = rule?.steps ?? (rule?.idea ? ideaSteps : steps);
+      const done = rule?.done ?? (rule?.idea ? ["The owning team has decided and whoever asked has been told."] : RESOLVED_WHEN[category]);
       out.push({
         code: codeFor(category, subcategory),
         title,
         description,
         category,
         subcategory,
-        departmentCode: dept,
+        departmentCode: rule?.dept ?? dept,
         defaultPriority: prio,
         defaultSeverity: SEVERITY_BY_PRIORITY[prio],
-        suggestedAssigneeRole: role,
+        suggestedAssigneeRole: rule?.role ?? role,
         requiredFields: fields.filter((f) => f.required).map((f) => f.id),
-        recommendedActions: steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
-        estimatedResolutionHours: PRIORITY_SLA_HOURS[pri],
+        recommendedActions: playbookText(playSteps, done),
+        estimatedResolutionHours: rule?.prio ? HOURS_BY_PRIORITY[rule.prio] : PRIORITY_SLA_HOURS[pri],
         form: {
           category,
           subcategory,
@@ -240,7 +510,7 @@ export function coverageTemplates(existing: readonly TicketTemplate[]): TicketTe
           summaryPrefill: description,
           occurred: "Earlier today",
           reportedBy: "A member told me about it",
-          requestedOutcome: outcome,
+          requestedOutcome: rule?.outcome ?? outcome,
           fields,
         },
       });

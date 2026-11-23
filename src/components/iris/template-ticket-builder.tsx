@@ -44,7 +44,7 @@ import { IRIS_STUDIOS, OCCURRED_OPTIONS, REPORTED_BY_OPTIONS, SYSTEMS, studioAre
 import { KNOWLEDGE_ARTICLES } from "@/lib/iris/knowledge-base-data";
 import { articleSubcategory } from "@/lib/iris/knowledge-base/groups";
 import { kbCategoryLabel } from "@/lib/iris/knowledge-base/taxonomy";
-import { REQUESTED_OUTCOMES, type TemplateField, type TicketTemplate } from "@/lib/iris/template-types";
+import { REQUESTED_OUTCOMES, splitPlaybook, type TemplateField, type TicketTemplate } from "@/lib/iris/template-types";
 import { initialFieldValues, isFieldFilled, resolveTemplateForm } from "@/lib/iris/template-form";
 import { templateCategoryLabel } from "@/lib/iris/template-taxonomy";
 import { MomenceSearchField } from "@/components/iris/momence-search-field";
@@ -95,10 +95,7 @@ function newIdempotencyKey(): string {
 }
 
 function playbookSteps(text: string): string[] {
-  return text
-    .split("\n")
-    .map((l) => l.trim().replace(/^(\d+[.)]|[-•*])\s*/, ""))
-    .filter(Boolean);
+  return splitPlaybook(text).steps;
 }
 
 function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTicketBuilderProps & { onAnother: () => void }) {
@@ -650,6 +647,16 @@ function BuilderForm({ template, onBack, onShowDetails, onAnother }: TemplateTic
                 </li>
               ))}
             </ol>
+            {splitPlaybook(template.recommendedActions).done.length > 0 && (
+              <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">Resolved when</div>
+                <ul className="space-y-1 text-[12px] text-foreground/90">
+                  {splitPlaybook(template.recommendedActions).done.map((d, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-emerald-600">✓</span><span className="leading-relaxed">{d}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
               <Info className="w-3 h-3" />
               Filed with the ticket as the recommended resolution.

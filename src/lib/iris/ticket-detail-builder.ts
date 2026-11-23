@@ -1,3 +1,4 @@
+import { splitPlaybook } from "./template-types";
 // IRIS - Advanced Ticket Detail Builder
 // Produces comprehensive routing, SLA, investigation, and resolution data for the ticket modal
 
@@ -989,7 +990,7 @@ function buildResolutionDetail(state: ConversationState, template: any, priority
 
   // Build action steps from template recommended actions
   if (template?.recommendedActions) {
-    const actionLines = template.recommendedActions.split("\n").filter((line: string) => line.trim());
+    const actionLines = splitPlaybook(template.recommendedActions).steps;
     actionLines.forEach((line: string, i: number) => {
       const cleanLine = line.replace(/^\d+\.\s*/, "").trim();
       if (cleanLine) {
