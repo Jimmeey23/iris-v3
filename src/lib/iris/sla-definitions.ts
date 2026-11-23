@@ -55,8 +55,8 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
     priority: "P0",
     name: "Critical",
     description: "Safety incidents, major studio operational disruptions, critical system failures affecting multiple operations. Immediate intervention required.",
-    responseTargetMins: 15,
-    resolutionTargetMins: 240,
+    responseTargetMins: 30,
+    resolutionTargetMins: 480,
     escalationThresholdMins: 30,
     businessHoursOnly: false,
     autoActions: [
@@ -130,10 +130,10 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
     priority: "P1",
     name: "High",
     description: "Significant client-facing disruptions, payment or membership issues with substantial impact, essential equipment failures, issues affecting scheduled classes or service delivery.",
-    responseTargetMins: 60,
-    resolutionTargetMins: 720,
+    responseTargetMins: 120,
+    resolutionTargetMins: 840,
     escalationThresholdMins: 90,
-    businessHoursOnly: false,
+    businessHoursOnly: true,
     autoActions: [
       {
         id: "P1-A1",
@@ -207,7 +207,7 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
     name: "Medium",
     description: "Individual client requests, non-critical technical issues, maintenance requirements that do not immediately disrupt operations.",
     responseTargetMins: 240,
-    resolutionTargetMins: 2880,
+    resolutionTargetMins: 2520,
     escalationThresholdMins: 360,
     businessHoursOnly: true,
     autoActions: [
@@ -279,8 +279,8 @@ export const SLA_DEFINITIONS: SLADefinition[] = [
     priority: "P3",
     name: "Low",
     description: "General enquiries, minor improvements, non-urgent administrative requests.",
-    responseTargetMins: 720,
-    resolutionTargetMins: 10080,
+    responseTargetMins: 840,
+    resolutionTargetMins: 4200,
     escalationThresholdMins: 1440,
     businessHoursOnly: true,
     autoActions: [

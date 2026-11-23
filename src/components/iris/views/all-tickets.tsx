@@ -148,7 +148,8 @@ function usePersisted<T>(key: string, initial: T): [T, (v: T) => void] {
 export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "my" | "department" | "escalations" }) {
   const { selectedTicketId, selectTicket, ticketFilters, setTicketFilter, resetTicketFilters, currentUser, dataVersion } = useAppStore();
   const [view, setView] = usePersisted<ViewId>("iris.tickets.view", "table");
-  const [sortBy, setSortBy] = usePersisted<SortKey>("iris.tickets.sort", "created");
+  // Not persisted: the list always opens newest first. A different sort lasts only for this visit.
+  const [sortBy, setSortBy] = React.useState<SortKey>("created");
   const [group1, setGroup1] = usePersisted<GroupKey>("iris.tickets.group1", "none");
   const [group2, setGroup2] = usePersisted<GroupKey>("iris.tickets.group2", "none");
   // null = not chosen yet: default to Open, or All when nothing is open (so nobody lands on an empty list).
@@ -215,7 +216,7 @@ export function AllTicketsView({ filterMode = "all" }: { filterMode?: "all" | "m
     if (ticketFilters.slaStatus.length) r = r.filter((t) => ticketFilters.slaStatus.includes(t.slaStatus));
     const s = [...r];
     const time = (d: string | Date) => new Date(d).getTime();
-    if (sortBy === "created") s.sort((a, b) => time(b.createdAt) - time(a.createdAt));
+    if (sortBy === "created") s.sort((a, b) => time(b.createdAt) - time(a.createdAt) || b.ticketId.localeCompare(a.ticketId, undefined, { numeric: true }));
     else if (sortBy === "updated") s.sort((a, b) => time(b.updatedAt) - time(a.updatedAt));
     else if (sortBy === "priority") s.sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || time(b.createdAt) - time(a.createdAt));
     else if (sortBy === "sla") s.sort((a, b) => (SLA_RANK[a.slaStatus] ?? 9) - (SLA_RANK[b.slaStatus] ?? 9) || time(a.slaResolutionTarget ?? a.createdAt) - time(b.slaResolutionTarget ?? b.createdAt));
