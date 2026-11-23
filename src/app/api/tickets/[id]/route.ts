@@ -218,9 +218,11 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
           c.query<{
             response_target_mins: number;
             resolution_target_mins: number;
+            response_target_days: number | null;
+            resolution_target_days: number | null;
             business_hours_only: boolean;
           }>(
-            "select response_target_mins, resolution_target_mins, business_hours_only from sla_definitions where priority = $1 limit 1",
+            "select response_target_mins, resolution_target_mins, response_target_days, resolution_target_days, business_hours_only from sla_definitions where priority = $1 limit 1",
             [b.priority],
           ),
           c.query("select value from app_settings where key = 'sla.business_hours'"),
@@ -231,6 +233,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
             createdAt: cur.created_at ? new Date(cur.created_at) : new Date(),
             responseTargetMins: Number(def.response_target_mins),
             resolutionTargetMins: Number(def.resolution_target_mins),
+            responseTargetDays: def.response_target_days,
+            resolutionTargetDays: def.resolution_target_days,
             businessHoursOnly: Boolean(def.business_hours_only),
             businessHours: (bhRes.rows[0]?.value ?? null) as BusinessHoursMap | null,
           });

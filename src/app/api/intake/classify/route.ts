@@ -104,8 +104,8 @@ export async function POST(request: Request) {
             where key in ('routing.auto_assign', 'routing.load_balance', 'routing.studio_affinity',
                           'routing.round_robin_fallback', 'routing.require_acknowledgment', 'sla.business_hours')`,
         ),
-        c.query<{ priority: string; response_target_mins: number; resolution_target_mins: number; business_hours_only: boolean }>(
-          "select priority, response_target_mins, resolution_target_mins, business_hours_only from sla_definitions",
+        c.query<{ priority: string; response_target_mins: number; resolution_target_mins: number; response_target_days: number | null; resolution_target_days: number | null; business_hours_only: boolean }>(
+          "select priority, response_target_mins, resolution_target_mins, response_target_days, resolution_target_days, business_hours_only from sla_definitions",
         ),
       ]);
       const employees = employeesRes.rows;
@@ -183,6 +183,8 @@ export async function POST(request: Request) {
               ...computeSlaTargets({
                 responseTargetMins: slaDef.response_target_mins,
                 resolutionTargetMins: slaDef.resolution_target_mins,
+                responseTargetDays: slaDef.response_target_days,
+                resolutionTargetDays: slaDef.resolution_target_days,
                 businessHoursOnly: Boolean(slaDef.business_hours_only),
                 businessHours: (settings["sla.business_hours"] ?? null) as BusinessHoursMap | null,
               }),

@@ -516,16 +516,18 @@ async function fileTicket(i: {
     const id = rows[0].id as string;
 
     const slaDef = (
-      await c.query<{ response_target_mins: number; resolution_target_mins: number; business_hours_only: boolean }>(
-        "select response_target_mins, resolution_target_mins, business_hours_only from sla_definitions where priority = $1 limit 1",
+      await c.query<{ response_target_mins: number; resolution_target_mins: number; response_target_days: number | null; resolution_target_days: number | null; business_hours_only: boolean }>(
+        "select response_target_mins, resolution_target_mins, response_target_days, resolution_target_days, business_hours_only from sla_definitions where priority = $1 limit 1",
         [priority],
       )
     ).rows[0];
-    if (slaDef?.business_hours_only) {
+    if (slaDef?.business_hours_only || slaDef?.response_target_days || slaDef?.resolution_target_days) {
       const t = computeSlaTargets({
         createdAt: rows[0].created_at ? new Date(rows[0].created_at) : new Date(),
         responseTargetMins: Number(slaDef.response_target_mins),
         resolutionTargetMins: Number(slaDef.resolution_target_mins),
+        responseTargetDays: slaDef.response_target_days,
+        resolutionTargetDays: slaDef.resolution_target_days,
         businessHoursOnly: true,
         businessHours: (settings["sla.business_hours"] ?? null) as BusinessHoursMap | null,
       });

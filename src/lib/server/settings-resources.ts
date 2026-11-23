@@ -42,6 +42,7 @@ export const RESOURCES: Record<string, Resource> = {
     columns: {
       name: "text", description: "text", response_target_mins: "int", resolution_target_mins: "int",
       escalation_threshold_mins: "int", business_hours_only: "bool",
+      response_target_days: "int", resolution_target_days: "int",
     },
     create: false, remove: false,
   },
