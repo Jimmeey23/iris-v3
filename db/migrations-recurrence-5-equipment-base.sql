@@ -29,8 +29,15 @@ create table if not exists iris.equipment (
   updated_at   timestamptz not null default now()
 );
 -- One row per (studio, kind, number); un-numbered items share a single row per studio and kind.
-create unique index if not exists equipment_identity_key
-  on iris.equipment (studio_code, kind, coalesce(number, -1));
+-- Skipped once migrations-recurrence-6-equipment-refs.sql has replaced it with
+-- equipment_identity_key2 (which also keys on location), so re-runs don't fail on
+-- several un-numbered mics in one studio.
+do $$ begin
+  if to_regclass('iris.equipment_identity_key2') is null then
+    create unique index if not exists equipment_identity_key
+      on iris.equipment (studio_code, kind, coalesce(number, -1));
+  end if;
+end $$;
 
 create table if not exists iris.equipment_tickets (
   equipment_id uuid not null references iris.equipment(id) on delete cascade,
