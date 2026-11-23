@@ -138,6 +138,13 @@ export async function runDueWork(): Promise<{ ran: SweepJob[] }> {
   )
     ran.push("recurrence");
   if (
+    await run("enrich", async () => {
+      const { enrichOpenBacklog } = await import("./ai-enrich");
+      await enrichOpenBacklog(5);
+    })
+  )
+    ran.push("enrich");
+  if (
     await run("digest", async () => {
       await sendWeeklyDigests();
     })

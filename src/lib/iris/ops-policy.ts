@@ -51,6 +51,8 @@ export const SWEEP_WINDOWS = {
   recurrence: 900,
   /** Weekly digest: checked every 15 minutes; it only sends on Monday from 09:00 IST, once per person. */
   digest: 900,
+  /** Open tickets without AI close-out questions (created by the database, AI was down...). */
+  enrich: 600,
 } as const;
 
 export type SweepJob = keyof typeof SWEEP_WINDOWS;

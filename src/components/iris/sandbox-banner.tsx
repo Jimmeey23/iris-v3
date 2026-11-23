@@ -100,11 +100,18 @@ export function SandboxBanner() {
   if (!s?.isAdmin || !s.configured) return null;
   if (!s.active) return <SandboxTierPicker active={false} current={null} />;
 
-  const reset = async () => {
+  const reset = async (source: "live" | "mock") => {
     setBusy(true);
     try {
-      const r = await api<{ created: string[]; recurrenceChecks: number }>("/api/sandbox", { method: "POST", json: { action: "reset" } });
-      toast.success(`Sandbox reset: ${r.created.length} mock tickets, ${r.recurrenceChecks} recurrence checks raised`);
+      const r = await api<{ created: string[]; recurrenceChecks: number; source: "live" | "mock"; total: number }>("/api/sandbox", {
+        method: "POST",
+        json: { action: "reset", source },
+      });
+      toast.success(
+        r.source === "live"
+          ? `Sandbox now matches live: ${r.total} tickets copied, ${r.created.length} open`
+          : `Sandbox reset: ${r.created.length} mock tickets, ${r.recurrenceChecks} recurrence checks raised`,
+      );
       window.location.reload();
     } catch (e) {
       toast.error((e as Error).message);
@@ -133,7 +140,7 @@ export function SandboxBanner() {
             Change access level
           </Button>
           <Button size="sm" variant="outline" className="h-7 text-[11px] bg-background/70" onClick={() => setConfirm(true)} disabled={busy}>
-            <RotateCcw className="w-3 h-3 mr-1" />{busy ? "Resetting…" : "Reset mock data"}
+            <RotateCcw className="w-3 h-3 mr-1" />{busy ? "Resetting…" : "Reset from live"}
           </Button>
           <Button size="sm" className="h-7 text-[11px] bg-amber-600 hover:bg-amber-700 text-white" onClick={() => setSandbox(false)} disabled={busy}>
             <LogOut className="w-3 h-3 mr-1" />Exit sandbox
@@ -143,15 +150,17 @@ export function SandboxBanner() {
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset the training sandbox?</AlertDialogTitle>
+            <AlertDialogTitle>Reset the training sandbox from live?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every ticket in the sandbox is deleted and the mock set is created again, including recurrence checks.
-              People, templates and settings are refreshed from the real IRIS. The real database is not changed.
+              Every practice ticket and change in the sandbox is deleted. The sandbox then gets an exact copy of the
+              real tickets as they are right now (same open tickets, owners, SLA, comments and history), and people,
+              templates and settings are refreshed. The real IRIS is only read, never changed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={reset}>Reset sandbox</AlertDialogAction>
+            <Button variant="outline" onClick={() => { setConfirm(false); void reset("mock"); }}>Use scripted mock tickets</Button>
+            <AlertDialogAction onClick={() => reset("live")}>Copy live tickets</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

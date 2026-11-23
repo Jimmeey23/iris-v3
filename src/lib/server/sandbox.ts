@@ -13,9 +13,10 @@ import { MOCK_TICKETS, type MockTicket } from "./sandbox-mock";
  *    on the real side. Secrets are never copied: integration credentials are
  *    dropped and password hashes are replaced.
  *  - resetSandbox(): wipes every ticket (and everything hanging off tickets)
- *    in the sandbox and seeds the mock ticket set, driving the real triggers
- *    (ticket numbers, SLA, activity log, recurrence checks) the same way the
- *    app does.
+ *    in the sandbox, then copies the REAL tickets with their history (comments,
+ *    activity, escalations, recurrence checks...) exactly as they are, so the
+ *    sandbox shows the same open tickets as live. `source: "mock"` seeds the
+ *    scripted mock set instead (also the fallback when live has no tickets).
  *
  * Nothing here ever writes to the real database.
  */
@@ -65,6 +66,24 @@ const TICKET_TABLES = [
   "audit_log",
   "anomalies",
   "daily_briefings",
+] as const;
+
+/**
+ * Ticket data copied from the real database on reset, parents before children.
+ * Not copied: notifications, outbox, email/webhook logs, AI usage, conversations
+ * (per-person or delivery records that would only confuse practice).
+ */
+const LIVE_TICKET_TABLES = [
+  "tickets",
+  "ticket_comments",
+  "ticket_activities",
+  "ticket_attachments",
+  "ticket_resolutions",
+  "escalation_log",
+  "sla_extension_requests",
+  "sla_trigger_log",
+  "recurrence_checks",
+  "equipment_tickets",
 ] as const;
 
 type TableMeta = { cols: string[]; pk: string[] };
@@ -164,6 +183,64 @@ export async function syncReferenceData(): Promise<Record<string, number>> {
   return counts;
 }
 
+/**
+ * Copies every real ticket and its history into the (already emptied) sandbox, as-is:
+ * same numbers, statuses, owners, SLA targets, timestamps and AI close-out questions.
+ * Triggers are switched off while copying so nothing is recomputed or re-logged, then
+ * each table's id sequence is moved past the copied rows. Read-only on the real side.
+ */
+async function copyLiveTickets(): Promise<{ open: string[]; total: number }> {
+  const data: Record<string, Record<string, unknown>[]> = {};
+  await asSystemMain(async (c) => {
+    for (const t of LIVE_TICKET_TABLES) {
+      if (!(await tableMeta(c, t))) continue;
+      data[t] = (await c.query(`select * from iris.${q(t)}`)).rows as Record<string, unknown>[];
+    }
+  });
+
+  await asSandboxSystem(async (c) => {
+    for (const t of LIVE_TICKET_TABLES) {
+      const rows = data[t];
+      if (!rows?.length) continue;
+      const meta = await tableMeta(c, t);
+      if (!meta) continue;
+      const cols = meta.cols.filter((col) => col in rows[0]);
+      const list = cols.map(q).join(", ");
+      await c.query(`alter table iris.${q(t)} disable trigger user`);
+      try {
+        for (let i = 0; i < rows.length; i += 200) {
+          await c.query(
+            `insert into iris.${q(t)} (${list})
+             select ${list} from json_populate_recordset(null::iris.${q(t)}, $1::json)
+             on conflict do nothing`,
+            [JSON.stringify(rows.slice(i, i + 200))],
+          );
+        }
+      } finally {
+        await c.query(`alter table iris.${q(t)} enable trigger user`);
+      }
+      // Serial ids (activities, comments, logs): continue after the copied rows.
+      for (const col of meta.cols) {
+        const seq = (await c.query<{ s: string | null }>("select pg_get_serial_sequence($1, $2) as s", [`iris.${t}`, col])).rows[0]?.s;
+        if (seq) await c.query(`select setval($1, greatest((select coalesce(max(${q(col)}), 0) from iris.${q(t)}), 1))`, [seq]);
+      }
+    }
+    // Workload counters follow the copied assignments.
+    await c.query(
+      `update iris.employees e set workload = coalesce((
+         select count(*) from iris.tickets t
+          where t.status not in ('resolved', 'closed') and (t.assignee_id = e.id or e.id = any(coalesce(t.assignee_ids, '{}')))
+       ), 0)`,
+    );
+  });
+
+  const tickets = data.tickets ?? [];
+  return {
+    open: tickets.filter((t) => !["resolved", "closed"].includes(String(t.status))).map((t) => String(t.ticket_id)),
+    total: tickets.length,
+  };
+}
+
 type Pick = { id: string; name: string; dept: string; user_id: string | null };
 
 async function people(c: PoolClient) {
@@ -256,8 +333,36 @@ async function insertMock(
  * `reporterUserId` is the admin running the reset: they report the mock tickets, so the
  * recurrence checks (assigned to the original reporter) land in their queue.
  */
-export async function resetSandbox(reporterUserId: string): Promise<{ created: string[]; recurrenceChecks: number }> {
+export async function resetSandbox(
+  reporterUserId: string,
+  opts: { source?: "live" | "mock" } = {},
+): Promise<{ created: string[]; recurrenceChecks: number; source: "live" | "mock"; total: number }> {
   await syncReferenceData();
+  await asSandboxSystem(async (c) => {
+    const existing = (await c.query<{ t: string }>(
+      `select tablename as t from pg_tables where schemaname = 'iris' and tablename = any($1)`,
+      [TICKET_TABLES as unknown as string[]],
+    )).rows.map((r) => `iris.${q(r.t)}`);
+    if (existing.length) await c.query(`truncate ${existing.join(", ")} cascade`);
+    // New practice tickets are numbered from P57-90001 so they never look like real ones.
+    await c.query("select setval('iris.ticket_number_seq', 90000, true)");
+    await c.query("update iris.employees set workload = 0");
+  });
+
+  if (opts.source !== "mock") {
+    const live = await copyLiveTickets();
+    if (live.total > 0) {
+      const raised = await asSandboxSystem(async (c) =>
+        Number((await c.query<{ n: number }>("select iris.materialize_recurrence_checks() as n")).rows[0]?.n ?? 0),
+      );
+      return { created: live.open, recurrenceChecks: raised, source: "live", total: live.total };
+    }
+  }
+  return seedMock(reporterUserId);
+}
+
+/** Seeds the scripted mock ticket set into an emptied sandbox. */
+async function seedMock(reporterUserId: string): Promise<{ created: string[]; recurrenceChecks: number; source: "mock"; total: number }> {
   return asSandboxSystem(async (c) => {
     const existing = (await c.query<{ t: string }>(
       `select tablename as t from pg_tables where schemaname = 'iris' and tablename = any($1)`,
@@ -284,7 +389,7 @@ export async function resetSandbox(reporterUserId: string): Promise<{ created: s
     const raised = await asSandboxSystem(async (c) =>
       Number((await c.query<{ n: number }>("select iris.materialize_recurrence_checks() as n")).rows[0]?.n ?? 0),
     );
-    return { created, recurrenceChecks: raised };
+    return { created, recurrenceChecks: raised, source: "mock" as const, total: created.length };
   });
 }
 
