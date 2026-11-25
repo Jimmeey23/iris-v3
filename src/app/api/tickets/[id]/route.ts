@@ -173,7 +173,8 @@ export async function PATCH(request: NextRequest, ctx: RouteContext<"/api/ticket
     }
     if (b.unlock === true) sets.push("metadata = metadata - 'legacy_import' - 'lock_assignment' - 'sla_exempt'");
   }
-  if (!sets.length) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  // extendSlaHours is applied inside the transaction below, so it counts as a change here.
+  if (!sets.length && extendHours <= 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   try {
     let before: BeforeSnapshot | null = null;
