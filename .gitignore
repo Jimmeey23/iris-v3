@@ -70,3 +70,9 @@ db/import/
 
 # Python media authoring tools
 __pycache__/
+
+# AI assistant artifacts (tool dumps, session files)
+tool-results/
+.claude/
+CLAUDE.local.md
+*.jsonl
